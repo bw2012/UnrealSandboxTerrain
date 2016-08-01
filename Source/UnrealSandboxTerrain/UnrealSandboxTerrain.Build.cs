@@ -39,6 +39,7 @@ public class UnrealSandboxTerrain : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+                "CustomMeshComponent", "ProceduralMeshComponent"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
