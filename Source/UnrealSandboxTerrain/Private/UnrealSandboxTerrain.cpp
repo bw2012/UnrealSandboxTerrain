@@ -7,7 +7,7 @@
 void FUnrealSandboxTerrainModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-	UE_LOG(LogTemp, Warning, TEXT("------------------ test1 ------------------"));
+	UE_LOG(LogTemp, Warning, TEXT("------------------ UnrealSandboxTerrain plugin initialize ------------------"));
 }
 
 void FUnrealSandboxTerrainModule::ShutdownModule()
