@@ -209,7 +209,7 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 // terrain generator
 // ================================================================================================
 
-PerlinNoise perlin_noise;
+usand::PerlinNoise perlin_noise;
 
 float groundLevel(FVector v) {
 	//float scale1 = 0.0035f; // small

@@ -2,7 +2,7 @@
 #include "SandboxPerlinNoise.h"
 
 
-PerlinNoise::PerlinNoise() {
+usand::PerlinNoise::PerlinNoise() {
 	srand(999666);
 
 	p = new int[256];
@@ -29,7 +29,7 @@ PerlinNoise::PerlinNoise() {
 	}
 }
 
-PerlinNoise::~PerlinNoise()
+usand::PerlinNoise::~PerlinNoise()
 {
 	delete p;
 	delete Gx;
@@ -38,7 +38,7 @@ PerlinNoise::~PerlinNoise()
 }
 
 
-float PerlinNoise::noise(float sample_x, float sample_y, float sample_z)
+float usand::PerlinNoise::noise(float sample_x, float sample_y, float sample_z)
 {
 	// Unit cube vertex coordinates surrounding the sample point
 	int x0 = int(floorf(sample_x));
