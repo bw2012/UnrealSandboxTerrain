@@ -1,9 +1,9 @@
 #pragma once
 
 #include "EngineMinimal.h"
-#include "ProceduralMeshComponent.h"
-#include "SandboxTerrainZone.h"
 #include "SandboxTerrainController.generated.h"
+
+class ASandboxTerrainZone;
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor
@@ -24,12 +24,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool GenerateOnlySmallSpawnPoint = false;
 	
+	static void digTerrainRoundHole(FVector v, float radius, float s);
+
 	static ASandboxTerrainController* instance;
 
 	TArray<FVector> zone_queue;
 	volatile int zone_queue_pos = 0;
 
-	FVector getZoneIndex(FVector v);
+	static FVector getZoneIndex(FVector v);
 
 private:
 	static TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;
@@ -37,4 +39,7 @@ private:
 	void spawnInitialZone();
 
 	ASandboxTerrainZone* addTerrainZone(FVector pos);
+
+	template<class H>
+	static void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler);
 };

@@ -1,5 +1,6 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
+#include "SandboxTerrainZone.h"
 #include "SandboxVoxeldata.h"
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -127,4 +128,53 @@ ASandboxTerrainZone* ASandboxTerrainController::addTerrainZone(FVector pos) {
 	ASandboxTerrainController::terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), zone);
 
 	return zone;
+}
+
+void ASandboxTerrainController::digTerrainRoundHole(FVector v, float radius, float s) {
+	UE_LOG(LogTemp, Warning, TEXT("test point -> %f %f %f"), v.X, v.Y, v.Z);
+}
+
+template<class H>
+void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
+	FVector base_zone_index = getZoneIndex(v);
+	/*
+	static const float vvv[3] = { -1, 0, 1 };
+	for (float x : vvv) {
+		for (float y : vvv) {
+			for (float z : vvv) {
+				FVector zone_index(x, y, z);
+				zone_index += base_zone_index;
+
+				ATerrainZone* zone = getZoneByVectorIndex(zone_index);
+
+				if (zone == NULL) {
+					UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f"), zone_index.X, zone_index.Y, zone_index.Z);
+					continue;
+				}
+
+				VoxelData* vd = zone->getVoxelData();
+
+				if (vd == NULL) {
+					UE_LOG(LogTemp, Warning, TEXT("voxel data not found %f %f %f"), zone_index.X, zone_index.Y, zone_index.Z);
+					continue;
+				}
+
+
+				bool is_changed = handler(vd, v, radius, s);
+				if (is_changed) {
+					vd->setChanged();
+					MeshData* md = zone->generateMesh(*vd);
+					vd->resetLastMeshRegenerationTime();
+
+					ZoneMakeTask zone_make_task;
+					zone_make_task.origin = zone->GetActorLocation();
+					zone_make_task.mesh_data = md;
+
+					sandboxAsyncAddZoneMakeTask(zone_make_task);
+				}
+
+			}
+		}
+	}
+	*/
 }
