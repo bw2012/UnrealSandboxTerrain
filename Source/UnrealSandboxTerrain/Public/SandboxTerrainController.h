@@ -33,13 +33,15 @@ public:
 
 	static FVector getZoneIndex(FVector v);
 
+	static ASandboxTerrainZone* getZoneByVectorIndex(FVector v);
+
+	template<class H>
+	static void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler);
+
 private:
 	static TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;
 
 	void spawnInitialZone();
 
 	ASandboxTerrainZone* addTerrainZone(FVector pos);
-
-	template<class H>
-	static void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler);
 };

@@ -30,14 +30,18 @@ public:
 
 	bool fillZone();
 
+	VoxelData* getVoxelData() { return voxel_data; }
+
+	void applyTerrainMesh(MeshData* voxel_data);
+
+	MeshData* generateMesh(VoxelData &voxel_data);
+
+	bool volatile isLoaded = false;
+
 private:
 	VoxelData* voxel_data;
 
 	void init();
-
-	MeshData* generateMesh(VoxelData &voxel_data);
-
-	void applyTerrainMesh(MeshData* voxel_data);
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
 	USandboxTerrainMeshComponent* MainTerrainMesh;

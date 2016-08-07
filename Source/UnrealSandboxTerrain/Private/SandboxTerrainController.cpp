@@ -1,11 +1,15 @@
+
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 #include "SandboxTerrainZone.h"
 #include "SandboxVoxeldata.h"
+#include "SandboxAsyncHelpers.h"
+#include <cmath>
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-
+	PrimaryActorTick.bCanEverTick = true;
+	zone_queue.Empty(); zone_queue_pos = 0;
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
@@ -74,6 +78,38 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
+
+	if (sandboxAsyncIsNextZoneMakeTask()) {
+		ZoneMakeTask zone_make_task = sandboxAsyncGetZoneMakeTask();
+		ASandboxTerrainZone* zone = getZoneByVectorIndex(getZoneIndex(zone_make_task.origin));
+		if (zone != NULL) {
+			if (zone_make_task.mesh_data != NULL) {
+				zone->applyTerrainMesh(zone_make_task.mesh_data);
+
+				if (zone_make_task.isNew) {
+					//zone->generateZoneObjects();
+					zone->isLoaded = true;
+				}
+				else {
+					if (!zone->isLoaded) {
+						// load zone json here
+						FVector v = zone->GetActorLocation();
+						v /= 1000;
+						//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
+						//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
+						zone->isLoaded = true;
+					}
+				}
+
+				//delete zone_make_task.mesh_data;
+
+				//FIXME delete mesh data after finish
+			}
+			else {
+				zone->makeTerrain();
+			}
+		}
+	}
 }
 
 //======================================================================================================================================================================
@@ -119,6 +155,14 @@ FVector ASandboxTerrainController::getZoneIndex(FVector v) {
 	return FVector((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
 }
 
+ASandboxTerrainZone* ASandboxTerrainController::getZoneByVectorIndex(FVector v) {
+	if (ASandboxTerrainController::terrain_zone_map.Contains(v)) {
+		return ASandboxTerrainController::terrain_zone_map[v];
+	}
+
+	return NULL;
+}
+
 ASandboxTerrainZone* ASandboxTerrainController::addTerrainZone(FVector pos) {
 	FVector index = getZoneIndex(pos);
 
@@ -130,14 +174,85 @@ ASandboxTerrainZone* ASandboxTerrainController::addTerrainZone(FVector pos) {
 	return zone;
 }
 
-void ASandboxTerrainController::digTerrainRoundHole(FVector v, float radius, float s) {
-	UE_LOG(LogTemp, Warning, TEXT("test point -> %f %f %f"), v.X, v.Y, v.Z);
+template<class H>
+class FTerrainEditThread : public FRunnable {
+public:
+	H zone_handler;
+	FVector origin;
+	float radius;
+	float strength;
+
+	virtual uint32 Run() {
+		ASandboxTerrainController::instance->editTerrain(origin, radius, strength, zone_handler);
+		return 0;
+	}
+};
+
+void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, float strength) {
+	UE_LOG(LogTemp, Warning, TEXT("digTerrainRoundHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
+
+	//if (GetWorld() == NULL) return;
+
+	struct ZoneHandler {
+		bool changed;
+		bool operator()(VoxelData* vd, FVector v, float radius, float strength) {
+			changed = false;
+			//VoxelData* vd = zone->getVoxelData();
+			for (int x = 0; x < vd->num(); x++) {
+				for (int y = 0; y < vd->num(); y++) {
+					for (int z = 0; z < vd->num(); z++) {
+						float density = vd->getDensity(x, y, z);
+						FVector o = vd->voxelIndexToVector(x, y, z);
+						o += vd->getOrigin();
+						o -= v;
+
+						float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
+						if (rl < radius) {
+							float d = density - 1 / rl * strength;
+							vd->setDensity(x, y, z, d);
+							changed = true;
+						}
+					}
+				}
+			}
+
+			return changed;
+		}
+	};
+
+	struct ZoneHandler zh;
+	FTerrainEditThread<ZoneHandler>* te = new FTerrainEditThread<ZoneHandler>();
+	te->zone_handler = zh;
+	te->origin = origin;
+	te->radius = r;
+	te->strength = strength;
+
+	FString thread_name = FString::Printf(TEXT("thread"));
+	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
+	//FIXME delete thread after finish
+
+	/*
+	FVector ttt(origin);
+	ttt.Z -= 10;
+	TArray<struct FHitResult> OutHits;
+	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_EngineTraceChannel1, FCollisionShape::MakeSphere(r));
+	if (overlap) {
+		for (auto item : OutHits) {
+			AActor* actor = item.GetActor();
+			ASandboxObject* obj = Cast<ASandboxObject>(actor);
+			if (obj != NULL) {
+				UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %d"), *obj->GetName(), item.Item);
+				obj->informTerrainChange(item.Item);
+			}
+		}
+	}
+	*/
 }
 
 template<class H>
 void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
 	FVector base_zone_index = getZoneIndex(v);
-	/*
+	
 	static const float vvv[3] = { -1, 0, 1 };
 	for (float x : vvv) {
 		for (float y : vvv) {
@@ -145,7 +260,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				FVector zone_index(x, y, z);
 				zone_index += base_zone_index;
 
-				ATerrainZone* zone = getZoneByVectorIndex(zone_index);
+				ASandboxTerrainZone* zone = getZoneByVectorIndex(zone_index);
 
 				if (zone == NULL) {
 					UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f"), zone_index.X, zone_index.Y, zone_index.Z);
@@ -176,5 +291,5 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 			}
 		}
 	}
-	*/
+
 }
