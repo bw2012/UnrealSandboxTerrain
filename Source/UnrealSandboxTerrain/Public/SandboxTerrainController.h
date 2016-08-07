@@ -26,6 +26,8 @@ public:
 	
 	static void digTerrainRoundHole(FVector v, float radius, float s);
 
+	static void digTerrainCubeHole(FVector origin, float r, float strength);
+
 	static ASandboxTerrainController* instance;
 
 	TArray<FVector> zone_queue;
@@ -36,7 +38,10 @@ public:
 	static ASandboxTerrainZone* getZoneByVectorIndex(FVector v);
 
 	template<class H>
-	static void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler);
+	static void editTerrain(FVector v, float radius, float s, H handler);
+
+	template<class H>
+	static void performTerrainChange(FVector v, float radius, float s, H handler);
 
 private:
 	static TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;

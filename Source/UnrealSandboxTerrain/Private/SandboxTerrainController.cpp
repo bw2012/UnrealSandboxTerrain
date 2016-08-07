@@ -218,13 +218,51 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 
 			return changed;
 		}
-	};
+	} zh;
 
-	struct ZoneHandler zh;
-	FTerrainEditThread<ZoneHandler>* te = new FTerrainEditThread<ZoneHandler>();
-	te->zone_handler = zh;
+	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+}
+
+void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, float strength) {
+	UE_LOG(LogTemp, Warning, TEXT("digTerrainCubeHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
+
+	struct ZoneHandler {
+		bool changed;
+		bool not_empty = false;
+		bool operator()(VoxelData* vd, FVector v, float radius, float strength) {
+			changed = false;
+
+			if (!not_empty) {
+				for (int x = 0; x < vd->num(); x++) {
+					for (int y = 0; y < vd->num(); y++) {
+						for (int z = 0; z < vd->num(); z++) {
+							FVector o = vd->voxelIndexToVector(x, y, z);
+							o += vd->getOrigin();
+							o -= v;
+							if (o.X < radius && o.X > -radius && o.Y < radius && o.Y > -radius && o.Z < radius && o.Z > -radius) {
+								vd->setDensity(x, y, z, 0);
+								changed = true;
+							}
+						}
+					}
+				}
+			}
+
+			return changed;
+		}
+	} zh;
+
+	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+}
+
+template<class H>
+static void ASandboxTerrainController::performTerrainChange(FVector origin, float radius, float strength, H handler) {
+
+
+	FTerrainEditThread<H>* te = new FTerrainEditThread<H>();
+	te->zone_handler = handler;
 	te->origin = origin;
-	te->radius = r;
+	te->radius = radius;
 	te->strength = strength;
 
 	FString thread_name = FString::Printf(TEXT("thread"));
@@ -244,10 +282,12 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 				UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %d"), *obj->GetName(), item.Item);
 				obj->informTerrainChange(item.Item);
 			}
-		}
+		}	
 	}
 	*/
+
 }
+
 
 template<class H>
 void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
