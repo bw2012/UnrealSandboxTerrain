@@ -1,7 +1,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainZone.h"
 #include "SandboxVoxeldata.h"
-#include "SandboxPerlinNoise.h"
+#include "SandboxVoxelGenerator.h"
 
 ASandboxTerrainZone::ASandboxTerrainZone(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -65,9 +65,10 @@ void ASandboxTerrainZone::Tick(float DeltaTime) {
 // Unreal Sandbox 
 //======================================================================================================================================================================
 
-void sandboxTerrainGenerate(VoxelData &voxel_data);
+void sandboxGenerateTerrain(VoxelData &voxel_data);
 
 bool ASandboxTerrainZone::fillZone() {
+	double start = FPlatformTime::Seconds();
 	//	if (GetWorld()->GetAuthGameMode() == NULL) {
 	//		return;
 	//	}
@@ -85,12 +86,7 @@ bool ASandboxTerrainZone::fillZone() {
 	//	sandboxLoadVoxelData(*vd, fileName);
 	//} else {
 
-
-	double start = FPlatformTime::Seconds();
-	sandboxTerrainGenerate(*vd);
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("Terrain volume is generated: %f %f %f --> %f ms"), o.X, o.Y, o.Z, time);
+	sandboxGenerateTerrain(*vd);
 
 	//	VoxelDataFillState s = vd->getDensityFillState();
 	//  sandboxSaveVoxelData(*vd, fileName);
@@ -103,6 +99,10 @@ bool ASandboxTerrainZone::fillZone() {
 	sandboxRegisterTerrainVoxelData(vd, o);
 
 	voxel_data = vd;
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::fillZone() -> %f %f %f --> %f ms"), o.X, o.Y, o.Z, time);
 
 	return isNew;
 }
@@ -122,11 +122,11 @@ void ASandboxTerrainZone::makeTerrain() {
 }
 
 MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
+	double start = FPlatformTime::Seconds();
+
 	if (voxel_data.getDensityFillState() == VoxelDataFillState::ZERO || voxel_data.getDensityFillState() == VoxelDataFillState::ALL) {
 		return NULL;
 	}
-
-	double start = FPlatformTime::Seconds();
 
 	MeshData* mesh_data = new MeshData();
 	MeshDataElement* mesh_data_element = new MeshDataElement();
@@ -147,17 +147,20 @@ MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
 	}
 	*/
 
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-
 	//int tc = (*mesh_data).triangle_count;
 	//int vc = (*mesh_data).vertex_count;
 	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated: %f ms -> %d triangles %d vertexes <- volume %d"), time, tc, vc, voxel_data.num());
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	return mesh_data;
 }
 
 void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
+	double start = FPlatformTime::Seconds();
+
 	if (mesh_data == NULL) {
 		return;
 	}
@@ -167,7 +170,6 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 	}
 
 	const int section = 0;
-	double start2 = FPlatformTime::Seconds();
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
@@ -199,8 +201,9 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 
 
 
-	double end2 = FPlatformTime::Seconds();
-	double time2 = (end2 - start2) * 1000;
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh added: %f ms"), time2, mesh_data->triangle_count, mesh_data->vertex_count);
 }
@@ -209,92 +212,9 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 // terrain generator
 // ================================================================================================
 
-usand::PerlinNoise perlin_noise;
 
-float groundLevel(FVector v) {
-	//float scale1 = 0.0035f; // small
-	float scale1 = 0.0015f; // small
-	float scale2 = 0.0004f; // medium
-	float scale3 = 0.00009f; // big
-
-	float noise_small = perlin_noise.noise(v.X * scale1, v.Y * scale1, 0);
-	float noise_medium = perlin_noise.noise(v.X * scale2, v.Y * scale2, 0) * 5;
-	float noise_big = perlin_noise.noise(v.X * scale3, v.Y * scale3, 0) * 15;
-	float gl = noise_medium + noise_small + noise_big;
-
-	gl = gl * 100;
-
-	return gl;
-}
-
-float densityByGroundLevel(FVector v) {
-	float gl = groundLevel(v);
-	float val = 1;
-
-	if (v.Z > gl + 400) {
-		val = 0;
-	}
-	else if (v.Z > gl) {
-		float d = (1 / (v.Z - gl)) * 100;
-		val = d;
-	}
-
-	if (val > 1) {
-		val = 1;
-	}
-
-	if (val < 0.003) { // minimal density = 1f/255
-		val = 0;
-	}
-
-	return val;
-}
-
-
-float funcGenerateCavern(float density, FVector v) {
-	float den = density;
-	float r = FMath::Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
-	if (r < 300) {
-		float scale1 = 0.01f; // small
-		float scale2 = 0.005f; // medium
-		float noise_medium = FMath::Abs(perlin_noise.noise(v.X * scale2, v.Y * scale2, v.Z * scale2));
-		float noise_small = FMath::Abs(perlin_noise.noise(v.X * scale1, v.Y * scale1, v.Z * scale1));
-
-		//den -= noise_medium;
-		den -= noise_small * 0.15 + noise_medium * 0.3 + (1 / r) * 100;
-		if (den < 0) {
-			den = 0;
-		}
-	}
-
-	return den;
-}
-
-FORCEINLINE unsigned long vectorHash(FVector v) {
-	return ((int)v.X * 73856093) ^ ((int)v.Y * 19349663) ^ ((int)v.Z * 83492791);
-}
-
-float clcGroundLevelDelta(FVector v) {
-	return groundLevel(v) - v.Z;
-}
-
-void sandboxTerrainGenerate(VoxelData &voxel_data) {
-	double start = FPlatformTime::Seconds();
-
-	int32 zone_seed = vectorHash(voxel_data.getOrigin());
-
-	FRandomStream rnd = FRandomStream();
-	rnd.Initialize(zone_seed);
-	rnd.Reset();
-
-	bool cavern = false;
-
-	float gl_delta = clcGroundLevelDelta(voxel_data.getOrigin());
-	if (rnd.FRandRange(0.f, 1.f) > 0.95 || (voxel_data.getOrigin().X == 0 && voxel_data.getOrigin().Y == 0)) {
-		if (gl_delta > 500 && gl_delta < 2000) {
-			cavern = true;
-		}
-	}
+void sandboxGenerateTerrain(VoxelData &voxel_data) {
+	SandboxVoxelGenerator generator(voxel_data);
 
 	TSet<unsigned char> material_list;
 	int zc = 0; int fc = 0;
@@ -302,42 +222,18 @@ void sandboxTerrainGenerate(VoxelData &voxel_data) {
 	for (int x = 0; x < voxel_data.num(); x++) {
 		for (int y = 0; y < voxel_data.num(); y++) {
 			for (int z = 0; z < voxel_data.num(); z++) {
-				FVector v = voxel_data.voxelIndexToVector(x, y, z);
-				FVector tmp = v + voxel_data.getOrigin();
+				FVector local = voxel_data.voxelIndexToVector(x, y, z);
+				FVector world = local + voxel_data.getOrigin();
 
-				float den = densityByGroundLevel(tmp);
-
-				// ==============================================================
-				// cavern
-				// ==============================================================
-				if (cavern) {
-					den = funcGenerateCavern(den, v);
-				}
-				// ==============================================================
-
-
+				float den = generator.density(local, world);
+				unsigned char mat = generator.material(local, world);
+			
 				voxel_data.setDensity(x, y, z, den);
+				voxel_data.setMaterial(x, y, z, mat);
 
 				if (den == 0) zc++;
 				if (den == 1) fc++;
-
-				FVector test2 = FVector(tmp);
-				test2.Z += 30;
-
-				float den2 = densityByGroundLevel(test2);
-
-
-				unsigned char mat = 0;
-				if (den2 < 0.5) {
-					mat = 2;
-				}
-				else {
-					mat = 1;
-				}
-
-				voxel_data.setMaterial(x, y, z, mat);
 				material_list.Add(mat);
-
 			}
 		}
 	}
@@ -361,8 +257,7 @@ void sandboxTerrainGenerate(VoxelData &voxel_data) {
 		voxel_data.deinitializeMaterial(base_mat);
 	}
 
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("Terrain volume generated: %f ms"), time);
 }
+
+
 
