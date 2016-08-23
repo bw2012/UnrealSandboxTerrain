@@ -1,9 +1,11 @@
 #pragma once
 
 #include "EngineMinimal.h"
+#include "SandboxVoxelGenerator.h"
 #include "SandboxTerrainController.generated.h"
 
 class ASandboxTerrainZone;
+class VoxelData;
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor
@@ -42,6 +44,8 @@ public:
 
 	template<class H>
 	static void performTerrainChange(FVector v, float radius, float s, H handler);
+
+	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
 
 private:
 	static TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;

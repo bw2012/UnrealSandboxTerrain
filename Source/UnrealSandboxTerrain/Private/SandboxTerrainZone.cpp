@@ -86,7 +86,7 @@ bool ASandboxTerrainZone::fillZone() {
 	//	sandboxLoadVoxelData(*vd, fileName);
 	//} else {
 
-	sandboxGenerateTerrain(*vd);
+	generateTerrain(*vd);
 
 	//	VoxelDataFillState s = vd->getDensityFillState();
 	//  sandboxSaveVoxelData(*vd, fileName);
@@ -130,7 +130,7 @@ MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
 
 	MeshData* mesh_data = new MeshData();
 	MeshDataElement* mesh_data_element = new MeshDataElement();
-	MeshDataElement* mesh_data_element2 = new MeshDataElement();
+	//MeshDataElement* mesh_data_element2 = new MeshDataElement();
 
 	VoxelDataParam vdp;
 	vdp.lod = 1;
@@ -213,8 +213,9 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 // ================================================================================================
 
 
-void sandboxGenerateTerrain(VoxelData &voxel_data) {
-	SandboxVoxelGenerator generator(voxel_data);
+void ASandboxTerrainZone::generateTerrain(VoxelData &voxel_data) {
+	SandboxVoxelGenerator generator = this->controller->newTerrainGenerator(voxel_data);
+	//SandboxVoxelGenerator generator(voxel_data);
 
 	TSet<unsigned char> material_list;
 	int zc = 0; int fc = 0;

@@ -3,6 +3,7 @@
 #include "EngineMinimal.h"
 #include "ProceduralMeshComponent.h"
 #include "SandboxTerrainMeshComponent.h"
+#include "SandboxTerrainController.h"
 #include "SandboxTerrainZone.generated.h"
 
 class VoxelData;
@@ -26,6 +27,8 @@ public:
 
 public:
 
+	ASandboxTerrainController* controller;
+
 	void makeTerrain();
 
 	bool fillZone();
@@ -45,5 +48,7 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
 	USandboxTerrainMeshComponent* MainTerrainMesh;
+
+	void generateTerrain(VoxelData &voxel_data);
 	
 };

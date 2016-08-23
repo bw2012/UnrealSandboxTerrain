@@ -84,7 +84,13 @@ typedef struct MeshDataElement {
 
 typedef struct MeshData {
 	MeshDataElement* main_mesh;
-	MeshDataElement* slice_mesh;
+	//MeshDataElement* slice_mesh;
+
+	~MeshData() {
+		if (main_mesh != NULL) {
+			delete main_mesh;
+		}
+	}
 } MeshData;
 
 typedef struct VoxelDataParam {

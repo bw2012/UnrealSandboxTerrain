@@ -89,8 +89,7 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 				if (zone_make_task.isNew) {
 					//zone->generateZoneObjects();
 					zone->isLoaded = true;
-				}
-				else {
+				} else {
 					if (!zone->isLoaded) {
 						// load zone json here
 						FVector v = zone->GetActorLocation();
@@ -101,16 +100,18 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 					}
 				}
 
-				//delete zone_make_task.mesh_data;
-
-				//FIXME delete mesh data after finish
-			}
-			else {
+				//FIXME refactor mesh_data to shared pointer
+				delete zone_make_task.mesh_data;
+			} else {
 				zone->makeTerrain();
 			}
 		}
 	}
 }
+
+SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(VoxelData &voxel_data) {
+	return SandboxVoxelGenerator(voxel_data);
+};
 
 //======================================================================================================================================================================
 // Unreal Sandbox 
@@ -168,7 +169,8 @@ ASandboxTerrainZone* ASandboxTerrainController::addTerrainZone(FVector pos) {
 
 	FTransform transform(FRotator(0, 0, 0), FVector(pos.X, pos.Y, pos.Z));
 	UClass *zone_class = ASandboxTerrainZone::StaticClass();
-	ASandboxTerrainZone* zone = (ASandboxTerrainZone*)GetWorld()->SpawnActor(zone_class, &transform);
+	ASandboxTerrainZone* zone = (ASandboxTerrainZone*) GetWorld()->SpawnActor(zone_class, &transform);
+	zone->controller = this;
 	ASandboxTerrainController::terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), zone);
 
 	return zone;
@@ -257,15 +259,13 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 
 template<class H>
 static void ASandboxTerrainController::performTerrainChange(FVector origin, float radius, float strength, H handler) {
-
-
 	FTerrainEditThread<H>* te = new FTerrainEditThread<H>();
 	te->zone_handler = handler;
 	te->origin = origin;
 	te->radius = radius;
 	te->strength = strength;
 
-	FString thread_name = FString::Printf(TEXT("thread"));
+	FString thread_name = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
 	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
 	//FIXME delete thread after finish
 
