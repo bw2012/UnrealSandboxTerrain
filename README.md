@@ -6,11 +6,9 @@ Example of usage - https://github.com/bw2012/UE4VoxelTerrain
 
 Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI  
 
-Not finished and not optimized!
-Contains:
-* bugs
-* memory leaks
-* unfinished code
- 
+Tested with Unreal Engine 4.12
+
+Work in progress
+
 MIT license
 
