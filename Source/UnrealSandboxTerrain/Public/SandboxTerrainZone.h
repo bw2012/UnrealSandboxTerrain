@@ -31,9 +31,9 @@ public:
 
 	void makeTerrain();
 
-	bool fillZone();
-
 	VoxelData* getVoxelData() { return voxel_data; }
+
+	void setVoxelData(VoxelData* vd) { this->voxel_data = vd; }
 
 	void applyTerrainMesh(MeshData* voxel_data);
 
@@ -48,7 +48,5 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
 	USandboxTerrainMeshComponent* MainTerrainMesh;
-
-	void generateTerrain(VoxelData &voxel_data);
 	
 };

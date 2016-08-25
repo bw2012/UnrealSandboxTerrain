@@ -122,14 +122,19 @@ TMap<FVector, ASandboxTerrainZone*> ASandboxTerrainController::terrain_zone_map;
 
 void ASandboxTerrainController::spawnInitialZone() {
 	//static const int num = 4;
-	static const int s = 1;
+	const int s = InitialSpawnSize;
+
+	UE_LOG(LogTemp, Warning, TEXT("InitialSpawnSize = %d"), s);
 
 	for (auto x = -s; x <= s; x++) {
 		for (auto y = -s; y <= s; y++) {
 			for (auto z = -s; z <= s; z++) {
 				FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
 				ASandboxTerrainZone* zone = addTerrainZone(v);
-				bool is_new = zone->fillZone();
+				VoxelData* vd = createZoneVoxeldata(v);
+				zone->setVoxelData(vd);
+				//bool is_new = zone->fillZone();
+
 				zone->makeTerrain();
 
 				/*
@@ -330,6 +335,91 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 
 			}
 		}
+	}
+
+}
+
+VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
+	double start = FPlatformTime::Seconds();
+	//	if (GetWorld()->GetAuthGameMode() == NULL) {
+	//		return;
+	//	}
+
+	bool isNew = false;
+
+	VoxelData* vd = new VoxelData(50, 100 * 10);
+	vd->setOrigin(location);
+
+	FVector o = sandboxSnapToGrid(location, 1000) / 1000;
+	//FString fileName = sandboxZoneBinaryFileName(o.X, o.Y, o.Z);
+	//FString fileFullPath = sandboxZoneBinaryFileFullPath(o.X, o.Y, o.Z);
+
+	//if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*fileFullPath)) {
+	//	sandboxLoadVoxelData(*vd, fileName);
+	//} else {
+
+	generateTerrain(*vd);
+
+	//	VoxelDataFillState s = vd->getDensityFillState();
+	//  sandboxSaveVoxelData(*vd, fileName);
+	//	isNew = true;
+	//}
+
+	vd->setChanged();
+	vd->resetLastSave();
+
+	sandboxRegisterTerrainVoxelData(vd, o);
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT(" ASandboxTerrainController::createZoneVoxeldata() -> %f %f %f --> %f ms"), o.X, o.Y, o.Z, time);
+
+	return vd;
+}
+
+void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
+	SandboxVoxelGenerator generator = newTerrainGenerator(voxel_data);
+	//SandboxVoxelGenerator generator(voxel_data);
+
+	TSet<unsigned char> material_list;
+	int zc = 0; int fc = 0;
+
+	for (int x = 0; x < voxel_data.num(); x++) {
+		for (int y = 0; y < voxel_data.num(); y++) {
+			for (int z = 0; z < voxel_data.num(); z++) {
+				FVector local = voxel_data.voxelIndexToVector(x, y, z);
+				FVector world = local + voxel_data.getOrigin();
+
+				float den = generator.density(local, world);
+				unsigned char mat = generator.material(local, world);
+
+				voxel_data.setDensity(x, y, z, den);
+				voxel_data.setMaterial(x, y, z, mat);
+
+				if (den == 0) zc++;
+				if (den == 1) fc++;
+				material_list.Add(mat);
+			}
+		}
+	}
+
+	int s = voxel_data.num() * voxel_data.num() * voxel_data.num();
+
+	if (zc == s) {
+		voxel_data.deinitializeDensity(VoxelDataFillState::ZERO);
+	}
+
+	if (fc == s) {
+		voxel_data.deinitializeDensity(VoxelDataFillState::ALL);
+	}
+
+	if (material_list.Num() == 1) {
+		unsigned char base_mat = 0;
+		for (auto m : material_list) {
+			base_mat = m;
+			break;
+		}
+		voxel_data.deinitializeMaterial(base_mat);
 	}
 
 }

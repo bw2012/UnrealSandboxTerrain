@@ -25,6 +25,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool GenerateOnlySmallSpawnPoint = false;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	int InitialSpawnSize = 1;
 	
 	static void digTerrainRoundHole(FVector v, float radius, float s);
 
@@ -53,4 +56,15 @@ private:
 	void spawnInitialZone();
 
 	ASandboxTerrainZone* addTerrainZone(FVector pos);
+
+	VoxelData* createZoneVoxeldata(FVector location);
+
+	void generateTerrain(VoxelData &voxel_data);
+
+protected:
+
+	int getVoxeldataSize() { return 65; }
+
+	float getVoxelDataVolume() { return 1000; }
+		
 };
