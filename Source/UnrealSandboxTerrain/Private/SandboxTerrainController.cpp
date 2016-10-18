@@ -42,6 +42,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 	//zone generation list
 	//int num = 20;
+	/*
 	if (!GenerateOnlySmallSpawnPoint) {
 		for (int num = 0; num < 10; num++) {
 			int s = num;
@@ -52,16 +53,17 @@ void ASandboxTerrainController::BeginPlay() {
 						FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
 						FVector zone_index = FVector(x, y, z);
 						ASandboxTerrainZone* zone = getZoneByVectorIndex(zone_index);
-						//if (zone == NULL) {
+						if (zone == NULL) {
 							// Until the end of the process some functions can be unavailable.
 							//addTerrainZone(v);
-						//	zone_queue.Add(v);
-						//}
+							zone_queue.Add(v);
+						}
 					}
 				}
 			}
 		}
 	}
+	*/
 
 	UE_LOG(LogTemp, Warning, TEXT("zone queue %d"), zone_queue.Num());
 	//FLoadAllZonesThread* zone_loader = new FLoadAllZonesThread();
