@@ -5,6 +5,7 @@
 #include "SandboxVoxeldata.h"
 #include "SandboxAsyncHelpers.h"
 #include <cmath>
+#include "DrawDebugHelpers.h"
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -21,8 +22,7 @@ void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
 
-	ASandboxTerrainController::instance = this;
-
+	//ASandboxTerrainController::instance = this;
 
 	UWorld* const world = GetWorld();
 	if (!world) {
@@ -39,10 +39,10 @@ void ASandboxTerrainController::BeginPlay() {
 	spawnInitialZone();
 
 	zone_queue.Empty(); zone_queue_pos = 0;
-	UE_LOG(LogTemp, Warning, TEXT("queue %d %d"), zone_queue.Num(), zone_queue_pos);
 
 	//zone generation list
 	//int num = 20;
+	/*
 	if (!GenerateOnlySmallSpawnPoint) {
 		for (int num = 0; num < 10; num++) {
 			int s = num;
@@ -52,17 +52,18 @@ void ASandboxTerrainController::BeginPlay() {
 						//float z = 0;
 						FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
 						FVector zone_index = FVector(x, y, z);
-						//ATerrainZone* zone = getZoneByVectorIndex(zone_index);
-						//if (zone == NULL) {
+						ASandboxTerrainZone* zone = getZoneByVectorIndex(zone_index);
+						if (zone == NULL) {
 							// Until the end of the process some functions can be unavailable.
 							//addTerrainZone(v);
-						//	zone_queue.Add(v);
-						//}
+							zone_queue.Add(v);
+						}
 					}
 				}
 			}
 		}
 	}
+	*/
 
 	UE_LOG(LogTemp, Warning, TEXT("zone queue %d"), zone_queue.Num());
 	//FLoadAllZonesThread* zone_loader = new FLoadAllZonesThread();
@@ -81,31 +82,47 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 
 	if (sandboxAsyncIsNextZoneMakeTask()) {
 		ZoneMakeTask zone_make_task = sandboxAsyncGetZoneMakeTask();
-		ASandboxTerrainZone* zone = getZoneByVectorIndex(getZoneIndex(zone_make_task.origin));
-		if (zone != NULL) {
-			if (zone_make_task.mesh_data != NULL) {
-				zone->applyTerrainMesh(zone_make_task.mesh_data);
 
-				if (zone_make_task.isNew) {
-					//zone->generateZoneObjects();
-					zone->isLoaded = true;
-				} else {
-					if (!zone->isLoaded) {
-						// load zone json here
-						FVector v = zone->GetActorLocation();
-						v /= 1000;
-						//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
-						//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
+		if (zone_make_task.type == MT_GENERATE_MESH) {
+			ASandboxTerrainZone* zone = getZoneByVectorIndex(getZoneIndex(zone_make_task.index));
+			if (zone != NULL) {
+				if (zone_make_task.mesh_data != NULL) {
+					zone->applyTerrainMesh(zone_make_task.mesh_data);
+					if (zone_make_task.isNew) {
+						//zone->generateZoneObjects();
 						zone->isLoaded = true;
+					} else {
+						if (!zone->isLoaded) {
+							// load zone json here
+							FVector v = zone->GetActorLocation();
+							v /= 1000;
+							//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
+							//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
+							zone->isLoaded = true;
+						}
 					}
-				}
 
-				//FIXME refactor mesh_data to shared pointer
-				delete zone_make_task.mesh_data;
-			} else {
-				zone->makeTerrain();
+					//FIXME refactor mesh_data to shared pointer
+					delete zone_make_task.mesh_data;
+				} else {
+					zone->makeTerrain();
+				}
 			}
 		}
+
+		if (zone_make_task.type == MT_ADD_ZONE) {
+			FVector v = FVector((float)(zone_make_task.index.X * 1000), (float)(zone_make_task.index.Y * 1000), (float)(zone_make_task.index.Z * 1000));
+			ASandboxTerrainZone* zone = addTerrainZone(v);
+			VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_make_task.index);
+			zone->setVoxelData(vd);
+
+			MeshData* md = zone->generateMesh(*vd);
+			vd->resetLastMeshRegenerationTime();
+			zone->applyTerrainMesh(md);
+
+		}
+
+
 	}
 }
 
@@ -117,8 +134,14 @@ SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(VoxelData &
 // Unreal Sandbox 
 //======================================================================================================================================================================
 
-ASandboxTerrainController* ASandboxTerrainController::instance;
-TMap<FVector, ASandboxTerrainZone*> ASandboxTerrainController::terrain_zone_map;
+ASandboxTerrainController* ASandboxTerrainController::GetZoneInstance(AActor* actor) {
+	ASandboxTerrainZone* zone = Cast<ASandboxTerrainZone>(actor);
+	if (zone == NULL) {
+		return NULL;
+	}
+
+	return zone->controller;
+}
 
 void ASandboxTerrainController::spawnInitialZone() {
 	//static const int num = 4;
@@ -130,12 +153,15 @@ void ASandboxTerrainController::spawnInitialZone() {
 		for (auto y = -s; y <= s; y++) {
 			for (auto z = -s; z <= s; z++) {
 				FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
-				ASandboxTerrainZone* zone = addTerrainZone(v);
 				VoxelData* vd = createZoneVoxeldata(v);
-				zone->setVoxelData(vd);
-				//bool is_new = zone->fillZone();
 
-				zone->makeTerrain();
+				if (vd->getDensityFillState() == VoxelDataFillState::MIX) {
+					ASandboxTerrainZone* zone = addTerrainZone(v);
+					zone->setVoxelData(vd);
+					zone->makeTerrain();
+				}
+
+				//bool is_new = zone->fillZone();
 
 				/*
 				if (is_new) {
@@ -176,7 +202,9 @@ ASandboxTerrainZone* ASandboxTerrainController::addTerrainZone(FVector pos) {
 	UClass *zone_class = ASandboxTerrainZone::StaticClass();
 	ASandboxTerrainZone* zone = (ASandboxTerrainZone*) GetWorld()->SpawnActor(zone_class, &transform);
 	zone->controller = this;
-	ASandboxTerrainController::terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), zone);
+	terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), zone);
+
+	if(ShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
 
 	return zone;
 }
@@ -188,9 +216,10 @@ public:
 	FVector origin;
 	float radius;
 	float strength;
+	ASandboxTerrainController* instance;
 
 	virtual uint32 Run() {
-		ASandboxTerrainController::instance->editTerrain(origin, radius, strength, zone_handler);
+		instance->editTerrain(origin, radius, strength, zone_handler);
 		return 0;
 	}
 };
@@ -263,12 +292,13 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 }
 
 template<class H>
-static void ASandboxTerrainController::performTerrainChange(FVector origin, float radius, float strength, H handler) {
+void ASandboxTerrainController::performTerrainChange(FVector origin, float radius, float strength, H handler) {
 	FTerrainEditThread<H>* te = new FTerrainEditThread<H>();
 	te->zone_handler = handler;
 	te->origin = origin;
 	te->radius = radius;
 	te->strength = strength;
+	te->instance = this;
 
 	FString thread_name = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
 	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
@@ -293,7 +323,6 @@ static void ASandboxTerrainController::performTerrainChange(FVector origin, floa
 
 }
 
-
 template<class H>
 void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
 	FVector base_zone_index = getZoneIndex(v);
@@ -306,19 +335,27 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				zone_index += base_zone_index;
 
 				ASandboxTerrainZone* zone = getZoneByVectorIndex(zone_index);
+				VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_index);
 
 				if (zone == NULL) {
-					UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f"), zone_index.X, zone_index.Y, zone_index.Z);
-					continue;
+					if (vd != NULL) {
+						bool is_changed = handler(vd, v, radius, s);
+						if (is_changed) {
+							vd->setChanged();
+							UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f ---> create"), zone_index.X, zone_index.Y, zone_index.Z);
+
+							ZoneMakeTask zone_make_task;
+							zone_make_task.type = MT_ADD_ZONE;
+							zone_make_task.index = zone_index;
+							sandboxAsyncAddZoneMakeTask(zone_make_task);
+						}
+						
+						continue;
+					} else {
+						UE_LOG(LogTemp, Warning, TEXT("zone and voxel data not found %f %f %f ---> skip"), zone_index.X, zone_index.Y, zone_index.Z);
+						continue;
+					}
 				}
-
-				VoxelData* vd = zone->getVoxelData();
-
-				if (vd == NULL) {
-					UE_LOG(LogTemp, Warning, TEXT("voxel data not found %f %f %f"), zone_index.X, zone_index.Y, zone_index.Z);
-					continue;
-				}
-
 
 				bool is_changed = handler(vd, v, radius, s);
 				if (is_changed) {
@@ -327,7 +364,8 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					vd->resetLastMeshRegenerationTime();
 
 					ZoneMakeTask zone_make_task;
-					zone_make_task.origin = zone->GetActorLocation();
+					zone_make_task.type = MT_GENERATE_MESH;
+					zone_make_task.index = zone->GetActorLocation();
 					zone_make_task.mesh_data = md;
 
 					sandboxAsyncAddZoneMakeTask(zone_make_task);

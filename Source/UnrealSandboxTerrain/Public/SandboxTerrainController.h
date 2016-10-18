@@ -27,31 +27,35 @@ public:
 	bool GenerateOnlySmallSpawnPoint = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	bool ShowZoneBounds = false;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	int InitialSpawnSize = 1;
 	
-	static void digTerrainRoundHole(FVector v, float radius, float s);
+	void digTerrainRoundHole(FVector v, float radius, float s);
 
-	static void digTerrainCubeHole(FVector origin, float r, float strength);
+	void digTerrainCubeHole(FVector origin, float r, float strength);
 
-	static ASandboxTerrainController* instance;
+	//static ASandboxTerrainController* instance;
+	static ASandboxTerrainController* GetZoneInstance(AActor* zone);
 
 	TArray<FVector> zone_queue;
 	volatile int zone_queue_pos = 0;
 
-	static FVector getZoneIndex(FVector v);
+	FVector getZoneIndex(FVector v);
 
-	static ASandboxTerrainZone* getZoneByVectorIndex(FVector v);
-
-	template<class H>
-	static void editTerrain(FVector v, float radius, float s, H handler);
+	ASandboxTerrainZone* getZoneByVectorIndex(FVector v);
 
 	template<class H>
-	static void performTerrainChange(FVector v, float radius, float s, H handler);
+	void editTerrain(FVector v, float radius, float s, H handler);
+
+	template<class H>
+	void performTerrainChange(FVector v, float radius, float s, H handler);
 
 	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
 
 private:
-	static TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;
+	TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;
 
 	void spawnInitialZone();
 
