@@ -6,7 +6,7 @@ struct MeshData;
 
 
 typedef struct ZoneMakeTask {
-	FVector origin;
+	FVector index;
 	MeshData* mesh_data;
 	bool isNew = false;
 } ZoneMakeTask;
