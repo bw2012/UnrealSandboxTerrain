@@ -27,6 +27,9 @@ public:
 	bool GenerateOnlySmallSpawnPoint = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	bool ShowZoneBounds = false;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	int InitialSpawnSize = 1;
 	
 	void digTerrainRoundHole(FVector v, float radius, float s);

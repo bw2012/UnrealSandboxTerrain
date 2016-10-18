@@ -4,8 +4,11 @@
 
 struct MeshData;
 
+#define MT_GENERATE_MESH	0
+#define MT_ADD_ZONE			1
 
 typedef struct ZoneMakeTask {
+	int type;
 	FVector index;
 	MeshData* mesh_data;
 	bool isNew = false;
