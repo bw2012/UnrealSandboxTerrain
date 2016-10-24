@@ -31,6 +31,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	int InitialSpawnSize = 1;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	UMaterialInterface* TerrainMaterial;
 	
 	void digTerrainRoundHole(FVector v, float radius, float s);
 

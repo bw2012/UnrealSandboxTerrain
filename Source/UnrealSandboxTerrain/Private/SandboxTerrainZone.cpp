@@ -16,11 +16,11 @@ void ASandboxTerrainZone::init() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
-	const static ConstructorHelpers::FObjectFinder<UMaterialInterface> material(TEXT("Material'/Game/Test/M_Triplanar_Terrain.M_Triplanar_Terrain'")); \
+	//const static ConstructorHelpers::FObjectFinder<UMaterialInterface> material(TEXT("Material'/Game/Test/M_Triplanar_Terrain.M_Triplanar_Terrain'")); \
 
 	MainTerrainMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("TerrainZoneProceduralMainMesh"));
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
-	MainTerrainMesh->SetMaterial(0, material.Object);
+	//MainTerrainMesh->SetMaterial(0, material.Object);
 	MainTerrainMesh->SetCanEverAffectNavigation(true);
 	MainTerrainMesh->SetCollisionProfileName(TEXT("InvisibleWall"));
 	SetRootComponent(MainTerrainMesh);
@@ -137,6 +137,7 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 	MainTerrainMesh->SetVisibility(false);
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
+	MainTerrainMesh->SetMaterial(0, controller->TerrainMaterial);
 
 	/*
 	if (bZCut && mesh_data->slice_mesh != NULL) {
