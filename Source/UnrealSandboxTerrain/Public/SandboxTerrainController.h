@@ -33,8 +33,13 @@ public:
 	int InitialSpawnSize = 1;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	FString MapName;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UMaterialInterface* TerrainMaterial;
-	
+
+	FString getZoneFileName(int tx, int ty, int tz);
+		
 	void digTerrainRoundHole(FVector v, float radius, float s);
 
 	void digTerrainCubeHole(FVector origin, float r, float strength);

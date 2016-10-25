@@ -856,13 +856,8 @@ VoxelData* sandboxGetTerrainVoxelDataByIndex(FVector index) {
 	return NULL;
 }
 
-/*
-void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName) {
-	FString fileFullPath = sandboxZoneBinaryFileFullPath(fileName);
-	verifyMapDirectory();
 
-	//UE_LOG(LogTemp, Warning, TEXT("save zone -> %s"), *fileFullPath);
-
+void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
 	FBufferArchive binaryData;
 	int32 num = vd.num();
 	float size = vd.size();
@@ -924,19 +919,18 @@ void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName) {
 	int32 end_marker = 666999;
 	binaryData << end_marker;
 
-	if (FFileHelper::SaveArrayToFile(binaryData, *fileFullPath)) {
+	if (FFileHelper::SaveArrayToFile(binaryData, *fullFileName)) {
 		binaryData.FlushCache();
 		binaryData.Empty();
 	}
 }
 
-bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName) {
+bool sandboxLoadVoxelData(VoxelData &vd, FString &fullFileName) {
 	double start = FPlatformTime::Seconds();
 
-	FString fileFullPath = sandboxZoneBinaryFileFullPath(fileName);
 	TArray<uint8> TheBinaryArray;
-	if (!FFileHelper::LoadFileToArray(TheBinaryArray, *fileFullPath)) {
-		UE_LOG(LogTemp, Warning, TEXT("Zone file not found -> %s"), *fileFullPath);
+	if (!FFileHelper::LoadFileToArray(TheBinaryArray, *fullFileName)) {
+		UE_LOG(LogTemp, Warning, TEXT("Zone file not found -> %s"), *fullFileName);
 		return false;
 	}
 	
@@ -1006,7 +1000,7 @@ bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName) {
 	
 	return true;
 }
-*/
+
 
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec) {
 	return sandboxSnapToGrid(vec, 200);

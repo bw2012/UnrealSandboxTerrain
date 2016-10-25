@@ -106,8 +106,8 @@ void sandboxRegisterTerrainVoxelData(VoxelData* vd, FVector index);
 VoxelData* sandboxGetTerrainVoxelDataByPos(FVector point);
 VoxelData* sandboxGetTerrainVoxelDataByIndex(FVector index);
 
-//void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
-//bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
+void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
+bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range);
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec);

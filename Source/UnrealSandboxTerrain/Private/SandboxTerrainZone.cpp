@@ -54,7 +54,31 @@ void ASandboxTerrainZone::BeginPlay() {
 
 void ASandboxTerrainZone::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
+
+	if (GetWorld()->GetAuthGameMode() == NULL) {
+		return;
+	}
+
+	if (voxel_data == NULL) {
+		return;
+	}
+
+	if (!voxel_data->isChanged()) {
+		return; // skip save if not changed
+	}
+
+	// save voxel data
+	FVector o = sandboxSnapToGrid(GetActorLocation(), 1000) / 1000;
+	FString fileName = controller->getZoneFileName(o.X, o.Y, o.Z);
+
+	UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), o.X, o.Y, o.Z);
+	sandboxSaveVoxelData(*voxel_data, fileName);
+
+	//TODO replace with share pointer
+	delete voxel_data;
+	voxel_data = NULL;
 }
+
 
 void ASandboxTerrainZone::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);

@@ -48,5 +48,5 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
 	USandboxTerrainMeshComponent* MainTerrainMesh;
-	
+
 };

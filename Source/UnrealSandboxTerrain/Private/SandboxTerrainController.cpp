@@ -11,6 +11,8 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 {
 	PrimaryActorTick.bCanEverTick = true;
 	zone_queue.Empty(); zone_queue_pos = 0;
+
+	MapName = TEXT("World 0");
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
@@ -133,6 +135,12 @@ SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(VoxelData &
 //======================================================================================================================================================================
 // Unreal Sandbox 
 //======================================================================================================================================================================
+
+FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
+	FString savePath = FPaths::GameSavedDir();
+	FString fileName = savePath + TEXT("/Map/") + MapName + TEXT("/zone.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".sbin");
+	return fileName;
+}
 
 ASandboxTerrainController* ASandboxTerrainController::GetZoneInstance(AActor* actor) {
 	ASandboxTerrainZone* zone = Cast<ASandboxTerrainZone>(actor);
@@ -389,19 +397,16 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 	vd->setOrigin(location);
 
 	FVector o = sandboxSnapToGrid(location, 1000) / 1000;
-	//FString fileName = sandboxZoneBinaryFileName(o.X, o.Y, o.Z);
-	//FString fileFullPath = sandboxZoneBinaryFileFullPath(o.X, o.Y, o.Z);
+	FString fileName = getZoneFileName(o.X, o.Y, o.Z);
 
-	//if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*fileFullPath)) {
-	//	sandboxLoadVoxelData(*vd, fileName);
-	//} else {
-
-	generateTerrain(*vd);
-
-	//	VoxelDataFillState s = vd->getDensityFillState();
-	//  sandboxSaveVoxelData(*vd, fileName);
-	//	isNew = true;
-	//}
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*fileName)) {
+		//UE_LOG(LogTemp, Warning, TEXT("test -> %f %f %f"), o.X, o.Y, o.Z);
+		sandboxLoadVoxelData(*vd, fileName);
+	} else {
+		generateTerrain(*vd);
+		sandboxSaveVoxelData(*vd, fileName);
+		//	isNew = true;
+	}
 
 	vd->setChanged();
 	vd->resetLastSave();
@@ -410,7 +415,7 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT(" ASandboxTerrainController::createZoneVoxeldata() -> %f %f %f --> %f ms"), o.X, o.Y, o.Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::createZoneVoxeldata() -> %f %f %f --> %f ms"), o.X, o.Y, o.Z, time);
 
 	return vd;
 }
