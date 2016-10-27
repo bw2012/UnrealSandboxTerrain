@@ -10,17 +10,45 @@
 
 class FLoadInitialZonesThread : public FRunnable {
 
-public:
-	TArray<FVector> zone_list;
-
-	UPROPERTY()
-	ASandboxTerrainController* controller;
+private:
 
 	volatile bool isFinished = false;
+
 	volatile bool forceStop = false;
+
+	FRunnableThread* thread;
+
+public:
+
+	FLoadInitialZonesThread() {
+		thread = NULL;
+	}
+
+	~FLoadInitialZonesThread() {
+		if (thread != NULL) {
+			delete thread;
+		}
+	}
+
+	TArray<FVector> zone_list;
+	ASandboxTerrainController* controller;
+
+	bool IsFinished() {
+		return isFinished;
+	}
 
 	virtual void Stop() { 
 		forceStop = true;
+	}
+
+	virtual void WaitForFinish() {
+		while (!isFinished) {
+
+		}
+	}
+
+	void Start() {
+		thread = FRunnableThread::Create(this, TEXT("THREAD_TEST"));
 	}
 
 	virtual uint32 Run() {
@@ -132,8 +160,7 @@ void ASandboxTerrainController::BeginPlay() {
 		}
 	}
 
-	//FIXME delete thread after finish
-	FRunnableThread* initial_loader_thread = FRunnableThread::Create(initial_zone_loader, TEXT("THREAD_TEST"));
+	initial_zone_loader->Start();
 }
 
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -141,11 +168,7 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	if (initial_zone_loader != NULL) {
 		initial_zone_loader->Stop();
-
-		while (!initial_zone_loader->isFinished) {
-
-		}
-
+		initial_zone_loader->WaitForFinish();
 		UE_LOG(LogTemp, Warning, TEXT("STOP"));
 	}
 }
