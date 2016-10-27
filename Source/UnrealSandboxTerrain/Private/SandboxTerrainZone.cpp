@@ -68,10 +68,10 @@ void ASandboxTerrainZone::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	}
 
 	// save voxel data
-	FVector o = sandboxSnapToGrid(GetActorLocation(), 1000) / 1000;
-	FString fileName = controller->getZoneFileName(o.X, o.Y, o.Z);
+	FVector index = controller->getZoneIndex(GetActorLocation());
+	FString fileName = controller->getZoneFileName(index.X, index.Y, index.Z);
 
-	UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), o.X, o.Y, o.Z);
+	UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
 	sandboxSaveVoxelData(*voxel_data, fileName);
 
 	//TODO replace with share pointer
@@ -135,7 +135,7 @@ MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	return mesh_data;
 }
@@ -186,7 +186,7 @@ void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh added: %f ms"), time2, mesh_data->triangle_count, mesh_data->vertex_count);
 }

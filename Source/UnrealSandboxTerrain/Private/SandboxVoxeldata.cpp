@@ -1009,14 +1009,13 @@ extern FVector sandboxConvertVectorToCubeIndex(FVector vec) {
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range) {
 	FVector tmp(vec);
 	tmp /= grid_range;
-
-	FVector tmp2(std::round(tmp.X), std::round(tmp.Y), std::round(tmp.Z));
-	//FVector tmp2(t1x, t1y, t1z);
+	//FVector tmp2(std::round(tmp.X), std::round(tmp.Y), std::round(tmp.Z));
+	FVector tmp2((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
 	tmp2 *= grid_range;
+	return FVector((int)tmp2.X, (int)tmp2.Y, (int)tmp2.Z);
+}
 
-	int t2x = (int)tmp2.X;
-	int t2y = (int)tmp2.Y;
-	int t2z = (int)tmp2.Z;
-
-	return FVector((float)t2x, (float)t2y, (float)t2z);
+FVector sandboxGridIndex(FVector v, int range) {
+	FVector tmp = sandboxSnapToGrid(v, range) / range;
+	return FVector((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
 }
