@@ -68,10 +68,10 @@ void ASandboxTerrainZone::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	}
 
 	// save voxel data
-	FVector o = sandboxSnapToGrid(GetActorLocation(), 1000) / 1000;
-	FString fileName = controller->getZoneFileName(o.X, o.Y, o.Z);
+	FVector index = controller->getZoneIndex(GetActorLocation());
+	FString fileName = controller->getZoneFileName(index.X, index.Y, index.Z);
 
-	UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), o.X, o.Y, o.Z);
+	UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
 	sandboxSaveVoxelData(*voxel_data, fileName);
 
 	//TODO replace with share pointer

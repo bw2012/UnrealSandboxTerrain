@@ -6,6 +6,7 @@
 
 class ASandboxTerrainZone;
 class VoxelData;
+class FLoadInitialZonesThread;
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor
@@ -14,6 +15,8 @@ class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor
 
 public:
 	ASandboxTerrainController();
+
+	friend FLoadInitialZonesThread;
 
 	virtual void BeginPlay() override;
 
@@ -38,17 +41,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UMaterialInterface* TerrainMaterial;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 ZoneGridSize;
+
 	FString getZoneFileName(int tx, int ty, int tz);
 		
 	void digTerrainRoundHole(FVector v, float radius, float s);
 
 	void digTerrainCubeHole(FVector origin, float r, float strength);
 
-	//static ASandboxTerrainController* instance;
 	static ASandboxTerrainController* GetZoneInstance(AActor* zone);
-
-	TArray<FVector> zone_queue;
-	volatile int zone_queue_pos = 0;
 
 	FVector getZoneIndex(FVector v);
 
@@ -73,10 +75,14 @@ private:
 
 	void generateTerrain(VoxelData &voxel_data);
 
+	FLoadInitialZonesThread* initial_zone_loader;
+
 protected:
 
 	int getVoxeldataSize() { return 65; }
 
 	float getVoxelDataVolume() { return 1000; }
+
+	virtual void OnLoadZoneProgress(int progress, int total);
 		
 };
