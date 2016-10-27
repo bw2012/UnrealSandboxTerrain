@@ -6,15 +6,14 @@
 #include "SandboxAsyncHelpers.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
+#include "Async.h"
 
 
 class FLoadInitialZonesThread : public FRunnable {
 
 private:
-
-	volatile bool isFinished = false;
-
-	volatile bool forceStop = false;
+	 
+	volatile int state = TH_STATE_NEW;
 
 	FRunnableThread* thread;
 
@@ -34,15 +33,17 @@ public:
 	ASandboxTerrainController* controller;
 
 	bool IsFinished() {
-		return isFinished;
+		return state == TH_STATE_FINISHED;
 	}
 
 	virtual void Stop() { 
-		forceStop = true;
+		if (state == TH_STATE_NEW || state == TH_STATE_RUNNING) {
+			state = TH_STATE_STOP;
+		}
 	}
 
 	virtual void WaitForFinish() {
-		while (!isFinished) {
+		while (!IsFinished()) {
 
 		}
 	}
@@ -52,16 +53,18 @@ public:
 	}
 
 	virtual uint32 Run() {
+		state = TH_STATE_RUNNING;
 		UE_LOG(LogTemp, Warning, TEXT("zone initial loader %d"), zone_list.Num());
 		for (auto i = 0; i < zone_list.Num(); i++) {
 			if (!controller->IsValidLowLevel()) {
 				// controller is not valid anymore
-				break;
+				state = TH_STATE_FINISHED;
+				return 0;
 			}
 
-			if (forceStop) {
-				// controller is not valid anymore
-				break;
+			if (state == TH_STATE_STOP) {
+				state = TH_STATE_FINISHED;
+				return 0;
 			}
 
 			FVector index = zone_list[i];
@@ -73,27 +76,21 @@ public:
 			if (vd->getDensityFillState() == VoxelDataFillState::MIX) {
 				ASandboxTerrainZone* zone = controller->getZoneByVectorIndex(index);
 				if (zone == NULL) {
-					ZoneMakeTask zone_make_task;
-					zone_make_task.type = MT_ADD_ZONE;
-					zone_make_task.index = index;
-					sandboxAsyncAddZoneMakeTask(zone_make_task);
+					controller->invokeLazyZoneAsync(index);
 				} else {
 					MeshData* md = zone->generateMesh(*vd);
 					vd->resetLastMeshRegenerationTime();
 
-					ZoneMakeTask zone_make_task;
-					zone_make_task.type = MT_GENERATE_MESH;
-					zone_make_task.index = zone->GetActorLocation();
-					zone_make_task.mesh_data = md;
-
-					//sandboxAsyncAddZoneMakeTask(zone_make_task);
+					controller->invokeZoneMeshAsync(zone, md);
 				}
 			}
 
 			controller->OnLoadZoneProgress(i, zone_list.Num());
 		}
 
-		isFinished = true;
+		controller->OnLoadZoneListFinished();
+
+		state = TH_STATE_FINISHED;
 		return 0;
 	}
 
@@ -105,12 +102,14 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	ZoneGridSize = 64;
+	TerrainSize = 5;
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	ZoneGridSize = 64;
+	TerrainSize = 5;
 }
 
 void ASandboxTerrainController::BeginPlay() {
@@ -140,17 +139,16 @@ void ASandboxTerrainController::BeginPlay() {
 	//TWeakObjectPtr<ASandboxTerrainController> ptr(this);
 
 	initial_zone_loader->controller = this;
-	int num = 10;
-	
 	if (!GenerateOnlySmallSpawnPoint) {
-		for (int num = 0; num < 10; num++) {
+		for (int num = 0; num < TerrainSize; num++) {
 			int s = num;
 			for (int x = -s; x <= s; x++) {
 				for (int y = -s; y <= s; y++) {
 					for (int z = -s; z <= s; z++) {
 						FVector zone_index = FVector(x, y, z);
+						ASandboxTerrainZone* zone = getZoneByVectorIndex(zone_index);
 						VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_index);
-						if (vd == NULL) {
+						if (vd == NULL || (vd->getDensityFillState() == VoxelDataFillState::MIX && zone == NULL)) {
 							// Until the end of the process some functions can be unavailable.
 							initial_zone_loader->zone_list.Add(zone_index);
 						}
@@ -169,21 +167,31 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	if (initial_zone_loader != NULL) {
 		initial_zone_loader->Stop();
 		initial_zone_loader->WaitForFinish();
-		UE_LOG(LogTemp, Warning, TEXT("STOP"));
 	}
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
-	if (sandboxAsyncIsNextZoneMakeTask()) {
-		ZoneMakeTask zone_make_task = sandboxAsyncGetZoneMakeTask();
+	
+	if (sandboxAsyncIsNextTask()) {
+		TerrainControllerTask task = sandboxAsyncGetTask();
 
+		if (task.f) {
+			task.f();
+		}
+
+		/*
 		if (zone_make_task.type == MT_GENERATE_MESH) {
+
 			ASandboxTerrainZone* zone = getZoneByVectorIndex(getZoneIndex(zone_make_task.index));
 			if (zone != NULL) {
 				if (zone_make_task.mesh_data != NULL) {
-					zone->applyTerrainMesh(zone_make_task.mesh_data);
+
+					zone_make_task.f();
+
+					//zone->applyTerrainMesh(zone_make_task.mesh_data);
+
 					if (zone_make_task.isNew) {
 						//zone->generateZoneObjects();
 						zone->isLoaded = true;
@@ -221,10 +229,12 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 			MeshData* md = zone->generateMesh(*vd);
 			vd->resetLastMeshRegenerationTime();
 			zone->applyTerrainMesh(md);
-		}
+		}*/
 
 
 	}
+
+	
 }
 
 //======================================================================================================================================================================
@@ -450,12 +460,14 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 						bool is_changed = handler(vd, v, radius, s);
 						if (is_changed) {
 							vd->setChanged();
-							UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f ---> create"), zone_index.X, zone_index.Y, zone_index.Z);
 
-							ZoneMakeTask zone_make_task;
-							zone_make_task.type = MT_ADD_ZONE;
-							zone_make_task.index = zone_index;
-							sandboxAsyncAddZoneMakeTask(zone_make_task);
+							UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f ---> create"), zone_index.X, zone_index.Y, zone_index.Z);
+							invokeLazyZoneAsync(zone_index);
+
+							/*
+							AsyncTask(ENamedThreads::GameThread, [=]() {
+							});
+							*/
 						}
 						
 						continue;
@@ -476,12 +488,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					MeshData* md = zone->generateMesh(*vd);
 					vd->resetLastMeshRegenerationTime();
 
-					ZoneMakeTask zone_make_task;
-					zone_make_task.type = MT_GENERATE_MESH;
-					zone_make_task.index = zone->GetActorLocation();
-					zone_make_task.mesh_data = md;
-
-					sandboxAsyncAddZoneMakeTask(zone_make_task);
+					invokeZoneMeshAsync(zone, md);
 				}
 
 			}
@@ -490,7 +497,39 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 
 }
 
-#include <cmath>
+
+void ASandboxTerrainController::invokeZoneMeshAsync(ASandboxTerrainZone* zone, MeshData* md) {
+	TerrainControllerTask task;
+	task.f = [=]() {
+		if (md != NULL) {
+			zone->applyTerrainMesh(md);
+		}
+	};
+
+	sandboxAsyncAddTask(task);
+}
+
+void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
+	TerrainControllerTask task;
+	task.f = [=]() {
+		FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
+		ASandboxTerrainZone* zone = addTerrainZone(v);
+		VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(index);
+
+		if (vd == NULL) {
+			UE_LOG(LogTemp, Warning, TEXT("FAIL"));
+			return;
+		}
+
+		zone->setVoxelData(vd);
+
+		MeshData* md = zone->generateMesh(*vd);
+		vd->resetLastMeshRegenerationTime();
+		zone->applyTerrainMesh(md);
+	};
+
+	sandboxAsyncAddTask(task);
+}
 
 VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 	double start = FPlatformTime::Seconds();
@@ -521,7 +560,7 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::createZoneVoxeldata() -> %.8f %.8f %.8f --> %f ms"), index.X, index.Y, index.Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::createZoneVoxeldata() -> %.8f %.8f %.8f --> %f ms"), index.X, index.Y, index.Z, time);
 
 	return vd;
 }
@@ -574,5 +613,10 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 
 
 void ASandboxTerrainController::OnLoadZoneProgress(int progress, int total) {
-	UE_LOG(LogTemp, Warning, TEXT("%d / %d"), progress, total);
+
+}
+
+
+void ASandboxTerrainController::OnLoadZoneListFinished() {
+
 }

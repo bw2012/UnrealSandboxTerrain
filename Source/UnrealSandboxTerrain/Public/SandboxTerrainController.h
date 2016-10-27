@@ -6,6 +6,7 @@
 
 class ASandboxTerrainZone;
 class VoxelData;
+struct MeshData;
 class FLoadInitialZonesThread;
 
 UCLASS()
@@ -44,6 +45,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 ZoneGridSize;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 TerrainSize;
+
 	FString getZoneFileName(int tx, int ty, int tz);
 		
 	void digTerrainRoundHole(FVector v, float radius, float s);
@@ -77,6 +81,10 @@ private:
 
 	FLoadInitialZonesThread* initial_zone_loader;
 
+	void invokeZoneMeshAsync(ASandboxTerrainZone* zone, MeshData* md);
+
+	void invokeLazyZoneAsync(FVector index);
+
 protected:
 
 	int getVoxeldataSize() { return 65; }
@@ -84,5 +92,7 @@ protected:
 	float getVoxelDataVolume() { return 1000; }
 
 	virtual void OnLoadZoneProgress(int progress, int total);
+
+	virtual void OnLoadZoneListFinished();
 		
 };
