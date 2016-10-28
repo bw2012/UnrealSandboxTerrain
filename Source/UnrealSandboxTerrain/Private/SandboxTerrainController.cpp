@@ -131,8 +131,7 @@ void ASandboxTerrainController::BeginPlay() {
 	}
 
 	spawnInitialZone();
-
-
+	
 	//zone initial generation list
 	initial_zone_loader = new FLoadInitialZonesThread();
 
@@ -267,38 +266,51 @@ void ASandboxTerrainController::spawnInitialZone() {
 
 	UE_LOG(LogTemp, Warning, TEXT("InitialSpawnSize = %d"), s);
 
-	for (auto x = -s; x <= s; x++) {
-		for (auto y = -s; y <= s; y++) {
-			for (auto z = -s; z <= s; z++) {
-				FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
-				//TODO maybe pass index?
-				VoxelData* vd = createZoneVoxeldata(v);
+	if (s > 0) {
+		for (auto x = -s; x <= s; x++) {
+			for (auto y = -s; y <= s; y++) {
+				for (auto z = -s; z <= s; z++) {
+					FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
+					//TODO maybe pass index?
+					VoxelData* vd = createZoneVoxeldata(v);
 
-				if (vd->getDensityFillState() == VoxelDataFillState::MIX) {
-					ASandboxTerrainZone* zone = addTerrainZone(v);
-					zone->setVoxelData(vd);
-					zone->makeTerrain();
-				}
+					if (vd->getDensityFillState() == VoxelDataFillState::MIX) {
+						ASandboxTerrainZone* zone = addTerrainZone(v);
+						zone->setVoxelData(vd);
+						zone->makeTerrain();
+					}
 
-				//bool is_new = zone->fillZone();
+					//bool is_new = zone->fillZone();
 
-				/*
-				if (is_new) {
+					/*
+					if (is_new) {
 					//zone->generateZoneObjects();
-				} else {
+					} else {
 					if (!zone->isLoaded) {
-						//todo
+					//todo
 					}
 					FVector v = zone->GetActorLocation();
 					v /= 1000;
 					//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
 					//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
 					zone->isLoaded = true;
+					}
+					*/
 				}
-				*/
 			}
 		}
+	} else {
+		FVector v = FVector(0);
+		//TODO maybe pass index?
+		VoxelData* vd = createZoneVoxeldata(v);
+
+		if (vd->getDensityFillState() == VoxelDataFillState::MIX) {
+			ASandboxTerrainZone* zone = addTerrainZone(v);
+			zone->setVoxelData(vd);
+			zone->makeTerrain();
+		}
 	}
+	
 }
 
 FVector ASandboxTerrainController::getZoneIndex(FVector v) {
@@ -511,16 +523,16 @@ void ASandboxTerrainController::invokeZoneMeshAsync(ASandboxTerrainZone* zone, M
 
 void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 	TerrainControllerTask task;
+	FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
+	VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(index);
+
+	if (vd == NULL) {
+		UE_LOG(LogTemp, Warning, TEXT("FAIL"));
+		return;
+	}
+
 	task.f = [=]() {
-		FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
 		ASandboxTerrainZone* zone = addTerrainZone(v);
-		VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(index);
-
-		if (vd == NULL) {
-			UE_LOG(LogTemp, Warning, TEXT("FAIL"));
-			return;
-		}
-
 		zone->setVoxelData(vd);
 
 		MeshData* md = zone->generateMesh(*vd);
