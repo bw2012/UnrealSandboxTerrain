@@ -103,6 +103,11 @@ void ASandboxTerrainZone::makeTerrain() {
 	if (IsInGameThread()) {
 		applyTerrainMesh(md_ptr);
 		voxel_data->resetLastMeshRegenerationTime();
+	} else {
+		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
+		if (controller != NULL) {
+			controller->invokeZoneMeshAsync(this, md_ptr);
+		}
 	}
 }
 

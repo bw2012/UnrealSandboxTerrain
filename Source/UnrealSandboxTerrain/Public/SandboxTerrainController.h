@@ -19,6 +19,7 @@ public:
 	ASandboxTerrainController();
 
 	friend FLoadInitialZonesThread;
+	friend ASandboxTerrainZone;
 
 	virtual void BeginPlay() override;
 

@@ -453,6 +453,11 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 
 }
 
+/*
+AsyncTask(ENamedThreads::GameThread, [=]() {
+});
+*/
+
 template<class H>
 void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
 	FVector base_zone_index = getZoneIndex(v);
@@ -473,18 +478,13 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 						if (is_changed) {
 							vd->setChanged();
 
-							UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f ---> create"), zone_index.X, zone_index.Y, zone_index.Z);
+							//UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f ---> create"), zone_index.X, zone_index.Y, zone_index.Z);
 							invokeLazyZoneAsync(zone_index);
-
-							/*
-							AsyncTask(ENamedThreads::GameThread, [=]() {
-							});
-							*/
 						}
 						
 						continue;
 					} else {
-						UE_LOG(LogTemp, Warning, TEXT("zone and voxel data not found %f %f %f ---> skip"), zone_index.X, zone_index.Y, zone_index.Z);
+						//UE_LOG(LogTemp, Warning, TEXT("zone and voxel data not found %f %f %f ---> skip"), zone_index.X, zone_index.Y, zone_index.Z);
 						continue;
 					}
 				}
@@ -505,7 +505,6 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 			}
 		}
 	}
-
 }
 
 
