@@ -78,10 +78,10 @@ public:
 				if (zone == NULL) {
 					controller->invokeLazyZoneAsync(index);
 				} else {
-					MeshData* md = zone->generateMesh(*vd);
+					std::shared_ptr<MeshData> md_ptr = zone->generateMesh(*vd);
 					vd->resetLastMeshRegenerationTime();
 
-					controller->invokeZoneMeshAsync(zone, md);
+					controller->invokeZoneMeshAsync(zone, md_ptr);
 				}
 			}
 
@@ -497,10 +497,9 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				bool is_changed = handler(vd, v, radius, s);
 				if (is_changed) {
 					vd->setChanged();
-					MeshData* md = zone->generateMesh(*vd);
+					std::shared_ptr<MeshData> md_ptr = zone->generateMesh(*vd);
 					vd->resetLastMeshRegenerationTime();
-
-					invokeZoneMeshAsync(zone, md);
+					invokeZoneMeshAsync(zone, md_ptr);
 				}
 
 			}
@@ -510,11 +509,11 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 }
 
 
-void ASandboxTerrainController::invokeZoneMeshAsync(ASandboxTerrainZone* zone, MeshData* md) {
+void ASandboxTerrainController::invokeZoneMeshAsync(ASandboxTerrainZone* zone, std::shared_ptr<MeshData> mesh_data_ptr) {
 	TerrainControllerTask task;
 	task.f = [=]() {
-		if (md != NULL) {
-			zone->applyTerrainMesh(md);
+		if (mesh_data_ptr) {
+			zone->applyTerrainMesh(mesh_data_ptr);
 		}
 	};
 
@@ -535,9 +534,9 @@ void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 		ASandboxTerrainZone* zone = addTerrainZone(v);
 		zone->setVoxelData(vd);
 
-		MeshData* md = zone->generateMesh(*vd);
+		std::shared_ptr<MeshData> md_ptr = zone->generateMesh(*vd);
 		vd->resetLastMeshRegenerationTime();
-		zone->applyTerrainMesh(md);
+		zone->applyTerrainMesh(md_ptr);
 	};
 
 	sandboxAsyncAddTask(task);

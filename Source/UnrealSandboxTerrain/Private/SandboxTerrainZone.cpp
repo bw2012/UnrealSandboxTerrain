@@ -98,12 +98,15 @@ void ASandboxTerrainZone::makeTerrain() {
 		return;
 	}
 
-	MeshData* md = generateMesh(*voxel_data);
-	applyTerrainMesh(md);
-	voxel_data->resetLastMeshRegenerationTime();
+	std::shared_ptr<MeshData> md_ptr = generateMesh(*voxel_data);
+
+	if (IsInGameThread()) {
+		applyTerrainMesh(md_ptr);
+		voxel_data->resetLastMeshRegenerationTime();
+	}
 }
 
-MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
+std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
 	double start = FPlatformTime::Seconds();
 
 	if (voxel_data.getDensityFillState() == VoxelDataFillState::ZERO || voxel_data.getDensityFillState() == VoxelDataFillState::ALL) {
@@ -111,6 +114,7 @@ MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
 	}
 
 	MeshData* mesh_data = new MeshData();
+
 	MeshDataElement* mesh_data_element = new MeshDataElement();
 	//MeshDataElement* mesh_data_element2 = new MeshDataElement();
 
@@ -137,11 +141,13 @@ MeshData* ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
 	double time = (end - start) * 1000;
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
-	return mesh_data;
+	return std::shared_ptr<MeshData>(mesh_data);
 }
 
-void ASandboxTerrainZone::applyTerrainMesh(MeshData* mesh_data) {
+void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_ptr) {
 	double start = FPlatformTime::Seconds();
+
+	MeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data == NULL) {
 		return;

@@ -4,7 +4,9 @@
 #include "ProceduralMeshComponent.h"
 #include "SandboxTerrainMeshComponent.h"
 #include "SandboxTerrainController.h"
+#include <memory>
 #include "SandboxTerrainZone.generated.h"
+
 
 class VoxelData;
 struct MeshData;
@@ -35,9 +37,9 @@ public:
 
 	void setVoxelData(VoxelData* vd) { this->voxel_data = vd; }
 
-	void applyTerrainMesh(MeshData* voxel_data);
+	void applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_ptr);
 
-	MeshData* generateMesh(VoxelData &voxel_data);
+	std::shared_ptr<MeshData> generateMesh(VoxelData &voxel_data);
 
 	bool volatile isLoaded = false;
 

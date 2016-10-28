@@ -2,6 +2,7 @@
 
 #include "EngineMinimal.h"
 #include "SandboxVoxelGenerator.h"
+#include <memory>
 #include "SandboxTerrainController.generated.h"
 
 class ASandboxTerrainZone;
@@ -81,7 +82,7 @@ private:
 
 	FLoadInitialZonesThread* initial_zone_loader;
 
-	void invokeZoneMeshAsync(ASandboxTerrainZone* zone, MeshData* md);
+	void invokeZoneMeshAsync(ASandboxTerrainZone* zone, std::shared_ptr<MeshData> mesh_data_ptr);
 
 	void invokeLazyZoneAsync(FVector index);
 
