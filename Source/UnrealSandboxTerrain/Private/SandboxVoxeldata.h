@@ -87,8 +87,6 @@ typedef struct MeshData {
 	//MeshDataElement* slice_mesh;
 
 	~MeshData() {
-		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
-
 		if (main_mesh != NULL) {
 			delete main_mesh;
 		}

@@ -6,7 +6,7 @@ Example of usage - https://github.com/bw2012/UE4VoxelTerrain
 
 Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI  
 
-Tested with Unreal Engine 4.12
+Tested with Unreal Engine 4.13
 
 Work in progress
 
