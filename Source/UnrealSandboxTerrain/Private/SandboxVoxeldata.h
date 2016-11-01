@@ -2,6 +2,7 @@
 #define __SANDBOXMOBILE_VOXELDATA_H__
 
 #include "EngineMinimal.h"
+#include "ProceduralMeshComponent.h"
 
 struct VoxelPoint {
 	unsigned char density;
@@ -71,14 +72,9 @@ public:
 };
 
 typedef struct MeshDataElement {
-	TArray<FVector> verts;
-	TArray<FVector> normals;
-	TArray<int32> tris;
-	TArray<FVector2D> uv;
-	TArray<FColor> colors;
 
-	int vertex_count;
-	int triangle_count;
+	FProcMeshSection MeshSection;
+
 } MeshDataElement;
 
 

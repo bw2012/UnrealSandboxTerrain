@@ -650,23 +650,31 @@ private:
         if(vertex_map.Contains(v)){
             int vindex = vertex_map[v];
             
-            FVector nvert = mesh_data.normals[vindex];
-            
-            //FVector tmp(0,0,1);
+			FProcMeshVertex& Vertex = mesh_data.MeshSection.ProcVertexBuffer[vindex];
+			FVector nvert = Vertex.Normal;
+
             FVector tmp(nvert);
             tmp += n;
             tmp /= 2;
-                    
-            //mesh_data.normals.Insert(tmp, vindex);   
-            mesh_data.normals[vindex] = tmp;
-            mesh_data.tris.Add(vindex);
+
+			Vertex.Normal = tmp;
+			mesh_data.MeshSection.ProcIndexBuffer.Add(vindex);
+
         } else {
-            mesh_data.normals.Emplace(n);
-            mesh_data.verts.Add(v);        
-            mesh_data.tris.Add(index);
+			mesh_data.MeshSection.ProcIndexBuffer.Add(index);
 
 			int t = point.mat_weight * 255;
-			mesh_data.colors.Add(FColor(t, 0, 0, 0));
+
+			FProcMeshVertex Vertex;
+			Vertex.Position = v;
+			Vertex.Normal = n;
+			Vertex.UV0 = FVector2D(0.f, 0.f);
+			Vertex.Color = FColor(t, 0, 0, 0);
+			Vertex.Tangent = FProcMeshTangent();
+
+			mesh_data.MeshSection.SectionLocalBox += Vertex.Position;
+
+			mesh_data.MeshSection.ProcVertexBuffer.Add(Vertex);
         
             vertex_map.Add(v, index);          
             vertex_index++;  
@@ -810,8 +818,6 @@ void sandboxVoxelGenerateMesh(MeshDataElement &mesh_data, const VoxelData &vd, c
         }
     }
 
-    mesh_data.triangle_count = vp.ntriang;
-    mesh_data.vertex_count = vp.vertex_index;
 }
 
 // =================================================================

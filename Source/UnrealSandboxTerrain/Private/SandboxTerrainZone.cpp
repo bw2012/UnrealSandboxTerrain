@@ -140,11 +140,13 @@ std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_dat
 
 	//int tc = (*mesh_data).triangle_count;
 	//int vc = (*mesh_data).vertex_count;
-	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated: %f ms -> %d triangles %d vertexes <- volume %d"), time, tc, vc, voxel_data.num());
+
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
+
+	UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated ------------> %d triangles %d vertexes <- volume %d"), mesh_data_element->MeshSection.ProcIndexBuffer.Num(), mesh_data_element->MeshSection.ProcVertexBuffer.Num(), voxel_data.num());
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	return std::shared_ptr<MeshData>(mesh_data);
 }
@@ -158,7 +160,7 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 		return;
 	}
 
-	if (mesh_data->main_mesh->verts.Num() == 0) {
+	if (mesh_data->main_mesh->MeshSection.ProcVertexBuffer.Num() == 0) {
 		return;
 	}
 
@@ -167,7 +169,12 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
-	MainTerrainMesh->CreateMeshSection(section, mesh_data->main_mesh->verts, mesh_data->main_mesh->tris, mesh_data->main_mesh->normals, mesh_data->main_mesh->uv, mesh_data->main_mesh->colors, TArray<FProcMeshTangent>(), true);
+
+	//MainTerrainMesh->CreateMeshSection(section, mesh_data->main_mesh->verts, mesh_data->main_mesh->tris, mesh_data->main_mesh->normals, mesh_data->main_mesh->uv, mesh_data->main_mesh->colors, TArray<FProcMeshTangent>(), true);
+	mesh_data->main_mesh->MeshSection.bEnableCollision = true;
+	mesh_data->main_mesh->MeshSection.bSectionVisible = true;
+	MainTerrainMesh->SetProcMeshSection(section, mesh_data->main_mesh->MeshSection);
+
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	MainTerrainMesh->SetVisibility(false);
 	MainTerrainMesh->SetCastShadow(true);
@@ -197,7 +204,7 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh added: %f ms"), time2, mesh_data->triangle_count, mesh_data->vertex_count);
 }
