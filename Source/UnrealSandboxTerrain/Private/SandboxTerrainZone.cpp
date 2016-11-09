@@ -145,8 +145,8 @@ std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_dat
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 
-	UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated ------------> %d triangles %d vertexes <- volume %d"), mesh_data_element->MeshSection.ProcIndexBuffer.Num(), mesh_data_element->MeshSection.ProcVertexBuffer.Num(), voxel_data.num());
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated ------------------------> %d triangles %d vertexes <- volume %d"), mesh_data_element->MeshSection.ProcIndexBuffer.Num(), mesh_data_element->MeshSection.ProcVertexBuffer.Num(), voxel_data.num());
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	return std::shared_ptr<MeshData>(mesh_data);
 }
@@ -204,7 +204,7 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh -> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh added: %f ms"), time2, mesh_data->triangle_count, mesh_data->vertex_count);
 }

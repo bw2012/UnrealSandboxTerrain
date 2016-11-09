@@ -576,6 +576,7 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 }
 
 void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
+	double start = FPlatformTime::Seconds();
 	SandboxVoxelGenerator generator = newTerrainGenerator(voxel_data);
 
 	TSet<unsigned char> material_list;
@@ -618,6 +619,10 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 		}
 		voxel_data.deinitializeMaterial(base_mat);
 	}
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), voxel_data.getOrigin().X, voxel_data.getOrigin().Y, voxel_data.getOrigin().Z, time);
 
 }
 
