@@ -10,6 +10,15 @@ class VoxelData;
 struct MeshData;
 class FLoadInitialZonesThread;
 
+UENUM(BlueprintType)	
+enum class EVoxelDimEnum : uint8
+{
+	VS_8  = 9	UMETA(DisplayName = "8"),
+	VS_16 = 17	UMETA(DisplayName = "16"),
+	VS_32 = 33	UMETA(DisplayName = "32"),
+	VS_64 = 65 	UMETA(DisplayName = "64"),
+};
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor
 {
@@ -45,7 +54,7 @@ public:
 	UMaterialInterface* TerrainMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 ZoneGridSize;
+	EVoxelDimEnum ZoneGridDimension;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 TerrainSize;
