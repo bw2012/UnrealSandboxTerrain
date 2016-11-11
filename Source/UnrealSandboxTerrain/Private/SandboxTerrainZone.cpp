@@ -124,7 +124,7 @@ std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_dat
 	//MeshDataElement* mesh_data_element2 = new MeshDataElement();
 
 	VoxelDataParam vdp;
-	vdp.lod = 1;
+	vdp.dim = 0;
 
 	sandboxVoxelGenerateMesh(*mesh_data_element, voxel_data, vdp);
 	mesh_data->main_mesh = mesh_data_element;

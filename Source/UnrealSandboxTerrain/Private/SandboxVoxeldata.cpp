@@ -555,7 +555,7 @@ private:
 	}
 
 	FORCEINLINE float getDensity(int x, int y, int z) {
-		int step = voxel_data_param.lod;
+		int step = voxel_data_param.step();
 		if (voxel_data_param.z_cut) {
 			FVector p = voxel_data.voxelIndexToVector(x, y, z);
 			p += voxel_data.getOrigin();
@@ -701,7 +701,7 @@ public:
         float isolevel = 0.5f;
 		Point d[8];
 
-		int step = voxel_data_param.lod;
+		int step = voxel_data_param.step();
 
         d[0] = getVoxelpoint(x + step, y + step, z);
         d[1] = getVoxelpoint(x + step, y, z);
@@ -808,7 +808,11 @@ public:
 void sandboxVoxelGenerateMesh(MeshDataElement &mesh_data, const VoxelData &vd, const VoxelDataParam &vdp) {
     VoxelMeshProcessor vp(mesh_data, vd, vdp);
 
-	int step = vdp.lod;
+	int step = vdp.step();
+
+	//step = 2;
+
+	UE_LOG(LogTemp, Warning, TEXT("TEST %d"), step);
 
     for (int x = 0; x < vd.num() - step; x += step) {
         for (int y = 0; y < vd.num() - step; y += step) {
