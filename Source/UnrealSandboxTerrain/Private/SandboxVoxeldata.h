@@ -74,6 +74,7 @@ public:
 typedef struct MeshDataElement {
 
 	FProcMeshSection MeshSection;
+	TArray<FProcMeshSection> MeshSectionLOD;
 
 } MeshDataElement;
 
