@@ -74,6 +74,7 @@ public:
 typedef struct MeshDataElement {
 
 	FProcMeshSection MeshSection;
+	TArray<FProcMeshSection> MeshSectionLOD;
 
 } MeshDataElement;
 
@@ -90,9 +91,14 @@ typedef struct MeshData {
 } MeshData;
 
 typedef struct VoxelDataParam {
-	int lod = 1;
+
+	int dim = 0;
 	float z_cut_level = 0;
 	bool z_cut = false;
+
+	int step() const {
+		return 1 << dim;
+	}
 
 } VoxelDataParam;
 
