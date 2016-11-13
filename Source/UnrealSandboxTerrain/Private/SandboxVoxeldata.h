@@ -4,6 +4,10 @@
 #include "EngineMinimal.h"
 #include "ProceduralMeshComponent.h"
 
+
+#define MeshDataPtr std::shared_ptr<MeshData>
+
+
 struct VoxelPoint {
 	unsigned char density;
 	unsigned char material;
@@ -12,6 +16,8 @@ struct VoxelPoint {
 enum VoxelDataFillState{
 	ZERO, ALL, MIX
 };
+
+
 
 class VoxelData{
 
@@ -72,37 +78,41 @@ public:
 };
 
 typedef struct MeshDataElement {
+	MeshDataElement() {
+		MeshSectionLOD.SetNum(7); // 64
+	}
+	
+	//FProcMeshSection MeshSection;
 
-	FProcMeshSection MeshSection;
 	TArray<FProcMeshSection> MeshSectionLOD;
 
 } MeshDataElement;
 
 
 typedef struct MeshData {
-	MeshDataElement* main_mesh;
+	MeshDataElement main_mesh;
 	//MeshDataElement* slice_mesh;
 
 	~MeshData() {
-		if (main_mesh != NULL) {
-			delete main_mesh;
-		}
+		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
+
 } MeshData;
 
 typedef struct VoxelDataParam {
+	bool bGenerateLOD = false;
 
-	int dim = 0;
+	int lod = 0;
 	float z_cut_level = 0;
 	bool z_cut = false;
 
-	int step() const {
-		return 1 << dim;
+	FORCEINLINE int step() const {
+		return 1 << lod;
 	}
 
 } VoxelDataParam;
 
-void sandboxVoxelGenerateMesh(MeshDataElement &mesh_data, const VoxelData &vd, const VoxelDataParam &vdp);
+std::shared_ptr<MeshData> sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp);
 
 void sandboxRegisterTerrainVoxelData(VoxelData* vd, FVector index);
 VoxelData* sandboxGetTerrainVoxelDataByPos(FVector point);
