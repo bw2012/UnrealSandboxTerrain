@@ -77,24 +77,26 @@ public:
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 };
 
-typedef struct MeshDataElement {
-	MeshDataElement() {
-		MeshSectionLOD.SetNum(7); // 64
-	}
-	
-	//FProcMeshSection MeshSection;
+typedef struct MeshDataSection {
 
-	TArray<FProcMeshSection> MeshSectionLOD;
+	int mat_id = 0;
+	FProcMeshSection MainMesh;
 
-} MeshDataElement;
+} MeshDataSection;
 
 
 typedef struct MeshData {
-	MeshDataElement main_mesh;
+	MeshData() {
+		MeshDataSectionLOD.SetNum(7); // 64
+	}
+
+	//MeshDataElement main_mesh;
 	//MeshDataElement* slice_mesh;
 
+	TArray<MeshDataSection> MeshDataSectionLOD;
+
 	~MeshData() {
-		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
+		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } MeshData;

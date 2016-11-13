@@ -130,8 +130,8 @@
 	}
 
 	FORCEINLINE FVector VoxelData::voxelIndexToVector(int x, int y, int z) const {
-		float step = size() / (num() - 1);
-		float s = -size() / 2;
+		static const float step = size() / (num() - 1);
+		static const float s = -size() / 2;
 		FVector v(s, s, s);
 		FVector a(x * step, y * step, z * step);
 		v = v + a;
@@ -255,12 +255,12 @@ public:
 	int ntriang = 0;
 	int vertex_index = 0;
 
-	MeshDataElement &mesh_data;
+	MeshDataSection &mesh_data;
 	const VoxelData &voxel_data;
 	const VoxelDataParam voxel_data_param;
 	TMap<FVector, int> VertexMap;
 
-	VoxelMeshExtractor(MeshDataElement &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) { }
+	VoxelMeshExtractor(MeshDataSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) { }
     
 private:
 	double isolevel = 0.5f;
@@ -374,7 +374,7 @@ private:
 	FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
 		FVector v = point.v;
 
-		mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcIndexBuffer.Add(index);
+		mesh_data.MainMesh.ProcIndexBuffer.Add(index);
 
 		int t = point.mat_weight * 255;
 
@@ -385,8 +385,8 @@ private:
 		Vertex.Color = FColor(t, 0, 0, 0);
 		Vertex.Tangent = FProcMeshTangent();
 
-		mesh_data.MeshSectionLOD[voxel_data_param.lod].SectionLocalBox += Vertex.Position;
-		mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcVertexBuffer.Add(Vertex);
+		mesh_data.MainMesh.SectionLocalBox += Vertex.Position;
+		mesh_data.MainMesh.ProcVertexBuffer.Add(Vertex);
 
 		vertex_index++;
 	}
@@ -397,7 +397,7 @@ private:
         if(VertexMap.Contains(v)){
             int vindex = VertexMap[v];
             
-			FProcMeshSection& mesh = mesh_data.MeshSectionLOD[voxel_data_param.lod];
+			FProcMeshSection& mesh = mesh_data.MainMesh;
 			FProcMeshVertex& Vertex = mesh.ProcVertexBuffer[vindex];
 			FVector nvert = Vertex.Normal;
 
@@ -406,10 +406,10 @@ private:
             tmp /= 2;
 
 			Vertex.Normal = tmp;
-			mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcIndexBuffer.Add(vindex);
+			mesh_data.MainMesh.ProcIndexBuffer.Add(vindex);
 
         } else {
-			mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcIndexBuffer.Add(index);
+			mesh_data.MainMesh.ProcIndexBuffer.Add(index);
 
 			int t = point.mat_weight * 255;
 
@@ -420,20 +420,16 @@ private:
 			Vertex.Color = FColor(t, 0, 0, 0);
 			Vertex.Tangent = FProcMeshTangent();
 
-			mesh_data.MeshSectionLOD[voxel_data_param.lod].SectionLocalBox += Vertex.Position;
+			mesh_data.MainMesh.SectionLocalBox += Vertex.Position;
 
-			mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcVertexBuffer.Add(Vertex);
+			mesh_data.MainMesh.ProcVertexBuffer.Add(Vertex);
         
 			VertexMap.Add(v, index);
             vertex_index++;  
         }
     }
 
-    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
-        //vp1 = vp1 + voxel_data.getOrigin();
-        //vp2 = vp2 + voxel_data.getOrigin();
-        //vp3 = vp3 + voxel_data.getOrigin();
-        
+    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {      
 		FVector n = clcNormal(tmp1.v, tmp2.v, tmp3.v);
 		n = -n;
         
@@ -508,10 +504,6 @@ public:
 		}
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
-			const int vertexIndex1 = cd.vertexIndex[i];
-			const int vertexIndex2 = cd.vertexIndex[i + 1];
-			const int vertexIndex3 = cd.vertexIndex[i + 2];
-
 			TmpPoint tmp1 = vertexList[cd.vertexIndex[i]];
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
@@ -521,19 +513,37 @@ public:
     }
 };
 
-//#define VoxelMeshExtractorPtr std::shared_ptr<VoxelMeshExtractor> 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
-MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+
+MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
+	MeshData* mesh_data = new MeshData();
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+
+	int step = vdp.step();
+
+	for (auto x = 0; x < vd.num() - step; x += step) {
+		for (auto y = 0; y < vd.num() - step; y += step) {
+			for (auto z = 0; z < vd.num() - step; z += step) {
+				mesh_extractor_ptr->generateCell(x, y, z);
+			}
+		}
+	}
+
+	return MeshDataPtr(mesh_data);
+}
+
+MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
 	std::vector<VoxelMeshExtractorPtr> MeshExtractorLod;
 
-	int max_lod = vdp.bGenerateLOD ? 7 : 1;
+	static const int max_lod = 7;
 
-	for (auto i = 0; i < max_lod; i++) {
+	// create mesh extractor for each LOD
+	for (auto lod = 0; lod < max_lod; lod++) {
 		VoxelDataParam me_vdp = vdp;
-		me_vdp.lod = i;
-		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->main_mesh, vd, me_vdp));
+		me_vdp.lod = lod;
+		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[lod], vd, me_vdp));
 		MeshExtractorLod.push_back(me_ptr);
 	}
 
@@ -557,6 +567,10 @@ MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &
 	}
 
 	return MeshDataPtr(mesh_data);
+}
+
+MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 
 // =================================================================
