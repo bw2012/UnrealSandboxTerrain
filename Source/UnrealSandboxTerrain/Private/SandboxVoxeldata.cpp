@@ -1,10 +1,9 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
-//#include "SandboxMobile.h"
 #include "SandboxVoxeldata.h"
-//#include "SandboxShared.h"
-
+#include "Transvoxel.h"
 #include <cmath>
+#include <vector>
 
 static const int edgeTable[256] = {
     0x0,   0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c, 0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
@@ -696,6 +695,15 @@ private:
         ntriang++;
     }
 
+	FORCEINLINE void getConrers(int8 (&corner)[8], Point (&d)[8]) {
+		for (auto i = 0; i < 8; i++) {
+			corner[i] = (d[i].density < isolevel) ? 0 : -127;
+		}
+	}
+
+#define HINIBBLE(b) (((b) >> 4) & 0x0F)
+#define LONIBBLE(b) ((b) & 0x0F)
+
 public:
 	FORCEINLINE void generateCell(int x, int y, int z) {
         float isolevel = 0.5f;
@@ -703,105 +711,69 @@ public:
 
 		int step = voxel_data_param.step();
 
-        d[0] = getVoxelpoint(x + step, y + step, z);
-        d[1] = getVoxelpoint(x + step, y, z);
-        d[2] = getVoxelpoint(x, y, z);
-        d[3] = getVoxelpoint(x, y + step, z);
-        d[4] = getVoxelpoint(x + step, y + step, z + step);
-        d[5] = getVoxelpoint(x + step, y, z + step);
-        d[6] = getVoxelpoint(x, y, z + step);
-        d[7] = getVoxelpoint(x, y + step, z + step);
-
-        int cubeindex = 0;
-        if (d[0].density < isolevel)
-            cubeindex |= 1;
-        if (d[1].density < isolevel)
-            cubeindex |= 2;
-        if (d[2].density < isolevel)
-            cubeindex |= 4;
-        if (d[3].density < isolevel)
-            cubeindex |= 8;
-        if (d[4].density < isolevel)
-            cubeindex |= 16;
-        if (d[5].density < isolevel)
-            cubeindex |= 32;
-        if (d[6].density < isolevel)
-            cubeindex |= 64;
-        if (d[7].density < isolevel)
-            cubeindex |= 128;
-
-        int edge = edgeTable[cubeindex];
-        if (edge == 0) {
-            return;
-        }
-
+        d[0] = getVoxelpoint(x, y + step, z);
+        d[1] = getVoxelpoint(x, y, z);
+        d[2] = getVoxelpoint(x + step, y + step, z);
+        d[3] = getVoxelpoint(x + step, y, z);
+        d[4] = getVoxelpoint(x, y + step, z + step);
+        d[5] = getVoxelpoint(x, y, z + step);
+        d[6] = getVoxelpoint(x + step, y + step, z + step);
+        d[7] = getVoxelpoint(x + step, y, z + step);
+		
         FVector p[8];
-        p[0] = voxel_data.voxelIndexToVector(x + step, y + step, z);
-        p[1] = voxel_data.voxelIndexToVector(x + step, y, z);
-        p[2] = voxel_data.voxelIndexToVector(x, y, z);
-        p[3] = voxel_data.voxelIndexToVector(x, y + step, z);
-        p[4] = voxel_data.voxelIndexToVector(x + step, y + step, z + step);
-        p[5] = voxel_data.voxelIndexToVector(x + step, y, z + step);
-        p[6] = voxel_data.voxelIndexToVector(x, y, z + step);
-        p[7] = voxel_data.voxelIndexToVector(x, y + step, z + step);
+        p[0] = voxel_data.voxelIndexToVector(x, y + step, z);
+        p[1] = voxel_data.voxelIndexToVector(x, y, z);
+        p[2] = voxel_data.voxelIndexToVector(x + step, y + step, z);
+        p[3] = voxel_data.voxelIndexToVector(x + step, y, z);
+        p[4] = voxel_data.voxelIndexToVector(x, y + step, z + step);
+        p[5] = voxel_data.voxelIndexToVector(x, y, z + step);
+        p[6] = voxel_data.voxelIndexToVector(x + step, y + step, z + step);
+        p[7] = voxel_data.voxelIndexToVector(x + step, y, z + step);
 
-		struct TmpPoint vertex_list[12];
 
-        if ((edge & 1) != 0) {
-            vertex_list[0] = vertexClc(p[0], p[1], d[0], d[1]);
-        }
+		// =============================================================================
+		int8 corner[8];
+		for (auto i = 0; i < 8; i++) {
+			corner[i] = (d[i].density < isolevel) ? -127 : 0;
+		}
 
-        if ((edge & 2) != 0) {
-            vertex_list[1] = vertexClc(p[1], p[2], d[1], d[2]);
-        }
+		unsigned long caseCode = ((corner[0] >> 7) & 0x01)
+			| ((corner[1] >> 6) & 0x02)
+			| ((corner[2] >> 5) & 0x04)
+			| ((corner[3] >> 4) & 0x08)
+			| ((corner[4] >> 3) & 0x10)
+			| ((corner[5] >> 2) & 0x20)
+			| ((corner[6] >> 1) & 0x40)
+			| (corner[7] & 0x80);
 
-        if ((edge & 4) != 0) {
-            vertex_list[2] = vertexClc(p[2], p[3], d[2], d[3]);
-        }
+		if (caseCode == 0) {
+			return;
+		}
 
-        if ((edge & 8) != 0) {
-            vertex_list[3] = vertexClc(p[3], p[0], d[3], d[0]);
-        }
+		unsigned int c = regularCellClass[caseCode];
+		RegularCellData cd = regularCellData[c];
+		std::vector<TmpPoint> vertexList;
+		vertexList.reserve(cd.GetTriangleCount() * 3);
 
-        if ((edge & 16) != 0) {
-            vertex_list[4] = vertexClc(p[4], p[5], d[4], d[5]);
-        }
+		for (int i = 0; i < cd.GetVertexCount(); i++) {
+			const int edgeCode = regularVertexData[caseCode][i];
+			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
+			const unsigned short v1 = edgeCode & 0x0F;
+			struct TmpPoint tp = vertexClc(p[v0], p[v1], d[v0], d[v1]);
+			vertexList.push_back(tp);
+		}
 
-        if ((edge & 32) != 0) {
-            vertex_list[5] = vertexClc(p[5], p[6], d[5], d[6]);
-        }
+		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
+			const int vertexIndex1 = cd.vertexIndex[i];
+			const int vertexIndex2 = cd.vertexIndex[i + 1];
+			const int vertexIndex3 = cd.vertexIndex[i + 2];
 
-        if ((edge & 64) != 0) {
-            vertex_list[6] = vertexClc(p[6], p[7], d[6], d[7]);
-        }
-
-        if ((edge & 128) != 0) {
-            vertex_list[7] = vertexClc(p[7], p[4], d[7], d[4]);
-        }
-
-        if ((edge & 256) != 0) {
-            vertex_list[8] = vertexClc(p[0], p[4], d[0], d[4]);
-        }
-
-        if ((edge & 512) != 0) {
-            vertex_list[9] = vertexClc(p[1], p[5], d[1], d[5]);
-        }
-
-        if ((edge & 1024) != 0) {
-            vertex_list[10] = vertexClc(p[2], p[6], d[2], d[6]);
-        }
-
-        if ((edge & 2048) != 0) {
-            vertex_list[11] = vertexClc(p[3], p[7], d[3], d[7]);
-        }
-
-        for (int i = 0; triTable[cubeindex][i] != -1; i += 3) {
-			TmpPoint tmp1 = vertex_list[triTable[cubeindex][i]];
-			TmpPoint tmp2 = vertex_list[triTable[cubeindex][i + 1]];
-			TmpPoint tmp3 = vertex_list[triTable[cubeindex][i + 2]];
+			TmpPoint tmp1 = vertexList[cd.vertexIndex[i]];
+			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
+			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
 			handleTriangle(tmp1, tmp2, tmp3);
-        }
+		}
     }
 };
 
