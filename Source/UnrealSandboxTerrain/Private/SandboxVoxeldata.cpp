@@ -515,11 +515,29 @@ public:
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
-MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+
+MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
+	MeshData* mesh_data = new MeshData();
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+
+	int step = vdp.step();
+
+	for (auto x = 0; x < vd.num() - step; x += step) {
+		for (auto y = 0; y < vd.num() - step; y += step) {
+			for (auto z = 0; z < vd.num() - step; z += step) {
+				mesh_extractor_ptr->generateCell(x, y, z);
+			}
+		}
+	}
+
+	return MeshDataPtr(mesh_data);
+}
+
+MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
 	std::vector<VoxelMeshExtractorPtr> MeshExtractorLod;
 
-	int max_lod = vdp.bGenerateLOD ? 7 : 1;
+	static const int max_lod = 7;
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
@@ -549,6 +567,10 @@ MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &
 	}
 
 	return MeshDataPtr(mesh_data);
+}
+
+MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 
 // =================================================================
