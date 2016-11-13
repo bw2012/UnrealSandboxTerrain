@@ -153,7 +153,8 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 		return;
 	}
 
-	FProcMeshSection& MeshSection = mesh_data->main_mesh.MeshSectionLOD[0];
+	MeshDataSection& MeshDataSection = mesh_data->MeshDataSectionLOD[0];
+	FProcMeshSection& MeshSection = MeshDataSection.MainMesh;
 
 	if (MeshSection.ProcVertexBuffer.Num() == 0) {
 		return;
