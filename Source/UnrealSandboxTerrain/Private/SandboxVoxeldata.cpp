@@ -30,7 +30,7 @@
 		delete[] material_data;
     }
 
-	void VoxelData::initializeDensity() {
+	FORCEINLINE void VoxelData::initializeDensity() {
 		int s = voxel_num * voxel_num * voxel_num;
 		density_data = new unsigned char[s];
 		for (auto x = 0; x < voxel_num; x++) {
@@ -48,7 +48,7 @@
 		}
 	}
 
-	void VoxelData::initializeMaterial() {
+	FORCEINLINE void VoxelData::initializeMaterial() {
 		int s = voxel_num * voxel_num * voxel_num;
 		material_data = new unsigned char[s];
 		for (auto x = 0; x < voxel_num; x++) {
@@ -60,7 +60,7 @@
 		}
 	}
 
-    void VoxelData::setDensity(int x, int y, int z, float density){
+	FORCEINLINE void VoxelData::setDensity(int x, int y, int z, float density){
 		if (density_data == NULL) {
 			if (density_state == VoxelDataFillState::ZERO && density == 0){
 				return;
@@ -86,7 +86,7 @@
         }
     }
 
-    float VoxelData::getDensity(int x, int y, int z) const {
+	FORCEINLINE float VoxelData::getDensity(int x, int y, int z) const {
 		if (density_data == NULL) {
 			if (density_state == VoxelDataFillState::ALL) {
 				return 1;
@@ -105,7 +105,7 @@
         }
     }
 
-	void VoxelData::setMaterial(int x, int y, int z, int material) {
+	FORCEINLINE void VoxelData::setMaterial(int x, int y, int z, int material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
@@ -116,7 +116,7 @@
 		}
 	}
 
-	int VoxelData::getMaterial(int x, int y, int z) const {
+	FORCEINLINE int VoxelData::getMaterial(int x, int y, int z) const {
 		if (material_data == NULL) {
 			return base_fill_mat;
 		}
@@ -129,7 +129,7 @@
 		}
 	}
 
-	FVector VoxelData::voxelIndexToVector(int x, int y, int z) const {
+	FORCEINLINE FVector VoxelData::voxelIndexToVector(int x, int y, int z) const {
 		float step = size() / (num() - 1);
 		float s = -size() / 2;
 		FVector v(s, s, s);
@@ -142,19 +142,19 @@
 		origin = o;
 	}
 
-	FVector VoxelData::getOrigin() const {
+	FORCEINLINE FVector VoxelData::getOrigin() const {
 		return origin;
 	}
 
-    float VoxelData::size() const {
+	FORCEINLINE float VoxelData::size() const {
         return volume_size;
     }
     
-    int VoxelData::num() const {
+	FORCEINLINE int VoxelData::num() const {
         return voxel_num;
     }
 
-	VoxelPoint VoxelData::getVoxelPoint(int x, int y, int z) const {
+	FORCEINLINE VoxelPoint VoxelData::getVoxelPoint(int x, int y, int z) const {
 		VoxelPoint vp;
 		int index = x * voxel_num * voxel_num + y * voxel_num + z;
 
@@ -172,7 +172,7 @@
 		return vp;
 	}
 
-	void VoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material) {
+	FORCEINLINE void VoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material) {
 		if (density_data == NULL) {
 			initializeDensity();
 			density_state = VoxelDataFillState::MIX;
@@ -187,7 +187,7 @@
 		density_data[index] = density;
 	}
 
-	void VoxelData::setVoxelPointDensity(int x, int y, int z, unsigned char density) {
+	FORCEINLINE void VoxelData::setVoxelPointDensity(int x, int y, int z, unsigned char density) {
 		if (density_data == NULL) {
 			initializeDensity();
 			density_state = VoxelDataFillState::MIX;
@@ -197,7 +197,7 @@
 		density_data[index] = density;
 	}
 
-	void VoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned char material) {
+	FORCEINLINE void VoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned char material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
@@ -206,7 +206,7 @@
 		material_data[index] = material;
 	}
 
-	void VoxelData::deinitializeDensity(VoxelDataFillState state) {
+	FORCEINLINE void VoxelData::deinitializeDensity(VoxelDataFillState state) {
 		if (state == VoxelDataFillState::MIX) {
 			return;
 		}
@@ -219,7 +219,7 @@
 		density_data = NULL;
 	}
 
-	void VoxelData::deinitializeMaterial(unsigned char base_mat) {
+	FORCEINLINE void VoxelData::deinitializeMaterial(unsigned char base_mat) {
 		base_fill_mat = base_mat;
 
 		if (material_data != NULL) {
@@ -229,7 +229,7 @@
 		material_data = NULL;
 	}
 
-	VoxelDataFillState VoxelData::getDensityFillState()	const {
+	FORCEINLINE VoxelDataFillState VoxelData::getDensityFillState()	const {
 		return density_state;
 	}
 
