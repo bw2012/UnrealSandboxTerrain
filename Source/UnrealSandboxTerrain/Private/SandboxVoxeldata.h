@@ -72,8 +72,12 @@ public:
 };
 
 typedef struct MeshDataElement {
+	MeshDataElement() {
+		MeshSectionLOD.SetNum(7); // 64
+	}
+	
+	//FProcMeshSection MeshSection;
 
-	FProcMeshSection MeshSection;
 	TArray<FProcMeshSection> MeshSectionLOD;
 
 } MeshDataElement;

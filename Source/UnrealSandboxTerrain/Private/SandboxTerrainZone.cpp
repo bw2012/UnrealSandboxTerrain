@@ -145,7 +145,7 @@ std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_dat
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 
-	UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated ------------------------> %d triangles %d vertexes <- volume %d"), mesh_data_element->MeshSection.ProcIndexBuffer.Num(), mesh_data_element->MeshSection.ProcVertexBuffer.Num(), voxel_data.num());
+	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated ------------------------> %d triangles %d vertexes <- volume %d"), mesh_data_element->MeshSection.ProcIndexBuffer.Num(), mesh_data_element->MeshSection.ProcVertexBuffer.Num(), voxel_data.num());
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
 	return std::shared_ptr<MeshData>(mesh_data);
@@ -160,7 +160,9 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 		return;
 	}
 
-	if (mesh_data->main_mesh->MeshSection.ProcVertexBuffer.Num() == 0) {
+	FProcMeshSection& MeshSection = mesh_data->main_mesh->MeshSectionLOD[0];
+
+	if (MeshSection.ProcVertexBuffer.Num() == 0) {
 		return;
 	}
 
@@ -171,9 +173,9 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	//MainTerrainMesh->CreateMeshSection(section, mesh_data->main_mesh->verts, mesh_data->main_mesh->tris, mesh_data->main_mesh->normals, mesh_data->main_mesh->uv, mesh_data->main_mesh->colors, TArray<FProcMeshTangent>(), true);
-	mesh_data->main_mesh->MeshSection.bEnableCollision = true;
-	mesh_data->main_mesh->MeshSection.bSectionVisible = true;
-	MainTerrainMesh->SetProcMeshSection(section, mesh_data->main_mesh->MeshSection);
+	MeshSection.bEnableCollision = true;
+	MeshSection.bSectionVisible = true;
+	MainTerrainMesh->SetProcMeshSection(section, MeshSection);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	MainTerrainMesh->SetVisibility(false);
