@@ -94,7 +94,7 @@ typedef struct MeshData {
 	//MeshDataElement* slice_mesh;
 
 	~MeshData() {
-		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
+		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } MeshData;
