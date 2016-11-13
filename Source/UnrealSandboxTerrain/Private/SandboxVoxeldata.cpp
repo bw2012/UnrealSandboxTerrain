@@ -130,8 +130,8 @@
 	}
 
 	FORCEINLINE FVector VoxelData::voxelIndexToVector(int x, int y, int z) const {
-		float step = size() / (num() - 1);
-		float s = -size() / 2;
+		static const float step = size() / (num() - 1);
+		static const float s = -size() / 2;
 		FVector v(s, s, s);
 		FVector a(x * step, y * step, z * step);
 		v = v + a;
