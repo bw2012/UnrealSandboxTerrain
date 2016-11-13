@@ -508,10 +508,6 @@ public:
 		}
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
-			const int vertexIndex1 = cd.vertexIndex[i];
-			const int vertexIndex2 = cd.vertexIndex[i + 1];
-			const int vertexIndex3 = cd.vertexIndex[i + 2];
-
 			TmpPoint tmp1 = vertexList[cd.vertexIndex[i]];
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
