@@ -370,6 +370,26 @@ private:
 		materialCalculation(ret, p1, p2, ret.v, valp1.material_id, valp2.material_id);
 		return ret;
 	}
+
+	FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
+		FVector v = point.v;
+
+		mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcIndexBuffer.Add(index);
+
+		int t = point.mat_weight * 255;
+
+		FProcMeshVertex Vertex;
+		Vertex.Position = v;
+		Vertex.Normal = n;
+		Vertex.UV0 = FVector2D(0.f, 0.f);
+		Vertex.Color = FColor(t, 0, 0, 0);
+		Vertex.Tangent = FProcMeshTangent();
+
+		mesh_data.MeshSectionLOD[voxel_data_param.lod].SectionLocalBox += Vertex.Position;
+		mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcVertexBuffer.Add(Vertex);
+
+		vertex_index++;
+	}
    
     FORCEINLINE void addVertex(TmpPoint &point, FVector n, int &index){
 		FVector v = point.v;
