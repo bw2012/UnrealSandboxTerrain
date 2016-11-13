@@ -429,11 +429,7 @@ private:
         }
     }
 
-    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
-        //vp1 = vp1 + voxel_data.getOrigin();
-        //vp2 = vp2 + voxel_data.getOrigin();
-        //vp3 = vp3 + voxel_data.getOrigin();
-        
+    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {      
 		FVector n = clcNormal(tmp1.v, tmp2.v, tmp3.v);
 		n = -n;
         
@@ -517,7 +513,6 @@ public:
     }
 };
 
-//#define VoxelMeshExtractorPtr std::shared_ptr<VoxelMeshExtractor> 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
