@@ -4,6 +4,10 @@
 #include "EngineMinimal.h"
 #include "ProceduralMeshComponent.h"
 
+
+#define MeshDataPtr std::shared_ptr<MeshData>
+
+
 struct VoxelPoint {
 	unsigned char density;
 	unsigned char material;
@@ -12,6 +16,8 @@ struct VoxelPoint {
 enum VoxelDataFillState{
 	ZERO, ALL, MIX
 };
+
+
 
 class VoxelData{
 
@@ -84,14 +90,13 @@ typedef struct MeshDataElement {
 
 
 typedef struct MeshData {
-	MeshDataElement* main_mesh;
+	MeshDataElement main_mesh;
 	//MeshDataElement* slice_mesh;
 
 	~MeshData() {
-		if (main_mesh != NULL) {
-			delete main_mesh;
-		}
+		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
+
 } MeshData;
 
 typedef struct VoxelDataParam {
@@ -106,7 +111,7 @@ typedef struct VoxelDataParam {
 
 } VoxelDataParam;
 
-void sandboxVoxelGenerateMesh(MeshDataElement &mesh_data, const VoxelData &vd, const VoxelDataParam &vdp);
+std::shared_ptr<MeshData> sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp);
 
 void sandboxRegisterTerrainVoxelData(VoxelData* vd, FVector index);
 VoxelData* sandboxGetTerrainVoxelDataByPos(FVector point);

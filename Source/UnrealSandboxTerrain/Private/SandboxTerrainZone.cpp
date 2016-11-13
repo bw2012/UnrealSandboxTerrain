@@ -118,16 +118,11 @@ std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_dat
 		return NULL;
 	}
 
-	MeshData* mesh_data = new MeshData();
-
-	MeshDataElement* mesh_data_element = new MeshDataElement();
-	//MeshDataElement* mesh_data_element2 = new MeshDataElement();
 
 	VoxelDataParam vdp;
 	vdp.dim = 0;
 
-	sandboxVoxelGenerateMesh(*mesh_data_element, voxel_data, vdp);
-	mesh_data->main_mesh = mesh_data_element;
+	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(voxel_data, vdp);
 
 	/*
 	if (bZCut) {
@@ -148,7 +143,7 @@ std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_dat
 	//UE_LOG(LogTemp, Warning, TEXT("Terrain mesh generated ------------------------> %d triangles %d vertexes <- volume %d"), mesh_data_element->MeshSection.ProcIndexBuffer.Num(), mesh_data_element->MeshSection.ProcVertexBuffer.Num(), voxel_data.num());
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z, time);
 
-	return std::shared_ptr<MeshData>(mesh_data);
+	return md_ptr;
 }
 
 void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_ptr) {
@@ -160,7 +155,7 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 		return;
 	}
 
-	FProcMeshSection& MeshSection = mesh_data->main_mesh->MeshSectionLOD[0];
+	FProcMeshSection& MeshSection = mesh_data->main_mesh.MeshSectionLOD[0];
 
 	if (MeshSection.ProcVertexBuffer.Num() == 0) {
 		return;

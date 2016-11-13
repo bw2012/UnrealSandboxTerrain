@@ -245,7 +245,7 @@ static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
     return n;
 }
 
-#define FORCEINLINE FORCENOINLINE  
+//#define FORCEINLINE FORCENOINLINE  
 
 class VoxelMeshExtractor {
 public:
@@ -498,28 +498,28 @@ public:
     }
 };
 
-void sandboxVoxelGenerateMesh(MeshDataElement &md, const VoxelData &vd, const VoxelDataParam &vdp) {
-	VoxelMeshExtractor vp(md, vd, vdp);
-
-	md.MeshSectionLOD.SetNum(7, false);
+MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+	MeshData* mesh_data = new MeshData();
+	VoxelMeshExtractor vp(mesh_data->main_mesh, vd, vdp);
 
 	int step = vdp.step();
 
 	for (auto x = 0; x < vd.num() - step; x += step) {
-        for (auto y = 0; y < vd.num() - step; y += step) {
-            for (auto z = 0; z < vd.num() - step; z += step) {
+		for (auto y = 0; y < vd.num() - step; y += step) {
+			for (auto z = 0; z < vd.num() - step; z += step) {
 				vp.generateCell(x, y, z, 0);
 
 				for (auto i = vdp.dim; i < 7; i++) {
 					int s = 1 << i;
-					if (x % s == 0 && y % s == 0 && z % s == 0) {					
+					if (x % s == 0 && y % s == 0 && z % s == 0) {
 						//UE_LOG(LogTemp, Warning, TEXT("test -> %d -> %d -> %d %d %d "), i, s, x, y, z);
 					}
 				}
-            }
-        }
-    }
+			}
+		}
+	}
 
+	return MeshDataPtr(mesh_data);;
 }
 
 // =================================================================
