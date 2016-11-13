@@ -1,9 +1,12 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxVoxeldata.h"
+
 #include "Transvoxel.h"
+
 #include <cmath>
 #include <vector>
+#include <mutex>
 
 
 //====================================================================================
@@ -254,10 +257,10 @@ public:
 
 	MeshDataElement &mesh_data;
 	const VoxelData &voxel_data;
-	const VoxelDataParam &voxel_data_param;
+	const VoxelDataParam voxel_data_param;
 	TMap<FVector, int> VertexMap;
 
-	VoxelMeshExtractor(MeshDataElement &a, const VoxelData &b, const VoxelDataParam &c) : mesh_data(a), voxel_data(b), voxel_data_param(c) { }
+	VoxelMeshExtractor(MeshDataElement &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) { }
     
 private:
 	double isolevel = 0.5f;
@@ -368,13 +371,13 @@ private:
 		return ret;
 	}
    
-    FORCEINLINE void addVertex(TmpPoint &point, FVector n, int &index, int lod){
+    FORCEINLINE void addVertex(TmpPoint &point, FVector n, int &index){
 		FVector v = point.v;
 
         if(VertexMap.Contains(v)){
             int vindex = VertexMap[v];
             
-			FProcMeshSection& mesh = mesh_data.MeshSectionLOD[lod];
+			FProcMeshSection& mesh = mesh_data.MeshSectionLOD[voxel_data_param.lod];
 			FProcMeshVertex& Vertex = mesh.ProcVertexBuffer[vindex];
 			FVector nvert = Vertex.Normal;
 
@@ -383,10 +386,10 @@ private:
             tmp /= 2;
 
 			Vertex.Normal = tmp;
-			mesh_data.MeshSectionLOD[lod].ProcIndexBuffer.Add(vindex);
+			mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcIndexBuffer.Add(vindex);
 
         } else {
-			mesh_data.MeshSectionLOD[lod].ProcIndexBuffer.Add(index);
+			mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcIndexBuffer.Add(index);
 
 			int t = point.mat_weight * 255;
 
@@ -397,16 +400,16 @@ private:
 			Vertex.Color = FColor(t, 0, 0, 0);
 			Vertex.Tangent = FProcMeshTangent();
 
-			mesh_data.MeshSectionLOD[lod].SectionLocalBox += Vertex.Position;
+			mesh_data.MeshSectionLOD[voxel_data_param.lod].SectionLocalBox += Vertex.Position;
 
-			mesh_data.MeshSectionLOD[lod].ProcVertexBuffer.Add(Vertex);
+			mesh_data.MeshSectionLOD[voxel_data_param.lod].ProcVertexBuffer.Add(Vertex);
         
 			VertexMap.Add(v, index);
             vertex_index++;  
         }
     }
 
-    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3, int lod) {
+    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
         //vp1 = vp1 + voxel_data.getOrigin();
         //vp2 = vp2 + voxel_data.getOrigin();
         //vp3 = vp3 + voxel_data.getOrigin();
@@ -414,9 +417,9 @@ private:
 		FVector n = clcNormal(tmp1.v, tmp2.v, tmp3.v);
 		n = -n;
         
-        addVertex(tmp1, n, vertex_index, lod);
-        addVertex(tmp2, n, vertex_index, lod);
-        addVertex(tmp3, n, vertex_index, lod);
+        addVertex(tmp1, n, vertex_index);
+        addVertex(tmp2, n, vertex_index);
+        addVertex(tmp3, n, vertex_index);
 
         ntriang++;
     }
@@ -428,7 +431,7 @@ private:
 	}
 
 public:
-	FORCEINLINE void generateCell(int x, int y, int z, int lod) {
+	FORCEINLINE void generateCell(int x, int y, int z) {
         float isolevel = 0.5f;
 		Point d[8];
 
@@ -493,41 +496,53 @@ public:
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
-			handleTriangle(tmp1, tmp2, tmp3, lod);
+			handleTriangle(tmp1, tmp2, tmp3);
 		}
     }
 };
 
+//#define VoxelMeshExtractorPtr std::shared_ptr<VoxelMeshExtractor> 
+typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
+
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
-	VoxelMeshExtractor vp(mesh_data->main_mesh, vd, vdp);
+	std::vector<VoxelMeshExtractorPtr> MeshExtractorLod;
+
+	int max_lod = vdp.bGenerateLOD ? 7 : 1;
+
+	for (auto i = 0; i < max_lod; i++) {
+		VoxelDataParam me_vdp = vdp;
+		me_vdp.lod = i;
+		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->main_mesh, vd, me_vdp));
+		MeshExtractorLod.push_back(me_ptr);
+	}
 
 	int step = vdp.step();
 
 	for (auto x = 0; x < vd.num() - step; x += step) {
 		for (auto y = 0; y < vd.num() - step; y += step) {
 			for (auto z = 0; z < vd.num() - step; z += step) {
-				vp.generateCell(x, y, z, 0);
-
-				for (auto i = vdp.dim; i < 7; i++) {
+				// generate mesh for each LOD
+				//==================================================================
+				for (auto i = 0; i < max_lod; i++) {
 					int s = 1 << i;
 					if (x % s == 0 && y % s == 0 && z % s == 0) {
-						//UE_LOG(LogTemp, Warning, TEXT("test -> %d -> %d -> %d %d %d "), i, s, x, y, z);
+						VoxelMeshExtractorPtr me_ptr = MeshExtractorLod[i];
+						me_ptr->generateCell(x, y, z);
 					}
 				}
+				//==================================================================
 			}
 		}
 	}
 
-	return MeshDataPtr(mesh_data);;
+	return MeshDataPtr(mesh_data);
 }
 
 // =================================================================
 // terrain
 // =================================================================
 
-#include <mutex>
-//#include <map>
 static std::mutex terrain_map_mutex;
 static TMap<FVector, VoxelData*> terrain_zone_map;
 

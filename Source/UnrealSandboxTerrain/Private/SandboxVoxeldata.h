@@ -100,13 +100,14 @@ typedef struct MeshData {
 } MeshData;
 
 typedef struct VoxelDataParam {
+	bool bGenerateLOD = false;
 
-	int dim = 0;
+	int lod = 0;
 	float z_cut_level = 0;
 	bool z_cut = false;
 
 	int step() const {
-		return 1 << dim;
+		return 1 << lod;
 	}
 
 } VoxelDataParam;
