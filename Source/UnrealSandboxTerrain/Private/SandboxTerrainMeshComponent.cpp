@@ -231,6 +231,7 @@ public:
 	}
 
 	/** Called on render thread to assign new dynamic data */
+	/*
 	void UpdateSection_RenderThread(FProcMeshSectionUpdateData* SectionData)
 	{
 		check(IsInRenderingThread());
@@ -264,6 +265,7 @@ public:
 			delete SectionData;
 		}
 	}
+	*/
 
 	void SetSectionVisibility_RenderThread(int32 SectionIndex, bool bNewVisibility)
 	{
@@ -377,40 +379,32 @@ USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitiali
 	bUseComplexAsSimpleCollision = true;
 }
 
-
-
 bool USandboxTerrainMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
 
 	int32 VertexBase = 0; // Base vertex index for current section
 
-						  // See if we should copy UVs
+	// See if we should copy UVs
 	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults;
-	if (bCopyUVs)
-	{
+	if (bCopyUVs) {
 		CollisionData->UVs.AddZeroed(1); // only one UV channel
 	}
 
 	FProcMeshSection* Section = GetProcMeshSection(0);
-
 		// Do we have collision enabled?
-		if (Section->bEnableCollision)
-		{
+		if (Section->bEnableCollision) {
 			// Copy vert data
-			for (int32 VertIdx = 0; VertIdx < Section->ProcVertexBuffer.Num(); VertIdx++)
-			{
+			for (int32 VertIdx = 0; VertIdx < Section->ProcVertexBuffer.Num(); VertIdx++) {
 				CollisionData->Vertices.Add(Section->ProcVertexBuffer[VertIdx].Position);
 
 				// Copy UV if desired
-				if (bCopyUVs)
-				{
+				if (bCopyUVs) {
 					CollisionData->UVs[0].Add(Section->ProcVertexBuffer[VertIdx].UV0);
 				}
 			}
 
 			// Copy triangle data
 			const int32 NumTriangles = Section->ProcIndexBuffer.Num() / 3;
-			for (int32 TriIdx = 0; TriIdx < NumTriangles; TriIdx++)
-			{
+			for (int32 TriIdx = 0; TriIdx < NumTriangles; TriIdx++)	{
 				// Need to add base offset for indices
 				FTriIndices Triangle;
 				Triangle.v0 = Section->ProcIndexBuffer[(TriIdx * 3) + 0] + VertexBase;
@@ -426,35 +420,24 @@ bool USandboxTerrainMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisio
 			VertexBase = CollisionData->Vertices.Num();
 		}
 	
-
 	CollisionData->bFlipNormals = true;
-
 	return true;
-
-	//return Super::GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
-	//return false;
 }
 
 FPrimitiveSceneProxy* USandboxTerrainMeshComponent::CreateSceneProxy() {
 	return new FProceduralMeshSceneProxy(this);
-	//return NULL;
-	//return Super::CreateSceneProxy();
 }
 
-void USandboxTerrainMeshComponent::PostLoad()
-{
+void USandboxTerrainMeshComponent::PostLoad() {
 	Super::PostLoad();
 
-	if (ProcMeshBodySetup && IsTemplate())
-	{
+	if (ProcMeshBodySetup && IsTemplate())	{
 		ProcMeshBodySetup->SetFlags(RF_Public);
 	}
 }
 
-void USandboxTerrainMeshComponent::ClearMeshSection(int32 SectionIndex)
-{
-	if (SectionIndex < ProcMeshSections.Num())
-	{
+void USandboxTerrainMeshComponent::ClearMeshSection(int32 SectionIndex) {
+	if (SectionIndex < ProcMeshSections.Num())	{
 		ProcMeshSections[SectionIndex].Reset();
 		UpdateLocalBounds();
 		UpdateCollision();
@@ -462,16 +445,14 @@ void USandboxTerrainMeshComponent::ClearMeshSection(int32 SectionIndex)
 	}
 }
 
-void USandboxTerrainMeshComponent::ClearAllMeshSections()
-{
+void USandboxTerrainMeshComponent::ClearAllMeshSections() {
 	ProcMeshSections.Empty();
 	UpdateLocalBounds();
 	UpdateCollision();
 	MarkRenderStateDirty();
 }
 
-void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, bool bNewVisibility)
-{
+void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, bool bNewVisibility) {
 	if (SectionIndex < ProcMeshSections.Num())
 	{
 		// Set game thread state
