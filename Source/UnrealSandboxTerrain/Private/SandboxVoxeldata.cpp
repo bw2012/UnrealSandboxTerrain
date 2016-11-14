@@ -266,6 +266,7 @@ private:
 	double isolevel = 0.5f;
 
 	struct Point {
+		FVector pos;
 		float density;
 		int material_id;
 	};
@@ -280,6 +281,7 @@ private:
 		Point vp;
 		vp.density = getDensity(x, y, z);
 		vp.material_id = getMaterial(x, y, z);
+		vp.pos = voxel_data.voxelIndexToVector(x, y, z);
 		return vp;
 	}
 
@@ -363,11 +365,11 @@ private:
 		}
 	}
 
-	FORCEINLINE TmpPoint vertexClc(FVector p1, FVector p2, Point valp1, Point valp2) {
+	FORCEINLINE TmpPoint vertexClc(Point& valp1, Point& valp2) {
 		struct TmpPoint ret;
 
-		ret.v = vertexInterpolation(p1, p2, valp1.density, valp2.density);
-		materialCalculation(ret, p1, p2, ret.v, valp1.material_id, valp2.material_id);
+		ret.v = vertexInterpolation(valp1.pos, valp2.pos, valp1.density, valp2.density);
+		materialCalculation(ret, valp1.pos, valp2.pos, ret.v, valp1.material_id, valp2.material_id);
 		return ret;
 	}
 
@@ -391,7 +393,7 @@ private:
 		vertex_index++;
 	}
    
-    FORCEINLINE void addVertex(TmpPoint &point, FVector n, int &index){
+    FORCEINLINE void addVertex(TmpPoint &point, FVector& n, int &index){
 		FVector v = point.v;
 
         if(VertexMap.Contains(v)){
@@ -462,16 +464,6 @@ public:
         d[6] = getVoxelpoint(x + step, y + step, z + step);
         d[7] = getVoxelpoint(x + step, y, z + step);
 		
-        FVector p[8];
-        p[0] = voxel_data.voxelIndexToVector(x, y + step, z);
-        p[1] = voxel_data.voxelIndexToVector(x, y, z);
-        p[2] = voxel_data.voxelIndexToVector(x + step, y + step, z);
-        p[3] = voxel_data.voxelIndexToVector(x + step, y, z);
-        p[4] = voxel_data.voxelIndexToVector(x, y + step, z + step);
-        p[5] = voxel_data.voxelIndexToVector(x, y, z + step);
-        p[6] = voxel_data.voxelIndexToVector(x + step, y + step, z + step);
-        p[7] = voxel_data.voxelIndexToVector(x + step, y, z + step);
-
 		int8 corner[8];
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
@@ -499,7 +491,7 @@ public:
 			const int edgeCode = regularVertexData[caseCode][i];
 			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
 			const unsigned short v1 = edgeCode & 0x0F;
-			struct TmpPoint tp = vertexClc(p[v0], p[v1], d[v0], d[v1]);
+			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
 			vertexList.push_back(tp);
 		}
 
