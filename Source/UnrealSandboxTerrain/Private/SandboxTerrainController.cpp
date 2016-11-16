@@ -71,16 +71,15 @@ public:
 			FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
 
 			//TODO maybe pass index?
-			VoxelData* vd = controller->createZoneVoxeldata(v);
-
-			if (vd->getDensityFillState() == VoxelDataFillState::MIX) {
+			VoxelData* new_vd = controller->createZoneVoxeldata(v);
+			if (new_vd->getDensityFillState() == VoxelDataFillState::MIX) {
 				ASandboxTerrainZone* zone = controller->getZoneByVectorIndex(index);
 				if (zone == NULL) {
 					controller->invokeLazyZoneAsync(index);
 				} else {
-					std::shared_ptr<MeshData> md_ptr = zone->generateMesh(*vd);
-					vd->resetLastMeshRegenerationTime();
-
+					zone->setVoxelData(new_vd);
+					std::shared_ptr<MeshData> md_ptr = zone->generateMesh();
+					zone->getVoxelData()->resetLastMeshRegenerationTime();
 					controller->invokeZoneMeshAsync(zone, md_ptr);
 				}
 			}
@@ -497,7 +496,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				bool is_changed = handler(vd, v, radius, s);
 				if (is_changed) {
 					vd->setChanged();
-					std::shared_ptr<MeshData> md_ptr = zone->generateMesh(*vd);
+					std::shared_ptr<MeshData> md_ptr = zone->generateMesh();
 					vd->resetLastMeshRegenerationTime();
 					invokeZoneMeshAsync(zone, md_ptr);
 				}
@@ -533,7 +532,7 @@ void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 		ASandboxTerrainZone* zone = addTerrainZone(v);
 		zone->setVoxelData(vd);
 
-		std::shared_ptr<MeshData> md_ptr = zone->generateMesh(*vd);
+		std::shared_ptr<MeshData> md_ptr = zone->generateMesh();
 		vd->resetLastMeshRegenerationTime();
 		zone->applyTerrainMesh(md_ptr);
 	};

@@ -98,7 +98,7 @@ void ASandboxTerrainZone::makeTerrain() {
 		return;
 	}
 
-	std::shared_ptr<MeshData> md_ptr = generateMesh(*voxel_data);
+	std::shared_ptr<MeshData> md_ptr = generateMesh();
 
 	if (IsInGameThread()) {
 		applyTerrainMesh(md_ptr);
@@ -111,16 +111,16 @@ void ASandboxTerrainZone::makeTerrain() {
 	}
 }
 
-std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
+std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh() {
 	double start = FPlatformTime::Seconds();
 
-	if (voxel_data.getDensityFillState() == VoxelDataFillState::ZERO || voxel_data.getDensityFillState() == VoxelDataFillState::ALL) {
+	if (voxel_data->getDensityFillState() == VoxelDataFillState::ZERO || voxel_data->getDensityFillState() == VoxelDataFillState::ALL) {
 		return NULL;
 	}
 
 
 	VoxelDataParam vdp;
-	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(voxel_data, vdp);
+	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
 
 	/*
 	if (bZCut) {

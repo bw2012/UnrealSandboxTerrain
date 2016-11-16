@@ -40,7 +40,7 @@ public:
 
 	void applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_ptr);
 
-	std::shared_ptr<MeshData> generateMesh(VoxelData &voxel_data);
+	std::shared_ptr<MeshData> generateMesh();
 
 	bool volatile isLoaded = false;
 
