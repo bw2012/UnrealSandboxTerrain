@@ -8,8 +8,12 @@
 #include "Components/MeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
 
+#include <memory>
+
 #include "SandboxTerrainCollisionComponent.generated.h"
 
+
+struct MeshData;
 
 /**
 *
@@ -27,7 +31,7 @@ public:
 
 	void ClearCollisionConvexMeshes();
 
-	void SetCollisionConvexMeshes(const TArray< TArray<FVector> >& ConvexMeshes);
+	void SetCollisionConvexMeshes(const TArray<TArray<FVector>>& ConvexMeshes);
 
 	//~ Begin Interface_CollisionDataProvider Interface
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
@@ -60,6 +64,9 @@ public:
 
 
 private:
+
+	std::shared_ptr<MeshData> mesh_data_ptr;
+
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.

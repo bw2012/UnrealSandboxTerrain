@@ -90,10 +90,8 @@ typedef struct MeshData {
 		MeshDataSectionLOD.SetNum(7); // 64
 	}
 
-	//MeshDataElement main_mesh;
-	//MeshDataElement* slice_mesh;
-
 	TArray<MeshDataSection> MeshDataSectionLOD;
+	FProcMeshSection* CollisionMesh;
 
 	~MeshData() {
 		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
