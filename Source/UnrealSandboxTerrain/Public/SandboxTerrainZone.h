@@ -3,6 +3,7 @@
 #include "EngineMinimal.h"
 #include "ProceduralMeshComponent.h"
 #include "SandboxTerrainMeshComponent.h"
+#include "SandboxTerrainCollisionComponent.h"
 #include "SandboxTerrainController.h"
 #include <memory>
 #include "SandboxTerrainZone.generated.h"
@@ -50,5 +51,8 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
 	USandboxTerrainMeshComponent* MainTerrainMesh;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
+	USandboxTerrainCollisionComponent* CollisionMesh;
 
 };
