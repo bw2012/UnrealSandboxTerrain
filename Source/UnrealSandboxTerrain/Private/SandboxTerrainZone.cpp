@@ -16,14 +16,21 @@ void ASandboxTerrainZone::init() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
-	//const static ConstructorHelpers::FObjectFinder<UMaterialInterface> material(TEXT("Material'/Game/Test/M_Triplanar_Terrain.M_Triplanar_Terrain'")); \
-
-	MainTerrainMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("TerrainZoneProceduralMainMesh"));
+	MainTerrainMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("MainMesh"));
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	//MainTerrainMesh->SetMaterial(0, material.Object);
 	MainTerrainMesh->SetCanEverAffectNavigation(true);
 	MainTerrainMesh->SetCollisionProfileName(TEXT("InvisibleWall"));
 	SetRootComponent(MainTerrainMesh);
+
+
+	CollisionMesh = CreateDefaultSubobject<USandboxTerrainCollisionComponent>(TEXT("CollisionMesh"));
+	CollisionMesh->SetMobility(EComponentMobility::Stationary);
+	CollisionMesh->SetCanEverAffectNavigation(true);
+	CollisionMesh->SetCollisionProfileName(TEXT("InvisibleWall"));
+	SetRootComponent(MainTerrainMesh);
+	CollisionMesh->AttachTo(MainTerrainMesh);
+
 
 	/*
 	SliceTerrainMesh = CreateDefaultSubobject<USandboxTerrainSliceMeshComponent>(TEXT("TerrainZoneProceduralSliceMesh"));
@@ -34,8 +41,6 @@ void ASandboxTerrainZone::init() {
 	SliceTerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SliceTerrainMesh->SetCollisionProfileName(TEXT("UI"));
 	*/
-
-	SetRootComponent(MainTerrainMesh);
 
 	//SliceTerrainMesh->AttachTo(MainTerrainMesh);
 	//AddOwnedComponent(SliceTerrainMesh);
@@ -169,13 +174,15 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 	//MainTerrainMesh->CreateMeshSection(section, mesh_data->main_mesh->verts, mesh_data->main_mesh->tris, mesh_data->main_mesh->normals, mesh_data->main_mesh->uv, mesh_data->main_mesh->colors, TArray<FProcMeshTangent>(), true);
 	MeshSection.bEnableCollision = true;
 	MeshSection.bSectionVisible = true;
-	MainTerrainMesh->SetProcMeshSection(section, MeshSection);
+	//MainTerrainMesh->SetProcMeshSection(section, MeshSection);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	MainTerrainMesh->SetVisibility(false);
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetMaterial(0, controller->TerrainMaterial);
+
+	CollisionMesh->SetMeshData(mesh_data_ptr);
 
 	/*
 	if (bZCut && mesh_data->slice_mesh != NULL) {

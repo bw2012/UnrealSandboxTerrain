@@ -4,10 +4,6 @@
 #include "EngineMinimal.h"
 #include "ProceduralMeshComponent.h"
 
-
-#define MeshDataPtr std::shared_ptr<MeshData>
-
-
 struct VoxelPoint {
 	unsigned char density;
 	unsigned char material;
@@ -98,6 +94,8 @@ typedef struct MeshData {
 	}
 
 } MeshData;
+
+typedef std::shared_ptr<MeshData> MeshDataPtr;
 
 typedef struct VoxelDataParam {
 	bool bGenerateLOD = false;

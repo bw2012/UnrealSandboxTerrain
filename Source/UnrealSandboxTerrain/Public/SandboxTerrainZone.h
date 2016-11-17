@@ -49,10 +49,10 @@ private:
 
 	void init();
 
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
+	UPROPERTY()
 	USandboxTerrainMeshComponent* MainTerrainMesh;
 
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox")
+	UPROPERTY()
 	USandboxTerrainCollisionComponent* CollisionMesh;
 
 };

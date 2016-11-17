@@ -27,7 +27,13 @@ bool USandboxTerrainCollisionComponent::GetPhysicsTriMeshData(struct FTriMeshCol
 		CollisionData->UVs.AddZeroed(1); // only one UV channel
 	}
 
-	FProcMeshSection* Section = GetProcMeshSection();
+	if (!this->mesh_data_ptr) return false;
+
+	MeshData* mesh_data = mesh_data_ptr.get();
+
+	if (mesh_data->CollisionMesh == NULL) return false;
+
+	FProcMeshSection* Section = mesh_data->CollisionMesh;
 		// Do we have collision enabled?
 		if (Section->bEnableCollision) {
 			// Copy vert data
@@ -75,12 +81,14 @@ void USandboxTerrainCollisionComponent::PostLoad() {
 }
 
 void USandboxTerrainCollisionComponent::ClearMeshSection(int32 SectionIndex) {
+	/*
 	if (SectionIndex < ProcMeshSections.Num())	{
 		ProcMeshSections[SectionIndex].Reset();
 		UpdateLocalBounds();
 		UpdateCollision();
 		MarkRenderStateDirty();
 	}
+	*/
 }
 
 void USandboxTerrainCollisionComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts)
@@ -126,14 +134,21 @@ void USandboxTerrainCollisionComponent::SetCollisionConvexMeshes(const TArray< T
 }
 
 
-void USandboxTerrainCollisionComponent::UpdateLocalBounds()
-{
+void USandboxTerrainCollisionComponent::UpdateLocalBounds() {
 	FBox LocalBox(0);
 
-	for (const FProcMeshSection& Section : ProcMeshSections)
-	{
-		LocalBox += Section.SectionLocalBox;
+	if (!this->mesh_data_ptr) {
+		return;
 	}
+
+	MeshData* mesh_data = mesh_data_ptr.get();
+
+	if (mesh_data->CollisionMesh == NULL) {
+		return;
+	}
+
+	FProcMeshSection* Section = mesh_data->CollisionMesh;
+	LocalBox += Section->SectionLocalBox;
 
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
 
@@ -188,17 +203,18 @@ FBoxSphereBounds USandboxTerrainCollisionComponent::CalcBounds(const FTransform&
 	return LocalBounds.TransformBy(LocalToWorld);
 }
 
-bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const
-{
-	for (const FProcMeshSection& Section : ProcMeshSections)
-	{
-		if (Section.ProcIndexBuffer.Num() >= 3 && Section.bEnableCollision)
-		{
-			return true;
-		}
+bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
+	if (!this->mesh_data_ptr) {
+		return false;
 	}
 
-	return false;
+	MeshData* mesh_data = mesh_data_ptr.get();
+
+	if (mesh_data->CollisionMesh == NULL) {
+		return false;
+	}
+
+	return true;
 }
 
 void USandboxTerrainCollisionComponent::CreateProcMeshBodySetup()
@@ -257,4 +273,11 @@ UBodySetup* USandboxTerrainCollisionComponent::GetBodySetup()
 {
 	CreateProcMeshBodySetup();
 	return ProcMeshBodySetup;
+}
+
+void USandboxTerrainCollisionComponent::SetMeshData(MeshDataPtr md_ptr) {
+	this->mesh_data_ptr = md_ptr;
+
+	UpdateLocalBounds();
+	UpdateCollision();
 }

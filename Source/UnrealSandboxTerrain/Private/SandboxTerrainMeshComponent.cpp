@@ -653,3 +653,4 @@ UBodySetup* USandboxTerrainMeshComponent::GetBodySetup()
 	CreateProcMeshBodySetup();
 	return ProcMeshBodySetup;
 }
+

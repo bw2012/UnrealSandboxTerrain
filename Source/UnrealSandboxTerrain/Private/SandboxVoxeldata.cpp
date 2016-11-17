@@ -521,6 +521,8 @@ MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &
 		}
 	}
 
+	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+
 	return MeshDataPtr(mesh_data);
 }
 

@@ -9,7 +9,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 
 #include <memory>
-
+#include "SandboxVoxeldata.h"
 #include "SandboxTerrainCollisionComponent.generated.h"
 
 
@@ -63,6 +63,8 @@ public:
 	//~ End UObject Interface.
 
 
+	void SetMeshData(MeshDataPtr mesh_data_ptr);
+
 private:
 
 	std::shared_ptr<MeshData> mesh_data_ptr;
@@ -79,8 +81,8 @@ private:
 	void UpdateCollision();
 
 	/** Array of sections of mesh */
-	UPROPERTY()
-	TArray<FProcMeshSection> ProcMeshSections;
+	//UPROPERTY()
+	//TArray<FProcMeshSection> ProcMeshSections;
 
 	/** Convex shapes used for simple collision */
 	UPROPERTY()
