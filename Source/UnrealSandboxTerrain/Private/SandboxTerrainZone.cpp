@@ -171,10 +171,9 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
-	//MainTerrainMesh->CreateMeshSection(section, mesh_data->main_mesh->verts, mesh_data->main_mesh->tris, mesh_data->main_mesh->normals, mesh_data->main_mesh->uv, mesh_data->main_mesh->colors, TArray<FProcMeshTangent>(), true);
-	MeshSection.bEnableCollision = true;
+	MeshSection.bEnableCollision = false;
 	MeshSection.bSectionVisible = true;
-	//MainTerrainMesh->SetProcMeshSection(section, MeshSection);
+	MainTerrainMesh->SetProcMeshSection(section, MeshSection);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	MainTerrainMesh->SetVisibility(false);

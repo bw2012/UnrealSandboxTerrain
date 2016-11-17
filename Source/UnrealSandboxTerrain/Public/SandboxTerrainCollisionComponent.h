@@ -25,8 +25,6 @@ class UNREALSANDBOXTERRAIN_API USandboxTerrainCollisionComponent : public UMeshC
 
 public:
 
-	void ClearMeshSection(int32 SectionIndex);
-
 	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
 
 	void ClearCollisionConvexMeshes();
@@ -44,10 +42,6 @@ public:
 
 	UPROPERTY(Instanced)
 	class UBodySetup* ProcMeshBodySetup;
-
-	FProcMeshSection* GetProcMeshSection();
-
-	void SetProcMeshSection(const FProcMeshSection& Section);
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

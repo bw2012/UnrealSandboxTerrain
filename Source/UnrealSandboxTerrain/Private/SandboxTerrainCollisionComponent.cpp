@@ -13,7 +13,7 @@
 
 
 
-USandboxTerrainCollisionComponent::USandboxTerrainCollisionComponent(const FObjectInitializer& ObjectInitializer)	: Super(ObjectInitializer) {
+USandboxTerrainCollisionComponent::USandboxTerrainCollisionComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	bUseComplexAsSimpleCollision = true;
 }
 
@@ -34,36 +34,33 @@ bool USandboxTerrainCollisionComponent::GetPhysicsTriMeshData(struct FTriMeshCol
 	if (mesh_data->CollisionMesh == NULL) return false;
 
 	FProcMeshSection* Section = mesh_data->CollisionMesh;
-		// Do we have collision enabled?
-		if (Section->bEnableCollision) {
-			// Copy vert data
-			for (int32 VertIdx = 0; VertIdx < Section->ProcVertexBuffer.Num(); VertIdx++) {
-				CollisionData->Vertices.Add(Section->ProcVertexBuffer[VertIdx].Position);
+	// Copy vert data
+	for (int32 VertIdx = 0; VertIdx < Section->ProcVertexBuffer.Num(); VertIdx++) {
+		CollisionData->Vertices.Add(Section->ProcVertexBuffer[VertIdx].Position);
 
-				// Copy UV if desired
-				if (bCopyUVs) {
-					CollisionData->UVs[0].Add(Section->ProcVertexBuffer[VertIdx].UV0);
-				}
-			}
-
-			// Copy triangle data
-			const int32 NumTriangles = Section->ProcIndexBuffer.Num() / 3;
-			for (int32 TriIdx = 0; TriIdx < NumTriangles; TriIdx++)	{
-				// Need to add base offset for indices
-				FTriIndices Triangle;
-				Triangle.v0 = Section->ProcIndexBuffer[(TriIdx * 3) + 0] + VertexBase;
-				Triangle.v1 = Section->ProcIndexBuffer[(TriIdx * 3) + 1] + VertexBase;
-				Triangle.v2 = Section->ProcIndexBuffer[(TriIdx * 3) + 2] + VertexBase;
-				CollisionData->Indices.Add(Triangle);
-
-				// Also store material info
-				CollisionData->MaterialIndices.Add(0);
-			}
-
-			// Remember the base index that new verts will be added from in next section
-			VertexBase = CollisionData->Vertices.Num();
+		// Copy UV if desired
+		if (bCopyUVs) {
+			CollisionData->UVs[0].Add(Section->ProcVertexBuffer[VertIdx].UV0);
 		}
-	
+	}
+
+	// Copy triangle data
+	const int32 NumTriangles = Section->ProcIndexBuffer.Num() / 3;
+	for (int32 TriIdx = 0; TriIdx < NumTriangles; TriIdx++) {
+		// Need to add base offset for indices
+		FTriIndices Triangle;
+		Triangle.v0 = Section->ProcIndexBuffer[(TriIdx * 3) + 0] + VertexBase;
+		Triangle.v1 = Section->ProcIndexBuffer[(TriIdx * 3) + 1] + VertexBase;
+		Triangle.v2 = Section->ProcIndexBuffer[(TriIdx * 3) + 2] + VertexBase;
+		CollisionData->Indices.Add(Triangle);
+
+		// Also store material info
+		CollisionData->MaterialIndices.Add(0);
+	}
+
+	// Remember the base index that new verts will be added from in next section
+	VertexBase = CollisionData->Vertices.Num();
+
 	CollisionData->bFlipNormals = true;
 	return true;
 }
@@ -75,24 +72,12 @@ FPrimitiveSceneProxy* USandboxTerrainCollisionComponent::CreateSceneProxy() {
 void USandboxTerrainCollisionComponent::PostLoad() {
 	Super::PostLoad();
 
-	if (ProcMeshBodySetup && IsTemplate())	{
+	if (ProcMeshBodySetup && IsTemplate()) {
 		ProcMeshBodySetup->SetFlags(RF_Public);
 	}
 }
 
-void USandboxTerrainCollisionComponent::ClearMeshSection(int32 SectionIndex) {
-	/*
-	if (SectionIndex < ProcMeshSections.Num())	{
-		ProcMeshSections[SectionIndex].Reset();
-		UpdateLocalBounds();
-		UpdateCollision();
-		MarkRenderStateDirty();
-	}
-	*/
-}
-
-void USandboxTerrainCollisionComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts)
-{
+void USandboxTerrainCollisionComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts) {
 	if (ConvexVerts.Num() >= 4)
 	{
 		// New element
@@ -108,16 +93,14 @@ void USandboxTerrainCollisionComponent::AddCollisionConvexMesh(TArray<FVector> C
 	}
 }
 
-void USandboxTerrainCollisionComponent::ClearCollisionConvexMeshes()
-{
+void USandboxTerrainCollisionComponent::ClearCollisionConvexMeshes() {
 	// Empty simple collision info
 	CollisionConvexElems.Empty();
 	// Refresh collision
 	UpdateCollision();
 }
 
-void USandboxTerrainCollisionComponent::SetCollisionConvexMeshes(const TArray< TArray<FVector> >& ConvexMeshes)
-{
+void USandboxTerrainCollisionComponent::SetCollisionConvexMeshes(const TArray< TArray<FVector> >& ConvexMeshes) {
 	CollisionConvexElems.Reset();
 
 	// Create element for each convex mesh
@@ -158,48 +141,11 @@ void USandboxTerrainCollisionComponent::UpdateLocalBounds() {
 	MarkRenderTransformDirty();
 }
 
-int32 USandboxTerrainCollisionComponent::GetNumMaterials() const
-{
+int32 USandboxTerrainCollisionComponent::GetNumMaterials() const {
 	return 0;
 }
 
-
-FProcMeshSection* USandboxTerrainCollisionComponent::GetProcMeshSection()
-{
-	/*
-	if (SectionIndex < ProcMeshSections.Num())
-	{
-		return &ProcMeshSections[SectionIndex];
-	}
-	else
-	{
-		return nullptr;
-	}
-	*/
-
-	return NULL;
-}
-
-
-void USandboxTerrainCollisionComponent::SetProcMeshSection(const FProcMeshSection& Section)
-{
-	/*
-	// Ensure sections array is long enough
-	if (SectionIndex >= ProcMeshSections.Num())
-	{
-		ProcMeshSections.SetNum(SectionIndex + 1, false);
-	}
-
-	ProcMeshSections[SectionIndex] = Section;
-	*/
-
-	UpdateLocalBounds(); // Update overall bounds
-	UpdateCollision(); // Mark collision as dirty
-	//MarkRenderStateDirty(); // New section requires recreating scene proxy
-}
-
-FBoxSphereBounds USandboxTerrainCollisionComponent::CalcBounds(const FTransform& LocalToWorld) const
-{
+FBoxSphereBounds USandboxTerrainCollisionComponent::CalcBounds(const FTransform& LocalToWorld) const {
 	return LocalBounds.TransformBy(LocalToWorld);
 }
 
@@ -217,8 +163,7 @@ bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAll
 	return true;
 }
 
-void USandboxTerrainCollisionComponent::CreateProcMeshBodySetup()
-{
+void USandboxTerrainCollisionComponent::CreateProcMeshBodySetup() {
 	if (ProcMeshBodySetup == NULL)
 	{
 		// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
@@ -231,8 +176,7 @@ void USandboxTerrainCollisionComponent::CreateProcMeshBodySetup()
 	}
 }
 
-void USandboxTerrainCollisionComponent::UpdateCollision()
-{
+void USandboxTerrainCollisionComponent::UpdateCollision() {
 
 	bool bCreatePhysState = false; // Should we create physics state at the end of this function?
 
@@ -269,8 +213,7 @@ void USandboxTerrainCollisionComponent::UpdateCollision()
 	}
 }
 
-UBodySetup* USandboxTerrainCollisionComponent::GetBodySetup()
-{
+UBodySetup* USandboxTerrainCollisionComponent::GetBodySetup() {
 	CreateProcMeshBodySetup();
 	return ProcMeshBodySetup;
 }

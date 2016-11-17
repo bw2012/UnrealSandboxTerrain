@@ -90,7 +90,7 @@ typedef struct MeshData {
 	FProcMeshSection* CollisionMesh;
 
 	~MeshData() {
-		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
+		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } MeshData;
