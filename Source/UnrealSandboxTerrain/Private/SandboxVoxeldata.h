@@ -4,10 +4,6 @@
 #include "EngineMinimal.h"
 #include "ProceduralMeshComponent.h"
 
-
-#define MeshDataPtr std::shared_ptr<MeshData>
-
-
 struct VoxelPoint {
 	unsigned char density;
 	unsigned char material;
@@ -94,10 +90,12 @@ typedef struct MeshData {
 	FProcMeshSection* CollisionMesh;
 
 	~MeshData() {
-		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
+		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } MeshData;
+
+typedef std::shared_ptr<MeshData> MeshDataPtr;
 
 typedef struct VoxelDataParam {
 	bool bGenerateLOD = false;

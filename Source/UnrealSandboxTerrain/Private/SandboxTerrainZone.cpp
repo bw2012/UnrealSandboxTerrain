@@ -16,14 +16,21 @@ void ASandboxTerrainZone::init() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
-	//const static ConstructorHelpers::FObjectFinder<UMaterialInterface> material(TEXT("Material'/Game/Test/M_Triplanar_Terrain.M_Triplanar_Terrain'")); \
-
-	MainTerrainMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("TerrainZoneProceduralMainMesh"));
+	MainTerrainMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("MainMesh"));
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	//MainTerrainMesh->SetMaterial(0, material.Object);
 	MainTerrainMesh->SetCanEverAffectNavigation(true);
 	MainTerrainMesh->SetCollisionProfileName(TEXT("InvisibleWall"));
 	SetRootComponent(MainTerrainMesh);
+
+
+	CollisionMesh = CreateDefaultSubobject<USandboxTerrainCollisionComponent>(TEXT("CollisionMesh"));
+	CollisionMesh->SetMobility(EComponentMobility::Stationary);
+	CollisionMesh->SetCanEverAffectNavigation(true);
+	CollisionMesh->SetCollisionProfileName(TEXT("InvisibleWall"));
+	SetRootComponent(MainTerrainMesh);
+	CollisionMesh->AttachTo(MainTerrainMesh);
+
 
 	/*
 	SliceTerrainMesh = CreateDefaultSubobject<USandboxTerrainSliceMeshComponent>(TEXT("TerrainZoneProceduralSliceMesh"));
@@ -34,8 +41,6 @@ void ASandboxTerrainZone::init() {
 	SliceTerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SliceTerrainMesh->SetCollisionProfileName(TEXT("UI"));
 	*/
-
-	SetRootComponent(MainTerrainMesh);
 
 	//SliceTerrainMesh->AttachTo(MainTerrainMesh);
 	//AddOwnedComponent(SliceTerrainMesh);
@@ -98,7 +103,7 @@ void ASandboxTerrainZone::makeTerrain() {
 		return;
 	}
 
-	std::shared_ptr<MeshData> md_ptr = generateMesh(*voxel_data);
+	std::shared_ptr<MeshData> md_ptr = generateMesh();
 
 	if (IsInGameThread()) {
 		applyTerrainMesh(md_ptr);
@@ -111,16 +116,16 @@ void ASandboxTerrainZone::makeTerrain() {
 	}
 }
 
-std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh(VoxelData &voxel_data) {
+std::shared_ptr<MeshData> ASandboxTerrainZone::generateMesh() {
 	double start = FPlatformTime::Seconds();
 
-	if (voxel_data.getDensityFillState() == VoxelDataFillState::ZERO || voxel_data.getDensityFillState() == VoxelDataFillState::ALL) {
+	if (voxel_data->getDensityFillState() == VoxelDataFillState::ZERO || voxel_data->getDensityFillState() == VoxelDataFillState::ALL) {
 		return NULL;
 	}
 
 
 	VoxelDataParam vdp;
-	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(voxel_data, vdp);
+	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
 
 	/*
 	if (bZCut) {
@@ -166,8 +171,7 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
-	//MainTerrainMesh->CreateMeshSection(section, mesh_data->main_mesh->verts, mesh_data->main_mesh->tris, mesh_data->main_mesh->normals, mesh_data->main_mesh->uv, mesh_data->main_mesh->colors, TArray<FProcMeshTangent>(), true);
-	MeshSection.bEnableCollision = true;
+	MeshSection.bEnableCollision = false;
 	MeshSection.bSectionVisible = true;
 	MainTerrainMesh->SetProcMeshSection(section, MeshSection);
 
@@ -176,6 +180,8 @@ void ASandboxTerrainZone::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_p
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetMaterial(0, controller->TerrainMaterial);
+
+	CollisionMesh->SetMeshData(mesh_data_ptr);
 
 	/*
 	if (bZCut && mesh_data->slice_mesh != NULL) {

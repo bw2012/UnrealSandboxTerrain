@@ -9,7 +9,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 
 #include <memory>
-
+#include "SandboxVoxeldata.h"
 #include "SandboxTerrainCollisionComponent.generated.h"
 
 
@@ -24,8 +24,6 @@ class UNREALSANDBOXTERRAIN_API USandboxTerrainCollisionComponent : public UMeshC
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	void ClearMeshSection(int32 SectionIndex);
 
 	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
 
@@ -45,10 +43,6 @@ public:
 	UPROPERTY(Instanced)
 	class UBodySetup* ProcMeshBodySetup;
 
-	FProcMeshSection* GetProcMeshSection();
-
-	void SetProcMeshSection(const FProcMeshSection& Section);
-
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual class UBodySetup* GetBodySetup() override;
@@ -62,6 +56,8 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface.
 
+
+	void SetMeshData(MeshDataPtr mesh_data_ptr);
 
 private:
 
@@ -79,8 +75,8 @@ private:
 	void UpdateCollision();
 
 	/** Array of sections of mesh */
-	UPROPERTY()
-	TArray<FProcMeshSection> ProcMeshSections;
+	//UPROPERTY()
+	//TArray<FProcMeshSection> ProcMeshSections;
 
 	/** Convex shapes used for simple collision */
 	UPROPERTY()

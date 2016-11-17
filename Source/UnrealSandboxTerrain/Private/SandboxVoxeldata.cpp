@@ -450,7 +450,6 @@ private:
 
 public:
 	FORCEINLINE void generateCell(int x, int y, int z) {
-        float isolevel = 0.5f;
 		Point d[8];
 
 		int step = voxel_data_param.step();
@@ -521,6 +520,8 @@ MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &
 			}
 		}
 	}
+
+	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
