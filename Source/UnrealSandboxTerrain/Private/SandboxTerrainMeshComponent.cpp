@@ -416,11 +416,8 @@ void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 	}
 
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
-
-																														   // Update global bounds
-	UpdateBounds();
-	// Need to send to render thread
-	MarkRenderTransformDirty();
+	UpdateBounds(); // Update global bounds
+	MarkRenderTransformDirty(); // Need to send to render thread
 }
 
 int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
