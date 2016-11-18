@@ -15,7 +15,7 @@
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API USandboxTerrainMeshComponent : public UMeshComponent, public IInterface_CollisionDataProvider //: public UProceduralMeshComponent
+class UNREALSANDBOXTERRAIN_API USandboxTerrainMeshComponent : public UMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,27 +30,6 @@ public:
 	bool IsMeshSectionVisible(int32 SectionIndex) const;
 
 	int32 GetNumSections() const;
-
-
-	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
-
-	void ClearCollisionConvexMeshes();
-
-	void SetCollisionConvexMeshes(const TArray< TArray<FVector> >& ConvexMeshes);
-
-	//~ Begin Interface_CollisionDataProvider Interface
-	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
-	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
-	virtual bool WantsNegXTriMesh() override { return false; }
-	//~ End Interface_CollisionDataProvider Interface
-
-
-	bool bUseComplexAsSimpleCollision;
-
-	UPROPERTY(Instanced)
-	class UBodySetup* ProcMeshBodySetup;
-
-	FProcMeshSection* GetProcMeshSection(int32 SectionIndex);
 
 	void SetProcMeshSection(int32 SectionIndex, const FProcMeshSection& Section);
 
@@ -76,17 +55,9 @@ private:
 
 	void UpdateLocalBounds();
 
-	void CreateProcMeshBodySetup();
-
-	void UpdateCollision();
-
 	/** Array of sections of mesh */
 	UPROPERTY()
 	TArray<FProcMeshSection> ProcMeshSections;
-
-	/** Convex shapes used for simple collision */
-	UPROPERTY()
-	TArray<FKConvexElem> CollisionConvexElems;
 
 	/** Local space bounds of mesh */
 	UPROPERTY()
