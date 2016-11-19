@@ -291,6 +291,12 @@ public:
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
 					if (VisibilityMap & (1 << ViewIndex)) {
 						const FSceneView* View = Views[ViewIndex];
+
+						const FBoxSphereBounds& ProxyBounds = GetBounds();
+						const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+
+						//UE_LOG(LogTemp, Warning, TEXT("ScreenSize ->  %f"), ScreenSize);
+
 						// Draw the mesh.
 						FMeshBatch& Mesh = Collector.AllocateMesh();
 						FMeshBatchElement& BatchElement = Mesh.Elements[0];
