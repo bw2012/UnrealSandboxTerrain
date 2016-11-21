@@ -297,6 +297,10 @@ public:
 
 						//UE_LOG(LogTemp, Warning, TEXT("ScreenSize ->  %f"), ScreenSize);
 
+						if (ScreenSize < 0.2f) {
+							continue;
+						}
+
 						// Draw the mesh.
 						FMeshBatch& Mesh = Collector.AllocateMesh();
 						FMeshBatchElement& BatchElement = Mesh.Elements[0];

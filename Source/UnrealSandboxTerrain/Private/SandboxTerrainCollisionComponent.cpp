@@ -15,6 +15,11 @@
 
 USandboxTerrainCollisionComponent::USandboxTerrainCollisionComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	bUseComplexAsSimpleCollision = true;
+	test = NewObject<UZoneMeshCollisionData>(this, FName(TEXT("test")));
+}
+
+bool UZoneMeshCollisionData::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
+	return ((USandboxTerrainCollisionComponent*) GetOuter())->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
 }
 
 bool USandboxTerrainCollisionComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
@@ -149,6 +154,10 @@ FBoxSphereBounds USandboxTerrainCollisionComponent::CalcBounds(const FTransform&
 	return LocalBounds.TransformBy(LocalToWorld);
 }
 
+bool UZoneMeshCollisionData::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
+	return ((USandboxTerrainCollisionComponent*)GetOuter())->ContainsPhysicsTriMeshData(InUseAllTriData);
+}
+
 bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
 	if (!this->mesh_data_ptr) {
 		return false;
@@ -164,10 +173,9 @@ bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAll
 }
 
 void USandboxTerrainCollisionComponent::CreateProcMeshBodySetup() {
-	if (ProcMeshBodySetup == NULL)
-	{
+	if (ProcMeshBodySetup == NULL)	{
 		// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
-		ProcMeshBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
+		ProcMeshBodySetup = NewObject<UBodySetup>(test, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
 		ProcMeshBodySetup->BodySetupGuid = FGuid::NewGuid();
 
 		ProcMeshBodySetup->bGenerateMirroredCollision = false;
