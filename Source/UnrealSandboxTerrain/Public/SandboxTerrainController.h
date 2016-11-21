@@ -9,6 +9,7 @@ class ASandboxTerrainZone;
 class VoxelData;
 struct MeshData;
 class FLoadInitialZonesThread;
+class UTerrainZoneComponent;
 
 UENUM(BlueprintType)	
 enum class EVoxelDimEnum : uint8

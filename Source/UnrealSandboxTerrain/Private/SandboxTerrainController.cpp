@@ -2,6 +2,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 #include "SandboxTerrainZone.h"
+#include "TerrainZoneComponent.h"
 #include "SandboxVoxeldata.h"
 #include "SandboxAsyncHelpers.h"
 #include <cmath>
@@ -334,6 +335,14 @@ ASandboxTerrainZone* ASandboxTerrainController::addTerrainZone(FVector pos) {
 	terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), zone);
 
 	if(ShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
+
+
+	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(TEXT("test")));
+	if (ZoneComponent) {
+		ZoneComponent->RegisterComponent();
+		ZoneComponent->SetWorldLocation(pos);
+	}
+	
 
 	return zone;
 }
