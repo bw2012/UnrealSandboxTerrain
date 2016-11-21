@@ -14,6 +14,16 @@
 
 
 struct MeshData;
+class USandboxTerrainCollisionComponent;
+
+UCLASS()
+class UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataProvider {
+	GENERATED_BODY()
+
+	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
+	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
+	virtual bool WantsNegXTriMesh() override { return false; }
+};
 
 /**
 *
@@ -22,6 +32,8 @@ UCLASS()
 class UNREALSANDBOXTERRAIN_API USandboxTerrainCollisionComponent : public UMeshComponent, public IInterface_CollisionDataProvider 
 {
 	GENERATED_UCLASS_BODY()
+
+	friend class UZoneMeshCollisionData;
 
 public:
 
@@ -42,6 +54,9 @@ public:
 
 	UPROPERTY(Instanced)
 	class UBodySetup* ProcMeshBodySetup;
+
+	UPROPERTY()
+	class UZoneMeshCollisionData* test;
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

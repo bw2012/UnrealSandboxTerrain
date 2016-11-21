@@ -169,11 +169,9 @@ public:
 		// Copy each section
 		const int32 NumSections = Component->ProcMeshSections.Num();
 		Sections.AddZeroed(NumSections);
-		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-		{
+		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++) {
 			FProcMeshSection& SrcSection = Component->ProcMeshSections[SectionIdx];
-			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0)
-			{
+			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FProcMeshProxySection* NewSection = new FProcMeshProxySection();
 
 				// Copy data from vertex buffer
@@ -182,8 +180,7 @@ public:
 				// Allocate verts
 				NewSection->VertexBuffer.Vertices.SetNumUninitialized(NumVerts);
 				// Copy verts
-				for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++)
-				{
+				for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
 					const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
 					FDynamicMeshVertex& Vert = NewSection->VertexBuffer.Vertices[VertIdx];
 					ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
@@ -202,8 +199,7 @@ public:
 
 				// Grab material
 				NewSection->Material = Component->GetMaterial(SectionIdx);
-				if (NewSection->Material == NULL)
-				{
+				if (NewSection->Material == NULL) {
 					NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				}
 
@@ -216,12 +212,9 @@ public:
 		}
 	}
 
-	virtual ~FProceduralMeshSceneProxy()
-	{
-		for (FProcMeshProxySection* Section : Sections)
-		{
-			if (Section != nullptr)
-			{
+	virtual ~FProceduralMeshSceneProxy() {
+		for (FProcMeshProxySection* Section : Sections) {
+			if (Section != nullptr) {
 				Section->VertexBuffer.ReleaseResource();
 				Section->IndexBuffer.ReleaseResource();
 				Section->VertexFactory.ReleaseResource();
@@ -267,26 +260,20 @@ public:
 	}
 	*/
 
-	void SetSectionVisibility_RenderThread(int32 SectionIndex, bool bNewVisibility)
-	{
+	void SetSectionVisibility_RenderThread(int32 SectionIndex, bool bNewVisibility) {
 		check(IsInRenderingThread());
 
-		if (SectionIndex < Sections.Num() &&
-			Sections[SectionIndex] != nullptr)
-		{
+		if (SectionIndex < Sections.Num() && Sections[SectionIndex] != nullptr) {
 			Sections[SectionIndex]->bSectionVisible = bNewVisibility;
 		}
 	}
 
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
-	{
-
+	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
 		// Set up wireframe material (if needed)
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 
 		FColoredMaterialRenderProxy* WireframeMaterialInstance = NULL;
-		if (bWireframe)
-		{
+		if (bWireframe) {
 			WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 				GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy(IsSelected()) : NULL,
 				FLinearColor(0, 0.5f, 1.f)
@@ -296,18 +283,24 @@ public:
 		}
 
 		// Iterate over sections
-		for (const FProcMeshProxySection* Section : Sections)
-		{
-			if (Section != nullptr && Section->bSectionVisible)
-			{
+		for (const FProcMeshProxySection* Section : Sections) {
+			if (Section != nullptr && Section->bSectionVisible) {
 				FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
 
 				// For each view..
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-				{
-					if (VisibilityMap & (1 << ViewIndex))
-					{
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
+					if (VisibilityMap & (1 << ViewIndex)) {
 						const FSceneView* View = Views[ViewIndex];
+
+						const FBoxSphereBounds& ProxyBounds = GetBounds();
+						const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+
+						//UE_LOG(LogTemp, Warning, TEXT("ScreenSize ->  %f"), ScreenSize);
+
+						if (ScreenSize < 0.2f) {
+							continue;
+						}
+
 						// Draw the mesh.
 						FMeshBatch& Mesh = Collector.AllocateMesh();
 						FMeshBatchElement& BatchElement = Mesh.Elements[0];
@@ -329,12 +322,9 @@ public:
 				}
 			}
 		}
-
-
 	}
 
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const
-	{
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
 		FPrimitiveViewRelevance Result;
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
@@ -346,18 +336,15 @@ public:
 		return Result;
 	}
 
-	virtual bool CanBeOccluded() const override
-	{
+	virtual bool CanBeOccluded() const override {
 		return !MaterialRelevance.bDisableDepthTest;
 	}
 
-	virtual uint32 GetMemoryFootprint(void) const
-	{
+	virtual uint32 GetMemoryFootprint(void) const {
 		return(sizeof(*this) + GetAllocatedSize());
 	}
 
-	uint32 GetAllocatedSize(void) const
-	{
+	uint32 GetAllocatedSize(void) const {
 		return(FPrimitiveSceneProxy::GetAllocatedSize());
 	}
 
@@ -439,11 +426,8 @@ void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 	}
 
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
-
-																														   // Update global bounds
-	UpdateBounds();
-	// Need to send to render thread
-	MarkRenderTransformDirty();
+	UpdateBounds(); // Update global bounds
+	MarkRenderTransformDirty(); // Need to send to render thread
 }
 
 int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
