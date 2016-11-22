@@ -132,10 +132,6 @@ private:
 
 protected:
 
-	int getVoxeldataSize() { return 65; }
-
-	float getVoxelDataVolume() { return 1000; }
-
 	virtual void OnLoadZoneProgress(int progress, int total);
 
 	virtual void OnLoadZoneListFinished();

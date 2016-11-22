@@ -368,33 +368,27 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 		ZoneComponent->RegisterComponent();
 		ZoneComponent->SetWorldLocation(pos);
 
-		FString t_name = FString::Printf(TEXT("TerrainMesh-%d"), FPlatformTime::Seconds());
-		USandboxTerrainMeshComponent* t = NewObject<USandboxTerrainMeshComponent>(this, FName(*t_name));
+		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh-%d"), FPlatformTime::Seconds());
+		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
+		TerrainMeshComp->RegisterComponent();
+		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
+		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		FString c_name = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
-		USandboxTerrainCollisionComponent* c = NewObject<USandboxTerrainCollisionComponent>(this, FName(*c_name));
+		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
+		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
+		CollisionMeshComp->RegisterComponent();
+		CollisionMeshComp->SetMobility(EComponentMobility::Stationary);
+		CollisionMeshComp->SetCanEverAffectNavigation(true);
+		CollisionMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
+		CollisionMeshComp->AttachTo(ZoneComponent);
 
-		t->RegisterComponent();
-		t->SetMobility(EComponentMobility::Stationary);
-		t->AttachTo(ZoneComponent);
-
-		c->RegisterComponent();
-		c->SetMobility(EComponentMobility::Stationary);
-		c->SetCanEverAffectNavigation(true);
-		c->SetCollisionProfileName(TEXT("InvisibleWall"));
-
-		ZoneComponent->MainTerrainMesh = t;
-		ZoneComponent->CollisionMesh = c;
-
-		c->AttachTo(ZoneComponent);
+		ZoneComponent->MainTerrainMesh = TerrainMeshComp;
+		ZoneComponent->CollisionMesh = CollisionMeshComp;
 	}
-
-
 
 	terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
 
 	if(ShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
-
 
 	return ZoneComponent;
 }
