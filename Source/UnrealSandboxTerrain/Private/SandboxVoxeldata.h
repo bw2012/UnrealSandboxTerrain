@@ -2,7 +2,7 @@
 #define __SANDBOXMOBILE_VOXELDATA_H__
 
 #include "EngineMinimal.h"
-#include "ProceduralMeshComponent.h"
+#include "ProcMeshData.h"
 
 struct VoxelPoint {
 	unsigned char density;
@@ -90,7 +90,8 @@ typedef struct MeshData {
 	FProcMeshSection* CollisionMesh;
 
 	~MeshData() {
-		UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
+		// for memory leaks checking
+		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } MeshData;
@@ -111,10 +112,6 @@ typedef struct VoxelDataParam {
 } VoxelDataParam;
 
 std::shared_ptr<MeshData> sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp);
-
-void sandboxRegisterTerrainVoxelData(VoxelData* vd, FVector index);
-VoxelData* sandboxGetTerrainVoxelDataByPos(FVector point);
-VoxelData* sandboxGetTerrainVoxelDataByIndex(FVector index);
 
 void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
 bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
-#include "ProceduralMeshComponent.h"
+#include "ProcMeshData.h"
 
 #include "Components/MeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"

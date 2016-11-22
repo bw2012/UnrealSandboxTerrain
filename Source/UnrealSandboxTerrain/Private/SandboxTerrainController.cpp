@@ -3,7 +3,6 @@
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
 #include "SandboxVoxeldata.h"
-#include "SandboxAsyncHelpers.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
 #include "Async.h"
@@ -159,7 +158,7 @@ void ASandboxTerrainController::BeginPlay() {
 					for (int z = -s; z <= s; z++) {
 						FVector zone_index = FVector(x, y, z);
 						UTerrainZoneComponent* zone = getZoneByVectorIndex(zone_index);
-						VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_index);
+						VoxelData* vd = GetTerrainVoxelDataByIndex(zone_index);
 						if (vd == NULL || (vd->getDensityFillState() == VoxelDataFillState::MIX && zone == NULL)) {
 							// Until the end of the process some functions can be unavailable.
 							initial_zone_loader->zone_list.Add(zone_index);
@@ -180,14 +179,35 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		initial_zone_loader->Stop();
 		initial_zone_loader->WaitForFinish();
 	}
+
+	if (GetWorld()->GetAuthGameMode() == NULL) {
+		return;
+	}
+
+	for (auto& Elem : VoxelDataMap) {
+		VoxelData* voxel_data = Elem.Value;
+
+		if (voxel_data->isChanged()) {
+			// save voxel data
+			FVector index = getZoneIndex(GetActorLocation());
+			FString fileName = getZoneFileName(index.X, index.Y, index.Z);
+
+			UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
+			sandboxSaveVoxelData(*voxel_data, fileName);
+		}
+		
+		//TODO replace with share pointer
+		VoxelDataMap.Remove(Elem.Key);
+		delete voxel_data;
+	}
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	
-	if (sandboxAsyncIsNextTask()) {
-		TerrainControllerTask task = sandboxAsyncGetTask();
+	if (HasNextAsyncTask()) {
+		TerrainControllerTask task = GetAsyncTask();
 
 		if (task.f) {
 			task.f();
@@ -348,33 +368,27 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 		ZoneComponent->RegisterComponent();
 		ZoneComponent->SetWorldLocation(pos);
 
-		FString t_name = FString::Printf(TEXT("TerrainMesh-%d"), FPlatformTime::Seconds());
-		USandboxTerrainMeshComponent* t = NewObject<USandboxTerrainMeshComponent>(this, FName(*t_name));
+		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh-%d"), FPlatformTime::Seconds());
+		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
+		TerrainMeshComp->RegisterComponent();
+		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
+		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		FString c_name = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
-		USandboxTerrainCollisionComponent* c = NewObject<USandboxTerrainCollisionComponent>(this, FName(*c_name));
+		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
+		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
+		CollisionMeshComp->RegisterComponent();
+		CollisionMeshComp->SetMobility(EComponentMobility::Stationary);
+		CollisionMeshComp->SetCanEverAffectNavigation(true);
+		CollisionMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
+		CollisionMeshComp->AttachTo(ZoneComponent);
 
-		t->RegisterComponent();
-		t->SetMobility(EComponentMobility::Stationary);
-		t->AttachTo(ZoneComponent);
-
-		c->RegisterComponent();
-		c->SetMobility(EComponentMobility::Stationary);
-		c->SetCanEverAffectNavigation(true);
-		c->SetCollisionProfileName(TEXT("InvisibleWall"));
-
-		ZoneComponent->MainTerrainMesh = t;
-		ZoneComponent->CollisionMesh = c;
-
-		c->AttachTo(ZoneComponent);
+		ZoneComponent->MainTerrainMesh = TerrainMeshComp;
+		ZoneComponent->CollisionMesh = CollisionMeshComp;
 	}
-
-
 
 	terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
 
 	if(ShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
-
 
 	return ZoneComponent;
 }
@@ -510,7 +524,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				zone_index += base_zone_index;
 
 				UTerrainZoneComponent* zone = getZoneByVectorIndex(zone_index);
-				VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_index);
+				VoxelData* vd = GetTerrainVoxelDataByIndex(zone_index);
 
 				if (zone == NULL) {
 					if (vd != NULL) {
@@ -556,13 +570,13 @@ void ASandboxTerrainController::invokeZoneMeshAsync(UTerrainZoneComponent* zone,
 		}
 	};
 
-	sandboxAsyncAddTask(task);
+	AddAsyncTask(task);
 }
 
 void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 	TerrainControllerTask task;
 	FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
-	VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(index);
+	VoxelData* vd = GetTerrainVoxelDataByIndex(index);
 
 	if (vd == NULL) {
 		UE_LOG(LogTemp, Warning, TEXT("FAIL"));
@@ -578,7 +592,7 @@ void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 		zone->applyTerrainMesh(md_ptr);
 	};
 
-	sandboxAsyncAddTask(task);
+	AddAsyncTask(task);
 }
 
 VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
@@ -607,7 +621,7 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 	vd->setChanged();
 	vd->resetLastSave();
 
-	sandboxRegisterTerrainVoxelData(vd, index);
+	RegisterTerrainVoxelData(vd, index);
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
@@ -675,4 +689,56 @@ void ASandboxTerrainController::OnLoadZoneProgress(int progress, int total) {
 
 void ASandboxTerrainController::OnLoadZoneListFinished() {
 
+}
+
+
+void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
+	AsyncTaskListMutex.lock();
+	AsyncTaskList.push(zone_make_task);
+	AsyncTaskListMutex.unlock();
+}
+
+TerrainControllerTask ASandboxTerrainController::GetAsyncTask() {
+	AsyncTaskListMutex.lock();
+	TerrainControllerTask NewTask = AsyncTaskList.front();
+	AsyncTaskList.pop();
+	AsyncTaskListMutex.unlock();
+
+	return NewTask;
+}
+
+bool ASandboxTerrainController::HasNextAsyncTask() {
+	return AsyncTaskList.size() > 0;
+}
+
+void ASandboxTerrainController::RegisterTerrainVoxelData(VoxelData* vd, FVector index) {
+	VoxelDataMapMutex.lock();
+	VoxelDataMap.Add(index, vd);
+	VoxelDataMapMutex.unlock();
+}
+
+VoxelData* ASandboxTerrainController::GetTerrainVoxelDataByPos(FVector point) {
+	FVector index = sandboxSnapToGrid(point, 1000) / 1000;
+
+	VoxelDataMapMutex.lock();
+	if (VoxelDataMap.Contains(index)) {
+		VoxelData* vd = VoxelDataMap[index];
+		VoxelDataMapMutex.unlock();
+		return vd;
+	}
+
+	VoxelDataMapMutex.unlock();
+	return NULL;
+}
+
+VoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index) {
+	VoxelDataMapMutex.lock();
+	if (VoxelDataMap.Contains(index)) {
+		VoxelData* vd = VoxelDataMap[index];
+		VoxelDataMapMutex.unlock();
+		return vd;
+	}
+
+	VoxelDataMapMutex.unlock();
+	return NULL;
 }

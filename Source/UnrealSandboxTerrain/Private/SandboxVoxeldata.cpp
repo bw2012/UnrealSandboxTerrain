@@ -570,43 +570,6 @@ MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &
 // terrain
 // =================================================================
 
-static std::mutex terrain_map_mutex;
-static TMap<FVector, VoxelData*> terrain_zone_map;
-
-
-void sandboxRegisterTerrainVoxelData(VoxelData* vd, FVector index) {
-	terrain_map_mutex.lock();
-	terrain_zone_map.Add(index, vd);
-	terrain_map_mutex.unlock();
-}
-
-VoxelData* sandboxGetTerrainVoxelDataByPos(FVector point) {
-	FVector index = sandboxSnapToGrid(point, 1000) / 1000;
-
-	terrain_map_mutex.lock();
-	if (terrain_zone_map.Contains(index)) {
-		VoxelData* vd = terrain_zone_map[index];
-		terrain_map_mutex.unlock();
-		return vd;
-	}
-
-	terrain_map_mutex.unlock();
-	return NULL;
-}
-
-VoxelData* sandboxGetTerrainVoxelDataByIndex(FVector index) {
-	terrain_map_mutex.lock();
-	if (terrain_zone_map.Contains(index)) {
-		VoxelData* vd = terrain_zone_map[index];
-		terrain_map_mutex.unlock();
-		return vd;
-	}
-
-	terrain_map_mutex.unlock();
-	return NULL;
-}
-
-
 void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
 	FBufferArchive binaryData;
 	int32 num = vd.num();
