@@ -3,7 +3,6 @@
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
 #include "SandboxVoxeldata.h"
-#include "SandboxAsyncHelpers.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
 #include "Async.h"
@@ -679,20 +678,20 @@ void ASandboxTerrainController::OnLoadZoneListFinished() {
 
 
 void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
-	zone_make_queue_mutex.lock();
-	zone_make_queue.push(zone_make_task);
-	zone_make_queue_mutex.unlock();
+	AsyncTaskListMutex.lock();
+	AsyncTaskList.push(zone_make_task);
+	AsyncTaskListMutex.unlock();
 }
 
 TerrainControllerTask ASandboxTerrainController::GetAsyncTask() {
-	zone_make_queue_mutex.lock();
-	TerrainControllerTask zone_make_task = zone_make_queue.front();
-	zone_make_queue.pop();
-	zone_make_queue_mutex.unlock();
+	AsyncTaskListMutex.lock();
+	TerrainControllerTask NewTask = AsyncTaskList.front();
+	AsyncTaskList.pop();
+	AsyncTaskListMutex.unlock();
 
-	return zone_make_task;
+	return NewTask;
 }
 
 bool ASandboxTerrainController::HasNextAsyncTask() {
-	return zone_make_queue.size() > 0;
+	return AsyncTaskList.size() > 0;
 }

@@ -116,9 +116,9 @@ private:
 
 	bool HasNextAsyncTask();
 
-	std::mutex zone_make_queue_mutex;
+	std::mutex AsyncTaskListMutex;
 
-	std::queue<TerrainControllerTask> zone_make_queue;
+	std::queue<TerrainControllerTask> AsyncTaskList;
 
 protected:
 
