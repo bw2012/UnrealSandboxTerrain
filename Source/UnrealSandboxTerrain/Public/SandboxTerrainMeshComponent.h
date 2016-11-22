@@ -3,7 +3,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
-#include "ProceduralMeshComponent.h"
+#include "ProcMeshData.h"
 
 #include "Components/MeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
@@ -56,7 +56,6 @@ private:
 	void UpdateLocalBounds();
 
 	/** Array of sections of mesh */
-	UPROPERTY()
 	TArray<FProcMeshSection> ProcMeshSections;
 
 	/** Local space bounds of mesh */

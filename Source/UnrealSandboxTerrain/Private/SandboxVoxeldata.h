@@ -2,7 +2,7 @@
 #define __SANDBOXMOBILE_VOXELDATA_H__
 
 #include "EngineMinimal.h"
-#include "ProceduralMeshComponent.h"
+#include "ProcMeshData.h"
 
 struct VoxelPoint {
 	unsigned char density;

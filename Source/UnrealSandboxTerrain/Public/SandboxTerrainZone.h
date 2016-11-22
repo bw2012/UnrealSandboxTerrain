@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
-#include "ProceduralMeshComponent.h"
+#include "ProcMeshData.h"
 #include "SandboxTerrainMeshComponent.h"
 #include "SandboxTerrainCollisionComponent.h"
 #include "SandboxTerrainController.h"
