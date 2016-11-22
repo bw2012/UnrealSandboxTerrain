@@ -3,16 +3,19 @@
 #include "EngineMinimal.h"
 #include "SandboxVoxelGenerator.h"
 #include <memory>
+
 #include "SandboxTerrainController.generated.h"
 
-class ASandboxTerrainZone;
 class VoxelData;
 struct MeshData;
 class FLoadInitialZonesThread;
 
+class USandboxTerrainMeshComponent;
+
+class UTerrainZoneComponent;
+
 UENUM(BlueprintType)	
-enum class EVoxelDimEnum : uint8
-{
+enum class EVoxelDimEnum : uint8 {
 	VS_8  = 9	UMETA(DisplayName = "8"),
 	VS_16 = 17	UMETA(DisplayName = "16"),
 	VS_32 = 33	UMETA(DisplayName = "32"),
@@ -20,15 +23,14 @@ enum class EVoxelDimEnum : uint8
 };
 
 UCLASS()
-class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor
-{
+class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
 
 public:
 	ASandboxTerrainController();
 
 	friend FLoadInitialZonesThread;
-	friend ASandboxTerrainZone;
+	friend UTerrainZoneComponent;
 
 	virtual void BeginPlay() override;
 
@@ -37,6 +39,10 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	//===============================================================================
+
+
+	UPROPERTY()
+	USandboxTerrainMeshComponent* testMesh;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool GenerateOnlySmallSpawnPoint = false;
@@ -65,11 +71,9 @@ public:
 
 	void digTerrainCubeHole(FVector origin, float r, float strength);
 
-	static ASandboxTerrainController* GetZoneInstance(AActor* zone);
-
 	FVector getZoneIndex(FVector v);
 
-	ASandboxTerrainZone* getZoneByVectorIndex(FVector v);
+	UTerrainZoneComponent* getZoneByVectorIndex(FVector v);
 
 	template<class H>
 	void editTerrain(FVector v, float radius, float s, H handler);
@@ -80,11 +84,11 @@ public:
 	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
 
 private:
-	TMap<FVector, ASandboxTerrainZone*> terrain_zone_map;
+	TMap<FVector, UTerrainZoneComponent*> terrain_zone_map;
 
 	void spawnInitialZone();
 
-	ASandboxTerrainZone* addTerrainZone(FVector pos);
+	UTerrainZoneComponent* addTerrainZone(FVector pos);
 
 	VoxelData* createZoneVoxeldata(FVector location);
 
@@ -92,7 +96,7 @@ private:
 
 	FLoadInitialZonesThread* initial_zone_loader;
 
-	void invokeZoneMeshAsync(ASandboxTerrainZone* zone, std::shared_ptr<MeshData> mesh_data_ptr);
+	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<MeshData> mesh_data_ptr);
 
 	void invokeLazyZoneAsync(FVector index);
 

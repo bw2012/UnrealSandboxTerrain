@@ -3,6 +3,8 @@
 #include "SandboxVoxeldata.h"
 #include "SandboxVoxelGenerator.h"
 
+#include "TerrainZoneComponent.h"
+
 ASandboxTerrainZone::ASandboxTerrainZone(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	init();
@@ -55,6 +57,15 @@ void ASandboxTerrainZone::BeginPlay() {
 	Super::BeginPlay();
 
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone ---> BeginPlay"));
+
+	UTerrainZoneComponent* NewComp = NewObject<UTerrainZoneComponent>(this, FName(TEXT("test")));
+	if (NewComp)
+	{
+		NewComp->RegisterComponent();
+		//NewComp->AttachTo(MainTerrainMesh);
+		NewComp->SetRelativeLocation(FVector(0));
+		//attach or set location, etc
+	}
 }
 
 void ASandboxTerrainZone::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -111,7 +122,7 @@ void ASandboxTerrainZone::makeTerrain() {
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
 		if (controller != NULL) {
-			controller->invokeZoneMeshAsync(this, md_ptr);
+			//controller->invokeZoneMeshAsync(this, md_ptr);
 		}
 	}
 }
