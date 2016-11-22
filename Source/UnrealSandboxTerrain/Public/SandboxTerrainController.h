@@ -120,6 +120,16 @@ private:
 
 	std::queue<TerrainControllerTask> AsyncTaskList;
 
+	std::mutex VoxelDataMapMutex;
+
+	TMap<FVector, VoxelData*> VoxelDataMap;
+
+	void RegisterTerrainVoxelData(VoxelData* vd, FVector index);
+
+	VoxelData* GetTerrainVoxelDataByPos(FVector point);
+
+	VoxelData* GetTerrainVoxelDataByIndex(FVector index);
+
 protected:
 
 	int getVoxeldataSize() { return 65; }

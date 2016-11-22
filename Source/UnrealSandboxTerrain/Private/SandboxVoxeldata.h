@@ -112,10 +112,6 @@ typedef struct VoxelDataParam {
 
 std::shared_ptr<MeshData> sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp);
 
-void sandboxRegisterTerrainVoxelData(VoxelData* vd, FVector index);
-VoxelData* sandboxGetTerrainVoxelDataByPos(FVector point);
-VoxelData* sandboxGetTerrainVoxelDataByIndex(FVector index);
-
 void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
 bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 
