@@ -186,8 +186,8 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	
-	if (sandboxAsyncIsNextTask()) {
-		TerrainControllerTask task = sandboxAsyncGetTask();
+	if (HasNextAsyncTask()) {
+		TerrainControllerTask task = GetAsyncTask();
 
 		if (task.f) {
 			task.f();
@@ -556,7 +556,7 @@ void ASandboxTerrainController::invokeZoneMeshAsync(UTerrainZoneComponent* zone,
 		}
 	};
 
-	sandboxAsyncAddTask(task);
+	AddAsyncTask(task);
 }
 
 void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
@@ -578,7 +578,7 @@ void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 		zone->applyTerrainMesh(md_ptr);
 	};
 
-	sandboxAsyncAddTask(task);
+	AddAsyncTask(task);
 }
 
 VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
@@ -675,4 +675,24 @@ void ASandboxTerrainController::OnLoadZoneProgress(int progress, int total) {
 
 void ASandboxTerrainController::OnLoadZoneListFinished() {
 
+}
+
+
+void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
+	zone_make_queue_mutex.lock();
+	zone_make_queue.push(zone_make_task);
+	zone_make_queue_mutex.unlock();
+}
+
+TerrainControllerTask ASandboxTerrainController::GetAsyncTask() {
+	zone_make_queue_mutex.lock();
+	TerrainControllerTask zone_make_task = zone_make_queue.front();
+	zone_make_queue.pop();
+	zone_make_queue_mutex.unlock();
+
+	return zone_make_task;
+}
+
+bool ASandboxTerrainController::HasNextAsyncTask() {
+	return zone_make_queue.size() > 0;
 }

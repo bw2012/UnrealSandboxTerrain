@@ -4,6 +4,7 @@
 #include <queue>
 #include <mutex>
 
+/*
 std::mutex zone_make_queue_mutex;
 std::queue<TerrainControllerTask> zone_make_queue;
 
@@ -25,3 +26,4 @@ TerrainControllerTask sandboxAsyncGetTask() {
 bool sandboxAsyncIsNextTask() {
 	return zone_make_queue.size() > 0;
 }
+*/

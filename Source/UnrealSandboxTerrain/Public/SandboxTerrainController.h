@@ -3,7 +3,8 @@
 #include "EngineMinimal.h"
 #include "SandboxVoxelGenerator.h"
 #include <memory>
-
+#include <queue>
+#include <mutex>
 #include "SandboxTerrainController.generated.h"
 
 class VoxelData;
@@ -13,6 +14,15 @@ class FLoadInitialZonesThread;
 class USandboxTerrainMeshComponent;
 
 class UTerrainZoneComponent;
+
+#define TH_STATE_NEW		0
+#define TH_STATE_RUNNING	1
+#define TH_STATE_STOP		2
+#define TH_STATE_FINISHED	3
+
+typedef struct TerrainControllerTask {
+	std::function<void()> f;
+} TerrainControllerTask;
 
 UENUM(BlueprintType)	
 enum class EVoxelDimEnum : uint8 {
@@ -99,6 +109,16 @@ private:
 	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<MeshData> mesh_data_ptr);
 
 	void invokeLazyZoneAsync(FVector index);
+
+	void AddAsyncTask(TerrainControllerTask zone_make_task);
+
+	TerrainControllerTask GetAsyncTask();
+
+	bool HasNextAsyncTask();
+
+	std::mutex zone_make_queue_mutex;
+
+	std::queue<TerrainControllerTask> zone_make_queue;
 
 protected:
 
