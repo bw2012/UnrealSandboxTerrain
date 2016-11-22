@@ -5,17 +5,7 @@
 #include "SandboxTerrainController.h"
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	MainTerrainMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("MainMesh"));
-	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 
-	MainTerrainMesh->AttachTo(this);
-
-	CollisionMesh = CreateDefaultSubobject<USandboxTerrainCollisionComponent>(TEXT("CollisionMesh"));
-	CollisionMesh->SetMobility(EComponentMobility::Stationary);
-	CollisionMesh->SetCanEverAffectNavigation(true);
-	CollisionMesh->SetCollisionProfileName(TEXT("InvisibleWall"));
-
-	CollisionMesh->AttachTo(this);
 }
 
 
@@ -33,11 +23,10 @@ void UTerrainZoneComponent::makeTerrain() {
 	if (IsInGameThread()) {
 		applyTerrainMesh(md_ptr);
 		voxel_data->resetLastMeshRegenerationTime();
-	}
-	else {
+	} else {
 		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
 		if (GetTerrainController() != NULL) {
-			//GetTerrainController()->invokeZoneMeshAsync(this, md_ptr);
+			GetTerrainController()->invokeZoneMeshAsync(this, md_ptr);
 		}
 	}
 }

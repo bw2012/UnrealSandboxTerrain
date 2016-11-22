@@ -122,7 +122,7 @@ void ASandboxTerrainZone::makeTerrain() {
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
 		if (controller != NULL) {
-			controller->invokeZoneMeshAsync(this, md_ptr);
+			//controller->invokeZoneMeshAsync(this, md_ptr);
 		}
 	}
 }

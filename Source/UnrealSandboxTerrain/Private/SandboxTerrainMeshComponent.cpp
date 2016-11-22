@@ -298,7 +298,7 @@ public:
 						//UE_LOG(LogTemp, Warning, TEXT("ScreenSize ->  %f"), ScreenSize);
 
 						if (ScreenSize < 0.2f) {
-							continue;
+							//continue;
 						}
 
 						// Draw the mesh.
