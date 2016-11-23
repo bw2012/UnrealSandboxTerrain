@@ -26,7 +26,12 @@ public class UnrealSandboxTerrain : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+                "Core",
+                "CoreUObject",
+                "Engine",
+                "RenderCore",
+                "ShaderCore",
+                "RHI"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -35,14 +40,12 @@ public class UnrealSandboxTerrain : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Engine",
-				"Slate",
-				"SlateCore",
+                "Core",
+                "CoreUObject",
+                "Engine",
                 "RenderCore",
                 "ShaderCore",
                 "RHI"
-
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
