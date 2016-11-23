@@ -233,6 +233,58 @@
 		return density_state;
 	}
 
+	FORCEINLINE bool VoxelData::performCellSubstanceCaching(int x, int y, int z) {
+		if (x <= 0 || y <= 0 || z <= 0) {
+			return false;
+		}
+
+		float density[8];
+
+		int step = 1;
+		float isolevel = 0.5;
+
+		density[0] = getDensity(x, y - step, z);
+		density[1] = getDensity(x, y, z);
+		density[2] = getDensity(x - step, y - step, z);
+		density[3] = getDensity(x - step, y, z);
+		density[4] = getDensity(x, y - step, z - step);
+		density[5] = getDensity(x, y, z - step);
+		density[6] = getDensity(x - step, y - step, z - step);
+		density[7] = getDensity(x - step, y, z - step);
+
+		if (density[0] > isolevel &&
+			density[1] > isolevel &&
+			density[2] > isolevel &&
+			density[3] > isolevel &&
+			density[4] > isolevel &&
+			density[5] > isolevel &&
+			density[6] > isolevel &&
+			density[7] > isolevel) {
+			return false;
+		}
+
+		if (density[0] <= isolevel &&
+			density[1] <= isolevel &&
+			density[2] <= isolevel &&
+			density[3] <= isolevel &&
+			density[4] <= isolevel &&
+			density[5] <= isolevel &&
+			density[6] <= isolevel &&
+			density[7] <= isolevel) {
+			return false;
+		}
+
+		int rx = x - step;
+		int ry = y - step;
+		int rz = z - step;
+
+		int index = clcLinearIndex(rx, ry, rz);
+
+		SubstanceCache.push_back(index);
+
+		return true;
+	}
+
 
 	//====================================================================================
 	
@@ -506,6 +558,27 @@ public:
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
+MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
+	MeshData* mesh_data = new MeshData();
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+
+	int step = vdp.step();
+
+	for (auto it = vd.SubstanceCache.cbegin(); it != vd.SubstanceCache.cend(); ++it) {
+		int index = *it;
+
+		int x = index / (vd.num() * vd.num());
+		int y = (index / vd.num()) % vd.num();
+		int z = index % vd.num();
+
+		mesh_extractor_ptr->generateCell(x, y, z);
+	}
+
+	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+
+	return MeshDataPtr(mesh_data);
+}
+
 
 MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
@@ -529,8 +602,9 @@ MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &
 MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
 	std::vector<VoxelMeshExtractorPtr> MeshExtractorLod;
+	//VoxelMeshExtractorPtr MeshExtractorLod[LOD_ARRAY_SIZE];
 
-	static const int max_lod = 7;
+	static const int max_lod = LOD_ARRAY_SIZE;
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
@@ -563,6 +637,11 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 }
 
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+	if (vd.isSubstanceCacheValid()) {
+		UE_LOG(LogTemp, Warning, TEXT("use SubstanceCache ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.SubstanceCache.size());
+		return polygonizeCellSubstanceCacheNoLOD(vd, vdp);
+	}
+
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 
@@ -678,6 +757,7 @@ bool sandboxLoadVoxelData(VoxelData &vd, FString &fullFileName) {
 					unsigned char density;
 					binaryData << density;
 					vd.setVoxelPointDensity(x, y, z, density);
+					vd.performCellSubstanceCaching(x, y, z);
 				}
 			}
 		}
@@ -732,3 +812,5 @@ FVector sandboxGridIndex(FVector v, int range) {
 	FVector tmp = sandboxSnapToGrid(v, range) / range;
 	return FVector((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
 }
+
+

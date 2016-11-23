@@ -4,18 +4,32 @@
 #include "EngineMinimal.h"
 #include "ProcMeshData.h"
 
-struct VoxelPoint {
+#include <list>
+
+#define LOD_ARRAY_SIZE 7
+
+typedef struct VoxelPoint {
 	unsigned char density;
 	unsigned char material;
-};
- 
+} VoxelPoint;
+
+
+typedef struct VoxelCell {
+	VoxelPoint point[8];
+} VoxelCell;
+
+
 enum VoxelDataFillState{
 	ZERO, ALL, MIX
 };
 
+typedef struct TSubstanceCache {
 
 
-class VoxelData{
+} TSubstanceCache;
+
+
+class VoxelData {
 
 private:
 	VoxelDataFillState density_state;
@@ -29,12 +43,19 @@ private:
 	double last_change;
 	double last_save;
 	double last_mesh_generation;
+	double last_cache_check;
 	
 	FVector origin = FVector(0.0f, 0.0f, 0.0f);
 	void initializeDensity();
 	void initializeMaterial();
 
+	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
+		return x * voxel_num * voxel_num + y * voxel_num + z;
+	};
+
 public: 
+	std::list<int> SubstanceCache;
+
     VoxelData(int, float);
     ~VoxelData();
 
@@ -57,6 +78,8 @@ public:
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
 	void setVoxelPointMaterial(int x, int y, int z, unsigned char material);
 
+	bool performCellSubstanceCaching(int x, int y, int z);
+
 	VoxelDataFillState getDensityFillState() const; 
 	//VoxelDataFillState getMaterialFillState() const; 
 
@@ -68,6 +91,14 @@ public:
 	void resetLastSave() { last_save = FPlatformTime::Seconds(); }
 	bool needToRegenerateMesh() { return last_change > last_mesh_generation; }
 	void resetLastMeshRegenerationTime() { last_mesh_generation = FPlatformTime::Seconds(); }
+
+	bool isSubstanceCacheValid() const { return last_change <= last_cache_check; }
+	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
+
+	void clearSubstanceCache() { 
+		SubstanceCache.clear();
+		last_cache_check = -1;
+	};
 
 	friend void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
@@ -83,7 +114,7 @@ typedef struct MeshDataSection {
 
 typedef struct MeshData {
 	MeshData() {
-		MeshDataSectionLOD.SetNum(7); // 64
+		MeshDataSectionLOD.SetNum(LOD_ARRAY_SIZE); // 64
 	}
 
 	TArray<MeshDataSection> MeshDataSectionLOD;
