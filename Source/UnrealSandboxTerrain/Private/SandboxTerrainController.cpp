@@ -418,6 +418,9 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 		bool operator()(VoxelData* vd, FVector v, float radius, float strength) {
 			changed = false;
 			//VoxelData* vd = zone->getVoxelData();
+
+			vd->clearSubstanceCache();
+
 			for (int x = 0; x < vd->num(); x++) {
 				for (int y = 0; y < vd->num(); y++) {
 					for (int z = 0; z < vd->num(); z++) {
@@ -432,6 +435,8 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 							vd->setDensity(x, y, z, d);
 							changed = true;
 						}
+
+						vd->performCellSubstanceCaching(x, y, z);
 					}
 				}
 			}
@@ -453,6 +458,9 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 			changed = false;
 
 			if (!not_empty) {
+
+				vd->clearSubstanceCache();
+
 				for (int x = 0; x < vd->num(); x++) {
 					for (int y = 0; y < vd->num(); y++) {
 						for (int z = 0; z < vd->num(); z++) {
@@ -463,6 +471,8 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 								vd->setDensity(x, y, z, 0);
 								changed = true;
 							}
+
+							vd->performCellSubstanceCaching(x, y, z);
 						}
 					}
 				}
@@ -551,6 +561,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				bool is_changed = handler(vd, v, radius, s);
 				if (is_changed) {
 					vd->setChanged();
+					vd->setCacheToValid();
 					std::shared_ptr<MeshData> md_ptr = zone->generateMesh();
 					vd->resetLastMeshRegenerationTime();
 					invokeZoneMeshAsync(zone, md_ptr);
@@ -620,6 +631,7 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 
 	vd->setChanged();
 	vd->resetLastSave();
+	vd->setCacheToValid();
 
 	RegisterTerrainVoxelData(vd, index);
 
@@ -649,6 +661,8 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 				voxel_data.setDensity(x, y, z, den);
 				voxel_data.setMaterial(x, y, z, mat);
 
+				voxel_data.performCellSubstanceCaching(x, y, z);
+
 				if (den == 0) zc++;
 				if (den == 1) fc++;
 				material_list.Add(mat);
@@ -674,6 +688,8 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 		}
 		voxel_data.deinitializeMaterial(base_mat);
 	}
+
+	voxel_data.setCacheToValid();
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
