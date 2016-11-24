@@ -24,6 +24,12 @@ typedef struct TerrainControllerTask {
 	std::function<void()> f;
 } TerrainControllerTask;
 
+UENUM(BlueprintType)
+enum class ETerrainInitialArea : uint8 {
+	TIA_1_1 = 0	UMETA(DisplayName = "1x1"),
+	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
+};
+
 UENUM(BlueprintType)	
 enum class EVoxelDimEnum : uint8 {
 	VS_8  = 9	UMETA(DisplayName = "8"),
@@ -61,7 +67,7 @@ public:
 	bool ShowZoneBounds = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	int InitialSpawnSize = 1;
+	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FString MapName;

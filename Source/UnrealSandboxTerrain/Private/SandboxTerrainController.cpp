@@ -189,7 +189,7 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 		if (voxel_data->isChanged()) {
 			// save voxel data
-			FVector index = getZoneIndex(GetActorLocation());
+			FVector index = getZoneIndex(voxel_data->getOrigin());
 			FString fileName = getZoneFileName(index.X, index.Y, index.Z);
 
 			UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
@@ -285,10 +285,9 @@ FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
 }
 
 void ASandboxTerrainController::spawnInitialZone() {
-	//static const int num = 4;
-	const int s = InitialSpawnSize;
+	const int s = static_cast<int>(TerrainInitialArea);
 
-	UE_LOG(LogTemp, Warning, TEXT("InitialSpawnSize = %d"), s);
+	UE_LOG(LogTemp, Warning, TEXT("TerrainInitialArea = %d"), s);
 
 	if (s > 0) {
 		for (auto x = -s; x <= s; x++) {
