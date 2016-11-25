@@ -5,6 +5,7 @@
 #include "ProcMeshData.h"
 
 #include <list>
+#include <array>
 
 #define LOD_ARRAY_SIZE 7
 
@@ -23,10 +24,9 @@ enum VoxelDataFillState{
 	ZERO, ALL, MIX
 };
 
-typedef struct TSubstanceCache {
-
-
-} TSubstanceCache;
+typedef struct SubstanceCache {
+	std::list<int> cellList;
+} SubstanceCache;
 
 
 class VoxelData {
@@ -54,7 +54,7 @@ private:
 	};
 
 public: 
-	std::list<int> SubstanceCache;
+	std::array<SubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
     VoxelData(int, float);
     ~VoxelData();
@@ -78,7 +78,7 @@ public:
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
 	void setVoxelPointMaterial(int x, int y, int z, unsigned char material);
 
-	bool performCellSubstanceCaching(int x, int y, int z);
+	bool performCellSubstanceCaching(int x, int y, int z, int lod);
 
 	VoxelDataFillState getDensityFillState() const; 
 	//VoxelDataFillState getMaterialFillState() const; 
@@ -96,7 +96,10 @@ public:
 	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
 
 	void clearSubstanceCache() { 
-		SubstanceCache.clear();
+		for (SubstanceCache& lodCache : substanceCacheLOD) {
+			lodCache.cellList.clear();
+		}
+
 		last_cache_check = -1;
 	};
 

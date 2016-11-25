@@ -435,7 +435,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 							changed = true;
 						}
 
-						vd->performCellSubstanceCaching(x, y, z);
+						vd->performCellSubstanceCaching(x, y, z, 0);
 					}
 				}
 			}
@@ -471,7 +471,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 								changed = true;
 							}
 
-							vd->performCellSubstanceCaching(x, y, z);
+							vd->performCellSubstanceCaching(x, y, z, 0);
 						}
 					}
 				}
@@ -660,7 +660,7 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 				voxel_data.setDensity(x, y, z, den);
 				voxel_data.setMaterial(x, y, z, mat);
 
-				voxel_data.performCellSubstanceCaching(x, y, z);
+				voxel_data.performCellSubstanceCaching(x, y, z, 0);
 
 				if (den == 0) zc++;
 				if (den == 1) fc++;
