@@ -105,6 +105,11 @@
         }
     }
 
+	FORCEINLINE unsigned char VoxelData::getRawDensity(int x, int y, int z) const {
+		auto index = x * voxel_num * voxel_num + y * voxel_num + z;
+		return density_data[index];
+	}
+
 	FORCEINLINE void VoxelData::setMaterial(int x, int y, int z, int material) {
 		if (material_data == NULL) {
 			initializeMaterial();
@@ -244,21 +249,21 @@
 			return false;
 		}
 
-		float density[8];
-		static float isolevel = 0.5;
+		unsigned char density[8];
+		static unsigned char isolevel = 127;
 
 		int rx = x - step;
 		int ry = y - step;
 		int rz = z - step;
 
-		density[0] = getDensity(x, y - step, z);
-		density[1] = getDensity(x, y, z);
-		density[2] = getDensity(x - step, y - step, z);
-		density[3] = getDensity(x - step, y, z);
-		density[4] = getDensity(x, y - step, z - step);
-		density[5] = getDensity(x, y, z - step);
-		density[6] = getDensity(rx, ry, rz);
-		density[7] = getDensity(x - step, y, z - step);
+		density[0] = getRawDensity(x, y - step, z);
+		density[1] = getRawDensity(x, y, z);
+		density[2] = getRawDensity(x - step, y - step, z);
+		density[3] = getRawDensity(x - step, y, z);
+		density[4] = getRawDensity(x, y - step, z - step);
+		density[5] = getRawDensity(x, y, z - step);
+		density[6] = getRawDensity(rx, ry, rz);
+		density[7] = getRawDensity(x - step, y, z - step);
 
 		if (density[0] > isolevel &&
 			density[1] > isolevel &&
@@ -290,6 +295,9 @@
 
 
 	FORCEINLINE void VoxelData::performSubstanceCacheLOD(int x, int y, int z) {
+		if (density_data == NULL) {
+			return;
+		}
 		
 		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
 			int s = 1 << lod;
@@ -656,7 +664,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
 		//UE_LOG(LogTemp, Warning, TEXT("use SubstanceCache ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
-		//return polygonizeCellSubstanceCacheNoLOD(vd, vdp);
+		return polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);

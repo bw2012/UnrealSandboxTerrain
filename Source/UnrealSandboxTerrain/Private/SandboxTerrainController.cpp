@@ -435,7 +435,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 							changed = true;
 						}
 
-						//vd->performSubstanceCacheLOD(x, y, z);
+						vd->performSubstanceCacheLOD(x, y, z);
 					}
 				}
 			}

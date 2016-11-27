@@ -66,6 +66,7 @@ public:
 
     void setDensity(int x, int y, int z, float density);
     float getDensity(int x, int y, int z) const;
+	unsigned char getRawDensity(int x, int y, int z) const;
 
 	void setMaterial(int x, int y, int z, int material);
 	int getMaterial(int x, int y, int z) const;
@@ -100,7 +101,7 @@ public:
 	bool needToRegenerateMesh() { return last_change > last_mesh_generation; }
 	void resetLastMeshRegenerationTime() { last_mesh_generation = FPlatformTime::Seconds(); }
 
-	bool isSubstanceCacheValid() const { return last_change <= last_cache_check && last_cache_check > 0; }
+	bool isSubstanceCacheValid() const { return last_change <= last_cache_check; }
 	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
 
 	void clearSubstanceCache() { 
