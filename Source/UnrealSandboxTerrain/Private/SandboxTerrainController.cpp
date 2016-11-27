@@ -435,7 +435,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 							changed = true;
 						}
 
-						vd->performCellSubstanceCaching(x, y, z, 0);
+						vd->performSubstanceCacheLOD(x, y, z);
 					}
 				}
 			}
@@ -471,7 +471,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 								changed = true;
 							}
 
-							vd->performCellSubstanceCaching(x, y, z, 0);
+							vd->performSubstanceCacheLOD(x, y, z);
 						}
 					}
 				}
@@ -523,8 +523,10 @@ AsyncTask(ENamedThreads::GameThread, [=]() {
 
 template<class H>
 void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
-	FVector base_zone_index = getZoneIndex(v);
+	double start = FPlatformTime::Seconds();
 	
+	FVector base_zone_index = getZoneIndex(v);
+
 	static const float vvv[3] = { -1, 0, 1 };
 	for (float x : vvv) {
 		for (float y : vvv) {
@@ -569,6 +571,10 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 			}
 		}
 	}
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
 }
 
 
@@ -660,7 +666,7 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 				voxel_data.setDensity(x, y, z, den);
 				voxel_data.setMaterial(x, y, z, mat);
 
-				voxel_data.performCellSubstanceCaching(x, y, z, 0);
+				voxel_data.performSubstanceCacheLOD(x, y, z);
 
 				if (den == 0) zc++;
 				if (den == 1) fc++;

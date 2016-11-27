@@ -53,6 +53,8 @@ private:
 		return x * voxel_num * voxel_num + y * voxel_num + z;
 	};
 
+	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
+
 public: 
 	std::array<SubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
@@ -78,7 +80,7 @@ public:
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
 	void setVoxelPointMaterial(int x, int y, int z, unsigned char material);
 
-	bool performCellSubstanceCaching(int x, int y, int z, int lod);
+	void performSubstanceCacheLOD(int x, int y, int z);
 
 	VoxelDataFillState getDensityFillState() const; 
 	//VoxelDataFillState getMaterialFillState() const; 
