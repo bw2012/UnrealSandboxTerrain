@@ -40,12 +40,15 @@ private:
 	unsigned char* density_data;
 	unsigned char* material_data;
 
-	double last_change;
-	double last_save;
-	double last_mesh_generation;
-	double last_cache_check;
+	volatile double last_change;
+	volatile double last_save;
+	volatile double last_mesh_generation;
+	volatile double last_cache_check;
 	
 	FVector origin = FVector(0.0f, 0.0f, 0.0f);
+	FVector lower = FVector(0.0f, 0.0f, 0.0f);
+	FVector upper = FVector(0.0f, 0.0f, 0.0f);
+
 	void initializeDensity();
 	void initializeMaterial();
 
@@ -75,6 +78,9 @@ public:
 	void setOrigin(FVector o);
 	FVector getOrigin() const;
 
+	FVector getLower() const { return lower; };
+	FVector getUpper() const { return upper; };
+
 	VoxelPoint getVoxelPoint(int x, int y, int z) const;
 	void setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material);
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
@@ -94,7 +100,7 @@ public:
 	bool needToRegenerateMesh() { return last_change > last_mesh_generation; }
 	void resetLastMeshRegenerationTime() { last_mesh_generation = FPlatformTime::Seconds(); }
 
-	bool isSubstanceCacheValid() const { return last_change <= last_cache_check; }
+	bool isSubstanceCacheValid() const { return last_change <= last_cache_check && last_cache_check > 0; }
 	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
 
 	void clearSubstanceCache() { 

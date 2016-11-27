@@ -408,7 +408,7 @@ public:
 };
 
 void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, float strength) {
-	UE_LOG(LogTemp, Warning, TEXT("digTerrainRoundHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
+	//UE_LOG(LogTemp, Warning, TEXT("digTerrainRoundHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
 
 	//if (GetWorld() == NULL) return;
 
@@ -435,7 +435,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 							changed = true;
 						}
 
-						vd->performSubstanceCacheLOD(x, y, z);
+						//vd->performSubstanceCacheLOD(x, y, z);
 					}
 				}
 			}
@@ -448,7 +448,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 }
 
 void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, float strength) {
-	UE_LOG(LogTemp, Warning, TEXT("digTerrainCubeHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
+	//UE_LOG(LogTemp, Warning, TEXT("digTerrainCubeHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
 
 	struct ZoneHandler {
 		bool changed;
@@ -471,7 +471,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 								changed = true;
 							}
 
-							vd->performSubstanceCacheLOD(x, y, z);
+							//vd->performSubstanceCacheLOD(x, y, z);
 						}
 					}
 				}
@@ -521,6 +521,25 @@ AsyncTask(ENamedThreads::GameThread, [=]() {
 });
 */
 
+FORCEINLINE float squared(float v) {
+	return v * v;
+}
+
+bool isCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
+	float ds = radius * radius;
+
+	if (sphereOrigin.X < lower.X) ds -= squared(sphereOrigin.X - lower.X);
+	else if (sphereOrigin.X > upper.X) ds -= squared(sphereOrigin.X - upper.X);
+
+	if (sphereOrigin.Y < lower.Y) ds -= squared(sphereOrigin.Y - lower.Y);
+	else if (sphereOrigin.Y > upper.Y) ds -= squared(sphereOrigin.Y - upper.Y);
+
+	if (sphereOrigin.Z < lower.Z) ds -= squared(sphereOrigin.Z - lower.Z);
+	else if (sphereOrigin.Z > upper.Z) ds -= squared(sphereOrigin.Z - upper.Z);
+
+	return ds > 0;
+}
+
 template<class H>
 void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
 	double start = FPlatformTime::Seconds();
@@ -542,20 +561,22 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 						bool is_changed = handler(vd, v, radius, s);
 						if (is_changed) {
 							vd->setChanged();
-
-							//UE_LOG(LogTemp, Warning, TEXT("zone not found %f %f %f ---> create"), zone_index.X, zone_index.Y, zone_index.Z);
 							invokeLazyZoneAsync(zone_index);
 						}
-						
+
 						continue;
 					} else {
-						//UE_LOG(LogTemp, Warning, TEXT("zone and voxel data not found %f %f %f ---> skip"), zone_index.X, zone_index.Y, zone_index.Z);
 						continue;
 					}
 				}
 
 				if (vd == NULL) {
 					UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
+					continue;
+				}
+
+				if (!isCubeIntersectSphere(vd->getLower(), vd->getUpper(), v, radius)) {
+					//UE_LOG(LogTemp, Warning, TEXT("skip: voxel data --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
 					continue;
 				}
 

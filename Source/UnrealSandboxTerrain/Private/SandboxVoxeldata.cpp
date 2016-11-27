@@ -140,6 +140,8 @@
 
 	void VoxelData::setOrigin(FVector o) {
 		origin = o;
+		lower = FVector(o.X - volume_size, o.Y - volume_size, o.Z - volume_size);
+		upper = FVector(o.X + volume_size, o.Y + volume_size, o.Z + volume_size);
 	}
 
 	FORCEINLINE FVector VoxelData::getOrigin() const {
@@ -654,7 +656,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
 		//UE_LOG(LogTemp, Warning, TEXT("use SubstanceCache ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
-		return polygonizeCellSubstanceCacheNoLOD(vd, vdp);
+		//return polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
@@ -665,6 +667,9 @@ MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &
 // =================================================================
 
 void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
+
+	UE_LOG(LogTemp, Warning, TEXT("sandboxSaveVoxelData -> %s"), *fullFileName);
+
 	FBufferArchive binaryData;
 	int32 num = vd.num();
 	float size = vd.size();
