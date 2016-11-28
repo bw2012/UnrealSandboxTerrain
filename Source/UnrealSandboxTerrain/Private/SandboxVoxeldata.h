@@ -87,6 +87,7 @@ public:
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
 	void setVoxelPointMaterial(int x, int y, int z, unsigned char material);
 
+	void performSubstanceCacheNoLOD(int x, int y, int z);
 	void performSubstanceCacheLOD(int x, int y, int z);
 
 	VoxelDataFillState getDensityFillState() const; 
@@ -143,6 +144,8 @@ typedef std::shared_ptr<MeshData> MeshDataPtr;
 
 typedef struct VoxelDataParam {
 	bool bGenerateLOD = false;
+
+	int collisionLOD = 0;
 
 	int lod = 0;
 	float z_cut_level = 0;

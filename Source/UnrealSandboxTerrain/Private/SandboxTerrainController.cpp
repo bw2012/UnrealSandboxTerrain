@@ -103,12 +103,7 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
 	ZoneGridDimension = EVoxelDimEnum::VS_64;
-
-	/*
-	testMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("testMesh"));
-	testMesh->SetMobility(EComponentMobility::Stationary);
-	testMesh->SetWorldLocation(FVector(0));
-	*/
+	bEnableLOD = false;
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
@@ -116,12 +111,7 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
 	ZoneGridDimension = EVoxelDimEnum::VS_64;
-
-	/*
-	testMesh = CreateDefaultSubobject<USandboxTerrainMeshComponent>(TEXT("testMesh"));
-	testMesh->SetMobility(EComponentMobility::Stationary);
-	testMesh->SetWorldLocation(FVector(0));
-	*/
+	bEnableLOD = false;
 }
 
 void ASandboxTerrainController::BeginPlay() {
@@ -414,6 +404,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 
 	struct ZoneHandler {
 		bool changed;
+		bool enableLOD = false;
 		bool operator()(VoxelData* vd, FVector v, float radius, float strength) {
 			changed = false;
 			//VoxelData* vd = zone->getVoxelData();
@@ -435,7 +426,12 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 							changed = true;
 						}
 
-						vd->performSubstanceCacheLOD(x, y, z);
+						if (enableLOD) {
+							vd->performSubstanceCacheLOD(x, y, z); 
+						} else {
+							vd->performSubstanceCacheNoLOD(x, y, z);
+						}
+	
 					}
 				}
 			}
@@ -444,6 +440,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 		}
 	} zh;
 
+	zh.enableLOD = bEnableLOD;
 	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
 }
 
@@ -452,6 +449,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 
 	struct ZoneHandler {
 		bool changed;
+		bool enableLOD = false;
 		bool not_empty = false;
 		bool operator()(VoxelData* vd, FVector v, float radius, float strength) {
 			changed = false;
@@ -471,7 +469,12 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 								changed = true;
 							}
 
-							//vd->performSubstanceCacheLOD(x, y, z);
+							if (enableLOD) {
+								vd->performSubstanceCacheLOD(x, y, z);
+							}
+							else {
+								vd->performSubstanceCacheNoLOD(x, y, z);
+							}
 						}
 					}
 				}
@@ -481,6 +484,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 		}
 	} zh;
 
+	zh.enableLOD = bEnableLOD;
 	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
 }
 

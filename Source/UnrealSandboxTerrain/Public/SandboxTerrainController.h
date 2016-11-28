@@ -81,6 +81,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 TerrainSize;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	bool bEnableLOD;
+
 	FString getZoneFileName(int tx, int ty, int tz);
 		
 	void digTerrainRoundHole(FVector v, float radius, float s);

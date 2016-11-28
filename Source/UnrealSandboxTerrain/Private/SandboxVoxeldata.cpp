@@ -294,6 +294,14 @@
 	}
 
 
+	FORCEINLINE void VoxelData::performSubstanceCacheNoLOD(int x, int y, int z) {
+		if (density_data == NULL) {
+			return;
+		}
+
+		performCellSubstanceCaching(x, y, z, 0, 1);
+	}
+
 	FORCEINLINE void VoxelData::performSubstanceCacheLOD(int x, int y, int z) {
 		if (density_data == NULL) {
 			return;
@@ -585,6 +593,8 @@ public:
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
+	UE_LOG(LogTemp, Warning, TEXT("SubstanceCache ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
+
 	MeshData* mesh_data = new MeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
 
@@ -597,6 +607,37 @@ MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDa
 		int z = index % vd.num();
 
 		mesh_extractor_ptr->generateCell(x, y, z);
+	}
+
+	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+
+	return MeshDataPtr(mesh_data);
+}
+
+
+MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
+	UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
+
+	MeshData* mesh_data = new MeshData();
+	static const int max_lod = LOD_ARRAY_SIZE;
+
+	// create mesh extractor for each LOD
+	for (auto lod = 0; lod < max_lod; lod++) {
+		VoxelDataParam me_vdp = vdp;
+		me_vdp.lod = lod;
+
+		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[lod], vd, me_vdp));
+
+		int step = vdp.step();
+		for (auto it = vd.substanceCacheLOD[lod].cellList.cbegin(); it != vd.substanceCacheLOD[lod].cellList.cend(); ++it) {
+			int index = *it;
+
+			int x = index / (vd.num() * vd.num());
+			int y = (index / vd.num()) % vd.num();
+			int z = index % vd.num();
+
+			mesh_extractor_ptr->generateCell(x, y, z);
+		}
 	}
 
 	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
@@ -658,13 +699,14 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 		}
 	}
 
+	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+
 	return MeshDataPtr(mesh_data);
 }
 
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
-		//UE_LOG(LogTemp, Warning, TEXT("use SubstanceCache ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
-		return polygonizeCellSubstanceCacheNoLOD(vd, vdp);
+		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);

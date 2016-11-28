@@ -39,7 +39,18 @@ std::shared_ptr<MeshData> UTerrainZoneComponent::generateMesh() {
 	}
 
 
+	bool enableLOD = GetTerrainController()->bEnableLOD;
+
 	VoxelDataParam vdp;
+
+	if (enableLOD) {
+		vdp.bGenerateLOD = true;
+		vdp.collisionLOD = 1;
+	} else {
+		vdp.bGenerateLOD = false;
+		vdp.collisionLOD = 0;
+	}
+
 	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
 
 	double end = FPlatformTime::Seconds();
