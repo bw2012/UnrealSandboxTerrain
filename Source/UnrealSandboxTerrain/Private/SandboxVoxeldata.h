@@ -6,6 +6,7 @@
 
 #include <list>
 #include <array>
+#include <memory>
 
 #define LOD_ARRAY_SIZE 7
 

@@ -3,7 +3,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainMeshComponent.h"
 
-#include "PhysicsEngine/BodySetup.h"
+#include "SandboxVoxeldata.h"
 
 #include "Engine.h"
 #include "DynamicMeshBuilder.h"
@@ -168,8 +168,10 @@ public:
 		// Copy each section
 		const int32 NumSections = Component->ProcMeshSections.Num();
 		Sections.AddZeroed(NumSections);
+
 		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++) {
 			FProcMeshSection& SrcSection = Component->ProcMeshSections[SectionIdx];
+
 			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FProcMeshProxySection* NewSection = new FProcMeshProxySection();
 
@@ -203,12 +205,14 @@ public:
 				}
 
 				// Copy visibility info
-				NewSection->bSectionVisible = SrcSection.bSectionVisible;
+				//NewSection->bSectionVisible = SrcSection.bSectionVisible;
+				NewSection->bSectionVisible = true;
 
 				// Save ref to new section
 				Sections[SectionIdx] = NewSection;
 			}
 		}
+
 	}
 
 	virtual ~FProceduralMeshSceneProxy() {
@@ -282,8 +286,10 @@ public:
 		}
 
 		// Iterate over sections
-		for (const FProcMeshProxySection* Section : Sections) {
-			if (Section != nullptr && Section->bSectionVisible) {
+		//for (const FProcMeshProxySection* Section : Sections) {
+		const FProcMeshProxySection* Section = Sections[0];
+
+			if (Section != nullptr) {
 				FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
 
 				// For each view..
@@ -320,7 +326,7 @@ public:
 					}
 				}
 			}
-		}
+		// }
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
@@ -374,20 +380,7 @@ void USandboxTerrainMeshComponent::PostLoad() {
 
 }
 
-void USandboxTerrainMeshComponent::ClearMeshSection(int32 SectionIndex) {
-	if (SectionIndex < ProcMeshSections.Num())	{
-		ProcMeshSections[SectionIndex].Reset();
-		UpdateLocalBounds();
-		MarkRenderStateDirty();
-	}
-}
-
-void USandboxTerrainMeshComponent::ClearAllMeshSections() {
-	ProcMeshSections.Empty();
-	UpdateLocalBounds();
-	MarkRenderStateDirty();
-}
-
+/*/
 void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, bool bNewVisibility) {
 	if (SectionIndex < ProcMeshSections.Num()) {
 		// Set game thread state
@@ -407,15 +400,7 @@ void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, boo
 		}
 	}
 }
-
-bool USandboxTerrainMeshComponent::IsMeshSectionVisible(int32 SectionIndex) const {
-	return (SectionIndex < ProcMeshSections.Num()) ? ProcMeshSections[SectionIndex].bSectionVisible : false;
-}
-
-int32 USandboxTerrainMeshComponent::GetNumSections() const {
-	return ProcMeshSections.Num();
-}
-
+*/
 
 void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 	FBox LocalBox(0);
@@ -434,13 +419,20 @@ int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
 }
 
 
-void USandboxTerrainMeshComponent::SetProcMeshSection(int32 SectionIndex, const FProcMeshSection& Section) {
-	// Ensure sections array is long enough
-	if (SectionIndex >= ProcMeshSections.Num())	{
-		ProcMeshSections.SetNum(SectionIndex + 1, false);
-	}
+void USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr mdPtr) {
+	//this->meshDataPtr = mdPtr;
 
-	ProcMeshSections[SectionIndex] = Section;
+	ProcMeshSections.SetNum(LOD_ARRAY_SIZE, false);
+
+	if(mdPtr) {
+		MeshData* meshData = mdPtr.get();
+
+		auto lodIndex = 0;
+		for (auto& sectionLOD : meshData->MeshDataSectionLOD) {
+			ProcMeshSections[lodIndex] = sectionLOD.MainMesh;
+			lodIndex++;
+		}
+	}
 
 	UpdateLocalBounds(); // Update overall bounds
 	MarkRenderStateDirty(); // New section requires recreating scene proxy

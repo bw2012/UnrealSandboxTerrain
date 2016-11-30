@@ -74,7 +74,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	FProcMeshSection& MeshSection = MeshDataSection.MainMesh;
 
 	if (MeshSection.ProcVertexBuffer.Num() == 0) {
-		return;
+		//return;
 	}
 
 	const int section = 0;
@@ -83,9 +83,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
-	MeshSection.bEnableCollision = false;
-	MeshSection.bSectionVisible = true;
-	MainTerrainMesh->SetProcMeshSection(section, MeshSection);
+	MainTerrainMesh->SetMeshData(mesh_data_ptr);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 	MainTerrainMesh->SetVisibility(false);

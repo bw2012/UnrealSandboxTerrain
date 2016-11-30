@@ -6,7 +6,7 @@
 #include "ProcMeshData.h"
 
 #include "Components/MeshComponent.h"
-#include "PhysicsEngine/ConvexElem.h"
+#include "SandboxVoxeldata.h"
 
 #include "SandboxTerrainMeshComponent.generated.h"
 
@@ -21,17 +21,7 @@ class UNREALSANDBOXTERRAIN_API USandboxTerrainMeshComponent : public UMeshCompon
 
 public:
 
-	void ClearMeshSection(int32 SectionIndex);
-
-	void ClearAllMeshSections();
-
-	void SetMeshSectionVisible(int32 sectionIndex, bool bNewVisibility);
-
-	bool IsMeshSectionVisible(int32 SectionIndex) const;
-
-	int32 GetNumSections() const;
-
-	void SetProcMeshSection(int32 SectionIndex, const FProcMeshSection& Section);
+	void SetMeshData(MeshDataPtr mdPtr);
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -48,6 +38,9 @@ public:
 
 
 private:
+
+	//MeshDataPtr meshDataPtr;
+
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
