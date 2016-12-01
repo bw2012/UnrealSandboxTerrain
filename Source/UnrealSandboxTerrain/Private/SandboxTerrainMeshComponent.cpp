@@ -199,7 +199,7 @@ public:
 				BeginInitResource(&NewSection->VertexFactory);
 
 				// Grab material
-				NewSection->Material = Component->GetMaterial(SectionIdx);
+				NewSection->Material = Component->GetMaterial(0);
 				if (NewSection->Material == NULL) {
 					NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				}
@@ -232,7 +232,7 @@ public:
 	{
 		check(IsInRenderingThread());
 
-		// Check we have data 
+		// Check we have data
 		if (SectionData != nullptr)
 		{
 			// Check it references a valid section
@@ -285,48 +285,40 @@ public:
 			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 		}
 
-		// Iterate over sections
-		//for (const FProcMeshProxySection* Section : Sections) {
-		const FProcMeshProxySection* Section = Sections[0];
+		// For each view..
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
+			if (VisibilityMap & (1 << ViewIndex)) {
 
-			if (Section != nullptr) {
-				FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
+				const FSceneView* View = Views[ViewIndex];
 
-				// For each view..
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
-					if (VisibilityMap & (1 << ViewIndex)) {
-						const FSceneView* View = Views[ViewIndex];
+				const FBoxSphereBounds& ProxyBounds = GetBounds();
+				const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 
-						const FBoxSphereBounds& ProxyBounds = GetBounds();
-						const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+				const FProcMeshProxySection* Section = (ScreenSize < 0.2f) ? Sections[1] : Sections[0];
 
-						//UE_LOG(LogTemp, Warning, TEXT("ScreenSize ->  %f"), ScreenSize);
+				if (Section != nullptr) {
+					FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
 
-						if (ScreenSize < 0.2f) {
-							//continue;
-						}
-
-						// Draw the mesh.
-						FMeshBatch& Mesh = Collector.AllocateMesh();
-						FMeshBatchElement& BatchElement = Mesh.Elements[0];
-						BatchElement.IndexBuffer = &Section->IndexBuffer;
-						Mesh.bWireframe = bWireframe;
-						Mesh.VertexFactory = &Section->VertexFactory;
-						Mesh.MaterialRenderProxy = MaterialProxy;
-						BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, UseEditorDepthTest());
-						BatchElement.FirstIndex = 0;
-						BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
-						BatchElement.MinVertexIndex = 0;
-						BatchElement.MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
-						Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-						Mesh.Type = PT_TriangleList;
-						Mesh.DepthPriorityGroup = SDPG_World;
-						Mesh.bCanApplyViewModeOverrides = false;
-						Collector.AddMesh(ViewIndex, Mesh);
-					}
+					// Draw the mesh.
+					FMeshBatch& Mesh = Collector.AllocateMesh();
+					FMeshBatchElement& BatchElement = Mesh.Elements[0];
+					BatchElement.IndexBuffer = &Section->IndexBuffer;
+					Mesh.bWireframe = bWireframe;
+					Mesh.VertexFactory = &Section->VertexFactory;
+					Mesh.MaterialRenderProxy = MaterialProxy;
+					BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, UseEditorDepthTest());
+					BatchElement.FirstIndex = 0;
+					BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
+					BatchElement.MinVertexIndex = 0;
+					BatchElement.MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
+					Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+					Mesh.Type = PT_TriangleList;
+					Mesh.DepthPriorityGroup = SDPG_World;
+					Mesh.bCanApplyViewModeOverrides = false;
+					Collector.AddMesh(ViewIndex, Mesh);
 				}
 			}
-		// }
+		}
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
@@ -367,7 +359,7 @@ private:
 
 // ================================================================================================================================================
 
-USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitializer& ObjectInitializer)	: Super(ObjectInitializer) {
+USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
 }
 
@@ -424,7 +416,7 @@ void USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr mdPtr) {
 
 	ProcMeshSections.SetNum(LOD_ARRAY_SIZE, false);
 
-	if(mdPtr) {
+	if (mdPtr) {
 		MeshData* meshData = mdPtr.get();
 
 		auto lodIndex = 0;
