@@ -73,31 +73,22 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	MeshDataSection& MeshDataSection = mesh_data->MeshDataSectionLOD[0];
 	FProcMeshSection& MeshSection = MeshDataSection.MainMesh;
 
-	if (MeshSection.ProcVertexBuffer.Num() == 0) {
-		//return;
-	}
-
-	const int section = 0;
-
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
+	
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	MainTerrainMesh->SetMeshData(mesh_data_ptr);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
-	MainTerrainMesh->SetVisibility(false);
+
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetMaterial(0, GetTerrainController()->TerrainMaterial);
+	MainTerrainMesh->SetVisibility(true);
 
 	CollisionMesh->SetMeshData(mesh_data_ptr);
-
-
-	MainTerrainMesh->SetVisibility(true);
-	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
-
-
+	CollisionMesh->SetCollisionProfileName(TEXT("BlockAll"));
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
