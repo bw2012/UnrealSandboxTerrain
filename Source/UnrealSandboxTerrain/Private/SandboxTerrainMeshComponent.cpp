@@ -294,7 +294,8 @@ public:
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
 				const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 
-				const FProcMeshProxySection* Section = (ScreenSize < 0.2f) ? Sections[1] : Sections[0];
+				const int LodIndex = GetLodIndex(View);
+				const FProcMeshProxySection* Section = Sections[LodIndex];
 
 				if (Section != nullptr) {
 					FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
@@ -319,6 +320,26 @@ public:
 				}
 			}
 		}
+	}
+
+	int GetLodIndex(const FSceneView* View) const {
+		const FBoxSphereBounds& ProxyBounds = GetBounds();
+		const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+
+		float LodThreshold = 0.2f;
+
+		if (ScreenSize >= LodThreshold) {
+			return 0;
+		}
+
+		for (int Idx = 0; Idx < LOD_ARRAY_SIZE; Idx++) {
+			if (ScreenSize < (LodThreshold / (Idx + 1)) && ScreenSize >= (LodThreshold / (Idx + 2))) {
+				return Idx;
+			}
+		}
+
+
+		return LOD_ARRAY_SIZE - 1;
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
