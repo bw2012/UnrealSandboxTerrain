@@ -309,7 +309,7 @@
 		
 		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
 			int s = 1 << lod;
-			if (x > s && y > s || z > s) {
+			if (x >= s && y >= s && z >= s) {
 				if (x % s == 0 && y % s == 0 && z % s == 0) {
 					performCellSubstanceCaching(x, y, z, lod, s);
 				}
@@ -593,8 +593,6 @@ public:
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
-	UE_LOG(LogTemp, Warning, TEXT("SubstanceCache ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
-
 	MeshData* mesh_data = new MeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
 
@@ -616,8 +614,6 @@ MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDa
 
 
 MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
-	UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD ----> %f %f %f -> %d elenents"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[0].cellList.size());
-
 	MeshData* mesh_data = new MeshData();
 	static const int max_lod = LOD_ARRAY_SIZE;
 
@@ -706,6 +702,10 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
+		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
+			UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
+		}
+
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
