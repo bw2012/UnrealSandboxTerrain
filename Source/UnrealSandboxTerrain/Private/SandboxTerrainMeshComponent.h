@@ -23,6 +23,10 @@ public:
 
 	void SetMeshData(MeshDataPtr mdPtr);
 
+	void SetLodFlag(bool bLodFlag) {
+		this->bLodFlag = bLodFlag;
+	}
+
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual class UBodySetup* GetBodySetup() override;
@@ -38,6 +42,8 @@ public:
 
 
 private:
+
+	bool bLodFlag;
 
 	//MeshDataPtr meshDataPtr;
 

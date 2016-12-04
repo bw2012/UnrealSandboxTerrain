@@ -165,6 +165,8 @@ public:
 		, BodySetup(Component->GetBodySetup())
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
+		bLodFlag = Component->bLodFlag;
+
 		// Copy each section
 		const int32 NumSections = Component->ProcMeshSections.Num();
 		Sections.AddZeroed(NumSections);
@@ -323,23 +325,26 @@ public:
 	}
 
 	int GetLodIndex(const FSceneView* View) const {
-		const FBoxSphereBounds& ProxyBounds = GetBounds();
-		const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+		if (bLodFlag) {
+			const FBoxSphereBounds& ProxyBounds = GetBounds();
+			const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 
-		float LodThreshold = 0.2f;
+			float LodThreshold = 0.2f;
 
-		if (ScreenSize >= LodThreshold) {
-			return 0;
-		}
-
-		for (int Idx = 0; Idx < LOD_ARRAY_SIZE; Idx++) {
-			if (ScreenSize < (LodThreshold / (Idx + 1)) && ScreenSize >= (LodThreshold / (Idx + 2))) {
-				return Idx;
+			if (ScreenSize >= LodThreshold) {
+				return 0;
 			}
+
+			for (int Idx = 0; Idx < LOD_ARRAY_SIZE; Idx++) {
+				if (ScreenSize < (LodThreshold / (Idx + 1)) && ScreenSize >= (LodThreshold / (Idx + 2))) {
+					return Idx;
+				}
+			}
+
+			return LOD_ARRAY_SIZE - 1;
 		}
 
-
-		return LOD_ARRAY_SIZE - 1;
+		return 0;
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
@@ -373,6 +378,8 @@ private:
 	UBodySetup* BodySetup;
 
 	FMaterialRelevance MaterialRelevance;
+
+	bool bLodFlag;
 };
 
 
@@ -381,7 +388,7 @@ private:
 // ================================================================================================================================================
 
 USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-
+	bLodFlag = false;
 }
 
 FPrimitiveSceneProxy* USandboxTerrainMeshComponent::CreateSceneProxy() {
