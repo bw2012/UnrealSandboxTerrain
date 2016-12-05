@@ -334,7 +334,13 @@ static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
     return n;
 }
 
-//#define FORCEINLINE FORCENOINLINE  
+//####################################################################################################################################
+//
+//	VoxelMeshExtractor
+//
+//####################################################################################################################################
+
+//#define FORCEINLINE FORCENOINLINE  //debug
 
 class VoxelMeshExtractor {
 public:
@@ -362,6 +368,26 @@ private:
 		int mat_id;
 		float mat_weight=0;
 	};
+
+	typedef struct PointAddr {
+
+		uint8 x;
+		uint8 y;
+		uint8 z;
+
+		PointAddr(const uint8 x0, const uint8 y0, const uint8 z0) {
+			x = x0; y = y0; z = z0;
+		}
+
+		PointAddr() {
+			x = 0; y = 0; z = 0;
+		}
+
+	} PointAddr;
+
+	FORCEINLINE Point getVoxelpoint(PointAddr adr) {
+		return getVoxelpoint(adr.x, adr.y, adr.z);
+	}
 
 	FORCEINLINE Point getVoxelpoint(int x, int y, int z) {
 		Point vp;
@@ -588,6 +614,105 @@ public:
 			handleTriangle(tmp1, tmp2, tmp3);
 		}
     }
+
+	FORCEINLINE PointAddr clcAddr(const PointAddr& adr1, const PointAddr& adr2) {
+		uint8 x = (adr2.x - adr1.x) / 2 + adr1.x;
+		uint8 y = (adr2.y - adr1.y) / 2 + adr1.y;
+		uint8 z = (adr2.z - adr1.z) / 2 + adr1.z;
+
+		return PointAddr(x, y, z);
+	}
+
+	FORCEINLINE void extractTransitionCell2(PointAddr a0, PointAddr a2, PointAddr a6, PointAddr a8) {
+		Point d[14];
+
+		d[0] = getVoxelpoint(a0);
+		d[1] = getVoxelpoint(clcAddr(a2, a0));
+		d[2] = getVoxelpoint(a2);
+
+		PointAddr a3 = clcAddr(a6, a0);
+		PointAddr a5 = clcAddr(a8, a2);
+
+		d[3] = getVoxelpoint(a3);
+		d[4] = getVoxelpoint(clcAddr(a5, a3));
+		d[5] = getVoxelpoint(a5);
+
+		d[6] = getVoxelpoint(a6);
+		d[7] = getVoxelpoint(clcAddr(a8, a6));
+		d[8] = getVoxelpoint(a8);
+
+		d[9] = getVoxelpoint(a0);
+		d[0xa] = getVoxelpoint(a2);
+		d[0xb] = getVoxelpoint(a6);
+		d[0xc] = getVoxelpoint(a8);
+
+
+		for (auto i = 0; i < 9;  i++) {
+			//mesh_data.DebugPointList.Add(d[i].pos);
+		}
+
+		int8 corner[9];
+		for (auto i = 0; i < 9; i++) {
+			corner[i] = (d[i].density < isolevel) ? -127 : 0;
+		}
+
+		static const int caseCodeCoeffs[9] = { 0x01, 0x02, 0x04, 0x80, 0x100, 0x08, 0x40, 0x20, 0x10 };
+		static const int charByteSz = sizeof(int8) * 8;
+
+		unsigned long caseCode = 0;
+		for (auto ci = 0; ci < 9; ++ci) {
+			// add the coefficient only if the value is negative
+			caseCode += ((corner[ci] >> (charByteSz - 1)) & 1) * caseCodeCoeffs[ci];
+		}
+
+		if (caseCode == 0) {
+			return;
+		}
+
+		unsigned int cls = transitionCellClass[caseCode];
+		TransitionCellData cellData = transitionCellData[cls & 0x7F];
+
+		std::vector<TmpPoint> vertexList;
+		vertexList.reserve(cellData.GetTriangleCount() * 3);
+
+		for (int i = 0; i < cellData.GetVertexCount(); i++) {
+			const int edgeCode = transitionVertexData[caseCode][i];
+			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
+			const unsigned short v1 = edgeCode & 0x0F;
+
+			UE_LOG(LogTemp, Warning, TEXT("v0 - v1 -> %d - %d"), v0, v1);
+
+			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
+			vertexList.push_back(tp);
+
+			mesh_data.DebugPointList.Add(tp.v);
+		}
+
+		for (int i = 0; i < cellData.GetTriangleCount() * 3; i += 3) {
+			TmpPoint tmp1 = vertexList[cellData.vertexIndex[i]];
+			TmpPoint tmp2 = vertexList[cellData.vertexIndex[i + 1]];
+			TmpPoint tmp3 = vertexList[cellData.vertexIndex[i + 2]];
+
+			handleTriangle(tmp1, tmp2, tmp3);
+		}
+	}
+
+	FORCEINLINE void extractTransitionCell(int x, int y, int z) {
+
+		int step = voxel_data_param.step();
+
+		PointAddr a[8];
+		a[0] = PointAddr(x, y + step, z);
+		a[1] = PointAddr(x, y, z);
+		a[2] = PointAddr(x + step, y + step, z);
+		a[3] = PointAddr(x + step, y, z);
+		a[4] = PointAddr(x, y + step, z + step);
+		a[5] = PointAddr(x, y, z + step);
+		a[6] = PointAddr(x + step, y + step, z + step);
+		a[7] = PointAddr(x + step, y, z + step);
+
+		extractTransitionCell2(a[0], a[2], a[4], a[6]);
+	}
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
@@ -633,6 +758,10 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 			int z = index % vd.num();
 
 			mesh_extractor_ptr->generateCell(x, y, z);
+
+			if (lod == 6) {
+				mesh_extractor_ptr->extractTransitionCell(x, y, z);
+			}
 		}
 	}
 

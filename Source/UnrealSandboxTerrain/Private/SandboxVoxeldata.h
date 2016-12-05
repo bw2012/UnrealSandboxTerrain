@@ -123,6 +123,8 @@ typedef struct MeshDataSection {
 	int mat_id = 0;
 	FProcMeshSection MainMesh;
 
+	TArray<FVector> DebugPointList;
+
 } MeshDataSection;
 
 

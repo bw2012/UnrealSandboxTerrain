@@ -344,7 +344,7 @@ public:
 			return LOD_ARRAY_SIZE - 1;
 		}
 
-		return 0;
+		return 6;
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
