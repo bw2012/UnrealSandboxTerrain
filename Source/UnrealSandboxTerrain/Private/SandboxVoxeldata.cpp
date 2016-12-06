@@ -497,7 +497,7 @@ private:
 		vertex_index++;
 	}
    
-    FORCEINLINE void addVertex(TmpPoint &point, FVector& n, int &index){
+    FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n, int &index){
 		FVector v = point.v;
 
         if(VertexMap.Contains(v)){
@@ -536,8 +536,7 @@ private:
     }
 
     FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {      
-		FVector n = clcNormal(tmp1.v, tmp2.v, tmp3.v);
-		n = -n;
+		const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
         
         addVertex(tmp1, n, vertex_index);
         addVertex(tmp2, n, vertex_index);
@@ -707,7 +706,7 @@ public:
 
 			if (y == 0) extractTransitionCell(d[3], d[1], d[7], d[5]); // Y-
 
-			if (y == e) extractTransitionCell(d[3], d[1], d[7], d[5]); // Y-
+			if (y == e) extractTransitionCell(d[0], d[2], d[4], d[6]); // Y+
 
 			if (z == 0) extractTransitionCell(d[3], d[2], d[1], d[0]); // Z-
 

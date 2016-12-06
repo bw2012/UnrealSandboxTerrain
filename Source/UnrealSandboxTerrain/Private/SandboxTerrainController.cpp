@@ -672,10 +672,6 @@ void ASandboxTerrainController::generateTerrain(VoxelData &voxel_data) {
 				float den = generator.density(local, world);
 				unsigned char mat = generator.material(local, world);
 
-				if (y > 50) {
-					den = 1;
-				}
-
 				voxel_data.setDensity(x, y, z, den);
 				voxel_data.setMaterial(x, y, z, mat);
 
