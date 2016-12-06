@@ -63,4 +63,7 @@ private:
 
 
 	friend class FProceduralMeshSceneProxy;
+
+public:
+	bool test;
 };

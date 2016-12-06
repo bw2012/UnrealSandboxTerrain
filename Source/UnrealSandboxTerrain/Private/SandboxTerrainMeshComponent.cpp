@@ -166,6 +166,7 @@ public:
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
 		bLodFlag = Component->bLodFlag;
+		test = Component->test;
 
 		// Copy each section
 		const int32 NumSections = Component->ProcMeshSections.Num();
@@ -344,7 +345,12 @@ public:
 			return LOD_ARRAY_SIZE - 1;
 		}
 
-		return 6;
+		
+		if (test) {
+		//	return 2;
+		}
+
+		return 4;
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
@@ -380,6 +386,9 @@ private:
 	FMaterialRelevance MaterialRelevance;
 
 	bool bLodFlag;
+
+public:
+	bool test;
 };
 
 
@@ -392,7 +401,11 @@ USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitiali
 }
 
 FPrimitiveSceneProxy* USandboxTerrainMeshComponent::CreateSceneProxy() {
-	return new FProceduralMeshSceneProxy(this);
+	FProceduralMeshSceneProxy* proxy = new FProceduralMeshSceneProxy(this);
+
+
+
+	return proxy;
 }
 
 void USandboxTerrainMeshComponent::PostLoad() {

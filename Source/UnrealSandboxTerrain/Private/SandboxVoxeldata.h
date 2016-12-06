@@ -53,10 +53,6 @@ private:
 	void initializeDensity();
 	void initializeMaterial();
 
-	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
-		return x * voxel_num * voxel_num + y * voxel_num + z;
-	};
-
 	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
 
 public: 
@@ -64,6 +60,10 @@ public:
 
     VoxelData(int, float);
     ~VoxelData();
+
+	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
+		return x * voxel_num * voxel_num + y * voxel_num + z;
+	};
 
     void setDensity(int x, int y, int z, float density);
     float getDensity(int x, int y, int z) const;

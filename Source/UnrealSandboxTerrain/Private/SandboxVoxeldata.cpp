@@ -354,7 +354,17 @@ public:
 private:
 	double isolevel = 0.5f;
 
+	typedef struct PointAddr {
+		uint8 x = 0;
+		uint8 y = 0;
+		uint8 z = 0;
+
+		PointAddr(const uint8 x0, const uint8 y0, const uint8 z0) : x(x0), y(y0), z(z0) { }
+		PointAddr() { }
+	} PointAddr;
+
 	struct Point {
+		PointAddr adr;
 		FVector pos;
 		float density;
 		int material_id;
@@ -366,28 +376,13 @@ private:
 		float mat_weight=0;
 	};
 
-	typedef struct PointAddr {
-
-		uint8 x;
-		uint8 y;
-		uint8 z;
-
-		PointAddr(const uint8 x0, const uint8 y0, const uint8 z0) {
-			x = x0; y = y0; z = z0;
-		}
-
-		PointAddr() {
-			x = 0; y = 0; z = 0;
-		}
-
-	} PointAddr;
-
 	FORCEINLINE Point getVoxelpoint(PointAddr adr) {
 		return getVoxelpoint(adr.x, adr.y, adr.z);
 	}
 
-	FORCEINLINE Point getVoxelpoint(int x, int y, int z) {
+	FORCEINLINE Point getVoxelpoint(uint8 x, uint8 y, uint8 z) {
 		Point vp;
+		vp.adr = PointAddr(x,y,z);
 		vp.density = getDensity(x, y, z);
 		vp.material_id = getMaterial(x, y, z);
 		vp.pos = voxel_data.voxelIndexToVector(x, y, z);
@@ -606,49 +601,31 @@ private:
 		}
 	}
 
-public:
-	FORCEINLINE void generateCell(int x, int y, int z) {
-		Point d[8];
-
-		int step = voxel_data_param.step();
-
-        d[0] = getVoxelpoint(x, y + step, z);
-        d[1] = getVoxelpoint(x, y, z);
-        d[2] = getVoxelpoint(x + step, y + step, z);
-        d[3] = getVoxelpoint(x + step, y, z);
-        d[4] = getVoxelpoint(x, y + step, z + step);
-        d[5] = getVoxelpoint(x, y, z + step);
-        d[6] = getVoxelpoint(x + step, y + step, z + step);
-        d[7] = getVoxelpoint(x + step, y, z + step);
-		
-		extractRegularCell(d);
-    }
-
-	FORCEINLINE void extractTransitionCell2(PointAddr a0, PointAddr a2, PointAddr a6, PointAddr a8) {
+	FORCEINLINE void extractTransitionCell(Point& d0, Point& d2, Point& d6, Point& d8) {
 		Point d[14];
 
-		d[0] = getVoxelpoint(a0);
-		d[1] = getVoxelpoint(clcMediumAddr(a2, a0));
-		d[2] = getVoxelpoint(a2);
+		d[0] = d0;
+		d[1] = getVoxelpoint(clcMediumAddr(d2.adr, d0.adr));
+		d[2] = d2;
 
-		PointAddr a3 = clcMediumAddr(a6, a0);
-		PointAddr a5 = clcMediumAddr(a8, a2);
+		PointAddr a3 = clcMediumAddr(d6.adr, d0.adr);
+		PointAddr a5 = clcMediumAddr(d8.adr, d2.adr);
 
 		d[3] = getVoxelpoint(a3);
 		d[4] = getVoxelpoint(clcMediumAddr(a5, a3));
 		d[5] = getVoxelpoint(a5);
 
-		d[6] = getVoxelpoint(a6);
-		d[7] = getVoxelpoint(clcMediumAddr(a8, a6));
-		d[8] = getVoxelpoint(a8);
+		d[6] = d6;
+		d[7] = getVoxelpoint(clcMediumAddr(d8.adr, d6.adr));
+		d[8] = d8;
 
-		d[9] = getVoxelpoint(a0);
-		d[0xa] = getVoxelpoint(a2);
-		d[0xb] = getVoxelpoint(a6);
-		d[0xc] = getVoxelpoint(a8);
+		d[9] = d0;
+		d[0xa] = d2;
+		d[0xb] = d6;
+		d[0xc] = d8;
 
 
-		for (auto i = 0; i < 9;  i++) {
+		for (auto i = 0; i < 9; i++) {
 			//mesh_data.DebugPointList.Add(d[i].pos);
 		}
 
@@ -670,8 +647,11 @@ public:
 			return;
 		}
 
-		unsigned int cls = transitionCellClass[caseCode];
-		TransitionCellData cellData = transitionCellData[cls & 0x7F];
+		unsigned int classIndex = transitionCellClass[caseCode];
+
+		const bool inverse = (classIndex & 128) != 0;
+
+		TransitionCellData cellData = transitionCellData[classIndex & 0x7F];
 
 		std::vector<TmpPoint> vertexList;
 		vertexList.reserve(cellData.GetTriangleCount() * 3);
@@ -692,26 +672,49 @@ public:
 			TmpPoint tmp2 = vertexList[cellData.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cellData.vertexIndex[i + 2]];
 
-			handleTriangle(tmp1, tmp2, tmp3);
+			if (inverse) {
+				handleTriangle(tmp3, tmp2, tmp1);
+			} else {
+				handleTriangle(tmp1, tmp2, tmp3);
+			}
+			
 		}
 	}
 
-	FORCEINLINE void extractTransitionCell(int x, int y, int z) {
+public:
+	FORCEINLINE void generateCell(int x, int y, int z) {
+		Point d[8];
 
 		int step = voxel_data_param.step();
 
-		PointAddr a[8];
-		a[0] = PointAddr(x, y + step, z);
-		a[1] = PointAddr(x, y, z);
-		a[2] = PointAddr(x + step, y + step, z);
-		a[3] = PointAddr(x + step, y, z);
-		a[4] = PointAddr(x, y + step, z + step);
-		a[5] = PointAddr(x, y, z + step);
-		a[6] = PointAddr(x + step, y + step, z + step);
-		a[7] = PointAddr(x + step, y, z + step);
+        d[0] = getVoxelpoint(x, y + step, z);
+        d[1] = getVoxelpoint(x, y, z);
+        d[2] = getVoxelpoint(x + step, y + step, z);
+        d[3] = getVoxelpoint(x + step, y, z);
+        d[4] = getVoxelpoint(x, y + step, z + step);
+        d[5] = getVoxelpoint(x, y, z + step);
+        d[6] = getVoxelpoint(x + step, y + step, z + step);
+        d[7] = getVoxelpoint(x + step, y, z + step);
+		
+		extractRegularCell(d);
 
-		extractTransitionCell2(a[0], a[2], a[4], a[6]);
-	}
+		if (voxel_data_param.lod == 4) {
+			const int e = voxel_data.num() - step - 1;
+
+			if (x == 0) extractTransitionCell(d[1], d[0], d[5], d[4]); // X+
+
+			if (x == e) extractTransitionCell(d[2], d[3], d[6], d[7]); // X-
+
+			if (y == 0) extractTransitionCell(d[3], d[1], d[7], d[5]); // Y-
+
+			if (y == e) extractTransitionCell(d[3], d[1], d[7], d[5]); // Y-
+
+			if (z == 0) extractTransitionCell(d[3], d[2], d[1], d[0]); // Z-
+
+			if (z == e) extractTransitionCell(d[6], d[7], d[4], d[5]); // Z+
+		}
+    }
+
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
@@ -759,10 +762,6 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 			int z = index % vd.num();
 
 			mesh_extractor_ptr->generateCell(x, y, z);
-
-			if (lod == 6) {
-				mesh_extractor_ptr->extractTransitionCell(x, y, z);
-			}
 		}
 	}
 
