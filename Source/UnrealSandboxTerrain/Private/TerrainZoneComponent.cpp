@@ -79,7 +79,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	//##########################################
 	// draw debug points
 	//##########################################
-	MeshDataSection& section6 = mesh_data->MeshDataSectionLOD[4];
+	MeshLodSection& section6 = mesh_data->MeshSectionLodArray[4];
 
 	for (auto p : section6.DebugPointList) {
 		DrawDebugPoint(GetWorld(), p, 5, FColor(0, 0, 255, 100), false, 1000000);

@@ -461,8 +461,8 @@ void USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr mdPtr) {
 		MeshData* meshData = mdPtr.get();
 
 		auto lodIndex = 0;
-		for (auto& sectionLOD : meshData->MeshDataSectionLOD) {
-			ProcMeshSections[lodIndex] = sectionLOD.MainMesh;
+		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
+			ProcMeshSections[lodIndex] = sectionLOD.mainMesh;
 			lodIndex++;
 		}
 	}

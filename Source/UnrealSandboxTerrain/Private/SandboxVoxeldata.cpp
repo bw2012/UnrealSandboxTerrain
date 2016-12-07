@@ -343,7 +343,7 @@ class VoxelMeshExtractor {
 
 private:
 
-	MeshDataSection &mesh_data;
+	MeshLodSection &mesh_data;
 	const VoxelData &voxel_data;
 	const VoxelDataParam voxel_data_param;
 
@@ -457,11 +457,11 @@ private:
 	TArray<MeshHandler*> transitionHandlerArray;
 
 public:
-	VoxelMeshExtractor(MeshDataSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.MainMesh);
+	VoxelMeshExtractor(MeshLodSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
+		mainMeshHandler = new MeshHandler(this, &a.mainMesh);
 
 		for (auto i = 0; i < 6; i++) {
-			transitionHandlerArray.Add(new MeshHandler(this, &a.MainMesh));
+			transitionHandlerArray.Add(new MeshHandler(this, &a.mainMesh));
 		}
 	}
 
@@ -754,7 +754,7 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
-	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	int step = vdp.step();
 	for (auto it = vd.substanceCacheLOD[0].cellList.cbegin(); it != vd.substanceCacheLOD[0].cellList.cend(); ++it) {
@@ -767,7 +767,7 @@ MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDa
 		mesh_extractor_ptr->generateCell(x, y, z);
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -782,7 +782,7 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 		VoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
 
-		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[lod], vd, me_vdp));
+		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
 
 		int step = vdp.step();
 		for (auto it = vd.substanceCacheLOD[lod].cellList.cbegin(); it != vd.substanceCacheLOD[lod].cellList.cend(); ++it) {
@@ -796,7 +796,7 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 		}
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -804,7 +804,7 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 
 MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
-	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	int step = vdp.step();
 
@@ -816,7 +816,7 @@ MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &
 		}
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -832,7 +832,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 	for (auto lod = 0; lod < max_lod; lod++) {
 		VoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
-		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[lod], vd, me_vdp));
+		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
 		MeshExtractorLod.push_back(me_ptr);
 	}
 
@@ -855,7 +855,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 		}
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }

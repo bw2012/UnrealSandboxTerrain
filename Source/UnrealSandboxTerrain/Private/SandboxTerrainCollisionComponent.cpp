@@ -36,9 +36,9 @@ bool USandboxTerrainCollisionComponent::GetPhysicsTriMeshData(struct FTriMeshCol
 
 	MeshData* mesh_data = mesh_data_ptr.get();
 
-	if (mesh_data->CollisionMesh == NULL) return false;
+	if (mesh_data->CollisionMeshPtr == NULL) return false;
 
-	FProcMeshSection* Section = mesh_data->CollisionMesh;
+	FProcMeshSection* Section = mesh_data->CollisionMeshPtr;
 	// Copy vert data
 	for (int32 VertIdx = 0; VertIdx < Section->ProcVertexBuffer.Num(); VertIdx++) {
 		CollisionData->Vertices.Add(Section->ProcVertexBuffer[VertIdx].Position);
@@ -131,11 +131,11 @@ void USandboxTerrainCollisionComponent::UpdateLocalBounds() {
 
 	MeshData* mesh_data = mesh_data_ptr.get();
 
-	if (mesh_data->CollisionMesh == NULL) {
+	if (mesh_data->CollisionMeshPtr == NULL) {
 		return;
 	}
 
-	FProcMeshSection* Section = mesh_data->CollisionMesh;
+	FProcMeshSection* Section = mesh_data->CollisionMeshPtr;
 	LocalBox += Section->SectionLocalBox;
 
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
@@ -165,7 +165,7 @@ bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAll
 
 	MeshData* mesh_data = mesh_data_ptr.get();
 
-	if (mesh_data->CollisionMesh == NULL) {
+	if (mesh_data->CollisionMeshPtr == NULL) {
 		return false;
 	}
 

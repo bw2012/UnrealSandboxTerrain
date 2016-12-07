@@ -118,29 +118,29 @@ public:
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 };
 
-typedef struct MeshDataSection {
+typedef struct MeshLodSection {
 
 	int mat_id = 0;
-	FProcMeshSection MainMesh;
+	FProcMeshSection mainMesh;
 
 	TArray<FProcMeshSection> transitionMesh;
 
 	TArray<FVector> DebugPointList;
 
-	MeshDataSection() {
+	MeshLodSection() {
 		transitionMesh.SetNum(6); 
 	}
 
-} MeshDataSection;
+} MeshLodSection;
 
 
 typedef struct MeshData {
 	MeshData() {
-		MeshDataSectionLOD.SetNum(LOD_ARRAY_SIZE); // 64
+		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
 	}
 
-	TArray<MeshDataSection> MeshDataSectionLOD;
-	FProcMeshSection* CollisionMesh;
+	TArray<MeshLodSection> MeshSectionLodArray;
+	FProcMeshSection* CollisionMeshPtr;
 
 	~MeshData() {
 		// for memory leaks checking
