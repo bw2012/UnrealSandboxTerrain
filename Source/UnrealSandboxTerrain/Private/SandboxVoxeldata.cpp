@@ -340,19 +340,12 @@ static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
 //#define FORCEINLINE FORCENOINLINE  //debug
 
 class VoxelMeshExtractor {
-public:
-	int ntriang = 0;
-	int vertex_index = 0;
+
+private:
 
 	MeshDataSection &mesh_data;
 	const VoxelData &voxel_data;
 	const VoxelDataParam voxel_data_param;
-	TMap<FVector, int> VertexMap;
-
-	VoxelMeshExtractor(MeshDataSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) { }
-    
-private:
-	double isolevel = 0.5f;
 
 	typedef struct PointAddr {
 		uint8 x = 0;
@@ -373,8 +366,115 @@ private:
 	struct TmpPoint {
 		FVector v;
 		int mat_id;
-		float mat_weight=0;
+		float mat_weight = 0;
 	};
+
+	class MeshHandler {
+
+	private:
+		FProcMeshSection* meshSection;
+		VoxelMeshExtractor* extractor;
+
+		int ntriang = 0;
+		int vertex_index = 0;
+
+		TMap<FVector, int> VertexMap;
+
+	public:
+		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s) : extractor(e), meshSection(s) { }
+
+		FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
+			FVector v = point.v;
+
+			meshSection->ProcIndexBuffer.Add(index);
+
+			int t = point.mat_weight * 255;
+
+			FProcMeshVertex Vertex;
+			Vertex.Position = v;
+			Vertex.Normal = n;
+			Vertex.UV0 = FVector2D(0.f, 0.f);
+			Vertex.Color = FColor(t, 0, 0, 0);
+			Vertex.Tangent = FProcMeshTangent();
+
+			meshSection->SectionLocalBox += Vertex.Position;
+			meshSection->ProcVertexBuffer.Add(Vertex);
+
+			vertex_index++;
+		}
+
+		FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n, int &index) {
+			FVector v = point.v;
+
+			if (VertexMap.Contains(v)) {
+				int vindex = VertexMap[v];
+
+				FProcMeshVertex& Vertex = meshSection->ProcVertexBuffer[vindex];
+				FVector nvert = Vertex.Normal;
+
+				FVector tmp(nvert);
+				tmp += n;
+				tmp /= 2;
+
+				Vertex.Normal = tmp;
+				meshSection->ProcIndexBuffer.Add(vindex);
+
+			} else {
+				meshSection->ProcIndexBuffer.Add(index);
+
+				int t = point.mat_weight * 255;
+
+				FProcMeshVertex Vertex;
+				Vertex.Position = v;
+				Vertex.Normal = n;
+				Vertex.UV0 = FVector2D(0.f, 0.f);
+				Vertex.Color = FColor(t, 0, 0, 0);
+				Vertex.Tangent = FProcMeshTangent();
+
+				meshSection->SectionLocalBox += Vertex.Position;
+
+				meshSection->ProcVertexBuffer.Add(Vertex);
+
+				VertexMap.Add(v, index);
+				vertex_index++;
+			}
+		}
+
+		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			addVertex(tmp1, n, vertex_index);
+			addVertex(tmp2, n, vertex_index);
+			addVertex(tmp3, n, vertex_index);
+
+			ntriang++;
+		}
+
+	};
+
+
+	MeshHandler* mainMeshHandler;
+	TArray<MeshHandler*> transitionHandlerArray;
+
+public:
+	VoxelMeshExtractor(MeshDataSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
+		mainMeshHandler = new MeshHandler(this, &a.MainMesh);
+
+		for (auto i = 0; i < 6; i++) {
+			transitionHandlerArray.Add(new MeshHandler(this, &a.MainMesh));
+		}
+	}
+
+	~VoxelMeshExtractor() {
+		delete mainMeshHandler;
+
+		for (MeshHandler* transitionHandler : transitionHandlerArray) {
+			delete transitionHandler;
+		}
+	}
+    
+private:
+	double isolevel = 0.5f;
 
 	FORCEINLINE Point getVoxelpoint(PointAddr adr) {
 		return getVoxelpoint(adr.x, adr.y, adr.z);
@@ -477,74 +577,6 @@ private:
 		return ret;
 	}
 
-	FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
-		FVector v = point.v;
-
-		mesh_data.MainMesh.ProcIndexBuffer.Add(index);
-
-		int t = point.mat_weight * 255;
-
-		FProcMeshVertex Vertex;
-		Vertex.Position = v;
-		Vertex.Normal = n;
-		Vertex.UV0 = FVector2D(0.f, 0.f);
-		Vertex.Color = FColor(t, 0, 0, 0);
-		Vertex.Tangent = FProcMeshTangent();
-
-		mesh_data.MainMesh.SectionLocalBox += Vertex.Position;
-		mesh_data.MainMesh.ProcVertexBuffer.Add(Vertex);
-
-		vertex_index++;
-	}
-   
-    FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n, int &index){
-		FVector v = point.v;
-
-        if(VertexMap.Contains(v)){
-            int vindex = VertexMap[v];
-            
-			FProcMeshSection& mesh = mesh_data.MainMesh;
-			FProcMeshVertex& Vertex = mesh.ProcVertexBuffer[vindex];
-			FVector nvert = Vertex.Normal;
-
-            FVector tmp(nvert);
-            tmp += n;
-            tmp /= 2;
-
-			Vertex.Normal = tmp;
-			mesh_data.MainMesh.ProcIndexBuffer.Add(vindex);
-
-        } else {
-			mesh_data.MainMesh.ProcIndexBuffer.Add(index);
-
-			int t = point.mat_weight * 255;
-
-			FProcMeshVertex Vertex;
-			Vertex.Position = v;
-			Vertex.Normal = n;
-			Vertex.UV0 = FVector2D(0.f, 0.f);
-			Vertex.Color = FColor(t, 0, 0, 0);
-			Vertex.Tangent = FProcMeshTangent();
-
-			mesh_data.MainMesh.SectionLocalBox += Vertex.Position;
-
-			mesh_data.MainMesh.ProcVertexBuffer.Add(Vertex);
-        
-			VertexMap.Add(v, index);
-            vertex_index++;  
-        }
-    }
-
-    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {      
-		const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
-        
-        addVertex(tmp1, n, vertex_index);
-        addVertex(tmp2, n, vertex_index);
-        addVertex(tmp3, n, vertex_index);
-
-        ntriang++;
-    }
-
 	FORCEINLINE void getConrers(int8 (&corner)[8], Point (&d)[8]) {
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? 0 : -127;
@@ -596,7 +628,7 @@ private:
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
-			handleTriangle(tmp1, tmp2, tmp3);
+			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
 		}
 	}
 
@@ -672,9 +704,9 @@ private:
 			TmpPoint tmp3 = vertexList[cellData.vertexIndex[i + 2]];
 
 			if (inverse) {
-				handleTriangle(tmp3, tmp2, tmp1);
+				mainMeshHandler->addTriangle(tmp3, tmp2, tmp1);
 			} else {
-				handleTriangle(tmp1, tmp2, tmp3);
+				mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
 			}
 			
 		}

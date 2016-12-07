@@ -123,7 +123,13 @@ typedef struct MeshDataSection {
 	int mat_id = 0;
 	FProcMeshSection MainMesh;
 
+	TArray<FProcMeshSection> transitionMesh;
+
 	TArray<FVector> DebugPointList;
+
+	MeshDataSection() {
+		transitionMesh.SetNum(6); 
+	}
 
 } MeshDataSection;
 
