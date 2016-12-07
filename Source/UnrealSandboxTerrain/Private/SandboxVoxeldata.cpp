@@ -461,7 +461,7 @@ public:
 		mainMeshHandler = new MeshHandler(this, &a.mainMesh);
 
 		for (auto i = 0; i < 6; i++) {
-			transitionHandlerArray.Add(new MeshHandler(this, &a.mainMesh));
+			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i]));
 		}
 	}
 
@@ -632,7 +632,7 @@ private:
 		}
 	}
 
-	FORCEINLINE void extractTransitionCell(Point& d0, Point& d2, Point& d6, Point& d8) {
+	FORCEINLINE void extractTransitionCell(int sectionNumber, Point& d0, Point& d2, Point& d6, Point& d8) {
 		Point d[14];
 
 		d[0] = d0;
@@ -703,10 +703,12 @@ private:
 			TmpPoint tmp2 = vertexList[cellData.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cellData.vertexIndex[i + 2]];
 
+			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
+
 			if (inverse) {
-				mainMeshHandler->addTriangle(tmp3, tmp2, tmp1);
+				meshHandler->addTriangle(tmp3, tmp2, tmp1);
 			} else {
-				mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
+				meshHandler->addTriangle(tmp1, tmp2, tmp3);
 			}
 			
 		}
@@ -732,17 +734,17 @@ public:
 		if (voxel_data_param.lod == 4) {
 			const int e = voxel_data.num() - step - 1;
 
-			if (x == 0) extractTransitionCell(d[1], d[0], d[5], d[4]); // X+
+			if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
 
-			if (x == e) extractTransitionCell(d[2], d[3], d[6], d[7]); // X-
+			if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
 
-			if (y == 0) extractTransitionCell(d[3], d[1], d[7], d[5]); // Y-
+			if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
 
-			if (y == e) extractTransitionCell(d[0], d[2], d[4], d[6]); // Y+
+			if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
 
-			if (z == 0) extractTransitionCell(d[3], d[2], d[1], d[0]); // Z-
+			if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
 
-			if (z == e) extractTransitionCell(d[6], d[7], d[4], d[5]); // Z+
+			if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
 		}
     }
 
