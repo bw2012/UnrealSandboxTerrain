@@ -252,9 +252,9 @@
 		unsigned char density[8];
 		static unsigned char isolevel = 127;
 
-		int rx = x - step;
-		int ry = y - step;
-		int rz = z - step;
+		const int rx = x - step;
+		const int ry = y - step;
+		const int rz = z - step;
 
 		density[0] = getRawDensity(x, y - step, z);
 		density[1] = getRawDensity(x, y, z);
@@ -315,9 +315,6 @@
 				}
 			}
 		}
-		
-
-		//performCellSubstanceCaching(x, y, z, 0, 1);
 	}
 
 	//====================================================================================
@@ -334,24 +331,33 @@ static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
     return n;
 }
 
-//#define FORCEINLINE FORCENOINLINE  
+//####################################################################################################################################
+//
+//	VoxelMeshExtractor
+//
+//####################################################################################################################################
+
+//#define FORCEINLINE FORCENOINLINE  //debug
 
 class VoxelMeshExtractor {
-public:
-	int ntriang = 0;
-	int vertex_index = 0;
 
-	MeshDataSection &mesh_data;
+private:
+
+	MeshLodSection &mesh_data;
 	const VoxelData &voxel_data;
 	const VoxelDataParam voxel_data_param;
-	TMap<FVector, int> VertexMap;
 
-	VoxelMeshExtractor(MeshDataSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) { }
-    
-private:
-	double isolevel = 0.5f;
+	typedef struct PointAddr {
+		uint8 x = 0;
+		uint8 y = 0;
+		uint8 z = 0;
+
+		PointAddr(const uint8 x0, const uint8 y0, const uint8 z0) : x(x0), y(y0), z(z0) { }
+		PointAddr() { }
+	} PointAddr;
 
 	struct Point {
+		PointAddr adr;
 		FVector pos;
 		float density;
 		int material_id;
@@ -360,11 +366,123 @@ private:
 	struct TmpPoint {
 		FVector v;
 		int mat_id;
-		float mat_weight=0;
+		float mat_weight = 0;
 	};
 
-	FORCEINLINE Point getVoxelpoint(int x, int y, int z) {
+	class MeshHandler {
+
+	private:
+		FProcMeshSection* meshSection;
+		VoxelMeshExtractor* extractor;
+
+		int ntriang = 0;
+		int vertex_index = 0;
+
+		TMap<FVector, int> VertexMap;
+
+	public:
+		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s) : extractor(e), meshSection(s) { }
+
+		FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
+			FVector v = point.v;
+
+			meshSection->ProcIndexBuffer.Add(index);
+
+			int t = point.mat_weight * 255;
+
+			FProcMeshVertex Vertex;
+			Vertex.Position = v;
+			Vertex.Normal = n;
+			Vertex.UV0 = FVector2D(0.f, 0.f);
+			Vertex.Color = FColor(t, 0, 0, 0);
+			Vertex.Tangent = FProcMeshTangent();
+
+			meshSection->SectionLocalBox += Vertex.Position;
+			meshSection->ProcVertexBuffer.Add(Vertex);
+
+			vertex_index++;
+		}
+
+		FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n, int &index) {
+			FVector v = point.v;
+
+			if (VertexMap.Contains(v)) {
+				int vindex = VertexMap[v];
+
+				FProcMeshVertex& Vertex = meshSection->ProcVertexBuffer[vindex];
+				FVector nvert = Vertex.Normal;
+
+				FVector tmp(nvert);
+				tmp += n;
+				tmp /= 2;
+
+				Vertex.Normal = tmp;
+				meshSection->ProcIndexBuffer.Add(vindex);
+
+			} else {
+				meshSection->ProcIndexBuffer.Add(index);
+
+				int t = point.mat_weight * 255;
+
+				FProcMeshVertex Vertex;
+				Vertex.Position = v;
+				Vertex.Normal = n;
+				Vertex.UV0 = FVector2D(0.f, 0.f);
+				Vertex.Color = FColor(t, 0, 0, 0);
+				Vertex.Tangent = FProcMeshTangent();
+
+				meshSection->SectionLocalBox += Vertex.Position;
+
+				meshSection->ProcVertexBuffer.Add(Vertex);
+
+				VertexMap.Add(v, index);
+				vertex_index++;
+			}
+		}
+
+		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			addVertex(tmp1, n, vertex_index);
+			addVertex(tmp2, n, vertex_index);
+			addVertex(tmp3, n, vertex_index);
+
+			ntriang++;
+		}
+
+	};
+
+
+	MeshHandler* mainMeshHandler;
+	TArray<MeshHandler*> transitionHandlerArray;
+
+public:
+	VoxelMeshExtractor(MeshLodSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
+		mainMeshHandler = new MeshHandler(this, &a.mainMesh);
+
+		for (auto i = 0; i < 6; i++) {
+			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i]));
+		}
+	}
+
+	~VoxelMeshExtractor() {
+		delete mainMeshHandler;
+
+		for (MeshHandler* transitionHandler : transitionHandlerArray) {
+			delete transitionHandler;
+		}
+	}
+    
+private:
+	double isolevel = 0.5f;
+
+	FORCEINLINE Point getVoxelpoint(PointAddr adr) {
+		return getVoxelpoint(adr.x, adr.y, adr.z);
+	}
+
+	FORCEINLINE Point getVoxelpoint(uint8 x, uint8 y, uint8 z) {
 		Point vp;
+		vp.adr = PointAddr(x,y,z);
 		vp.density = getDensity(x, y, z);
 		vp.material_id = getMaterial(x, y, z);
 		vp.pos = voxel_data.voxelIndexToVector(x, y, z);
@@ -459,96 +577,21 @@ private:
 		return ret;
 	}
 
-	FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
-		FVector v = point.v;
-
-		mesh_data.MainMesh.ProcIndexBuffer.Add(index);
-
-		int t = point.mat_weight * 255;
-
-		FProcMeshVertex Vertex;
-		Vertex.Position = v;
-		Vertex.Normal = n;
-		Vertex.UV0 = FVector2D(0.f, 0.f);
-		Vertex.Color = FColor(t, 0, 0, 0);
-		Vertex.Tangent = FProcMeshTangent();
-
-		mesh_data.MainMesh.SectionLocalBox += Vertex.Position;
-		mesh_data.MainMesh.ProcVertexBuffer.Add(Vertex);
-
-		vertex_index++;
-	}
-   
-    FORCEINLINE void addVertex(TmpPoint &point, FVector& n, int &index){
-		FVector v = point.v;
-
-        if(VertexMap.Contains(v)){
-            int vindex = VertexMap[v];
-            
-			FProcMeshSection& mesh = mesh_data.MainMesh;
-			FProcMeshVertex& Vertex = mesh.ProcVertexBuffer[vindex];
-			FVector nvert = Vertex.Normal;
-
-            FVector tmp(nvert);
-            tmp += n;
-            tmp /= 2;
-
-			Vertex.Normal = tmp;
-			mesh_data.MainMesh.ProcIndexBuffer.Add(vindex);
-
-        } else {
-			mesh_data.MainMesh.ProcIndexBuffer.Add(index);
-
-			int t = point.mat_weight * 255;
-
-			FProcMeshVertex Vertex;
-			Vertex.Position = v;
-			Vertex.Normal = n;
-			Vertex.UV0 = FVector2D(0.f, 0.f);
-			Vertex.Color = FColor(t, 0, 0, 0);
-			Vertex.Tangent = FProcMeshTangent();
-
-			mesh_data.MainMesh.SectionLocalBox += Vertex.Position;
-
-			mesh_data.MainMesh.ProcVertexBuffer.Add(Vertex);
-        
-			VertexMap.Add(v, index);
-            vertex_index++;  
-        }
-    }
-
-    FORCEINLINE void handleTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {      
-		FVector n = clcNormal(tmp1.v, tmp2.v, tmp3.v);
-		n = -n;
-        
-        addVertex(tmp1, n, vertex_index);
-        addVertex(tmp2, n, vertex_index);
-        addVertex(tmp3, n, vertex_index);
-
-        ntriang++;
-    }
-
 	FORCEINLINE void getConrers(int8 (&corner)[8], Point (&d)[8]) {
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? 0 : -127;
 		}
 	}
 
-public:
-	FORCEINLINE void generateCell(int x, int y, int z) {
-		Point d[8];
+	FORCEINLINE PointAddr clcMediumAddr(const PointAddr& adr1, const PointAddr& adr2) {
+		uint8 x = (adr2.x - adr1.x) / 2 + adr1.x;
+		uint8 y = (adr2.y - adr1.y) / 2 + adr1.y;
+		uint8 z = (adr2.z - adr1.z) / 2 + adr1.z;
 
-		int step = voxel_data_param.step();
+		return PointAddr(x, y, z);
+	}
 
-        d[0] = getVoxelpoint(x, y + step, z);
-        d[1] = getVoxelpoint(x, y, z);
-        d[2] = getVoxelpoint(x + step, y + step, z);
-        d[3] = getVoxelpoint(x + step, y, z);
-        d[4] = getVoxelpoint(x, y + step, z + step);
-        d[5] = getVoxelpoint(x, y, z + step);
-        d[6] = getVoxelpoint(x + step, y + step, z + step);
-        d[7] = getVoxelpoint(x + step, y, z + step);
-		
+	FORCEINLINE void extractRegularCell(Point (&d)[8]) {
 		int8 corner[8];
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
@@ -585,16 +628,130 @@ public:
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
-			handleTriangle(tmp1, tmp2, tmp3);
+			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
+		}
+	}
+
+	FORCEINLINE void extractTransitionCell(int sectionNumber, Point& d0, Point& d2, Point& d6, Point& d8) {
+		Point d[14];
+
+		d[0] = d0;
+		d[1] = getVoxelpoint(clcMediumAddr(d2.adr, d0.adr));
+		d[2] = d2;
+
+		PointAddr a3 = clcMediumAddr(d6.adr, d0.adr);
+		PointAddr a5 = clcMediumAddr(d8.adr, d2.adr);
+
+		d[3] = getVoxelpoint(a3);
+		d[4] = getVoxelpoint(clcMediumAddr(a5, a3));
+		d[5] = getVoxelpoint(a5);
+
+		d[6] = d6;
+		d[7] = getVoxelpoint(clcMediumAddr(d8.adr, d6.adr));
+		d[8] = d8;
+
+		d[9] = d0;
+		d[0xa] = d2;
+		d[0xb] = d6;
+		d[0xc] = d8;
+
+
+		for (auto i = 0; i < 9; i++) {
+			//mesh_data.DebugPointList.Add(d[i].pos);
+		}
+
+		int8 corner[9];
+		for (auto i = 0; i < 9; i++) {
+			corner[i] = (d[i].density < isolevel) ? -127 : 0;
+		}
+
+		static const int caseCodeCoeffs[9] = { 0x01, 0x02, 0x04, 0x80, 0x100, 0x08, 0x40, 0x20, 0x10 };
+		static const int charByteSz = sizeof(int8) * 8;
+
+		unsigned long caseCode = 0;
+		for (auto ci = 0; ci < 9; ++ci) {
+			// add the coefficient only if the value is negative
+			caseCode += ((corner[ci] >> (charByteSz - 1)) & 1) * caseCodeCoeffs[ci];
+		}
+
+		if (caseCode == 0) {
+			return;
+		}
+
+		unsigned int classIndex = transitionCellClass[caseCode];
+
+		const bool inverse = (classIndex & 128) != 0;
+
+		TransitionCellData cellData = transitionCellData[classIndex & 0x7F];
+
+		std::vector<TmpPoint> vertexList;
+		vertexList.reserve(cellData.GetTriangleCount() * 3);
+
+		for (int i = 0; i < cellData.GetVertexCount(); i++) {
+			const int edgeCode = transitionVertexData[caseCode][i];
+			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
+			const unsigned short v1 = edgeCode & 0x0F;
+
+			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
+			vertexList.push_back(tp);
+
+			mesh_data.DebugPointList.Add(tp.v);
+		}
+
+		for (int i = 0; i < cellData.GetTriangleCount() * 3; i += 3) {
+			TmpPoint tmp1 = vertexList[cellData.vertexIndex[i]];
+			TmpPoint tmp2 = vertexList[cellData.vertexIndex[i + 1]];
+			TmpPoint tmp3 = vertexList[cellData.vertexIndex[i + 2]];
+
+			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
+
+			if (inverse) {
+				meshHandler->addTriangle(tmp3, tmp2, tmp1);
+			} else {
+				meshHandler->addTriangle(tmp1, tmp2, tmp3);
+			}
+			
+		}
+	}
+
+public:
+	FORCEINLINE void generateCell(int x, int y, int z) {
+		Point d[8];
+
+		int step = voxel_data_param.step();
+
+        d[0] = getVoxelpoint(x, y + step, z);
+        d[1] = getVoxelpoint(x, y, z);
+        d[2] = getVoxelpoint(x + step, y + step, z);
+        d[3] = getVoxelpoint(x + step, y, z);
+        d[4] = getVoxelpoint(x, y + step, z + step);
+        d[5] = getVoxelpoint(x, y, z + step);
+        d[6] = getVoxelpoint(x + step, y + step, z + step);
+        d[7] = getVoxelpoint(x + step, y, z + step);
+		
+		extractRegularCell(d);
+
+		if (voxel_data_param.lod > 0) {
+			const int e = voxel_data.num() - step - 1;
+
+			if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
+			if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
+			if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
+			if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
+			if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
+			if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
 		}
     }
+
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
+//####################################################################################################################################
+
 MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
-	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	int step = vdp.step();
 	for (auto it = vd.substanceCacheLOD[0].cellList.cbegin(); it != vd.substanceCacheLOD[0].cellList.cend(); ++it) {
@@ -607,7 +764,7 @@ MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDa
 		mesh_extractor_ptr->generateCell(x, y, z);
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -622,7 +779,7 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 		VoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
 
-		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[lod], vd, me_vdp));
+		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
 
 		int step = vdp.step();
 		for (auto it = vd.substanceCacheLOD[lod].cellList.cbegin(); it != vd.substanceCacheLOD[lod].cellList.cend(); ++it) {
@@ -636,7 +793,7 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 		}
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -644,7 +801,7 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 
 MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
 	MeshData* mesh_data = new MeshData();
-	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[0], vd, vdp));
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	int step = vdp.step();
 
@@ -656,7 +813,7 @@ MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &
 		}
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -672,7 +829,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 	for (auto lod = 0; lod < max_lod; lod++) {
 		VoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
-		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshDataSectionLOD[lod], vd, me_vdp));
+		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
 		MeshExtractorLod.push_back(me_ptr);
 	}
 
@@ -695,7 +852,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 		}
 	}
 
-	mesh_data->CollisionMesh = &mesh_data->MeshDataSectionLOD[0].MainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
 	return MeshDataPtr(mesh_data);
 }
@@ -703,7 +860,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
 		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
-			UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
+			//UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
 		}
 
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);

@@ -55,7 +55,7 @@ private:
 	void UpdateLocalBounds();
 
 	/** Array of sections of mesh */
-	TArray<FProcMeshSection> ProcMeshSections;
+	TArray<MeshLodSection> ProcMeshSections;
 
 	/** Local space bounds of mesh */
 	UPROPERTY()
@@ -63,4 +63,5 @@ private:
 
 
 	friend class FProceduralMeshSceneProxy;
+
 };

@@ -118,8 +118,6 @@ void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
 
-	//AddToRoot();
-
 	UWorld* const world = GetWorld();
 	if (!world) {
 		return;
@@ -136,8 +134,6 @@ void ASandboxTerrainController::BeginPlay() {
 	
 	//zone initial generation list
 	initial_zone_loader = new FLoadInitialZonesThread();
-
-	//TWeakObjectPtr<ASandboxTerrainController> ptr(this);
 
 	initial_zone_loader->controller = this;
 	if (!GenerateOnlySmallSpawnPoint) {
@@ -321,16 +317,6 @@ void ASandboxTerrainController::spawnInitialZone() {
 			UTerrainZoneComponent* zone = addTerrainZone(v);
 			zone->setVoxelData(vd);
 			zone->makeTerrain();
-			
-			/*
-			std::shared_ptr<MeshData> ttt = zone->generateMesh();
-			MeshDataSection& MeshDataSection = ttt->MeshDataSectionLOD[0];
-			FProcMeshSection& MeshSection = MeshDataSection.MainMesh;
-
-			MeshSection.bEnableCollision = false;
-			MeshSection.bSectionVisible = true;
-			//zone->SetProcMeshSection(0, MeshSection);
-			*/
 		}
 	}
 	
@@ -398,8 +384,6 @@ public:
 };
 
 void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, float strength) {
-	//UE_LOG(LogTemp, Warning, TEXT("digTerrainRoundHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
-
 	//if (GetWorld() == NULL) return;
 
 	struct ZoneHandler {
@@ -407,8 +391,6 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 		bool enableLOD = false;
 		bool operator()(VoxelData* vd, FVector v, float radius, float strength) {
 			changed = false;
-			//VoxelData* vd = zone->getVoxelData();
-
 			vd->clearSubstanceCache();
 
 			for (int x = 0; x < vd->num(); x++) {
@@ -445,7 +427,6 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 }
 
 void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, float strength) {
-	//UE_LOG(LogTemp, Warning, TEXT("digTerrainCubeHole -> %f %f %f"), origin.X, origin.Y, origin.Z);
 
 	struct ZoneHandler {
 		bool changed;
@@ -520,10 +501,6 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 
 }
 
-/*
-AsyncTask(ENamedThreads::GameThread, [=]() {
-});
-*/
 
 FORCEINLINE float squared(float v) {
 	return v * v;

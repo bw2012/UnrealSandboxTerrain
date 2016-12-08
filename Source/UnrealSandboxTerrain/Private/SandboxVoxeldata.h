@@ -53,10 +53,6 @@ private:
 	void initializeDensity();
 	void initializeMaterial();
 
-	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
-		return x * voxel_num * voxel_num + y * voxel_num + z;
-	};
-
 	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
 
 public: 
@@ -64,6 +60,10 @@ public:
 
     VoxelData(int, float);
     ~VoxelData();
+
+	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
+		return x * voxel_num * voxel_num + y * voxel_num + z;
+	};
 
     void setDensity(int x, int y, int z, float density);
     float getDensity(int x, int y, int z) const;
@@ -118,21 +118,28 @@ public:
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 };
 
-typedef struct MeshDataSection {
+typedef struct MeshLodSection {
 
-	int mat_id = 0;
-	FProcMeshSection MainMesh;
+	FProcMeshSection mainMesh;
 
-} MeshDataSection;
+	TArray<FProcMeshSection> transitionMeshArray;
+
+	TArray<FVector> DebugPointList;
+
+	MeshLodSection() {
+		transitionMeshArray.SetNum(6); 
+	}
+
+} MeshLodSection;
 
 
 typedef struct MeshData {
 	MeshData() {
-		MeshDataSectionLOD.SetNum(LOD_ARRAY_SIZE); // 64
+		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
 	}
 
-	TArray<MeshDataSection> MeshDataSectionLOD;
-	FProcMeshSection* CollisionMesh;
+	TArray<MeshLodSection> MeshSectionLodArray;
+	FProcMeshSection* CollisionMeshPtr;
 
 	~MeshData() {
 		// for memory leaks checking
