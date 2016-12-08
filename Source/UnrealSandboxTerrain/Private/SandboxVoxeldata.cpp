@@ -731,19 +731,14 @@ public:
 		
 		extractRegularCell(d);
 
-		if (voxel_data_param.lod == 4) {
+		if (voxel_data_param.lod > 0) {
 			const int e = voxel_data.num() - step - 1;
 
 			if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
-
 			if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
-
 			if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
-
 			if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
-
 			if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
-
 			if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
 		}
     }
@@ -865,7 +860,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
 		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
-			UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
+			//UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
 		}
 
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);

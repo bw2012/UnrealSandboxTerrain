@@ -120,7 +120,6 @@ public:
 
 typedef struct MeshLodSection {
 
-	int mat_id = 0;
 	FProcMeshSection mainMesh;
 
 	TArray<FProcMeshSection> transitionMeshArray;

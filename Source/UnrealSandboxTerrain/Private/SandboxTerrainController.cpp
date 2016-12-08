@@ -349,13 +349,6 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
 		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		if (pos.X == 0 && pos.Y == 0 && pos.Z == 0) {
-			TerrainMeshComp->test = true;
-		}
-		else {
-			TerrainMeshComp->test = false;
-		}
-
 		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
 		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
 		CollisionMeshComp->RegisterComponent();

@@ -72,21 +72,16 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 		return;
 	}
 
-
-	//MeshDataSection& Section0 = mesh_data->MeshDataSectionLOD[0];
-	//FProcMeshSection& MeshSection = Section0.MainMesh;
-
 	//##########################################
 	// draw debug points
 	//##########################################
+	/*
 	MeshLodSection& section6 = mesh_data->MeshSectionLodArray[4];
-
 	for (auto p : section6.DebugPointList) {
 		DrawDebugPoint(GetWorld(), p, 5, FColor(0, 0, 255, 100), false, 1000000);
-
 		UE_LOG(LogTemp, Warning, TEXT("DebugPointList ---> %f %f %f "), p.X, p.Y, p.Z);
 	}
-
+	*/
 	//##########################################
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
