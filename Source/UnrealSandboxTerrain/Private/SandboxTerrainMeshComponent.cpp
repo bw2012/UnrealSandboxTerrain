@@ -186,38 +186,7 @@ public:
 			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
-				// Copy data from vertex buffer
-				const int32 NumVerts = SrcSection.ProcVertexBuffer.Num();
-
-				// Allocate verts
-				NewLodSection->mainMesh.VertexBuffer.Vertices.SetNumUninitialized(NumVerts);
-				// Copy verts
-				for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
-					const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
-					FDynamicMeshVertex& Vert = NewLodSection->mainMesh.VertexBuffer.Vertices[VertIdx];
-					ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
-				}
-
-				// Copy index buffer
-				NewLodSection->mainMesh.IndexBuffer.Indices = SrcSection.ProcIndexBuffer;
-
-				// Init vertex factory
-				NewLodSection->mainMesh.VertexFactory.Init(&NewLodSection->mainMesh.VertexBuffer);
-
-				// Enqueue initialization of render resource
-				BeginInitResource(&NewLodSection->mainMesh.VertexBuffer);
-				BeginInitResource(&NewLodSection->mainMesh.IndexBuffer);
-				BeginInitResource(&NewLodSection->mainMesh.VertexFactory);
-
-				// Grab material
-				NewLodSection->mainMesh.Material = Component->GetMaterial(0);
-				if (NewLodSection->mainMesh.Material == NULL) {
-					NewLodSection->mainMesh.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-				}
-
-				// Copy visibility info
-				//NewSection->bSectionVisible = SrcSection.bSectionVisible;
-				NewLodSection->mainMesh.bSectionVisible = true;
+				CopySection(SrcSection, NewLodSection->mainMesh, Component);
 
 				// Save ref to new section
 				Sections[SectionIdx] = NewLodSection;
@@ -235,6 +204,40 @@ public:
 				delete Section;
 			}
 		}
+	}
+
+	FORCEINLINE void CopySection(FProcMeshSection& SrcSection, FProcMeshProxySection& NewSection, USandboxTerrainMeshComponent* Component) {
+		// Copy data from vertex buffer
+		const int32 NumVerts = SrcSection.ProcVertexBuffer.Num();
+
+		// Allocate verts
+		NewSection.VertexBuffer.Vertices.SetNumUninitialized(NumVerts);
+		// Copy verts
+		for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
+			const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
+			FDynamicMeshVertex& Vert = NewSection.VertexBuffer.Vertices[VertIdx];
+			ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
+		}
+
+		// Copy index buffer
+		NewSection.IndexBuffer.Indices = SrcSection.ProcIndexBuffer;
+
+		// Init vertex factory
+		NewSection.VertexFactory.Init(&NewSection.VertexBuffer);
+
+		// Enqueue initialization of render resource
+		BeginInitResource(&NewSection.VertexBuffer);
+		BeginInitResource(&NewSection.IndexBuffer);
+		BeginInitResource(&NewSection.VertexFactory);
+
+		// Grab material
+		NewSection.Material = Component->GetMaterial(0);
+		if (NewSection.Material == NULL) {
+			NewSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		// Copy visibility info
+		NewSection.bSectionVisible = true;
 	}
 
 	/** Called on render thread to assign new dynamic data */
