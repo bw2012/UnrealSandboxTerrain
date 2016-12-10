@@ -387,16 +387,21 @@ public:
 			const FBoxSphereBounds& ProxyBounds = GetBounds();
 			const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 
-			float LodThreshold = 0.2f;
+			const static float LodThreshold = 0.55f;
 
 			if (ScreenSize >= LodThreshold) {
 				return 0;
 			}
 
+			float LodThresholdMin = LodThreshold;
 			for (int Idx = 0; Idx < LOD_ARRAY_SIZE; Idx++) {
-				if (ScreenSize < (LodThreshold / (Idx + 1)) && ScreenSize >= (LodThreshold / (Idx + 2))) {
+				float LodThresholdMax = LodThresholdMin * LodThresholdMin;
+
+				if (ScreenSize < LodThresholdMin && ScreenSize >= LodThresholdMax) {
 					return Idx;
 				}
+
+				LodThresholdMin = LodThresholdMin * LodThresholdMin;
 			}
 
 			return LOD_ARRAY_SIZE - 1;
