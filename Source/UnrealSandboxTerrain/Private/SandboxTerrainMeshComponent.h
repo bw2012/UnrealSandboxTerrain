@@ -40,10 +40,9 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface.
 
+	bool bLodFlag;
 
 private:
-
-	bool bLodFlag;
 
 	//MeshDataPtr meshDataPtr;
 

@@ -137,8 +137,22 @@ public:
 class FMeshProxyLodSection
 {
 public:
+
 	FProcMeshProxySection mainMesh;
-	FProcMeshProxySection transitionMesh[6];
+
+	FProcMeshProxySection* transitionMesh[6];
+
+	~FMeshProxyLodSection() {
+		for (auto i = 0; i < 6; i++) {
+			if (transitionMesh[i] != nullptr) {
+				transitionMesh[i]->VertexBuffer.ReleaseResource();
+				transitionMesh[i]->IndexBuffer.ReleaseResource();
+				transitionMesh[i]->VertexFactory.ReleaseResource();
+
+				delete transitionMesh[i];
+			}
+		}
+	}
 };
 
 
@@ -186,7 +200,19 @@ public:
 			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
-				CopySection(SrcSection, NewLodSection->mainMesh, Component);
+				CopySection(SrcSection, &NewLodSection->mainMesh, Component);
+
+				if(SectionIdx > 0) {
+					FProcMeshSection& SrcTransitionSection = Component->ProcMeshSections[SectionIdx].transitionMeshArray[0];
+						for (auto i = 0; i < 6; i++) {
+							FProcMeshSection& SrcTransitionSection = Component->ProcMeshSections[SectionIdx].transitionMeshArray[i];
+
+							if (SrcTransitionSection.ProcIndexBuffer.Num() > 0 && SrcTransitionSection.ProcVertexBuffer.Num() > 0) {
+								NewLodSection->transitionMesh[i] = new FProcMeshProxySection();
+								CopySection(SrcTransitionSection, NewLodSection->transitionMesh[i], Component);
+						}
+					}
+				}
 
 				// Save ref to new section
 				Sections[SectionIdx] = NewLodSection;
@@ -201,43 +227,47 @@ public:
 				Section->mainMesh.VertexBuffer.ReleaseResource();
 				Section->mainMesh.IndexBuffer.ReleaseResource();
 				Section->mainMesh.VertexFactory.ReleaseResource();
+
 				delete Section;
 			}
 		}
 	}
 
-	FORCEINLINE void CopySection(FProcMeshSection& SrcSection, FProcMeshProxySection& NewSection, USandboxTerrainMeshComponent* Component) {
-		// Copy data from vertex buffer
-		const int32 NumVerts = SrcSection.ProcVertexBuffer.Num();
+	FORCEINLINE void CopySection(FProcMeshSection& SrcSection, FProcMeshProxySection* NewSection, USandboxTerrainMeshComponent* Component) {
+		if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 
-		// Allocate verts
-		NewSection.VertexBuffer.Vertices.SetNumUninitialized(NumVerts);
-		// Copy verts
-		for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
-			const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
-			FDynamicMeshVertex& Vert = NewSection.VertexBuffer.Vertices[VertIdx];
-			ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
+			// Copy data from vertex buffer
+			const int32 NumVerts = SrcSection.ProcVertexBuffer.Num();
+
+			// Allocate verts
+			NewSection->VertexBuffer.Vertices.SetNumUninitialized(NumVerts);
+			// Copy verts
+			for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
+				const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
+				FDynamicMeshVertex& Vert = NewSection->VertexBuffer.Vertices[VertIdx];
+				ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
+			}
+
+			// Copy index buffer
+			NewSection->IndexBuffer.Indices = SrcSection.ProcIndexBuffer;
+
+			// Init vertex factory
+			NewSection->VertexFactory.Init(&NewSection->VertexBuffer);
+
+			// Enqueue initialization of render resource
+			BeginInitResource(&NewSection->VertexBuffer);
+			BeginInitResource(&NewSection->IndexBuffer);
+			BeginInitResource(&NewSection->VertexFactory);
+
+			// Grab material
+			NewSection->Material = Component->GetMaterial(0);
+			if (NewSection->Material == NULL) {
+				NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+
+			// Copy visibility info
+			NewSection->bSectionVisible = true;
 		}
-
-		// Copy index buffer
-		NewSection.IndexBuffer.Indices = SrcSection.ProcIndexBuffer;
-
-		// Init vertex factory
-		NewSection.VertexFactory.Init(&NewSection.VertexBuffer);
-
-		// Enqueue initialization of render resource
-		BeginInitResource(&NewSection.VertexBuffer);
-		BeginInitResource(&NewSection.IndexBuffer);
-		BeginInitResource(&NewSection.VertexFactory);
-
-		// Grab material
-		NewSection.Material = Component->GetMaterial(0);
-		if (NewSection.Material == NULL) {
-			NewSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		// Copy visibility info
-		NewSection.bSectionVisible = true;
 	}
 
 	/** Called on render thread to assign new dynamic data */
@@ -313,27 +343,43 @@ public:
 
 				if (Section != nullptr) {
 					FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
+					DrawSection(Section, Collector, MaterialProxy, bWireframe, ViewIndex);
+					
+					if (LodIndex > 0) {
+						// draw transition patches
 
-					// Draw the mesh.
-					FMeshBatch& Mesh = Collector.AllocateMesh();
-					FMeshBatchElement& BatchElement = Mesh.Elements[0];
-					BatchElement.IndexBuffer = &Section->IndexBuffer;
-					Mesh.bWireframe = bWireframe;
-					Mesh.VertexFactory = &Section->VertexFactory;
-					Mesh.MaterialRenderProxy = MaterialProxy;
-					BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, UseEditorDepthTest());
-					BatchElement.FirstIndex = 0;
-					BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
-					BatchElement.MinVertexIndex = 0;
-					BatchElement.MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
-					Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-					Mesh.Type = PT_TriangleList;
-					Mesh.DepthPriorityGroup = SDPG_World;
-					Mesh.bCanApplyViewModeOverrides = false;
-					Collector.AddMesh(ViewIndex, Mesh);
+						for (auto i = 0; i < 6; i++) {
+							const FProcMeshProxySection* TransitionSection = Sections[LodIndex]->transitionMesh[i];
+
+							if (TransitionSection != nullptr) {
+								DrawSection(TransitionSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+							}
+						}
+					}
+
 				}
 			}
 		}
+	}
+
+	FORCEINLINE void DrawSection(const FProcMeshProxySection* Section, FMeshElementCollector& Collector, FMaterialRenderProxy* MaterialProxy, bool bWireframe, int32 ViewIndex) const {
+		// Draw the mesh.
+		FMeshBatch& Mesh = Collector.AllocateMesh();
+		FMeshBatchElement& BatchElement = Mesh.Elements[0];
+		BatchElement.IndexBuffer = &Section->IndexBuffer;
+		Mesh.bWireframe = bWireframe;
+		Mesh.VertexFactory = &Section->VertexFactory;
+		Mesh.MaterialRenderProxy = MaterialProxy;
+		BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, UseEditorDepthTest());
+		BatchElement.FirstIndex = 0;
+		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
+		BatchElement.MinVertexIndex = 0;
+		BatchElement.MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
+		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+		Mesh.Type = PT_TriangleList;
+		Mesh.DepthPriorityGroup = SDPG_World;
+		Mesh.bCanApplyViewModeOverrides = false;
+		Collector.AddMesh(ViewIndex, Mesh);
 	}
 
 	int GetLodIndex(const FSceneView* View) const {
@@ -458,6 +504,13 @@ void USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr mdPtr) {
 		auto lodIndex = 0;
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
 			ProcMeshSections[lodIndex].mainMesh = sectionLOD.mainMesh;
+
+			if (bLodFlag) {
+				for (auto i = 0; i < 6; i++) {
+					ProcMeshSections[lodIndex].transitionMeshArray[i] = sectionLOD.transitionMeshArray[i];
+				}
+			}
+
 			lodIndex++;
 		}
 	}

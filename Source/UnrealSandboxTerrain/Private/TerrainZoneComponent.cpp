@@ -89,6 +89,8 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
+	MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
+
 	MainTerrainMesh->SetMeshData(mesh_data_ptr);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
