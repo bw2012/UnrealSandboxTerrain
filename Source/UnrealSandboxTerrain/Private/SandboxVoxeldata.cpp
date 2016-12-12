@@ -354,7 +354,28 @@ private:
 
 		PointAddr(const uint8 x0, const uint8 y0, const uint8 z0) : x(x0), y(y0), z(z0) { }
 		PointAddr() { }
+
+
+		FORCEINLINE const PointAddr operator-(const PointAddr& rv) const {
+			return PointAddr(x - rv.x, y - rv.y, z - rv.z);
+		}
+
+		FORCEINLINE const PointAddr operator+(const PointAddr& rv) const {
+			return PointAddr(x + rv.x, y + rv.y, z + rv.z);
+		}
+
+		FORCEINLINE const PointAddr operator/(int val) const {
+			return PointAddr(x / val, y / val, z / val);
+		}
+
+		FORCEINLINE void operator = (const PointAddr &a) {
+			x = a.x;
+			y = a.y;
+			z = a.z;
+		}
+
 	} PointAddr;
+
 
 	struct Point {
 		PointAddr adr;
@@ -533,9 +554,14 @@ private:
 		return tmp;
 	}
 
-	FORCEINLINE void materialCalculation(struct TmpPoint& tp, FVector p1, FVector p2, FVector p, int mat1, int mat2) {
-		int base_mat = 1;
+	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point point1, Point point2) {
+		static const int base_mat = 1; // dirt is base material
 
+		FVector p1 = point1.pos;
+		FVector p2 = point2.pos;
+		const int mat1 = point1.material_id;
+		const int mat2 = point2.material_id;
+		
 		if ((base_mat == mat1)&&(base_mat == mat2)) {
 			tp.mat_id = base_mat;
 			tp.mat_weight = 0;
@@ -552,8 +578,8 @@ private:
 		tmp -= p2;
 		float s = tmp.Size();
 
-		p1 -= p;
-		p2 -= p;
+		p1 -= tp.v;
+		p2 -= tp.v;
 
 		float s1 = p1.Size();
 		float s2 = p2.Size();
@@ -569,11 +595,35 @@ private:
 		}
 	}
 
-	FORCEINLINE TmpPoint vertexClc(Point& valp1, Point& valp2) {
+	FORCEINLINE void materialCalculation2(struct TmpPoint& tp, Point point1, Point point2) {
+		static const int base_mat = 1; // dirt
+
+		float mu = (isolevel - point1.density) / (point2.density - point1.density);
+
+		PointAddr tmp;
+		tmp.x = point1.adr.x + mu * (point2.adr.x - point1.adr.x);
+		tmp.y = point1.adr.y + mu * (point2.adr.y - point1.adr.y);
+		tmp.z = point1.adr.z + mu * (point2.adr.z - point1.adr.z);
+
+		tp.mat_id = getMaterial(tmp.x, tmp.y, tmp.z);
+
+		if (base_mat == tp.mat_id) {
+			tp.mat_weight = 0;
+		} else {
+			tp.mat_weight = 1;
+		}
+	}
+
+	FORCEINLINE TmpPoint vertexClc(Point& point1, Point& point2) {
 		struct TmpPoint ret;
 
-		ret.v = vertexInterpolation(valp1.pos, valp2.pos, valp1.density, valp2.density);
-		materialCalculation(ret, valp1.pos, valp2.pos, ret.v, valp1.material_id, valp2.material_id);
+		ret.v = vertexInterpolation(point1.pos, point2.pos, point1.density, point2.density);
+
+		if (voxel_data_param.lod == 0) {
+			materialCalculation(ret, point1, point2);
+		} else {
+			materialCalculation2(ret, point1, point2);
+		}
 		return ret;
 	}
 
@@ -731,16 +781,19 @@ public:
 		
 		extractRegularCell(d);
 
-		if (voxel_data_param.lod > 0) {
-			const int e = voxel_data.num() - step - 1;
+		if (voxel_data_param.bGenerateLOD) {
+			if (voxel_data_param.lod > 0) {
+				const int e = voxel_data.num() - step - 1;
 
-			if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
-			if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
-			if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
-			if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
-			if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
-			if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
+				if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
+				if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
+				if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
+				if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
+				if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
+				if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
+			}
 		}
+
     }
 
 };

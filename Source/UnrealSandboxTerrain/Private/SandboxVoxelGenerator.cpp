@@ -117,10 +117,9 @@ unsigned char SandboxVoxelGenerator::material(FVector& local, FVector& world) {
 
 	unsigned char mat = 0;
 	if (den2 < 0.5) {
-		mat = 2;
-	}
-	else {
-		mat = 1;
+		mat = 2; // grass
+	} else {
+		mat = 1; // dirt
 	}
 
 	return mat;
