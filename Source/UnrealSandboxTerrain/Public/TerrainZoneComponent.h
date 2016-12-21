@@ -5,6 +5,7 @@
 #include "EngineMinimal.h"
 #include "SandboxTerrainMeshComponent.h"
 #include "SandboxTerrainCollisionComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "TerrainZoneComponent.generated.h"
 
 
@@ -26,6 +27,8 @@ public:
 	UPROPERTY()
 	USandboxTerrainCollisionComponent* CollisionMesh;
 
+	UPROPERTY()
+	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent;
 
 public:
 

@@ -7,12 +7,10 @@
 #include <mutex>
 #include "SandboxTerrainController.generated.h"
 
-class VoxelData;
 struct MeshData;
+class VoxelData;
 class FLoadInitialZonesThread;
-
 class USandboxTerrainMeshComponent;
-
 class UTerrainZoneComponent;
 
 #define TH_STATE_NEW		0
@@ -55,10 +53,6 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	//===============================================================================
-
-
-	UPROPERTY()
-	USandboxTerrainMeshComponent* testMesh;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool GenerateOnlySmallSpawnPoint = false;
@@ -105,6 +99,8 @@ public:
 
 	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
 
+	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
+
 private:
 	TMap<FVector, UTerrainZoneComponent*> terrain_zone_map;
 
@@ -141,6 +137,8 @@ private:
 	VoxelData* GetTerrainVoxelDataByPos(FVector point);
 
 	VoxelData* GetTerrainVoxelDataByIndex(FVector index);
+
+	void SpawnGrass(UTerrainZoneComponent* Zone, FTransform& transform);
 
 protected:
 

@@ -114,6 +114,13 @@ public:
 		last_cache_check = -1;
 	};
 
+	bool bIsNew = false;
+
+	// mesh is generated
+	bool isNew() {
+		return bIsNew;
+	}
+
 	friend void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 };
