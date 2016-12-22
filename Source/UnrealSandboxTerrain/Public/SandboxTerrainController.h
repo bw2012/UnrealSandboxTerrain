@@ -12,6 +12,7 @@ class VoxelData;
 class FLoadInitialZonesThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
+class UTerrainRegionComponent;
 
 #define TH_STATE_NEW		0
 #define TH_STATE_RUNNING	1
@@ -91,6 +92,10 @@ public:
 
 	UTerrainZoneComponent* getZoneByVectorIndex(FVector v);
 
+	FVector GetRegionIndex(FVector v);
+
+	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
+
 	template<class H>
 	void editTerrain(FVector v, float radius, float s, H handler);
 
@@ -102,7 +107,9 @@ public:
 	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
 
 private:
-	TMap<FVector, UTerrainZoneComponent*> terrain_zone_map;
+	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
+
+	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
 
 	void spawnInitialZone();
 
@@ -138,7 +145,11 @@ private:
 
 	VoxelData* GetTerrainVoxelDataByIndex(FVector index);
 
-	void SpawnGrass(UTerrainZoneComponent* Zone, FTransform& transform);
+	// foliage
+
+	void GenerateNewFoliage(UTerrainZoneComponent* Zone);
+
+	void SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& transform);
 
 protected:
 
