@@ -97,8 +97,7 @@ public:
 };
 
 
-ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
-{
+ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
