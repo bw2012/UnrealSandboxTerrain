@@ -13,7 +13,7 @@ class ASandboxTerrainController;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainRegionComponent : public UMeshComponent
+class UNREALSANDBOXTERRAIN_API UTerrainRegionComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 

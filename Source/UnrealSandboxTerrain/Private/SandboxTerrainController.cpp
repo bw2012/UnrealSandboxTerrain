@@ -2,6 +2,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
+#include "TerrainRegionComponent.h"
 #include "SandboxVoxeldata.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
@@ -352,21 +353,32 @@ UTerrainZoneComponent* ASandboxTerrainController::getZoneByVectorIndex(FVector i
 }
 
 UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
-	FVector index = getZoneIndex(pos);
+	FVector RegionIndex = GetRegionIndex(pos);
+	UTerrainRegionComponent* RegionComponent = GetRegionByVectorIndex(RegionIndex);
+	if (RegionComponent == NULL) {
+		FString RegionName = FString::Printf(TEXT("Region -> [%.0f, %.0f, %.0f]"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
+		RegionComponent->RegisterComponent();
+		RegionComponent->SetWorldLocation(RegionIndex);
 
-	FString zone_name = FString::Printf(TEXT("Zone-%d"), FPlatformTime::Seconds());
+		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
+	}
+
+	FVector index = getZoneIndex(pos);
+	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*zone_name));
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
 		ZoneComponent->SetWorldLocation(pos);
+		ZoneComponent->AttachTo(RegionComponent);
 
-		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh-%d"), FPlatformTime::Seconds());
+		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
 		TerrainMeshComp->RegisterComponent();
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
 		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
+		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
 		CollisionMeshComp->RegisterComponent();
 		CollisionMeshComp->SetMobility(EComponentMobility::Stationary);
@@ -845,7 +857,7 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 void ASandboxTerrainController::SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& transform) {
 
 	if (Zone->InstancedStaticMeshComponent == nullptr) {
-		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh-%d"), FPlatformTime::Seconds());
+		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh -> [%.0f, %.0f, %.0f]"), Zone->GetComponentLocation().X, Zone->GetComponentLocation().Y, Zone->GetComponentLocation().Z);
 
 		Zone->InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
 
