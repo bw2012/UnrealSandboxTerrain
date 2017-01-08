@@ -259,7 +259,7 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 
 SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(VoxelData &voxel_data) {
-	return SandboxVoxelGenerator(voxel_data);
+	return SandboxVoxelGenerator(voxel_data, Seed);
 };
 
 FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {

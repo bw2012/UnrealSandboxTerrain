@@ -79,6 +79,9 @@ public:
 	EVoxelDimEnum ZoneGridDimension;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 Seed;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 TerrainSize;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
