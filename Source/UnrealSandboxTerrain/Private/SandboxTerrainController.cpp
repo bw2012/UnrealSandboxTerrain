@@ -678,13 +678,15 @@ void ASandboxTerrainController::OnLoadZoneListFinished() {
 }
 
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
-	//UE_LOG(LogTemp, Warning, TEXT("new zone ----> %f %f %f"), Zone->getVoxelData()->getOrigin().X, Zone->getVoxelData()->getOrigin().Y, Zone->getVoxelData()->getOrigin().Z);
-	GenerateNewFoliage(Zone);
+	if (!bDisableFoliage) {
+		GenerateNewFoliage(Zone);
+	}
 }
 
 void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
-	UE_LOG(LogTemp, Warning, TEXT("load zone ----> %f %f %f"), Zone->getVoxelData()->getOrigin().X, Zone->getVoxelData()->getOrigin().Y, Zone->getVoxelData()->getOrigin().Z);
-	LoadFoliage(Zone);
+	if (!bDisableFoliage) {
+		LoadFoliage(Zone);
+	}
 }
 
 void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {

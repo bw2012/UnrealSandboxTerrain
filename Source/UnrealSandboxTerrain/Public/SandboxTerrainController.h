@@ -81,6 +81,9 @@ public:
 	bool bShowZoneBounds = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	bool bDisableFoliage = false;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
