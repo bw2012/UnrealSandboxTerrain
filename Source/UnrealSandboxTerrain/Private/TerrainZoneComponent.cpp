@@ -40,7 +40,6 @@ std::shared_ptr<MeshData> UTerrainZoneComponent::generateMesh() {
 		return NULL;
 	}
 
-
 	bool enableLOD = GetTerrainController()->bEnableLOD;
 
 	VoxelDataParam vdp;
@@ -110,6 +109,8 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	if (voxel_data->isNew()) {
 		voxel_data->bIsNew = false;
 		GetTerrainController()->OnGenerateNewZone(this);
+	} else {
+		GetTerrainController()->OnLoadZone(this);
 	}
 }
 
@@ -131,19 +132,96 @@ void UTerrainZoneComponent::SaveInstancedMeshesToFile() {
 		BinaryData.FlushCache();
 		BinaryData.Empty();
 	}
+}
 
+void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
+	FString SavePath = FPaths::GameSavedDir();
+	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+
+	int tx = Index.X;
+	int ty = Index.Y;
+	int tz = Index.Z;
+
+	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/zone_inst_mesh.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
+
+	TArray<uint8> BinaryArray;
+	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {
+		UE_LOG(LogTemp, Warning, TEXT("file not found -> %s"), *FileName);
+		return;
+	}
+
+	if (BinaryArray.Num() <= 0) return;
+
+	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
+	BinaryData.Seek(0);
+
+	// ==============================
+	int32 MeshCount;
+	int32 MeshTypeId;
+	int32 MeshInstanceCount;
+
+	BinaryData << MeshCount;
+	BinaryData << MeshTypeId;
+	BinaryData << MeshInstanceCount;
+
+	UE_LOG(LogTemp, Warning, TEXT("MeshCount -> %d"), MeshCount);
+	UE_LOG(LogTemp, Warning, TEXT("MeshTypeId -> %d"), MeshTypeId);
+	UE_LOG(LogTemp, Warning, TEXT("MeshInstanceCount -> %d"), MeshInstanceCount);
+
+	FTerrainInstancedMeshType MeshType;
+	MeshType.Mesh = GetTerrainController()->GetInstancedMesh(0);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+		float X;
+		float Y;
+		float Z;
+
+		float Roll;
+		float Pitch;
+		float Yaw;
+
+		float ScaleX;
+		float ScaleY;
+		float ScaleZ;
+
+		BinaryData << X;
+		BinaryData << Y;
+		BinaryData << Z;
+
+		BinaryData << Roll;
+		BinaryData << Pitch;
+		BinaryData << Yaw;
+
+		BinaryData << ScaleX;
+		BinaryData << ScaleY;
+		BinaryData << ScaleZ;
+
+		FRotator Rotator(Pitch, Yaw, Roll);
+		FTransform Transform(Rotator, FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+
+		SpawnInstancedMesh(MeshType, Transform);
+	}
+
+	// ==============================
+
+	BinaryData.FlushCache();
+	BinaryArray.Empty();
+	BinaryData.Close();
 }
 
 void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {
+	if (InstancedStaticMeshComponent == NULL) {
+		return;
+	}
 
 	int32 MeshCount = 1;
 
-	int32 MeshId = 0;
+	int32 MeshTypeId = 0;
 	int32 MeshInstanceCount = InstancedStaticMeshComponent->GetInstanceCount();
 
 	BinaryData << MeshCount;
 
-	BinaryData << MeshId;
+	BinaryData << MeshTypeId;
 	BinaryData << MeshInstanceCount;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
@@ -154,9 +232,9 @@ void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData)
 		float Y = InstanceTransform.GetLocation().Y;
 		float Z = InstanceTransform.GetLocation().Z;
 
-		float RotationX = InstanceTransform.GetRotation().X;
-		float RotationY = InstanceTransform.GetRotation().Y;
-		float RotationZ = InstanceTransform.GetRotation().Z;
+		float Roll = InstanceTransform.Rotator().Roll;
+		float Pitch = InstanceTransform.Rotator().Pitch;
+		float Yaw = InstanceTransform.Rotator().Yaw;
 
 		float ScaleX = InstanceTransform.GetScale3D().X;
 		float ScaleY = InstanceTransform.GetScale3D().Y;
@@ -166,12 +244,34 @@ void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData)
 		BinaryData << Y;
 		BinaryData << Z;
 
-		BinaryData << RotationX;
-		BinaryData << RotationY;
-		BinaryData << RotationZ;
+		BinaryData << Roll;
+		BinaryData << Pitch;
+		BinaryData << Yaw;
 
 		BinaryData << ScaleX;
 		BinaryData << ScaleY;
 		BinaryData << ScaleZ;
 	}
+}
+
+void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& Transform) {
+	if (InstancedStaticMeshComponent == nullptr) {
+		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh -> [%.0f, %.0f, %.0f]"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
+
+		InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
+
+		InstancedStaticMeshComponent->RegisterComponent();
+		InstancedStaticMeshComponent->AttachTo(this);
+		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
+		InstancedStaticMeshComponent->SetCullDistances(100, 500);
+		InstancedStaticMeshComponent->SetMobility(EComponentMobility::Static);
+		InstancedStaticMeshComponent->SetSimulatePhysics(false);
+
+		//InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+	}
+
+	InstancedStaticMeshComponent->AddInstanceWorldSpace(Transform);
 }

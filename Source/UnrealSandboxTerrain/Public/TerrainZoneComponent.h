@@ -56,6 +56,10 @@ public:
 
 	void SaveInstancedMeshesToFile();
 
+	void LoadInstancedMeshesFromFile();
+
+	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
+
 private:
 	VoxelData* voxel_data;
 };

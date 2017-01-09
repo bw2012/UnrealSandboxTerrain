@@ -205,68 +205,12 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
-	
 	if (HasNextAsyncTask()) {
 		TerrainControllerTask task = GetAsyncTask();
-
 		if (task.f) {
 			task.f();
 		}
-
-		/*
-		if (zone_make_task.type == MT_GENERATE_MESH) {
-
-			ASandboxTerrainZone* zone = getZoneByVectorIndex(getZoneIndex(zone_make_task.index));
-			if (zone != NULL) {
-				if (zone_make_task.mesh_data != NULL) {
-
-					zone_make_task.f();
-
-					//zone->applyTerrainMesh(zone_make_task.mesh_data);
-
-					if (zone_make_task.isNew) {
-						//zone->generateZoneObjects();
-						zone->isLoaded = true;
-					} else {
-						if (!zone->isLoaded) {
-							// load zone json here
-							FVector v = zone->GetActorLocation();
-							v /= 1000;
-							//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
-							//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
-							zone->isLoaded = true;
-						}
-					}
-
-					//FIXME refactor mesh_data to shared pointer
-					delete zone_make_task.mesh_data;
-				} else {
-					zone->makeTerrain();
-				}
-			}
-		}
-
-		if (zone_make_task.type == MT_ADD_ZONE) {
-			FVector v = FVector((float)(zone_make_task.index.X * 1000), (float)(zone_make_task.index.Y * 1000), (float)(zone_make_task.index.Z * 1000));
-			ASandboxTerrainZone* zone = addTerrainZone(v);
-			VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_make_task.index);
-
-			if (vd == NULL) {
-				UE_LOG(LogTemp, Warning, TEXT("FAIL"));
-				return;
-			}
-
-			zone->setVoxelData(vd);
-
-			MeshData* md = zone->generateMesh(*vd);
-			vd->resetLastMeshRegenerationTime();
-			zone->applyTerrainMesh(md);
-		}*/
-
-
-	}
-
-	
+	}	
 }
 
 //======================================================================================================================================================================
@@ -302,23 +246,6 @@ void ASandboxTerrainController::spawnInitialZone() {
 						zone->setVoxelData(vd);
 						zone->makeTerrain();
 					}
-
-					//bool is_new = zone->fillZone();
-
-					/*
-					if (is_new) {
-					//zone->generateZoneObjects();
-					} else {
-					if (!zone->isLoaded) {
-					//todo
-					}
-					FVector v = zone->GetActorLocation();
-					v /= 1000;
-					//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
-					//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
-					zone->isLoaded = true;
-					}
-					*/
 				}
 			}
 		}
@@ -488,8 +415,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 
 							if (enableLOD) {
 								vd->performSubstanceCacheLOD(x, y, z);
-							}
-							else {
+							} else {
 								vd->performSubstanceCacheNoLOD(x, y, z);
 							}
 						}
@@ -754,6 +680,10 @@ void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
 	GenerateNewFoliage(Zone);
 }
 
+void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
+	UE_LOG(LogTemp, Warning, TEXT("load zone ----> %f %f %f"), Zone->getVoxelData()->getOrigin().X, Zone->getVoxelData()->getOrigin().Y, Zone->getVoxelData()->getOrigin().Z);
+	LoadFoliage(Zone);
+}
 
 void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
 	AsyncTaskListMutex.lock();
@@ -860,26 +790,17 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 	}
 }
 
+void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
+	Zone->LoadInstancedMeshesFromFile();
+}
 
-void ASandboxTerrainController::SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& transform) {
+void ASandboxTerrainController::SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& Transform) {
+	FTerrainInstancedMeshType MeshType;
+	MeshType.Mesh = testMesh;
 
-	if (Zone->InstancedStaticMeshComponent == nullptr) {
-		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh -> [%.0f, %.0f, %.0f]"), Zone->GetComponentLocation().X, Zone->GetComponentLocation().Y, Zone->GetComponentLocation().Z);
+	Zone->SpawnInstancedMesh(MeshType, Transform);
+}
 
-		Zone->InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
-
-		Zone->InstancedStaticMeshComponent->RegisterComponent();
-		Zone->InstancedStaticMeshComponent->AttachTo(Zone);
-		Zone->InstancedStaticMeshComponent->SetStaticMesh(testMesh);
-		Zone->InstancedStaticMeshComponent->SetCullDistances(100, 500);
-		Zone->InstancedStaticMeshComponent->SetMobility(EComponentMobility::Static);
-		Zone->InstancedStaticMeshComponent->SetSimulatePhysics(false);
-
-		//Zone->InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-		Zone->InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		Zone->InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
-	}
-
-	Zone->InstancedStaticMeshComponent->AddInstanceWorldSpace(transform);
+UStaticMesh* ASandboxTerrainController::GetInstancedMesh(int32 MeshTypeId) {
+	return testMesh;
 }

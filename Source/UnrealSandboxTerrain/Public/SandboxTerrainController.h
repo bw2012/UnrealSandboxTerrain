@@ -37,6 +37,17 @@ enum class EVoxelDimEnum : uint8 {
 	VS_64 = 65 	UMETA(DisplayName = "64"),
 };
 
+USTRUCT()
+struct FTerrainInstancedMeshType {
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int32 MeshTypeId;
+
+	UPROPERTY()
+	UStaticMesh* Mesh;
+};
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -104,8 +115,6 @@ public:
 
 	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
 
-	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
-
 private:
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
@@ -151,10 +160,17 @@ private:
 
 	void SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& transform);
 
+	void LoadFoliage(UTerrainZoneComponent* Zone);
+
+	UStaticMesh* GetInstancedMesh(int32 MeshTypeId);
+
 protected:
 
 	virtual void OnLoadZoneProgress(int progress, int total);
 
 	virtual void OnLoadZoneListFinished();
 		
+	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
+
+	virtual void OnLoadZone(UTerrainZoneComponent* Zone);
 };
