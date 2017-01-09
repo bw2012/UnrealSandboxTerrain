@@ -451,7 +451,14 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	if (overlap) {
 		for (auto item : OutHits) {
 			AActor* actor = item.GetActor();
-			UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %s -> %d"), *actor->GetName(), *item.Component->GetName(), item.Item);
+
+			if (Cast<ASandboxTerrainController>(item.GetActor()) != nullptr) {
+				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(item.GetComponent());
+				if (InstancedMesh != nullptr) {
+					InstancedMesh->RemoveInstance(item.Item);
+					//UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %s -> %d"), *actor->GetName(), *item.Component->GetName(), item.Item);
+				}
+			}
 		}
 	}
 
