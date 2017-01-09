@@ -444,22 +444,17 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
 	//FIXME delete thread after finish
 
-	
 	FVector ttt(origin);
 	ttt.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_EngineTraceChannel1, FCollisionShape::MakeSphere(radius));
+	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(radius)); // ECC_Visibility
 	if (overlap) {
 		for (auto item : OutHits) {
 			AActor* actor = item.GetActor();
-			//ASandboxObject* obj = Cast<ASandboxObject>(actor);
-			//if (obj != NULL) {
-				UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %d"), *actor->GetName(), item.Item);
-				//obj->informTerrainChange(item.Item);
-			//}
-		}	
+			UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %s -> %d"), *actor->GetName(), *item.Component->GetName(), item.Item);
+		}
 	}
-	
+
 
 }
 
