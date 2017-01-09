@@ -444,22 +444,22 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
 	//FIXME delete thread after finish
 
-	/*
+	
 	FVector ttt(origin);
 	ttt.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_EngineTraceChannel1, FCollisionShape::MakeSphere(r));
+	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_EngineTraceChannel1, FCollisionShape::MakeSphere(radius));
 	if (overlap) {
 		for (auto item : OutHits) {
 			AActor* actor = item.GetActor();
-			ASandboxObject* obj = Cast<ASandboxObject>(actor);
-			if (obj != NULL) {
-				UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %d"), *obj->GetName(), item.Item);
-				obj->informTerrainChange(item.Item);
-			}
+			//ASandboxObject* obj = Cast<ASandboxObject>(actor);
+			//if (obj != NULL) {
+				UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %d"), *actor->GetName(), item.Item);
+				//obj->informTerrainChange(item.Item);
+			//}
 		}	
 	}
-	*/
+	
 
 }
 
@@ -590,11 +590,11 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*fileName)) {
 		sandboxLoadVoxelData(*vd, fileName);
-		vd->bIsNew = false;
+		vd->DataState = VoxelDataState::NEW_LOADED;
 	} else {
 		generateTerrain(*vd);
 		sandboxSaveVoxelData(*vd, fileName);
-		vd->bIsNew = true;
+		vd->DataState = VoxelDataState::NEW_GENERATED;
 	}
 
 	vd->setChanged();

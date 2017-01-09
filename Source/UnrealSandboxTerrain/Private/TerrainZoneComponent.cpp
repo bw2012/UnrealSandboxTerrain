@@ -106,10 +106,13 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	double time = (end - start) * 1000;
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 
-	if (voxel_data->isNew()) {
-		voxel_data->bIsNew = false;
+	if (voxel_data->isNewGenerated()) {
+		voxel_data->DataState = VoxelDataState::NORMAL;
 		GetTerrainController()->OnGenerateNewZone(this);
-	} else {
+	} 
+	
+	if (voxel_data->isNewLoaded()) {
+		voxel_data->DataState = VoxelDataState::NORMAL;
 		GetTerrainController()->OnLoadZone(this);
 	}
 }

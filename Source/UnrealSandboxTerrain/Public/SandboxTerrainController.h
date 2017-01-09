@@ -48,6 +48,14 @@ struct FTerrainInstancedMeshType {
 	UStaticMesh* Mesh;
 };
 
+USTRUCT()
+struct FSandboxFoliage {
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	UStaticMesh* Mesh;
+};
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -92,6 +100,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	bool bEnableLOD;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
+	TMap<uint32, FSandboxFoliage> FoliageMap;
 
 	FString getZoneFileName(int tx, int ty, int tz);
 		

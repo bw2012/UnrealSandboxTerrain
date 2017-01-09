@@ -50,8 +50,6 @@ public:
 
 	std::shared_ptr<MeshData> generateMesh();
 
-	bool volatile isLoaded = false;
-
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
 	void SaveInstancedMeshesToFile();
