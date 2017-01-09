@@ -112,3 +112,66 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 		GetTerrainController()->OnGenerateNewZone(this);
 	}
 }
+
+void UTerrainZoneComponent::SaveInstancedMeshesToFile() {
+	FString SavePath = FPaths::GameSavedDir();
+	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+
+	int tx = Index.X;
+	int ty = Index.Y;
+	int tz = Index.Z;
+
+	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/zone_inst_mesh.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
+
+	FBufferArchive BinaryData;
+
+	SerializeInstancedMeshes(BinaryData);
+
+	if (FFileHelper::SaveArrayToFile(BinaryData, *FileName)) {
+		BinaryData.FlushCache();
+		BinaryData.Empty();
+	}
+
+}
+
+void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {
+
+	int32 MeshCount = 1;
+
+	int32 MeshId = 0;
+	int32 MeshInstanceCount = InstancedStaticMeshComponent->GetInstanceCount();
+
+	BinaryData << MeshCount;
+
+	BinaryData << MeshId;
+	BinaryData << MeshInstanceCount;
+
+	for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+		FTransform InstanceTransform;
+		InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
+
+		float X = InstanceTransform.GetLocation().X;
+		float Y = InstanceTransform.GetLocation().Y;
+		float Z = InstanceTransform.GetLocation().Z;
+
+		float RotationX = InstanceTransform.GetRotation().X;
+		float RotationY = InstanceTransform.GetRotation().Y;
+		float RotationZ = InstanceTransform.GetRotation().Z;
+
+		float ScaleX = InstanceTransform.GetScale3D().X;
+		float ScaleY = InstanceTransform.GetScale3D().Y;
+		float ScaleZ = InstanceTransform.GetScale3D().Z;
+
+		BinaryData << X;
+		BinaryData << Y;
+		BinaryData << Z;
+
+		BinaryData << RotationX;
+		BinaryData << RotationY;
+		BinaryData << RotationZ;
+
+		BinaryData << ScaleX;
+		BinaryData << ScaleY;
+		BinaryData << ScaleZ;
+	}
+}

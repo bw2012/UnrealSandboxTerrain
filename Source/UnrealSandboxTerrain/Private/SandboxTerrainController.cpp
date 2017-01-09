@@ -193,6 +193,13 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		VoxelDataMap.Remove(Elem.Key);
 		delete voxel_data;
 	}
+
+	for (auto& Elem : TerrainZoneMap) {
+		UTerrainZoneComponent* Zone = Elem.Value;
+		Zone->SaveInstancedMeshesToFile();
+	}
+
+	TerrainZoneMap.Empty();
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {

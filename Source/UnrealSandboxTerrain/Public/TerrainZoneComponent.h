@@ -15,7 +15,7 @@ class ASandboxTerrainController;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public UMeshComponent
+class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -51,6 +51,10 @@ public:
 	std::shared_ptr<MeshData> generateMesh();
 
 	bool volatile isLoaded = false;
+
+	void SerializeInstancedMeshes(FBufferArchive& binaryData);
+
+	void SaveInstancedMeshesToFile();
 
 private:
 	VoxelData* voxel_data;
