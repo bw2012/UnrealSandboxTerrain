@@ -143,7 +143,7 @@ void ASandboxTerrainController::BeginPlay() {
 	initial_zone_loader = new FLoadInitialZonesThread();
 
 	initial_zone_loader->controller = this;
-	if (!GenerateOnlySmallSpawnPoint) {
+	if (!bGenerateOnlySmallSpawnPoint) {
 		for (int num = 0; num < TerrainSize; num++) {
 			int s = num;
 			for (int x = -s; x <= s; x++) {
@@ -326,7 +326,7 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 
 	TerrainZoneMap.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
 
-	if(ShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
+	if(bShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
 
 	return ZoneComponent;
 }

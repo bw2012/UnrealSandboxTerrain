@@ -75,10 +75,10 @@ public:
 	//===============================================================================
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool GenerateOnlySmallSpawnPoint = false;
+	bool bGenerateOnlySmallSpawnPoint = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool ShowZoneBounds = false;
+	bool bShowZoneBounds = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
