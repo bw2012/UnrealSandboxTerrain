@@ -54,6 +54,15 @@ struct FSandboxFoliage {
 
 	UPROPERTY(EditAnywhere)
 	UStaticMesh* Mesh;
+
+	UPROPERTY(EditAnywhere)
+	int32 SpawnStep = 25;
+
+	UPROPERTY(EditAnywhere)
+	int32 StartCullDistance = 100;
+
+	UPROPERTY(EditAnywhere)
+	int32 EndCullDistance = 500;
 };
 
 UCLASS()
@@ -168,15 +177,15 @@ private:
 
 	VoxelData* GetTerrainVoxelDataByIndex(FVector index);
 
+	//===============================================================================
 	// foliage
+	//===============================================================================
 
 	void GenerateNewFoliage(UTerrainZoneComponent* Zone);
 
-	void SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& transform);
-
 	void LoadFoliage(UTerrainZoneComponent* Zone);
 
-	UStaticMesh* GetInstancedMesh(int32 MeshTypeId);
+	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
 
 protected:
 

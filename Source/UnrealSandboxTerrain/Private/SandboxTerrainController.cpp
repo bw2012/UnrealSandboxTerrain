@@ -97,17 +97,12 @@ public:
 
 };
 
-UStaticMesh* testMesh;
-
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
 	ZoneGridDimension = EVoxelDimEnum::VS_64;
 	bEnableLOD = false;
-
-	const static ConstructorHelpers::FObjectFinder<UStaticMesh> mesh(TEXT("StaticMesh'/Game/KiteDemo/Environments/Foliage/Grass/FieldGrass/SM_FieldGrass_01.SM_FieldGrass_01'"));
-	testMesh = mesh.Object;
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
@@ -116,9 +111,6 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	TerrainSize = 5;
 	ZoneGridDimension = EVoxelDimEnum::VS_64;
 	bEnableLOD = false;
-
-	const static ConstructorHelpers::FObjectFinder<UStaticMesh> mesh(TEXT("StaticMesh'/Game/KiteDemo/Environments/Foliage/Grass/FieldGrass/SM_FieldGrass_01.SM_FieldGrass_01'"));
-	testMesh = mesh.Object;
 }
 
 void ASandboxTerrainController::BeginPlay() {
@@ -753,43 +745,48 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 	static const float step = 25;
 	float counter = 0;
 
-	float task_step = 25;
-
 	for (auto x = -s; x <= s; x += step) {
 		for (auto y = -s; y <= s; y += step) {
-			//for (auto z = -s; z <= s; z += step) {
+
 			FVector v(Zone->getVoxelData()->getOrigin());
 			v += FVector(x, y, 0);
 
-			//for (GeneratorTask task : task_list) {
-			float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-			if ((int)counter % (int)task_step == 0) {
-				//============
+			for (auto& Elem : FoliageMap) {
+				FSandboxFoliage FoliageType = Elem.Value;
+				int32 FoliageTypeId = Elem.Key;
 
-				const FVector start_trace(v.X, v.Y, v.Z + 500);
-				const FVector end_trace(v.X, v.Y, v.Z - 500);
-
-				FHitResult hit(ForceInit);
-				GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_GameTraceChannel1);
-
-				if (hit.bBlockingHit) {
-					if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {
-						if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
-
-							float angle = rnd.FRandRange(0.f, 360.f);
-							float scale = rnd.FRandRange(1.f, 5.f);
-							FTransform transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, scale));
-
-							SpawnInstancedMesh(Zone, transform);
-						}
-					}
+				float r = std::sqrt(v.X * v.X + v.Y * v.Y);
+				if ((int)counter % (int)FoliageType.SpawnStep == 0) {
+					SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
 				}
-
-
-				//============
 			}
-			//}
+
 			counter += step;
+		}
+	}
+}
+
+void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone) {
+	const FVector start_trace(v.X, v.Y, v.Z + 500);
+	const FVector end_trace(v.X, v.Y, v.Z - 500);
+
+	FHitResult hit(ForceInit);
+	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
+
+	if (hit.bBlockingHit) {
+		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {
+			if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
+
+				float angle = rnd.FRandRange(0.f, 360.f);
+				float scale = rnd.FRandRange(1.f, 5.f);
+				FTransform Transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, scale));
+
+				FTerrainInstancedMeshType MeshType;
+				MeshType.MeshTypeId = FoliageTypeId;
+				MeshType.Mesh = FoliageType.Mesh;
+
+				Zone->SpawnInstancedMesh(MeshType, Transform);
+			}
 		}
 	}
 }
@@ -798,13 +795,3 @@ void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
 	Zone->LoadInstancedMeshesFromFile();
 }
 
-void ASandboxTerrainController::SpawnInstancedMesh(UTerrainZoneComponent* Zone, FTransform& Transform) {
-	FTerrainInstancedMeshType MeshType;
-	MeshType.Mesh = testMesh;
-
-	Zone->SpawnInstancedMesh(MeshType, Transform);
-}
-
-UStaticMesh* ASandboxTerrainController::GetInstancedMesh(int32 MeshTypeId) {
-	return testMesh;
-}

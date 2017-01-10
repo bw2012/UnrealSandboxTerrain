@@ -28,7 +28,7 @@ public:
 	USandboxTerrainCollisionComponent* CollisionMesh;
 
 	UPROPERTY()
-	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent;
+	TMap<uint32, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;
 
 public:
 

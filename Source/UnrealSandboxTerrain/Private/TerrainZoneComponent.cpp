@@ -172,7 +172,9 @@ void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 	UE_LOG(LogTemp, Warning, TEXT("MeshInstanceCount -> %d"), MeshInstanceCount);
 
 	FTerrainInstancedMeshType MeshType;
-	MeshType.Mesh = GetTerrainController()->GetInstancedMesh(0);
+	if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
+		MeshType.Mesh = GetTerrainController()->FoliageMap[MeshTypeId].Mesh;
+	}
 
 	for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
 		float X;
@@ -202,7 +204,9 @@ void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 		FRotator Rotator(Pitch, Yaw, Roll);
 		FTransform Transform(Rotator, FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
 
-		SpawnInstancedMesh(MeshType, Transform);
+		if (MeshType.Mesh != nullptr) {
+			SpawnInstancedMesh(MeshType, Transform);
+		}
 	}
 
 	// ==============================
@@ -213,53 +217,62 @@ void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 }
 
 void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {
-	if (InstancedStaticMeshComponent == NULL) {
+	if (InstancedMeshMap.Num() == 0) {
 		return;
 	}
 
-	int32 MeshCount = 1;
-
-	int32 MeshTypeId = 0;
-	int32 MeshInstanceCount = InstancedStaticMeshComponent->GetInstanceCount();
-
+	int32 MeshCount = InstancedMeshMap.Num();
 	BinaryData << MeshCount;
 
-	BinaryData << MeshTypeId;
-	BinaryData << MeshInstanceCount;
+	for (auto& Elem : InstancedMeshMap) {
+		UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = Elem.Value;
+		int32 MeshTypeId = Elem.Key;
 
-	for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
-		FTransform InstanceTransform;
-		InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
+		int32 MeshInstanceCount = InstancedStaticMeshComponent->GetInstanceCount();
 
-		float X = InstanceTransform.GetLocation().X;
-		float Y = InstanceTransform.GetLocation().Y;
-		float Z = InstanceTransform.GetLocation().Z;
+		BinaryData << MeshTypeId;
+		BinaryData << MeshInstanceCount;
 
-		float Roll = InstanceTransform.Rotator().Roll;
-		float Pitch = InstanceTransform.Rotator().Pitch;
-		float Yaw = InstanceTransform.Rotator().Yaw;
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			FTransform InstanceTransform;
+			InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
 
-		float ScaleX = InstanceTransform.GetScale3D().X;
-		float ScaleY = InstanceTransform.GetScale3D().Y;
-		float ScaleZ = InstanceTransform.GetScale3D().Z;
+			float X = InstanceTransform.GetLocation().X;
+			float Y = InstanceTransform.GetLocation().Y;
+			float Z = InstanceTransform.GetLocation().Z;
 
-		BinaryData << X;
-		BinaryData << Y;
-		BinaryData << Z;
+			float Roll = InstanceTransform.Rotator().Roll;
+			float Pitch = InstanceTransform.Rotator().Pitch;
+			float Yaw = InstanceTransform.Rotator().Yaw;
 
-		BinaryData << Roll;
-		BinaryData << Pitch;
-		BinaryData << Yaw;
+			float ScaleX = InstanceTransform.GetScale3D().X;
+			float ScaleY = InstanceTransform.GetScale3D().Y;
+			float ScaleZ = InstanceTransform.GetScale3D().Z;
 
-		BinaryData << ScaleX;
-		BinaryData << ScaleY;
-		BinaryData << ScaleZ;
+			BinaryData << X;
+			BinaryData << Y;
+			BinaryData << Z;
+
+			BinaryData << Roll;
+			BinaryData << Pitch;
+			BinaryData << Yaw;
+
+			BinaryData << ScaleX;
+			BinaryData << ScaleY;
+			BinaryData << ScaleZ;
+		}
 	}
 }
 
 void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& Transform) {
+	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = nullptr;
+
+	if (InstancedMeshMap.Contains(MeshType.MeshTypeId)) {
+		InstancedStaticMeshComponent = InstancedMeshMap[MeshType.MeshTypeId];
+	}
+
 	if (InstancedStaticMeshComponent == nullptr) {
-		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh -> [%.0f, %.0f, %.0f]"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
+		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh -%d -> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
 		InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
 
@@ -274,6 +287,8 @@ void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshTy
 
 		InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+
+		InstancedMeshMap.Add(MeshType.MeshTypeId, InstancedStaticMeshComponent);
 	}
 
 	InstancedStaticMeshComponent->AddInstanceWorldSpace(Transform);
