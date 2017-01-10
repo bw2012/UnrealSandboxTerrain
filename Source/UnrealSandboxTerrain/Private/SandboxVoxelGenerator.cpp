@@ -29,8 +29,7 @@ float densityByGroundLevel(FVector v) {
 
 	if (v.Z > gl + 400) {
 		val = 0;
-	}
-	else if (v.Z > gl) {
+	} else if (v.Z > gl) {
 		float d = (1 / (v.Z - gl)) * 100;
 		val = d;
 	}
@@ -75,8 +74,8 @@ float clcGroundLevelDelta(FVector v) {
 }
 
 
-SandboxVoxelGenerator::SandboxVoxelGenerator(VoxelData& vd) {
-	int32 zone_seed = vectorHash(vd.getOrigin());
+SandboxVoxelGenerator::SandboxVoxelGenerator(VoxelData& vd, int32 Seed) {
+	int32 zone_seed = vectorHash(vd.getOrigin()) ^ (Seed * 32168710);
 
 	FRandomStream rnd = FRandomStream();
 	rnd.Initialize(zone_seed);

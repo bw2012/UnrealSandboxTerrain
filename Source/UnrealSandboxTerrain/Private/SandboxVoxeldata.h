@@ -29,6 +29,10 @@ typedef struct SubstanceCache {
 	std::list<int> cellList;
 } SubstanceCache;
 
+enum VoxelDataState {
+	UNDEFINED, NEW_GENERATED, NEW_LOADED, NORMAL
+};
+
 
 class VoxelData {
 
@@ -113,6 +117,17 @@ public:
 
 		last_cache_check = -1;
 	};
+
+	VoxelDataState DataState = VoxelDataState::UNDEFINED;
+
+	// mesh is generated
+	bool isNewGenerated() {
+		return DataState == VoxelDataState::NEW_GENERATED;
+	}
+
+	bool isNewLoaded() {
+		return DataState == VoxelDataState::NEW_LOADED;
+	}
 
 	friend void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);

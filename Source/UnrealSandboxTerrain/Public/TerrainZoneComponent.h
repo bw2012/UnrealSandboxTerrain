@@ -5,6 +5,7 @@
 #include "EngineMinimal.h"
 #include "SandboxTerrainMeshComponent.h"
 #include "SandboxTerrainCollisionComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "TerrainZoneComponent.generated.h"
 
 
@@ -14,7 +15,7 @@ class ASandboxTerrainController;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public UMeshComponent
+class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -26,6 +27,8 @@ public:
 	UPROPERTY()
 	USandboxTerrainCollisionComponent* CollisionMesh;
 
+	UPROPERTY()
+	TMap<uint32, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;
 
 public:
 
@@ -47,7 +50,13 @@ public:
 
 	std::shared_ptr<MeshData> generateMesh();
 
-	bool volatile isLoaded = false;
+	void SerializeInstancedMeshes(FBufferArchive& binaryData);
+
+	void SaveInstancedMeshesToFile();
+
+	void LoadInstancedMeshesFromFile();
+
+	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
 private:
 	VoxelData* voxel_data;

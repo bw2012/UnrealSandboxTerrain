@@ -7,7 +7,7 @@ class VoxelData;
 class SandboxVoxelGenerator {
 
 public:
-	SandboxVoxelGenerator(VoxelData& vd);
+	SandboxVoxelGenerator(VoxelData& vd, int32 Seed);
 
 	~SandboxVoxelGenerator();
 

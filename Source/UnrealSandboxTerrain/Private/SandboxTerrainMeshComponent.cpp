@@ -384,24 +384,27 @@ public:
 
 	int GetLodIndex(const FSceneView* View) const {
 		if (bLodFlag) {
-			const FBoxSphereBounds& ProxyBounds = GetBounds();
-			const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+			//const FBoxSphereBounds& ProxyBounds = GetBounds();
+			//const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 
-			const static float LodThreshold = 0.55f;
+			FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
+			float Distance = FVector::Dist(ViewOrigin, GetBounds().Origin);
 
-			if (ScreenSize >= LodThreshold) {
+			const static float LodThreshold = 1500.0f;
+
+			if (Distance <= LodThreshold) {
 				return 0;
 			}
 
 			float LodThresholdMin = LodThreshold;
-			for (int Idx = 0; Idx < LOD_ARRAY_SIZE; Idx++) {
-				float LodThresholdMax = LodThresholdMin * LodThresholdMin;
+			for (int Idx = 1; Idx < LOD_ARRAY_SIZE; Idx++) {
+				float LodThresholdMax = 2.0f * LodThresholdMin;
 
-				if (ScreenSize < LodThresholdMin && ScreenSize >= LodThresholdMax) {
+				if (Distance > LodThresholdMin && Distance <= LodThresholdMax) {
 					return Idx;
 				}
 
-				LodThresholdMin = LodThresholdMin * LodThresholdMin;
+				LodThresholdMin *= 2;
 			}
 
 			return LOD_ARRAY_SIZE - 1;

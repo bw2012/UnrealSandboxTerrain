@@ -14,7 +14,7 @@ Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI
 * Procedural landscape/caves generation
 * Level of details (per chunk)
 * Based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
-* Tested with Unreal Engine 4.14.1
+* Tested with Unreal Engine 4.14.2
 
 # License
 MIT license

@@ -2,6 +2,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
+#include "TerrainRegionComponent.h"
 #include "SandboxVoxeldata.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
@@ -96,9 +97,7 @@ public:
 
 };
 
-
-ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
-{
+ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
@@ -136,7 +135,7 @@ void ASandboxTerrainController::BeginPlay() {
 	initial_zone_loader = new FLoadInitialZonesThread();
 
 	initial_zone_loader->controller = this;
-	if (!GenerateOnlySmallSpawnPoint) {
+	if (!bGenerateOnlySmallSpawnPoint) {
 		for (int num = 0; num < TerrainSize; num++) {
 			int s = num;
 			for (int x = -s; x <= s; x++) {
@@ -186,73 +185,24 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		VoxelDataMap.Remove(Elem.Key);
 		delete voxel_data;
 	}
+
+	for (auto& Elem : TerrainZoneMap) {
+		UTerrainZoneComponent* Zone = Elem.Value;
+		Zone->SaveInstancedMeshesToFile();
+	}
+
+	TerrainZoneMap.Empty();
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
-	
 	if (HasNextAsyncTask()) {
 		TerrainControllerTask task = GetAsyncTask();
-
 		if (task.f) {
 			task.f();
 		}
-
-		/*
-		if (zone_make_task.type == MT_GENERATE_MESH) {
-
-			ASandboxTerrainZone* zone = getZoneByVectorIndex(getZoneIndex(zone_make_task.index));
-			if (zone != NULL) {
-				if (zone_make_task.mesh_data != NULL) {
-
-					zone_make_task.f();
-
-					//zone->applyTerrainMesh(zone_make_task.mesh_data);
-
-					if (zone_make_task.isNew) {
-						//zone->generateZoneObjects();
-						zone->isLoaded = true;
-					} else {
-						if (!zone->isLoaded) {
-							// load zone json here
-							FVector v = zone->GetActorLocation();
-							v /= 1000;
-							//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
-							//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
-							zone->isLoaded = true;
-						}
-					}
-
-					//FIXME refactor mesh_data to shared pointer
-					delete zone_make_task.mesh_data;
-				} else {
-					zone->makeTerrain();
-				}
-			}
-		}
-
-		if (zone_make_task.type == MT_ADD_ZONE) {
-			FVector v = FVector((float)(zone_make_task.index.X * 1000), (float)(zone_make_task.index.Y * 1000), (float)(zone_make_task.index.Z * 1000));
-			ASandboxTerrainZone* zone = addTerrainZone(v);
-			VoxelData* vd = sandboxGetTerrainVoxelDataByIndex(zone_make_task.index);
-
-			if (vd == NULL) {
-				UE_LOG(LogTemp, Warning, TEXT("FAIL"));
-				return;
-			}
-
-			zone->setVoxelData(vd);
-
-			MeshData* md = zone->generateMesh(*vd);
-			vd->resetLastMeshRegenerationTime();
-			zone->applyTerrainMesh(md);
-		}*/
-
-
-	}
-
-	
+	}	
 }
 
 //======================================================================================================================================================================
@@ -260,7 +210,7 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 
 SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(VoxelData &voxel_data) {
-	return SandboxVoxelGenerator(voxel_data);
+	return SandboxVoxelGenerator(voxel_data, Seed);
 };
 
 FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
@@ -288,23 +238,6 @@ void ASandboxTerrainController::spawnInitialZone() {
 						zone->setVoxelData(vd);
 						zone->makeTerrain();
 					}
-
-					//bool is_new = zone->fillZone();
-
-					/*
-					if (is_new) {
-					//zone->generateZoneObjects();
-					} else {
-					if (!zone->isLoaded) {
-					//todo
-					}
-					FVector v = zone->GetActorLocation();
-					v /= 1000;
-					//UE_LOG(LogTemp, Warning, TEXT("zone: %s -> %d objects"), *sandboxZoneJsonFullPath(v.X, v.Y, v.Z), zone->save_list.Num());
-					//loadZoneJson(sandboxZoneJsonFullPath(v.X, v.Y, v.Z));
-					zone->isLoaded = true;
-					}
-					*/
 				}
 			}
 		}
@@ -318,8 +251,19 @@ void ASandboxTerrainController::spawnInitialZone() {
 			zone->setVoxelData(vd);
 			zone->makeTerrain();
 		}
+	}	
+}
+
+FVector ASandboxTerrainController::GetRegionIndex(FVector v) {
+	return sandboxGridIndex(v, 4500);
+}
+
+UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVector index) {
+	if (TerrainRegionMap.Contains(index)) {
+		return TerrainRegionMap[index];
 	}
-	
+
+	return NULL;
 }
 
 FVector ASandboxTerrainController::getZoneIndex(FVector v) {
@@ -327,29 +271,40 @@ FVector ASandboxTerrainController::getZoneIndex(FVector v) {
 }
 
 UTerrainZoneComponent* ASandboxTerrainController::getZoneByVectorIndex(FVector index) {
-	if (terrain_zone_map.Contains(index)) {
-		return terrain_zone_map[index];
+	if (TerrainZoneMap.Contains(index)) {
+		return TerrainZoneMap[index];
 	}
 
 	return NULL;
 }
 
 UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
-	FVector index = getZoneIndex(pos);
+	FVector RegionIndex = GetRegionIndex(pos);
+	UTerrainRegionComponent* RegionComponent = GetRegionByVectorIndex(RegionIndex);
+	if (RegionComponent == NULL) {
+		FString RegionName = FString::Printf(TEXT("Region -> [%.0f, %.0f, %.0f]"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
+		RegionComponent->RegisterComponent();
+		RegionComponent->SetWorldLocation(RegionIndex);
 
-	FString zone_name = FString::Printf(TEXT("Zone-%d"), FPlatformTime::Seconds());
+		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
+	}
+
+	FVector index = getZoneIndex(pos);
+	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*zone_name));
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
 		ZoneComponent->SetWorldLocation(pos);
+		ZoneComponent->AttachTo(RegionComponent);
 
-		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh-%d"), FPlatformTime::Seconds());
+		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
 		TerrainMeshComp->RegisterComponent();
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
 		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh-%d"), FPlatformTime::Seconds());
+		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
 		CollisionMeshComp->RegisterComponent();
 		CollisionMeshComp->SetMobility(EComponentMobility::Stationary);
@@ -361,9 +316,9 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 		ZoneComponent->CollisionMesh = CollisionMeshComp;
 	}
 
-	terrain_zone_map.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
+	TerrainZoneMap.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
 
-	if(ShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
+	if(bShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
 
 	return ZoneComponent;
 }
@@ -452,8 +407,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 
 							if (enableLOD) {
 								vd->performSubstanceCacheLOD(x, y, z);
-							}
-							else {
+							} else {
 								vd->performSubstanceCacheNoLOD(x, y, z);
 							}
 						}
@@ -482,22 +436,24 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
 	//FIXME delete thread after finish
 
-	/*
 	FVector ttt(origin);
 	ttt.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_EngineTraceChannel1, FCollisionShape::MakeSphere(r));
+	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(radius)); // ECC_Visibility
 	if (overlap) {
 		for (auto item : OutHits) {
 			AActor* actor = item.GetActor();
-			ASandboxObject* obj = Cast<ASandboxObject>(actor);
-			if (obj != NULL) {
-				UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %d"), *obj->GetName(), item.Item);
-				obj->informTerrainChange(item.Item);
+
+			if (Cast<ASandboxTerrainController>(item.GetActor()) != nullptr) {
+				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(item.GetComponent());
+				if (InstancedMesh != nullptr) {
+					InstancedMesh->RemoveInstance(item.Item);
+					//UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %s -> %d"), *actor->GetName(), *item.Component->GetName(), item.Item);
+				}
 			}
-		}	
+		}
 	}
-	*/
+
 
 }
 
@@ -619,8 +575,6 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 	//		return;
 	//	}
 
-	bool isNew = false;
-
 	int dim = static_cast<int>(ZoneGridDimension);
 	VoxelData* vd = new VoxelData(dim, 100 * 10);
 	vd->setOrigin(location);
@@ -630,10 +584,11 @@ VoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*fileName)) {
 		sandboxLoadVoxelData(*vd, fileName);
+		vd->DataState = VoxelDataState::NEW_LOADED;
 	} else {
 		generateTerrain(*vd);
 		sandboxSaveVoxelData(*vd, fileName);
-		//	isNew = true;
+		vd->DataState = VoxelDataState::NEW_GENERATED;
 	}
 
 	vd->setChanged();
@@ -714,6 +669,17 @@ void ASandboxTerrainController::OnLoadZoneListFinished() {
 
 }
 
+void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
+	if (!bDisableFoliage) {
+		GenerateNewFoliage(Zone);
+	}
+}
+
+void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
+	if (!bDisableFoliage) {
+		LoadFoliage(Zone);
+	}
+}
 
 void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
 	AsyncTaskListMutex.lock();
@@ -765,3 +731,73 @@ VoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index) 
 	VoxelDataMapMutex.unlock();
 	return NULL;
 }
+
+//======================================================================================================================================================================
+// Sandbox Foliage
+//======================================================================================================================================================================
+
+void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) {
+	FRandomStream rnd = FRandomStream();
+	rnd.Initialize(0);
+	rnd.Reset();
+
+	static const float s = 500;
+	static const float step = 25;
+	float counter = 0;
+
+	for (auto x = -s; x <= s; x += step) {
+		for (auto y = -s; y <= s; y += step) {
+
+			FVector v(Zone->getVoxelData()->getOrigin());
+			v += FVector(x, y, 0);
+
+			for (auto& Elem : FoliageMap) {
+				FSandboxFoliage FoliageType = Elem.Value;
+				int32 FoliageTypeId = Elem.Key;
+
+				float r = std::sqrt(v.X * v.X + v.Y * v.Y);
+				if ((int)counter % (int)FoliageType.SpawnStep == 0) {
+					SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
+				}
+			}
+
+			counter += step;
+		}
+	}
+}
+
+void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone) {
+
+	if (FoliageType.OffsetRange > 0) {
+		float ox = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) ox = -ox; v.X += ox;
+		float oy = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) oy = -oy; v.Y += oy;
+	}
+
+	const FVector start_trace(v.X, v.Y, v.Z + 500);
+	const FVector end_trace(v.X, v.Y, v.Z - 500);
+
+	FHitResult hit(ForceInit);
+	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
+
+	if (hit.bBlockingHit) {
+		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {
+			if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
+
+				float angle = rnd.FRandRange(0.f, 360.f);
+				float ScaleZ = rnd.FRandRange(FoliageType.ScaleMinZ, FoliageType.ScaleMaxZ);
+				FTransform Transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, ScaleZ));
+
+				FTerrainInstancedMeshType MeshType;
+				MeshType.MeshTypeId = FoliageTypeId;
+				MeshType.Mesh = FoliageType.Mesh;
+
+				Zone->SpawnInstancedMesh(MeshType, Transform);
+			}
+		}
+	}
+}
+
+void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
+	Zone->LoadInstancedMeshesFromFile();
+}
+
