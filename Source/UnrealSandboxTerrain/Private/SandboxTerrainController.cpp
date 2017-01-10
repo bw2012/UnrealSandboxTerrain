@@ -767,6 +767,12 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 }
 
 void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone) {
+
+	if (FoliageType.OffsetRange > 0) {
+		float ox = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) ox = -ox; v.X += ox;
+		float oy = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) oy = -oy; v.Y += oy;
+	}
+
 	const FVector start_trace(v.X, v.Y, v.Z + 500);
 	const FVector end_trace(v.X, v.Y, v.Z - 500);
 
@@ -778,8 +784,8 @@ void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliag
 			if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
 
 				float angle = rnd.FRandRange(0.f, 360.f);
-				float scale = rnd.FRandRange(1.f, 5.f);
-				FTransform Transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, scale));
+				float ScaleZ = rnd.FRandRange(FoliageType.ScaleMinZ, FoliageType.ScaleMaxZ);
+				FTransform Transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, ScaleZ));
 
 				FTerrainInstancedMeshType MeshType;
 				MeshType.MeshTypeId = FoliageTypeId;

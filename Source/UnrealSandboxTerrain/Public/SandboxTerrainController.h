@@ -63,6 +63,15 @@ struct FSandboxFoliage {
 
 	UPROPERTY(EditAnywhere)
 	int32 EndCullDistance = 500;
+
+	UPROPERTY(EditAnywhere)
+	float OffsetRange = 10.0f;
+
+	UPROPERTY(EditAnywhere)
+	float ScaleMinZ = 0.5f;
+
+	UPROPERTY(EditAnywhere)
+	float ScaleMaxZ = 1.0f;
 };
 
 UCLASS()
