@@ -160,52 +160,56 @@ void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 
 	// ==============================
 	int32 MeshCount;
-	int32 MeshTypeId;
-	int32 MeshInstanceCount;
-
 	BinaryData << MeshCount;
-	BinaryData << MeshTypeId;
-	BinaryData << MeshInstanceCount;
-
 	UE_LOG(LogTemp, Warning, TEXT("MeshCount -> %d"), MeshCount);
-	UE_LOG(LogTemp, Warning, TEXT("MeshTypeId -> %d"), MeshTypeId);
-	UE_LOG(LogTemp, Warning, TEXT("MeshInstanceCount -> %d"), MeshInstanceCount);
 
-	FTerrainInstancedMeshType MeshType;
-	if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
-		MeshType.Mesh = GetTerrainController()->FoliageMap[MeshTypeId].Mesh;
-	}
+	for (int Idx = 0; Idx < MeshCount; Idx++) {
+		int32 MeshTypeId;
+		int32 MeshInstanceCount;
 
-	for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
-		float X;
-		float Y;
-		float Z;
+		BinaryData << MeshTypeId;
+		BinaryData << MeshInstanceCount;
 
-		float Roll;
-		float Pitch;
-		float Yaw;
+		UE_LOG(LogTemp, Warning, TEXT("MeshTypeId -> %d"), MeshTypeId);
+		UE_LOG(LogTemp, Warning, TEXT("MeshInstanceCount -> %d"), MeshInstanceCount);
 
-		float ScaleX;
-		float ScaleY;
-		float ScaleZ;
+		FTerrainInstancedMeshType MeshType;
+		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
+			MeshType.Mesh = GetTerrainController()->FoliageMap[MeshTypeId].Mesh;
+			MeshType.MeshTypeId = MeshTypeId;
+		}
 
-		BinaryData << X;
-		BinaryData << Y;
-		BinaryData << Z;
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			float X;
+			float Y;
+			float Z;
 
-		BinaryData << Roll;
-		BinaryData << Pitch;
-		BinaryData << Yaw;
+			float Roll;
+			float Pitch;
+			float Yaw;
 
-		BinaryData << ScaleX;
-		BinaryData << ScaleY;
-		BinaryData << ScaleZ;
+			float ScaleX;
+			float ScaleY;
+			float ScaleZ;
 
-		FRotator Rotator(Pitch, Yaw, Roll);
-		FTransform Transform(Rotator, FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+			BinaryData << X;
+			BinaryData << Y;
+			BinaryData << Z;
 
-		if (MeshType.Mesh != nullptr) {
-			SpawnInstancedMesh(MeshType, Transform);
+			BinaryData << Roll;
+			BinaryData << Pitch;
+			BinaryData << Yaw;
+
+			BinaryData << ScaleX;
+			BinaryData << ScaleY;
+			BinaryData << ScaleZ;
+
+			FRotator Rotator(Pitch, Yaw, Roll);
+			FTransform Transform(Rotator, FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+
+			if (MeshType.Mesh != nullptr) {
+				SpawnInstancedMesh(MeshType, Transform);
+			}
 		}
 	}
 
