@@ -737,6 +737,8 @@ VoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index) 
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) {
+	if (FoliageMap.Num() == 0) return;
+
 	FRandomStream rnd = FRandomStream();
 	rnd.Initialize(0);
 	rnd.Reset();
