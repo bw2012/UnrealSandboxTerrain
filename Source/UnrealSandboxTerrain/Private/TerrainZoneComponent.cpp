@@ -161,7 +161,7 @@ void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 	// ==============================
 	int32 MeshCount;
 	BinaryData << MeshCount;
-	UE_LOG(LogTemp, Warning, TEXT("MeshCount -> %d"), MeshCount);
+	//UE_LOG(LogTemp, Warning, TEXT("MeshCount -> %d"), MeshCount);
 
 	for (int Idx = 0; Idx < MeshCount; Idx++) {
 		int32 MeshTypeId;
@@ -170,8 +170,8 @@ void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 		BinaryData << MeshTypeId;
 		BinaryData << MeshInstanceCount;
 
-		UE_LOG(LogTemp, Warning, TEXT("MeshTypeId -> %d"), MeshTypeId);
-		UE_LOG(LogTemp, Warning, TEXT("MeshInstanceCount -> %d"), MeshInstanceCount);
+		//UE_LOG(LogTemp, Warning, TEXT("MeshTypeId -> %d"), MeshTypeId);
+		//UE_LOG(LogTemp, Warning, TEXT("MeshInstanceCount -> %d"), MeshInstanceCount);
 
 		FTerrainInstancedMeshType MeshType;
 		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
