@@ -152,7 +152,7 @@ private:
 
 	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
 
-	void spawnInitialZone();
+	TSet<FVector> spawnInitialZone();
 
 	UTerrainZoneComponent* addTerrainZone(FVector pos);
 

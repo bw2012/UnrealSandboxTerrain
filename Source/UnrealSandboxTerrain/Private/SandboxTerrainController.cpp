@@ -129,7 +129,7 @@ void ASandboxTerrainController::BeginPlay() {
 		//return;
 	}
 
-	spawnInitialZone();
+	TSet<FVector> InitialZoneSet = spawnInitialZone();
 	
 	//zone initial generation list
 	initial_zone_loader = new FLoadInitialZonesThread();
@@ -144,9 +144,11 @@ void ASandboxTerrainController::BeginPlay() {
 						FVector zone_index = FVector(x, y, z);
 						UTerrainZoneComponent* zone = getZoneByVectorIndex(zone_index);
 						VoxelData* vd = GetTerrainVoxelDataByIndex(zone_index);
-						if (vd == NULL || (vd->getDensityFillState() == VoxelDataFillState::MIX && zone == NULL)) {
+
+						if(!InitialZoneSet.Contains(zone_index)) {
 							// Until the end of the process some functions can be unavailable.
 							initial_zone_loader->zone_list.Add(zone_index);
+							InitialZoneSet.Add(zone_index);
 						}
 					}
 				}
@@ -186,9 +188,11 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		delete voxel_data;
 	}
 
-	for (auto& Elem : TerrainZoneMap) {
-		UTerrainZoneComponent* Zone = Elem.Value;
-		Zone->SaveInstancedMeshesToFile();
+	if (!bDisableFoliage) {
+		for (auto& Elem : TerrainZoneMap) {
+			UTerrainZoneComponent* Zone = Elem.Value;
+			Zone->SaveInstancedMeshesToFile();
+		}
 	}
 
 	TerrainZoneMap.Empty();
@@ -220,8 +224,10 @@ FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
 	return fileName;
 }
 
-void ASandboxTerrainController::spawnInitialZone() {
+TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
 	const int s = static_cast<int>(TerrainInitialArea);
+
+	TSet<FVector> InitialZoneSet;
 
 	UE_LOG(LogTemp, Warning, TEXT("TerrainInitialArea = %d"), s);
 
@@ -238,6 +244,8 @@ void ASandboxTerrainController::spawnInitialZone() {
 						zone->setVoxelData(vd);
 						zone->makeTerrain();
 					}
+
+					InitialZoneSet.Add(FVector(x, y, z));
 				}
 			}
 		}
@@ -251,7 +259,11 @@ void ASandboxTerrainController::spawnInitialZone() {
 			zone->setVoxelData(vd);
 			zone->makeTerrain();
 		}
+
+		InitialZoneSet.Add(FVector(0, 0, 0));
 	}	
+
+	return InitialZoneSet;
 }
 
 FVector ASandboxTerrainController::GetRegionIndex(FVector v) {
@@ -436,6 +448,7 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
 	//FIXME delete thread after finish
 
+
 	FVector ttt(origin);
 	ttt.Z -= 10;
 	TArray<struct FHitResult> OutHits;
@@ -453,7 +466,6 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 			}
 		}
 	}
-
 
 }
 
