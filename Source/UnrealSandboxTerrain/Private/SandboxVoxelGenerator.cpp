@@ -109,17 +109,19 @@ float SandboxVoxelGenerator::density(FVector& local, FVector& world) {
 }
 
 unsigned char SandboxVoxelGenerator::material(FVector& local, FVector& world) {
-	FVector test2 = FVector(world);
-	test2.Z += 30;
+	FVector test = FVector(world);
+	test.Z += 30;
 
-	float den2 = densityByGroundLevel(test2);
+	float densityUpper = densityByGroundLevel(test);
 
 	unsigned char mat = 0;
-	if (den2 < 0.5) {
+
+	if (densityUpper < 0.5) {
 		mat = 2; // grass
 	} else {
 		mat = 1; // dirt
 	}
+
 
 	return mat;
 }

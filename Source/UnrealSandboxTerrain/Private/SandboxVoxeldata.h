@@ -73,7 +73,7 @@ public:
     float getDensity(int x, int y, int z) const;
 	unsigned char getRawDensity(int x, int y, int z) const;
 
-	void setMaterial(int x, int y, int z, int material);
+	void setMaterial(const int x, const int y, const int z, const int material);
 	int getMaterial(int x, int y, int z) const;
 
     float size() const;

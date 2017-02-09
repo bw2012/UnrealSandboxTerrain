@@ -110,7 +110,7 @@
 		return density_data[index];
 	}
 
-	FORCEINLINE void VoxelData::setMaterial(int x, int y, int z, int material) {
+	FORCEINLINE void VoxelData::setMaterial(const int x, const int y, const int z, const int material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
