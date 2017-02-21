@@ -133,18 +133,22 @@ public:
 	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
 };
 
+typedef struct MeshMaterialSection {
+	short MaterialId;
+	FProcMeshSection MaterialMesh;
+} MeshMaterialSection;
+
+
 typedef struct MeshLodSection {
+	TMap<short, MeshMaterialSection> MaterialSectionMap;
 
 	FProcMeshSection mainMesh;
-
 	TArray<FProcMeshSection> transitionMeshArray;
-
 	TArray<FVector> DebugPointList;
 
 	MeshLodSection() {
 		transitionMeshArray.SetNum(6); 
 	}
-
 } MeshLodSection;
 
 

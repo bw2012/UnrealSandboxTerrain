@@ -7,6 +7,7 @@
 #include <cmath>
 #include <vector>
 #include <mutex>
+#include <set>
 
 
 //====================================================================================
@@ -562,14 +563,14 @@ private:
 		const int mat1 = point1.material_id;
 		const int mat2 = point2.material_id;
 		
-		if ((base_mat == mat1)&&(base_mat == mat2)) {
-			tp.mat_id = base_mat;
+		tp.mat_id = base_mat;
+
+		if ((base_mat == mat1) && (base_mat == mat2)) {
 			tp.mat_weight = 0;
 			return;
 		}
 
 		if (mat1 == mat2) {
-			tp.mat_id = base_mat;
 			tp.mat_weight = 1;
 			return;
 		}
@@ -583,6 +584,12 @@ private:
 
 		float s1 = p1.Size();
 		float s2 = p2.Size();
+
+		if (s1 > s2) {
+			tp.mat_id = mat2;
+		} else {
+			tp.mat_id = mat1;
+		}
 
 		if (mat1 != base_mat) {
 			tp.mat_weight = s1 / s;
@@ -665,12 +672,21 @@ private:
 		std::vector<TmpPoint> vertexList;
 		vertexList.reserve(cd.GetTriangleCount() * 3);
 
+		std::set<short> materialIdSet;
+
 		for (int i = 0; i < cd.GetVertexCount(); i++) {
 			const int edgeCode = regularVertexData[caseCode][i];
 			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
 			const unsigned short v1 = edgeCode & 0x0F;
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
 			vertexList.push_back(tp);
+			materialIdSet.insert(tp.mat_id);
+
+			//UE_LOG(LogTemp, Warning, TEXT("mat_id -> %d"), tp.mat_id);
+		}
+
+		if (materialIdSet.size() > 1) {
+			UE_LOG(LogTemp, Warning, TEXT("mat id set-> %d"), materialIdSet.size());
 		}
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
