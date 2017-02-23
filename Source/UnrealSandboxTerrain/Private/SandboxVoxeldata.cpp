@@ -9,6 +9,8 @@
 #include <mutex>
 #include <set>
 
+#include <unordered_map>
+
 
 //====================================================================================
 // Voxel data impl
@@ -396,14 +398,23 @@ private:
 	private:
 		FProcMeshSection* meshSection;
 		VoxelMeshExtractor* extractor;
+		TMaterialSectionMap* materialSectionMapPtr;
+
 
 		int ntriang = 0;
 		int vertex_index = 0;
 
 		TMap<FVector, int> VertexMap;
 
+		struct VertexInfo {
+			FVector normal;
+			std::unordered_map<short, int32> indexInMaterialSection;
+		};
+
+		TMap<FVector, int> vertexInfoMap;
+
 	public:
-		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s) : extractor(e), meshSection(s) { }
+		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms) : extractor(e), meshSection(s), materialSectionMapPtr(ms) { }
 
 		FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
 			FVector v = point.v;
@@ -462,6 +473,44 @@ private:
 			}
 		}
 
+		FORCEINLINE void addVertexMat(short matId, const TmpPoint &point, const FVector& n, int &index) {
+			FVector v = point.v;
+
+			if (VertexMap.Contains(v)) {
+				int vindex = VertexMap[v];
+
+				FProcMeshVertex& Vertex = meshSection->ProcVertexBuffer[vindex];
+				FVector nvert = Vertex.Normal;
+
+				FVector tmp(nvert);
+				tmp += n;
+				tmp /= 2;
+
+				Vertex.Normal = tmp;
+				meshSection->ProcIndexBuffer.Add(vindex);
+
+			}
+			else {
+				meshSection->ProcIndexBuffer.Add(index);
+
+				int t = point.mat_weight * 255;
+
+				FProcMeshVertex Vertex;
+				Vertex.Position = v;
+				Vertex.Normal = n;
+				Vertex.UV0 = FVector2D(0.f, 0.f);
+				Vertex.Color = FColor(t, 0, 0, 0);
+				Vertex.Tangent = FProcMeshTangent();
+
+				meshSection->SectionLocalBox += Vertex.Position;
+
+				meshSection->ProcVertexBuffer.Add(Vertex);
+
+				VertexMap.Add(v, index);
+				vertex_index++;
+			}
+		}
+
 		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
@@ -472,6 +521,14 @@ private:
 			ntriang++;
 		}
 
+		FORCEINLINE void addTriangleMat(short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			addVertexMat(matId, tmp1, n, vertex_index);
+			addVertexMat(matId, tmp2, n, vertex_index);
+			addVertexMat(matId, tmp3, n, vertex_index);
+		}
+
 	};
 
 
@@ -480,10 +537,10 @@ private:
 
 public:
 	VoxelMeshExtractor(MeshLodSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.mainMesh);
+		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.MaterialSectionMap);
 
 		for (auto i = 0; i < 6; i++) {
-			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i]));
+			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr));
 		}
 	}
 
@@ -695,6 +752,10 @@ private:
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
 			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
+
+			for (short matId : materialIdSet) {
+				mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+			}
 		}
 	}
 

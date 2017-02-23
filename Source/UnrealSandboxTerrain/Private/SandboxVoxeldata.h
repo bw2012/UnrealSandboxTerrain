@@ -139,8 +139,10 @@ typedef struct MeshMaterialSection {
 } MeshMaterialSection;
 
 
+typedef TMap<short, MeshMaterialSection> TMaterialSectionMap;
+
 typedef struct MeshLodSection {
-	TMap<short, MeshMaterialSection> MaterialSectionMap;
+	TMaterialSectionMap MaterialSectionMap;
 
 	FProcMeshSection mainMesh;
 	TArray<FProcMeshSection> transitionMeshArray;
