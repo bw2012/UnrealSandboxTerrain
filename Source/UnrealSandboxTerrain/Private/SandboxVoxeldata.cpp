@@ -408,10 +408,10 @@ private:
 
 		struct VertexInfo {
 			FVector normal;
-			std::unordered_map<short, int32> indexInMaterialSection;
+			TMap<short, int32> indexInMaterialSectionMap;
 		};
 
-		TMap<FVector, int> vertexInfoMap;
+		TMap<FVector, VertexInfo> vertexInfoMap;
 
 	public:
 		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms) : extractor(e), meshSection(s), materialSectionMapPtr(ms) { }
@@ -473,41 +473,43 @@ private:
 			}
 		}
 
-		FORCEINLINE void addVertexMat(short matId, const TmpPoint &point, const FVector& n, int &index) {
-			FVector v = point.v;
+		FORCEINLINE void addVertexMat(short matId, const TmpPoint &point, const FVector& n) {
+			const FVector& v = point.v;
 
-			if (VertexMap.Contains(v)) {
-				int vindex = VertexMap[v];
+			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
 
-				FProcMeshVertex& Vertex = meshSection->ProcVertexBuffer[vindex];
-				FVector nvert = Vertex.Normal;
-
-				FVector tmp(nvert);
+			if (vertexInfo.normal.IsZero()) {
+				vertexInfo.normal = n;
+			} else {
+				FVector tmp(vertexInfo.normal);
 				tmp += n;
 				tmp /= 2;
-
-				Vertex.Normal = tmp;
-				meshSection->ProcIndexBuffer.Add(vindex);
-
+				vertexInfo.normal = tmp;
 			}
-			else {
-				meshSection->ProcIndexBuffer.Add(index);
 
-				int t = point.mat_weight * 255;
+			// get current mat section
+			MeshMaterialSection& matSectionRef = materialSectionMapPtr->FindOrAdd(matId);
+			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
+
+			if (vertexInfo.indexInMaterialSectionMap.Contains(matId)) { 	// vertex exist in mat section
+				// just get vertex index and put to index buffer
+				int32 vertexIndex = vertexInfo.indexInMaterialSectionMap[matId];
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(vertexIndex);
+			} else { // vertex not exist in mat section
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
 
 				FProcMeshVertex Vertex;
 				Vertex.Position = v;
-				Vertex.Normal = n;
+				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Color = FColor(t, 0, 0, 0);
+				Vertex.Color = FColor(0, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
 
-				meshSection->SectionLocalBox += Vertex.Position;
+				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
+				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
 
-				meshSection->ProcVertexBuffer.Add(Vertex);
-
-				VertexMap.Add(v, index);
-				vertex_index++;
+				vertexInfo.indexInMaterialSectionMap.Add(matId, matSectionRef.vertexIndexCounter);
+				matSectionRef.vertexIndexCounter++;
 			}
 		}
 
@@ -524,9 +526,9 @@ private:
 		FORCEINLINE void addTriangleMat(short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
-			addVertexMat(matId, tmp1, n, vertex_index);
-			addVertexMat(matId, tmp2, n, vertex_index);
-			addVertexMat(matId, tmp3, n, vertex_index);
+			addVertexMat(matId, tmp1, n);
+			addVertexMat(matId, tmp2, n);
+			addVertexMat(matId, tmp3, n);
 		}
 
 	};
@@ -612,7 +614,7 @@ private:
 		return tmp;
 	}
 
-	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point point1, Point point2) {
+	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point& point1, Point& point2) {
 		static const int base_mat = 1; // dirt is base material
 
 		FVector p1 = point1.pos;
@@ -623,12 +625,14 @@ private:
 		tp.mat_id = base_mat;
 
 		if ((base_mat == mat1) && (base_mat == mat2)) {
-			tp.mat_weight = 0;
+			tp.mat_weight = 0; // dirt
+			tp.mat_id = 1;
 			return;
 		}
 
 		if (mat1 == mat2) {
-			tp.mat_weight = 1;
+			tp.mat_weight = 1; //grass
+			tp.mat_id = 2;
 			return;
 		}
 
@@ -659,7 +663,7 @@ private:
 		}
 	}
 
-	FORCEINLINE void materialCalculation2(struct TmpPoint& tp, Point point1, Point point2) {
+	FORCEINLINE void materialCalculation2(struct TmpPoint& tp, Point& point1, Point& point2) {
 		static const int base_mat = 1; // dirt
 
 		float mu = (isolevel - point1.density) / (point2.density - point1.density);
@@ -742,9 +746,11 @@ private:
 			//UE_LOG(LogTemp, Warning, TEXT("mat_id -> %d"), tp.mat_id);
 		}
 
+		/*
 		if (materialIdSet.size() > 1) {
 			UE_LOG(LogTemp, Warning, TEXT("mat id set-> %d"), materialIdSet.size());
 		}
+		*/
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
 			TmpPoint tmp1 = vertexList[cd.vertexIndex[i]];

@@ -83,6 +83,28 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	*/
 	//##########################################
 
+	//##########################################
+	// mat section test
+	//##########################################
+	MeshLodSection& section0 = mesh_data->MeshSectionLodArray[0];
+	TMaterialSectionMap matSectionMap = section0.MaterialSectionMap;
+
+	for (auto& Elem : matSectionMap) {
+		short matId = Elem.Key;
+		MeshMaterialSection matSection = Elem.Value;
+
+		UE_LOG(LogTemp, Warning, TEXT("material section -> %d - %d -> %d "), matId, matSection.MaterialId, matSection.MaterialMesh.ProcVertexBuffer.Num());
+
+		if (matId == 2) {
+			for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
+
+				DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
+
+			}
+		}
+	}	
+	//##########################################
+
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
 	
 	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround

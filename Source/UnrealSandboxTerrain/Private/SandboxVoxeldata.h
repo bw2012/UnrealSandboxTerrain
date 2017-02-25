@@ -134,8 +134,13 @@ public:
 };
 
 typedef struct MeshMaterialSection {
+
 	short MaterialId;
+
 	FProcMeshSection MaterialMesh;
+
+	int32 vertexIndexCounter = 0;
+
 } MeshMaterialSection;
 
 
