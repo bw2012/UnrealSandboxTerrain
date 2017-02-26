@@ -53,7 +53,7 @@
 
 	FORCEINLINE void VoxelData::initializeMaterial() {
 		int s = voxel_num * voxel_num * voxel_num;
-		material_data = new unsigned char[s];
+		material_data = new unsigned short[s];
 		for (auto x = 0; x < voxel_num; x++) {
 			for (auto y = 0; y < voxel_num; y++) {
 				for (auto z = 0; z < voxel_num; z++) {
@@ -113,7 +113,7 @@
 		return density_data[index];
 	}
 
-	FORCEINLINE void VoxelData::setMaterial(const int x, const int y, const int z, const int material) {
+	FORCEINLINE void VoxelData::setMaterial(const int x, const int y, const int z, const unsigned short material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
@@ -182,7 +182,7 @@
 		return vp;
 	}
 
-	FORCEINLINE void VoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material) {
+	FORCEINLINE void VoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material) {
 		if (density_data == NULL) {
 			initializeDensity();
 			density_state = VoxelDataFillState::MIX;
@@ -207,7 +207,7 @@
 		density_data[index] = density;
 	}
 
-	FORCEINLINE void VoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned char material) {
+	FORCEINLINE void VoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned short material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
@@ -389,7 +389,7 @@ private:
 
 	struct TmpPoint {
 		FVector v;
-		int mat_id;
+		unsigned short mat_id;
 		float mat_weight = 0;
 	};
 
@@ -408,7 +408,7 @@ private:
 
 		struct VertexInfo {
 			FVector normal;
-			TMap<short, int32> indexInMaterialSectionMap;
+			TMap<unsigned short, int32> indexInMaterialSectionMap;
 		};
 
 		TMap<FVector, VertexInfo> vertexInfoMap;
@@ -473,7 +473,7 @@ private:
 			}
 		}
 
-		FORCEINLINE void addVertexMat(short matId, const TmpPoint &point, const FVector& n) {
+		FORCEINLINE void addVertexMat(unsigned short matId, const TmpPoint &point, const FVector& n) {
 			const FVector& v = point.v;
 
 			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
@@ -523,7 +523,7 @@ private:
 			ntriang++;
 		}
 
-		FORCEINLINE void addTriangleMat(short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+		FORCEINLINE void addTriangleMat(unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
 			addVertexMat(matId, tmp1, n);
@@ -733,7 +733,7 @@ private:
 		std::vector<TmpPoint> vertexList;
 		vertexList.reserve(cd.GetTriangleCount() * 3);
 
-		std::set<short> materialIdSet;
+		std::set<unsigned short> materialIdSet;
 
 		for (int i = 0; i < cd.GetVertexCount(); i++) {
 			const int edgeCode = regularVertexData[caseCode][i];
@@ -759,7 +759,7 @@ private:
 
 			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
 
-			for (short matId : materialIdSet) {
+			for (unsigned short matId : materialIdSet) {
 				mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
 			}
 		}

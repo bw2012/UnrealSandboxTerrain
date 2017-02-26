@@ -54,7 +54,7 @@ private:
 	void UpdateLocalBounds();
 
 	/** Array of sections of mesh */
-	TArray<MeshLodSection> ProcMeshSections;
+	TArray<MeshLodSection> MeshSectionLodArray;
 
 	/** Local space bounds of mesh */
 	UPROPERTY()

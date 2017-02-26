@@ -43,7 +43,7 @@ private:
     int voxel_num;
     float volume_size;
 	unsigned char* density_data;
-	unsigned char* material_data;
+	unsigned short* material_data;
 
 	volatile double last_change;
 	volatile double last_save;
@@ -73,7 +73,7 @@ public:
     float getDensity(int x, int y, int z) const;
 	unsigned char getRawDensity(int x, int y, int z) const;
 
-	void setMaterial(const int x, const int y, const int z, const int material);
+	void setMaterial(const int x, const int y, const int z, unsigned short material);
 	int getMaterial(int x, int y, int z) const;
 
     float size() const;
@@ -88,9 +88,9 @@ public:
 	FVector getUpper() const { return upper; };
 
 	VoxelPoint getVoxelPoint(int x, int y, int z) const;
-	void setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material);
+	void setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material);
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
-	void setVoxelPointMaterial(int x, int y, int z, unsigned char material);
+	void setVoxelPointMaterial(int x, int y, int z, unsigned short material);
 
 	void performSubstanceCacheNoLOD(int x, int y, int z);
 	void performSubstanceCacheLOD(int x, int y, int z);
@@ -135,7 +135,7 @@ public:
 
 typedef struct MeshMaterialSection {
 
-	short MaterialId;
+	unsigned short MaterialId;
 
 	FProcMeshSection MaterialMesh;
 
@@ -144,7 +144,7 @@ typedef struct MeshMaterialSection {
 } MeshMaterialSection;
 
 
-typedef TMap<short, MeshMaterialSection> TMaterialSectionMap;
+typedef TMap<unsigned short, MeshMaterialSection> TMaterialSectionMap;
 
 typedef struct MeshLodSection {
 	TMaterialSectionMap MaterialSectionMap;
