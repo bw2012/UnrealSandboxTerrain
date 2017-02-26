@@ -38,7 +38,7 @@ class TVoxelData {
 
 private:
 	TVoxelDataFillState density_state;
-	unsigned char base_fill_mat = 0;
+	unsigned short base_fill_mat = 0;
 
     int voxel_num;
     float volume_size;

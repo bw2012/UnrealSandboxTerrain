@@ -1054,7 +1054,7 @@ void sandboxSaveVoxelData(const TVoxelData &vd, FString &fullFileName) {
 		volume_state = 2;
 	}
 
-	unsigned char base_mat = vd.base_fill_mat;
+	unsigned short base_mat = vd.base_fill_mat;
 
 	binaryData << volume_state;
 	binaryData << base_mat;
@@ -1064,7 +1064,7 @@ void sandboxSaveVoxelData(const TVoxelData &vd, FString &fullFileName) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
 					TVoxelPoint vp = vd.getVoxelPoint(x, y, z);
-					unsigned char mat_id = vp.material;
+					unsigned short mat_id = vp.material;
 					binaryData << mat_id;
 				}
 			}
