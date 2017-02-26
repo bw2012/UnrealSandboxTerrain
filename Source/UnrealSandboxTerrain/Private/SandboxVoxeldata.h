@@ -99,7 +99,7 @@ public:
 	//VoxelDataFillState getMaterialFillState() const; 
 
 	void deinitializeDensity(TVoxelDataFillState density_state);
-	void deinitializeMaterial(unsigned char base_mat);
+	void deinitializeMaterial(unsigned short base_mat);
 
 	void setChanged() { last_change = FPlatformTime::Seconds(); }
 	bool isChanged() { return last_change > last_save; }

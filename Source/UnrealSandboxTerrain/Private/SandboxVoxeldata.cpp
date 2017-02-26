@@ -229,7 +229,7 @@
 		density_data = NULL;
 	}
 
-	FORCEINLINE void TVoxelData::deinitializeMaterial(unsigned char base_mat) {
+	FORCEINLINE void TVoxelData::deinitializeMaterial(unsigned short base_mat) {
 		base_fill_mat = base_mat;
 
 		if (material_data != NULL) {
@@ -384,7 +384,7 @@ private:
 		PointAddr adr;
 		FVector pos;
 		float density;
-		int material_id;
+		unsigned short material_id;
 	};
 
 	struct TmpPoint {
@@ -615,12 +615,12 @@ private:
 	}
 
 	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point& point1, Point& point2) {
-		static const int base_mat = 1; // dirt is base material
+		static const unsigned short base_mat = 1; // dirt is base material
 
 		FVector p1 = point1.pos;
 		FVector p2 = point2.pos;
-		const int mat1 = point1.material_id;
-		const int mat2 = point2.material_id;
+		const unsigned short mat1 = point1.material_id;
+		const unsigned short mat2 = point2.material_id;
 		
 		tp.mat_id = base_mat;
 
@@ -1097,7 +1097,7 @@ bool sandboxLoadVoxelData(TVoxelData &vd, FString &fullFileName) {
 	int32 num;
 	float size;
 	unsigned char volume_state;
-	unsigned char base_mat;
+	unsigned short base_mat;
 
 	binaryData << num;
 	binaryData << size;
@@ -1133,7 +1133,7 @@ bool sandboxLoadVoxelData(TVoxelData &vd, FString &fullFileName) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					unsigned char mat_id;
+					unsigned short mat_id;
 					binaryData << mat_id;
 					vd.setVoxelPointMaterial(x, y, z, mat_id);
 				}
