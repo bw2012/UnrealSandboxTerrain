@@ -20,7 +20,7 @@ void UTerrainZoneComponent::makeTerrain() {
 		return;
 	}
 
-	std::shared_ptr<MeshData> md_ptr = generateMesh();
+	std::shared_ptr<TMeshData> md_ptr = generateMesh();
 
 	if (IsInGameThread()) {
 		applyTerrainMesh(md_ptr);
@@ -33,16 +33,16 @@ void UTerrainZoneComponent::makeTerrain() {
 	}
 }
 
-std::shared_ptr<MeshData> UTerrainZoneComponent::generateMesh() {
+std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
 	double start = FPlatformTime::Seconds();
 
-	if (voxel_data->getDensityFillState() == VoxelDataFillState::ZERO || voxel_data->getDensityFillState() == VoxelDataFillState::ALL) {
+	if (voxel_data->getDensityFillState() == TVoxelDataFillState::ZERO || voxel_data->getDensityFillState() == TVoxelDataFillState::ALL) {
 		return NULL;
 	}
 
 	bool enableLOD = GetTerrainController()->bEnableLOD;
 
-	VoxelDataParam vdp;
+	TVoxelDataParam vdp;
 
 	if (enableLOD) {
 		vdp.bGenerateLOD = true;
@@ -52,7 +52,7 @@ std::shared_ptr<MeshData> UTerrainZoneComponent::generateMesh() {
 		vdp.collisionLOD = 0;
 	}
 
-	MeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
+	TMeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
@@ -62,10 +62,10 @@ std::shared_ptr<MeshData> UTerrainZoneComponent::generateMesh() {
 	return md_ptr;
 }
 
-void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_ptr) {
+void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr) {
 	double start = FPlatformTime::Seconds();
 
-	MeshData* mesh_data = mesh_data_ptr.get();
+	TMeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data == NULL) {
 		return;
@@ -86,12 +86,12 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	//##########################################
 	// mat section test
 	//##########################################
-	MeshLodSection& section0 = mesh_data->MeshSectionLodArray[0];
+	TMeshLodSection& section0 = mesh_data->MeshSectionLodArray[0];
 	TMaterialSectionMap matSectionMap = section0.MaterialSectionMap;
 
 	for (auto& Elem : matSectionMap) {
 		short matId = Elem.Key;
-		MeshMaterialSection matSection = Elem.Value;
+		TMeshMaterialSection matSection = Elem.Value;
 
 		UE_LOG(LogTemp, Warning, TEXT("material section -> %d - %d -> %d "), matId, matSection.MaterialId, matSection.MaterialMesh.ProcVertexBuffer.Num());
 
@@ -129,12 +129,12 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<MeshData> mesh_data
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 
 	if (voxel_data->isNewGenerated()) {
-		voxel_data->DataState = VoxelDataState::NORMAL;
+		voxel_data->DataState = TVoxelDataState::NORMAL;
 		GetTerrainController()->OnGenerateNewZone(this);
 	} 
 	
 	if (voxel_data->isNewLoaded()) {
-		voxel_data->DataState = VoxelDataState::NORMAL;
+		voxel_data->DataState = TVoxelDataState::NORMAL;
 		GetTerrainController()->OnLoadZone(this);
 	}
 }

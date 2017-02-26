@@ -38,17 +38,17 @@ public:
 
 	void makeTerrain();
 
-	VoxelData* getVoxelData() { 
+	TVoxelData* getVoxelData() { 
 		return voxel_data; 
 	};
 
-	void setVoxelData(VoxelData* vd) {
+	void setVoxelData(TVoxelData* vd) {
 		this->voxel_data = vd; 
 	};
 
-	void applyTerrainMesh(std::shared_ptr<MeshData> mesh_data_ptr);
+	void applyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr);
 
-	std::shared_ptr<MeshData> generateMesh();
+	std::shared_ptr<TMeshData> generateMesh();
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
@@ -59,5 +59,5 @@ public:
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
 private:
-	VoxelData* voxel_data;
+	TVoxelData* voxel_data;
 };

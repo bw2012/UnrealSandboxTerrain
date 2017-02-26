@@ -13,7 +13,7 @@
 #include "SandboxTerrainCollisionComponent.generated.h"
 
 
-struct MeshData;
+struct TMeshData;
 class USandboxTerrainCollisionComponent;
 
 UCLASS()
@@ -72,11 +72,11 @@ public:
 	//~ End UObject Interface.
 
 
-	void SetMeshData(MeshDataPtr mesh_data_ptr);
+	void SetMeshData(TMeshDataPtr mesh_data_ptr);
 
 private:
 
-	std::shared_ptr<MeshData> mesh_data_ptr;
+	std::shared_ptr<TMeshData> mesh_data_ptr;
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

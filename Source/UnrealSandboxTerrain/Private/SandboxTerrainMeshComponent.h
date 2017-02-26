@@ -21,7 +21,7 @@ class UNREALSANDBOXTERRAIN_API USandboxTerrainMeshComponent : public UMeshCompon
 
 public:
 
-	void SetMeshData(MeshDataPtr mdPtr);
+	void SetMeshData(TMeshDataPtr mdPtr);
 
 	void SetLodFlag(bool bLodFlag) {
 		this->bLodFlag = bLodFlag;
@@ -54,7 +54,7 @@ private:
 	void UpdateLocalBounds();
 
 	/** Array of sections of mesh */
-	TArray<MeshLodSection> MeshSectionLodArray;
+	TArray<TMeshLodSection> MeshSectionLodArray;
 
 	/** Local space bounds of mesh */
 	UPROPERTY()

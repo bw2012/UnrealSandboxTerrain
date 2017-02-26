@@ -504,11 +504,11 @@ int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
 }
 
 
-void USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr mdPtr) {
+void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
 	if (mdPtr) {
-		MeshData* meshData = mdPtr.get();
+		TMeshData* meshData = mdPtr.get();
 
 		auto lodIndex = 0;
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {

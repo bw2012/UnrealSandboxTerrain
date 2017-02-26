@@ -7,8 +7,8 @@
 #include <mutex>
 #include "SandboxTerrainController.generated.h"
 
-struct MeshData;
-class VoxelData;
+struct TMeshData;
+class TVoxelData;
 class FLoadInitialZonesThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
@@ -147,7 +147,7 @@ public:
 	template<class H>
 	void performTerrainChange(FVector v, float radius, float s, H handler);
 
-	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
+	virtual SandboxVoxelGenerator newTerrainGenerator(TVoxelData &voxel_data);
 
 private:
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
@@ -158,13 +158,13 @@ private:
 
 	UTerrainZoneComponent* addTerrainZone(FVector pos);
 
-	VoxelData* createZoneVoxeldata(FVector location);
+	TVoxelData* createZoneVoxeldata(FVector location);
 
-	void generateTerrain(VoxelData &voxel_data);
+	void generateTerrain(TVoxelData &voxel_data);
 
 	FLoadInitialZonesThread* initial_zone_loader;
 
-	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<MeshData> mesh_data_ptr);
+	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 
 	void invokeLazyZoneAsync(FVector index);
 
@@ -180,13 +180,13 @@ private:
 
 	std::mutex VoxelDataMapMutex;
 
-	TMap<FVector, VoxelData*> VoxelDataMap;
+	TMap<FVector, TVoxelData*> VoxelDataMap;
 
-	void RegisterTerrainVoxelData(VoxelData* vd, FVector index);
+	void RegisterTerrainVoxelData(TVoxelData* vd, FVector index);
 
-	VoxelData* GetTerrainVoxelDataByPos(FVector point);
+	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
 
-	VoxelData* GetTerrainVoxelDataByIndex(FVector index);
+	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
 
 	//===============================================================================
 	// foliage

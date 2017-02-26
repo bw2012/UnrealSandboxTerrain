@@ -74,7 +74,7 @@ float clcGroundLevelDelta(FVector v) {
 }
 
 
-SandboxVoxelGenerator::SandboxVoxelGenerator(VoxelData& vd, int32 Seed) {
+SandboxVoxelGenerator::SandboxVoxelGenerator(TVoxelData& vd, int32 Seed) {
 	int32 zone_seed = vectorHash(vd.getOrigin()) ^ (Seed * 32168710);
 
 	FRandomStream rnd = FRandomStream();
