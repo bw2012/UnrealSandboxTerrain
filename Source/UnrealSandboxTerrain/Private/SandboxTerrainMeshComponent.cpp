@@ -146,9 +146,16 @@ public:
 
 	FProcMeshProxySection mainMesh;
 
+	TArray<FProcMeshProxySection*> MaterialMeshPtrArray;
+
 	FProcMeshProxySection* transitionMesh[6];
 
 	~FMeshProxyLodSection() {
+
+		for (FProcMeshProxySection* MatSectionPtr : MaterialMeshPtrArray) {
+			delete MatSectionPtr;
+		}
+
 		for (auto i = 0; i < 6; i++) {
 			if (transitionMesh[i] != nullptr) {
 				delete transitionMesh[i];
@@ -221,10 +228,26 @@ public:
 
 			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
-
 				CopySection(SrcSection, &NewLodSection->mainMesh, Component);
 
+				// copy material mesh
+				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].MaterialSectionMap;
+				for (auto& Element : MaterialMap) {
+					unsigned short MatId = Element.Key;
+					TMeshMaterialSection& SrcMaterialSection = Element.Value;
+					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
+
+					UE_LOG(LogTemp, Warning, TEXT("test mat id-> %d"), SrcMaterialSection.MaterialId);
+
+					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
+
+					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
+
+					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
+				}
+
 				if (SectionIdx > 0) {
+					// copy transition section
 					FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[0];
 					for (auto i = 0; i < 6; i++) {
 						FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[i];
@@ -352,7 +375,14 @@ public:
 
 				if (Section != nullptr) {
 					FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
-					DrawSection(Section, Collector, MaterialProxy, bWireframe, ViewIndex);
+					//DrawSection(Section, Collector, MaterialProxy, bWireframe, ViewIndex);
+
+					for (FProcMeshProxySection* MatSection : LodSectionArray[LodIndex]->MaterialMeshPtrArray) {
+						if (MatSection != nullptr) {
+							DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+						}
+						break;
+					}
 					
 					if (LodIndex > 0) {
 						// draw transition patches
