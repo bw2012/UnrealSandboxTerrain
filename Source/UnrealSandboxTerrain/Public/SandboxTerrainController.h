@@ -110,6 +110,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UMaterialInterface* TerrainMaterial;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	TMap<uint16, UMaterialInterface*> TerrainMaterialMap;
+
 	//UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	EVoxelDimEnum ZoneGridDimension;
 

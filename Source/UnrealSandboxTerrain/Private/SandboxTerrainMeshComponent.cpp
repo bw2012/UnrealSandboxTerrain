@@ -3,6 +3,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainMeshComponent.h"
 
+#include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
 
 #include "Engine.h"
@@ -220,6 +221,10 @@ public:
 	}
 
 	FORCEINLINE void CopyAll(USandboxTerrainMeshComponent* Component) {
+		ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
+
+		if (TerrainController == nullptr) return;
+
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
 		LodSectionArray.AddZeroed(NumSections);
 
@@ -233,9 +238,18 @@ public:
 				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].MaterialSectionMap;
 				for (auto& Element : MaterialMap) {
 					unsigned short MatId = Element.Key;
+
+					if (!TerrainController->TerrainMaterialMap.Contains(MatId)) continue;
+
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
-					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
+
+
+					UMaterialInterface* Material = TerrainController->TerrainMaterialMap[MatId];
+					UE_LOG(LogTemp, Warning, TEXT("MatId -> %d - %s"), MatId, *Material->GetName());
+
+					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
+					NewMaterialProxySection->Material = Material;
 
 					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
 					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
@@ -287,9 +301,8 @@ public:
 			BeginInitResource(&NewSection->VertexFactory);
 
 			// Grab material
-			NewSection->Material = Component->GetMaterial(0);
-			if (NewSection->Material == NULL) {
-				NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			if (NewSection->Material == nullptr) {
+					NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
 
 			// Copy visibility info
