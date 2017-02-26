@@ -144,10 +144,10 @@ class FMeshProxyLodSection
 {
 public:
 
-	FProcMeshProxySection mainMesh;
-
+	/** Array of material sections */
 	TArray<FProcMeshProxySection*> MaterialMeshPtrArray;
 
+	/** Array of transition sections (todo: should be changed to mat sections)*/
 	FProcMeshProxySection* transitionMesh[6];
 
 	~FMeshProxyLodSection() {
@@ -228,7 +228,6 @@ public:
 
 			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
-				CopySection(SrcSection, &NewLodSection->mainMesh, Component);
 
 				// copy material mesh
 				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].MaterialSectionMap;
@@ -236,13 +235,9 @@ public:
 					unsigned short MatId = Element.Key;
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
-
-					UE_LOG(LogTemp, Warning, TEXT("test mat id-> %d"), SrcMaterialSection.MaterialId);
-
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
 					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
-
 					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
 				}
 
@@ -365,32 +360,31 @@ public:
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
 			if (VisibilityMap & (1 << ViewIndex)) {
 
+				// calculate lod index
 				const FSceneView* View = Views[ViewIndex];
-
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
 				const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
-
 				const int LodIndex = GetLodIndex(View);
-				const FProcMeshProxySection* Section = &LodSectionArray[LodIndex]->mainMesh;
 
-				if (Section != nullptr) {
-					FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : Section->Material->GetRenderProxy(IsSelected());
-					//DrawSection(Section, Collector, MaterialProxy, bWireframe, ViewIndex);
+				// draw section according lod index
+				FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
+				if (LodSectionProxy != nullptr) {
 
-					for (FProcMeshProxySection* MatSection : LodSectionArray[LodIndex]->MaterialMeshPtrArray) {
+					// draw each material section
+					for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
 						if (MatSection != nullptr) {
+							FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
 							DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 						}
-						break;
 					}
 					
 					if (LodIndex > 0) {
 						// draw transition patches
-
 						for (auto i = 0; i < 6; i++) {
 							const FProcMeshProxySection* TransitionSection = LodSectionArray[LodIndex]->transitionMesh[i];
 
 							if (TransitionSection != nullptr) {
+								FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : TransitionSection->Material->GetRenderProxy(IsSelected());
 								DrawSection(TransitionSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 							}
 						}
