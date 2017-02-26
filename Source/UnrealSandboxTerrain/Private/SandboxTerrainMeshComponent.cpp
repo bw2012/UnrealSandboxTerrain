@@ -132,6 +132,12 @@ public:
 		: Material(NULL)
 		, bSectionVisible(true)
 	{}
+
+	~FProcMeshProxySection() {
+		this->VertexBuffer.ReleaseResource();
+		this->IndexBuffer.ReleaseResource();
+		this->VertexFactory.ReleaseResource();
+	}
 };
 
 class FMeshProxyLodSection
@@ -145,10 +151,6 @@ public:
 	~FMeshProxyLodSection() {
 		for (auto i = 0; i < 6; i++) {
 			if (transitionMesh[i] != nullptr) {
-				transitionMesh[i]->VertexBuffer.ReleaseResource();
-				transitionMesh[i]->IndexBuffer.ReleaseResource();
-				transitionMesh[i]->VertexFactory.ReleaseResource();
-
 				delete transitionMesh[i];
 			}
 		}
@@ -205,10 +207,6 @@ public:
 	virtual ~FProceduralMeshSceneProxy() {
 		for (FMeshProxyLodSection* Section : LodSectionArray) {
 			if (Section != nullptr) {
-				Section->mainMesh.VertexBuffer.ReleaseResource();
-				Section->mainMesh.IndexBuffer.ReleaseResource();
-				Section->mainMesh.VertexFactory.ReleaseResource();
-
 				delete Section;
 			}
 		}
