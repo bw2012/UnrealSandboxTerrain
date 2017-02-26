@@ -42,6 +42,8 @@ public:
 
 	bool bLodFlag;
 
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+
 private:
 
 	//MeshDataPtr meshDataPtr;

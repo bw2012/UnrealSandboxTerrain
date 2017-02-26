@@ -246,7 +246,7 @@ public:
 
 
 					UMaterialInterface* Material = TerrainController->TerrainMaterialMap[MatId];
-					UE_LOG(LogTemp, Warning, TEXT("MatId -> %d - %s"), MatId, *Material->GetName());
+					//UE_LOG(LogTemp, Warning, TEXT("MatId -> %d - %s"), MatId, *Material->GetName());
 
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					NewMaterialProxySection->Material = Material;
@@ -538,8 +538,23 @@ int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
 	return MeshSectionLodArray.Num();
 }
 
+void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
+	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
+
+	if (TerrainController == nullptr) return;
+
+	for (auto& Element : TerrainController->TerrainMaterialMap) {
+		unsigned short MatId = Element.Key;
+		UMaterialInterface* Material = Element.Value;
+		OutMaterials.Add(Material);
+	}
+}
 
 void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
+
+
+
+
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
 	if (mdPtr) {
