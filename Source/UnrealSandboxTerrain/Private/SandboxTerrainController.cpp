@@ -225,6 +225,8 @@ FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
 }
 
 TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
+	double start = FPlatformTime::Seconds();
+
 	const int s = static_cast<int>(TerrainInitialArea);
 
 	TSet<FVector> InitialZoneSet;
@@ -262,6 +264,10 @@ TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
 
 		InitialZoneSet.Add(FVector(0, 0, 0));
 	}	
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+	UE_LOG(LogTemp, Warning, TEXT("initial zones was generated -> %f ms"), time);
 
 	return InitialZoneSet;
 }
