@@ -97,7 +97,9 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 
 		if (matId == 2) { // grass
 			for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
-				//DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
+				if (p.Color.A == 255) {
+					DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
+				}
 			}
 		}
 	}	

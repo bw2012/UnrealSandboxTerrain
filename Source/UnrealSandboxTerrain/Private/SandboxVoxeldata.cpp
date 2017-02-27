@@ -9,7 +9,8 @@
 #include <mutex>
 #include <set>
 
-#include <unordered_map>
+//#include <unordered_map>
+#include <map>
 
 
 //====================================================================================
@@ -408,7 +409,8 @@ private:
 
 		struct VertexInfo {
 			FVector normal;
-			TMap<unsigned short, int32> indexInMaterialSectionMap;
+
+			std::map<unsigned short, int32> indexInMaterialSectionMap;
 		};
 
 		TMap<FVector, VertexInfo> vertexInfoMap;
@@ -491,7 +493,10 @@ private:
 			TMeshMaterialSection& matSectionRef = materialSectionMapPtr->FindOrAdd(matId);
 			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
 
-			if (vertexInfo.indexInMaterialSectionMap.Contains(matId)) { 	// vertex exist in mat section
+			uint8 Alpha = (vertexInfo.indexInMaterialSectionMap.empty()) ? 0 : 255;
+
+			if (vertexInfo.indexInMaterialSectionMap.find(matId) != vertexInfo.indexInMaterialSectionMap.end()) {
+				// vertex exist in mat section
 				// just get vertex index and put to index buffer
 				int32 vertexIndex = vertexInfo.indexInMaterialSectionMap[matId];
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(vertexIndex);
@@ -502,13 +507,13 @@ private:
 				Vertex.Position = v;
 				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Color = FColor(0, 0, 0, 0);
+				Vertex.Color = FColor(0, 0, 0, Alpha);
 				Vertex.Tangent = FProcMeshTangent();
 
 				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
 				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
 
-				vertexInfo.indexInMaterialSectionMap.Add(matId, matSectionRef.vertexIndexCounter);
+				vertexInfo.indexInMaterialSectionMap[matId] = matSectionRef.vertexIndexCounter;
 				matSectionRef.vertexIndexCounter++;
 			}
 		}
@@ -742,15 +747,7 @@ private:
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
 			vertexList.push_back(tp);
 			materialIdSet.insert(tp.mat_id);
-
-			//UE_LOG(LogTemp, Warning, TEXT("mat_id -> %d"), tp.mat_id);
 		}
-
-		/*
-		if (materialIdSet.size() > 1) {
-			UE_LOG(LogTemp, Warning, TEXT("mat id set-> %d"), materialIdSet.size());
-		}
-		*/
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
 			TmpPoint tmp1 = vertexList[cd.vertexIndex[i]];

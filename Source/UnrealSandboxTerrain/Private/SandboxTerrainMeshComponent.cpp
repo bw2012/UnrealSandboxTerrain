@@ -241,6 +241,8 @@ public:
 
 					if (!TerrainController->TerrainMaterialMap.Contains(MatId)) continue;
 
+					if (MatId != 2) continue;
+
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
@@ -387,6 +389,7 @@ public:
 					for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
 						if (MatSection != nullptr) {
 							FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
+
 							DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 						}
 					}
