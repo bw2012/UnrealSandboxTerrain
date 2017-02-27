@@ -241,7 +241,7 @@ public:
 
 					if (!TerrainController->TerrainMaterialMap.Contains(MatId)) continue;
 
-					if (MatId != 2) continue;
+					//if (MatId != 2) continue;
 
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;

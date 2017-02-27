@@ -74,7 +74,7 @@ public:
 	unsigned char getRawDensity(int x, int y, int z) const;
 
 	void setMaterial(const int x, const int y, const int z, unsigned short material);
-	int getMaterial(int x, int y, int z) const;
+	unsigned short getMaterial(int x, int y, int z) const;
 
     float size() const;
     int num() const;

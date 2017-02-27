@@ -125,7 +125,7 @@
 		}
 	}
 
-	FORCEINLINE int TVoxelData::getMaterial(int x, int y, int z) const {
+	FORCEINLINE unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
 		if (material_data == NULL) {
 			return base_fill_mat;
 		}
@@ -588,7 +588,7 @@ private:
 		return voxel_data.getDensity(x, y, z);
 	}
 
-	FORCEINLINE int getMaterial(int x, int y, int z) {
+	FORCEINLINE unsigned short getMaterial(int x, int y, int z) {
 		return voxel_data.getMaterial(x, y, z);
 	}
 
@@ -627,17 +627,9 @@ private:
 		const unsigned short mat1 = point1.material_id;
 		const unsigned short mat2 = point2.material_id;
 		
-		tp.mat_id = base_mat;
-
-		if ((base_mat == mat1) && (base_mat == mat2)) {
-			tp.mat_weight = 0; // dirt
-			tp.mat_id = 1;
-			return;
-		}
-
 		if (mat1 == mat2) {
-			tp.mat_weight = 1; //grass
-			tp.mat_id = 2;
+			//tp.mat_weight = 1; //grass
+			tp.mat_id = mat1;
 			return;
 		}
 
@@ -655,16 +647,6 @@ private:
 			tp.mat_id = mat2;
 		} else {
 			tp.mat_id = mat1;
-		}
-
-		if (mat1 != base_mat) {
-			tp.mat_weight = s1 / s;
-			return;
-		}
-
-		if (mat2 != base_mat) {
-			tp.mat_weight = s2 / s;
-			return;
 		}
 	}
 
@@ -757,6 +739,7 @@ private:
 			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
 
 			for (unsigned short matId : materialIdSet) {
+				//UE_LOG(LogTemp, Warning, TEXT("add tri matId -> %d"), matId);
 				mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
 			}
 		}
