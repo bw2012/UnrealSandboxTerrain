@@ -225,6 +225,8 @@ public:
 
 		if (TerrainController == nullptr) return;
 
+		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
 		LodSectionArray.AddZeroed(NumSections);
 
@@ -241,14 +243,10 @@ public:
 
 					if (!TerrainController->TerrainMaterialMap.Contains(MatId)) continue;
 
-					//if (MatId != 2) continue;
-
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
-
 					UMaterialInterface* Material = TerrainController->TerrainMaterialMap[MatId];
-					//UE_LOG(LogTemp, Warning, TEXT("MatId -> %d - %s"), MatId, *Material->GetName());
 
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					NewMaterialProxySection->Material = Material;
@@ -256,6 +254,25 @@ public:
 					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
 					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
 				}
+
+				// copy material mesh
+				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].MaterialTransitionSectionMap;
+				for (auto& Element : MaterialTransitionMap) {
+					unsigned short MatId = Element.Key;
+
+					TMeshMaterialSection& SrcMaterialSection = Element.Value;
+					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
+
+					UMaterialInterface* Material = DefaultMaterial;
+
+					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
+					NewMaterialProxySection->Material = Material;
+
+					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
+					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
+				}
+				
+				UE_LOG(LogTemp, Warning, TEXT("NewLodSection->MaterialMeshPtrArray -> %d "), NewLodSection->MaterialMeshPtrArray.Num());
 
 				if (SectionIdx > 0) {
 					// copy transition section
@@ -554,10 +571,6 @@ void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>&
 }
 
 void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
-
-
-
-
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
 	if (mdPtr) {
@@ -567,6 +580,7 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
 			MeshSectionLodArray[lodIndex].mainMesh = sectionLOD.mainMesh;
 			MeshSectionLodArray[lodIndex].MaterialSectionMap = sectionLOD.MaterialSectionMap;
+			MeshSectionLodArray[lodIndex].MaterialTransitionSectionMap = sectionLOD.MaterialTransitionSectionMap;
 
 			if (bLodFlag) {
 				for (auto i = 0; i < 6; i++) {

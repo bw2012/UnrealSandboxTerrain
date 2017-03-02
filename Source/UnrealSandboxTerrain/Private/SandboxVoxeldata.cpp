@@ -539,7 +539,7 @@ private:
 			}
 
 			// get current mat section
-			TMeshMaterialTransitionSection& matSectionRef = materialTransitionSectionMapPtr->FindOrAdd(matId);
+			TMeshMaterialSection& matSectionRef = materialTransitionSectionMapPtr->FindOrAdd(matId);
 			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
 
 			if (vertexInfo.indexInMaterialTransitionSectionMap.find(matId) != vertexInfo.indexInMaterialTransitionSectionMap.end()) {

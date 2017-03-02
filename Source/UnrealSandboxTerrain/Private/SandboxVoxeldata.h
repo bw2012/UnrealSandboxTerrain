@@ -144,15 +144,9 @@ typedef struct TMeshMaterialSection {
 } TMeshMaterialSection;
 
 
-typedef struct TMeshMaterialTransitionSection {
-
-	unsigned short MaterialId = 0;
+typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
 	FString TransitionName;
-
-	FProcMeshSection MaterialMesh;
-
-	int32 vertexIndexCounter = 0;
 
 } TMeshMaterialTransitionSection;
 
