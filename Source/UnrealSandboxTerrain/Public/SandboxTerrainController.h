@@ -90,6 +90,8 @@ public:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	virtual void PostLoad() override;
+
 	//===============================================================================
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")

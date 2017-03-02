@@ -493,8 +493,6 @@ private:
 			TMeshMaterialSection& matSectionRef = materialSectionMapPtr->FindOrAdd(matId);
 			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
 
-			uint8 Alpha = (vertexInfo.indexInMaterialSectionMap.empty()) ? 0 : 255;
-
 			if (vertexInfo.indexInMaterialSectionMap.find(matId) != vertexInfo.indexInMaterialSectionMap.end()) {
 				// vertex exist in mat section
 				// just get vertex index and put to index buffer
@@ -507,7 +505,7 @@ private:
 				Vertex.Position = v;
 				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Color = FColor(0, 0, 0, Alpha);
+				Vertex.Color = FColor(0, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
 
 				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
@@ -740,7 +738,11 @@ private:
 
 			for (unsigned short matId : materialIdSet) {
 				//UE_LOG(LogTemp, Warning, TEXT("add tri matId -> %d"), matId);
-				mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+				if (materialIdSet.size() == 1) {
+					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+				} else {
+					mainMeshHandler->addTriangleMat(0, tmp1, tmp2, tmp3);
+				}
 			}
 		}
 	}

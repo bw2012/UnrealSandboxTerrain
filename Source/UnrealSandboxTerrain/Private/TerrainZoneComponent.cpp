@@ -95,11 +95,9 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 
 		UE_LOG(LogTemp, Warning, TEXT("material section -> %d - %d -> %d "), matId, matSection.MaterialId, matSection.MaterialMesh.ProcVertexBuffer.Num());
 
-		if (matId == 2) { // grass
+		if (matId == -1) { // test section
 			for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
-				if (p.Color.A == 255) {
-					DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
-				}
+				DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
 			}
 		}
 	}	

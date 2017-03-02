@@ -113,6 +113,17 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	bEnableLOD = false;
 }
 
+void ASandboxTerrainController::PostLoad() {
+	Super::PostLoad();
+
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> PostLoad"));
+
+#if WITH_EDITOR
+	//spawnInitialZone();
+#endif
+
+}
+
 void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
