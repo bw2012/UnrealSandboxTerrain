@@ -400,7 +400,11 @@ private:
 		FProcMeshSection* meshSection;
 		VoxelMeshExtractor* extractor;
 		TMaterialSectionMap* materialSectionMapPtr;
+		TMaterialTransitionSectionMap* materialTransitionSectionMapPtr;
 
+		// transition material
+		unsigned short transitionMaterialIndex = 0;
+		TMap<FString, unsigned short> transitionMaterialDict;
 
 		int ntriang = 0;
 		int vertex_index = 0;
@@ -411,13 +415,16 @@ private:
 			FVector normal;
 
 			std::map<unsigned short, int32> indexInMaterialSectionMap;
+			std::map<unsigned short, int32> indexInMaterialTransitionSectionMap;
 		};
 
 		TMap<FVector, VertexInfo> vertexInfoMap;
 
 	public:
-		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms) : extractor(e), meshSection(s), materialSectionMapPtr(ms) { }
+		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms, TMaterialTransitionSectionMap* mts) :
+			extractor(e), meshSection(s), materialSectionMapPtr(ms), materialTransitionSectionMapPtr(mts) { }
 
+	private:
 		FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
 			FVector v = point.v;
 
@@ -516,6 +523,66 @@ private:
 			}
 		}
 
+		FORCEINLINE void addVertexMatTransition(unsigned short matId, const TmpPoint &point, const FVector& n) {
+			const FVector& v = point.v;
+
+			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
+
+			if (vertexInfo.normal.IsZero()) {
+				vertexInfo.normal = n;
+			}
+			else {
+				FVector tmp(vertexInfo.normal);
+				tmp += n;
+				tmp /= 2;
+				vertexInfo.normal = tmp;
+			}
+
+			// get current mat section
+			TMeshMaterialTransitionSection& matSectionRef = materialTransitionSectionMapPtr->FindOrAdd(matId);
+			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
+
+			if (vertexInfo.indexInMaterialTransitionSectionMap.find(matId) != vertexInfo.indexInMaterialTransitionSectionMap.end()) {
+				// vertex exist in mat section
+				// just get vertex index and put to index buffer
+				int32 vertexIndex = vertexInfo.indexInMaterialTransitionSectionMap[matId];
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(vertexIndex);
+			}
+			else { // vertex not exist in mat section
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
+
+				FProcMeshVertex Vertex;
+				Vertex.Position = v;
+				Vertex.Normal = vertexInfo.normal;
+				Vertex.UV0 = FVector2D(0.f, 0.f);
+				Vertex.Color = FColor(0, 0, 0, 0);
+				Vertex.Tangent = FProcMeshTangent();
+
+				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
+				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
+
+				vertexInfo.indexInMaterialTransitionSectionMap[matId] = matSectionRef.vertexIndexCounter;
+				matSectionRef.vertexIndexCounter++;
+			}
+		}
+
+	public:
+		FORCEINLINE unsigned short getTransitionMaterialIndex(FString& transitionMaterialName) {
+			if (transitionMaterialDict.Contains(transitionMaterialName)) {
+				return transitionMaterialDict[transitionMaterialName];
+			}
+			else {
+				unsigned short idx = transitionMaterialIndex;
+				transitionMaterialDict.Add(transitionMaterialName, idx);
+				transitionMaterialIndex++;
+
+				TMeshMaterialTransitionSection& sectionRef = materialTransitionSectionMapPtr->FindOrAdd(idx);
+				sectionRef.TransitionName = transitionMaterialName;
+
+				return idx;
+			}
+		}
+
 		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
@@ -534,6 +601,14 @@ private:
 			addVertexMat(matId, tmp3, n);
 		}
 
+		FORCEINLINE void addTriangleMatTransition(unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			addVertexMatTransition(matId, tmp1, n);
+			addVertexMatTransition(matId, tmp2, n);
+			addVertexMatTransition(matId, tmp3, n);
+		}
+
 	};
 
 
@@ -542,10 +617,10 @@ private:
 
 public:
 	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.MaterialSectionMap);
+		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.MaterialSectionMap, &a.MaterialTransitionSectionMap);
 
 		for (auto i = 0; i < 6; i++) {
-			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr));
+			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
 		}
 	}
 
@@ -729,6 +804,22 @@ private:
 			materialIdSet.insert(tp.mat_id);
 		}
 
+		bool isTransitionMaterialSection = materialIdSet.size() > 1;
+		unsigned short transitionMatId = 0;
+
+		// if transition material
+		if (isTransitionMaterialSection) {
+			FString test = TEXT("");
+			FString separator = TEXT("");
+			for (unsigned short matId : materialIdSet) {
+				test = FString::Printf(TEXT("%s%s%d"), *test, *separator, matId);
+				separator = TEXT("-");
+			}
+
+			transitionMatId = mainMeshHandler->getTransitionMaterialIndex(test);
+			//UE_LOG(LogTemp, Warning, TEXT("transition material section -> %d -> %s"), transitionMatId, *test);
+		}
+
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
 			TmpPoint tmp1 = vertexList[cd.vertexIndex[i]];
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
@@ -736,14 +827,17 @@ private:
 
 			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
 
-			for (unsigned short matId : materialIdSet) {
-				//UE_LOG(LogTemp, Warning, TEXT("add tri matId -> %d"), matId);
-				if (materialIdSet.size() == 1) {
+			if (isTransitionMaterialSection) {
+				// add transition material section
+				mainMeshHandler->addTriangleMatTransition(transitionMatId, tmp1, tmp2, tmp3);
+			} else {
+				// always one iteration
+				for (unsigned short matId : materialIdSet) {
+					// add regular material section
 					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
-				} else {
-					mainMeshHandler->addTriangleMat(0, tmp1, tmp2, tmp3);
 				}
 			}
+
 		}
 	}
 

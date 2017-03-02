@@ -135,7 +135,7 @@ public:
 
 typedef struct TMeshMaterialSection {
 
-	unsigned short MaterialId;
+	unsigned short MaterialId = 0;
 
 	FProcMeshSection MaterialMesh;
 
@@ -144,10 +144,25 @@ typedef struct TMeshMaterialSection {
 } TMeshMaterialSection;
 
 
+typedef struct TMeshMaterialTransitionSection {
+
+	unsigned short MaterialId = 0;
+
+	FString TransitionName;
+
+	FProcMeshSection MaterialMesh;
+
+	int32 vertexIndexCounter = 0;
+
+} TMeshMaterialTransitionSection;
+
+
 typedef TMap<unsigned short, TMeshMaterialSection> TMaterialSectionMap;
+typedef TMap<unsigned short, TMeshMaterialTransitionSection> TMaterialTransitionSectionMap;
 
 typedef struct TMeshLodSection {
 	TMaterialSectionMap MaterialSectionMap;
+	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
 
 	FProcMeshSection mainMesh;
 	TArray<FProcMeshSection> transitionMeshArray;

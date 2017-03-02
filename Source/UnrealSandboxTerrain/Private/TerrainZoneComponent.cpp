@@ -57,7 +57,7 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 
 	return md_ptr;
 }
@@ -94,13 +94,19 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 		TMeshMaterialSection matSection = Elem.Value;
 
 		UE_LOG(LogTemp, Warning, TEXT("material section -> %d - %d -> %d "), matId, matSection.MaterialId, matSection.MaterialMesh.ProcVertexBuffer.Num());
-
-		if (matId == -1) { // test section
-			for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
-				DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
-			}
-		}
 	}	
+
+	TMaterialTransitionSectionMap& matTraSectionMap = section0.MaterialTransitionSectionMap;
+	for (auto& Elem : matTraSectionMap) {
+		short matId = Elem.Key;
+		TMeshMaterialTransitionSection matSection = Elem.Value;
+
+		UE_LOG(LogTemp, Warning, TEXT("material transition section -> %d - [%s] -> %d "), matId, *matSection.TransitionName, matSection.MaterialMesh.ProcVertexBuffer.Num());
+
+		for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
+			DrawDebugPoint(GetWorld(), p.Position, 5, FColor(0, 0, 255, 100), false, 1000000);
+		}
+	}
 	//##########################################
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
