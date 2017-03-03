@@ -104,7 +104,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 		UE_LOG(LogTemp, Warning, TEXT("material transition section -> %d - [%s] -> %d "), matId, *matSection.TransitionName, matSection.MaterialMesh.ProcVertexBuffer.Num());
 
 		for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
-			DrawDebugPoint(GetWorld(), p.Position, 3, FColor(0, 0, 255, 100), false, 1000000);
+			DrawDebugPoint(GetWorld(), p.Position, 3, FColor(255, 255, 255, 100), false, 1000000);
 		}
 	}
 	//##########################################

@@ -263,11 +263,11 @@ public:
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
-					UMaterialInterface* Material = DefaultMaterial;
+					UMaterialInterface* Material = (TerrainController->TransitionMaterial != nullptr) ? TerrainController->TransitionMaterial : DefaultMaterial;
 
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					NewMaterialProxySection->Material = Material;
-
+						
 					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
 					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
 				}

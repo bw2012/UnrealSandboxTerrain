@@ -9,6 +9,8 @@
 #include <mutex>
 #include <set>
 
+#include <iterator>
+
 //#include <unordered_map>
 #include <map>
 
@@ -390,8 +392,9 @@ private:
 
 	struct TmpPoint {
 		FVector v;
-		unsigned short mat_id;
-		float mat_weight = 0;
+		unsigned short matId;
+		int matNumber = 0;
+		float matWeight = 0;
 	};
 
 	class MeshHandler {
@@ -430,7 +433,7 @@ private:
 
 			meshSection->ProcIndexBuffer.Add(index);
 
-			int t = point.mat_weight * 255;
+			int t = point.matWeight * 255;
 
 			FProcMeshVertex Vertex;
 			Vertex.Position = v;
@@ -464,7 +467,7 @@ private:
 			} else {
 				meshSection->ProcIndexBuffer.Add(index);
 
-				int t = point.mat_weight * 255;
+				int t = point.matWeight * 255;
 
 				FProcMeshVertex Vertex;
 				Vertex.Position = v;
@@ -555,8 +558,26 @@ private:
 				Vertex.Position = v;
 				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Color = FColor(0, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
+
+				switch (point.matNumber) {
+					case 0:  Vertex.Color = FColor(255,	0,		0,		0); break;
+					case 1:  Vertex.Color = FColor(0,	255,	0,		0); break;
+					case 2:  Vertex.Color = FColor(0,	0,		255,	0); break;
+					default: Vertex.Color = FColor(0,	0,		0,		0); break;
+				}
+
+				if (point.matId == 1) {
+					Vertex.Color = FColor(255, 0, 0, 0); //dirt
+				}
+
+				if (point.matId == 2) {
+					Vertex.Color = FColor(0, 255, 0, 0); //grass
+				}
+
+				if (point.matId == 3) {
+					Vertex.Color = FColor(0, 0, 255, 0); //sand
+				}
 
 				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
 				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
@@ -702,7 +723,7 @@ private:
 		
 		if (mat1 == mat2) {
 			//tp.mat_weight = 1; //grass
-			tp.mat_id = mat1;
+			tp.matId = mat1;
 			return;
 		}
 
@@ -717,9 +738,9 @@ private:
 		float s2 = p2.Size();
 
 		if (s1 > s2) {
-			tp.mat_id = mat2;
+			tp.matId = mat2;
 		} else {
-			tp.mat_id = mat1;
+			tp.matId = mat1;
 		}
 	}
 
@@ -733,12 +754,12 @@ private:
 		tmp.y = point1.adr.y + mu * (point2.adr.y - point1.adr.y);
 		tmp.z = point1.adr.z + mu * (point2.adr.z - point1.adr.z);
 
-		tp.mat_id = getMaterial(tmp.x, tmp.y, tmp.z);
+		tp.matId = getMaterial(tmp.x, tmp.y, tmp.z);
 
-		if (base_mat == tp.mat_id) {
-			tp.mat_weight = 0;
+		if (base_mat == tp.matId) {
+			tp.matWeight = 0;
 		} else {
-			tp.mat_weight = 1;
+			tp.matWeight = 1;
 		}
 	}
 
@@ -800,8 +821,10 @@ private:
 			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
 			const unsigned short v1 = edgeCode & 0x0F;
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
+
 			vertexList.push_back(tp);
-			materialIdSet.insert(tp.mat_id);
+			std::pair<std::set<unsigned short>::iterator, bool> ret = materialIdSet.insert(tp.matId);
+			tp.matNumber = std::distance(materialIdSet.begin(), ret.first);
 		}
 
 		bool isTransitionMaterialSection = materialIdSet.size() > 1;
@@ -829,6 +852,8 @@ private:
 
 			if (isTransitionMaterialSection) {
 				// add transition material section
+				//UE_LOG(LogTemp, Warning, TEXT("test1 -> %d "), tmp1);
+
 				mainMeshHandler->addTriangleMatTransition(transitionMatId, tmp1, tmp2, tmp3);
 			} else {
 				// always one iteration
@@ -1140,8 +1165,8 @@ void sandboxSaveVoxelData(const TVoxelData &vd, FString &fullFileName) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
 					TVoxelPoint vp = vd.getVoxelPoint(x, y, z);
-					unsigned short mat_id = vp.material;
-					binaryData << mat_id;
+					unsigned short matId = vp.material;
+					binaryData << matId;
 				}
 			}
 		}
@@ -1209,9 +1234,9 @@ bool sandboxLoadVoxelData(TVoxelData &vd, FString &fullFileName) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					unsigned short mat_id;
-					binaryData << mat_id;
-					vd.setVoxelPointMaterial(x, y, z, mat_id);
+					unsigned short matId;
+					binaryData << matId;
+					vd.setVoxelPointMaterial(x, y, z, matId);
 				}
 			}
 		}

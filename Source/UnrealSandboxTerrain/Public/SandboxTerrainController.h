@@ -112,6 +112,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UMaterialInterface* TerrainMaterial;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	UMaterialInterface* RegularMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	UMaterialInterface* TransitionMaterial;
+
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	TMap<uint16, UMaterialInterface*> TerrainMaterialMap;
 
