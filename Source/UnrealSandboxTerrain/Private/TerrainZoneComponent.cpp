@@ -122,7 +122,6 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
-	MainTerrainMesh->SetMaterial(0, GetTerrainController()->TerrainMaterial);
 	MainTerrainMesh->SetVisibility(true);
 
 	CollisionMesh->SetMeshData(mesh_data_ptr);

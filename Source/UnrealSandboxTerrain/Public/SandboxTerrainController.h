@@ -127,14 +127,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FString MapName;
 
-	// to be deleted
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	UMaterialInterface* TerrainMaterial;
-
-	// to be deleted
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	TMap<uint16, UMaterialInterface*> TerrainMaterialMap;
-
 	//========================================================================================
 	// materials
 	//========================================================================================

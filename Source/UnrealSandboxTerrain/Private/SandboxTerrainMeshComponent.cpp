@@ -241,13 +241,11 @@ public:
 				for (auto& Element : MaterialMap) {
 					unsigned short MatId = Element.Key;
 
-					if (!TerrainController->TerrainMaterialMap.Contains(MatId)) continue;
-
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
-					//UMaterialInterface* Material = TerrainController->TerrainMaterialMap[MatId];
 					UMaterialInterface* Material = TerrainController->GetRegularTerrainMaterial(MatId);
+					if (Material == nullptr) { Material = DefaultMaterial; }
 
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					NewMaterialProxySection->Material = Material;
@@ -562,12 +560,6 @@ int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
 void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
 	if (TerrainController == nullptr) return;
-
-	for (auto& Element : TerrainController->TerrainMaterialMap) {
-		unsigned short MatId = Element.Key;
-		UMaterialInterface* Material = Element.Value;
-		OutMaterials.Add(Material);
-	}
 
 	OutMaterials.Append(LocalMaterials);
 }
