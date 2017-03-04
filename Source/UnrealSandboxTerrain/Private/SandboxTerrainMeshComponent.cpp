@@ -246,7 +246,8 @@ public:
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
-					UMaterialInterface* Material = TerrainController->TerrainMaterialMap[MatId];
+					//UMaterialInterface* Material = TerrainController->TerrainMaterialMap[MatId];
+					UMaterialInterface* Material = TerrainController->GetRegularTerrainMaterial(MatId);
 
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					NewMaterialProxySection->Material = Material;
@@ -560,7 +561,6 @@ int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
 
 void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
-
 	if (TerrainController == nullptr) return;
 
 	for (auto& Element : TerrainController->TerrainMaterialMap) {
@@ -568,9 +568,16 @@ void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>&
 		UMaterialInterface* Material = Element.Value;
 		OutMaterials.Add(Material);
 	}
+
+	OutMaterials.Append(LocalMaterials);
 }
 
 void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
+	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
+	if (TerrainController == nullptr) return;
+
+	LocalMaterials.Empty();
+	//LocalMaterials.Reserve(10);
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
 	if (mdPtr) {
@@ -581,6 +588,10 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 			MeshSectionLodArray[lodIndex].mainMesh = sectionLOD.mainMesh;
 			MeshSectionLodArray[lodIndex].MaterialSectionMap = sectionLOD.MaterialSectionMap;
 			MeshSectionLodArray[lodIndex].MaterialTransitionSectionMap = sectionLOD.MaterialTransitionSectionMap;
+
+			for (auto& Element : sectionLOD.MaterialSectionMap) {
+				LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
+			}
 
 			if (bLodFlag) {
 				for (auto i = 0; i < 6; i++) {

@@ -62,6 +62,7 @@ private:
 	UPROPERTY()
 	FBoxSphereBounds LocalBounds;
 
+	TArray<UMaterialInterface*> LocalMaterials;
 
 	friend class FProceduralMeshSceneProxy;
 

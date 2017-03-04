@@ -897,3 +897,32 @@ void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
 	Zone->LoadInstancedMeshesFromFile();
 }
 
+//======================================================================================================================================================================
+// Materials
+//======================================================================================================================================================================
+
+UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 MaterialId) {
+	if (RegularMaterial == nullptr) {
+		return nullptr;
+	}
+
+	if (!RegularMaterialCache.Contains(MaterialId)) {
+		UE_LOG(LogTemp, Warning, TEXT("create new regular terrain material instance ----> id: %d"), MaterialId);
+
+		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(RegularMaterial, this);
+
+		if (MaterialMap.Contains(MaterialId)) {
+			FSandboxTerrainMaterial Mat = MaterialMap[MaterialId];
+
+			DynMaterial->SetTextureParameterValue("TextureTopMicro", Mat.TextureTopMicro);
+			DynMaterial->SetTextureParameterValue("TextureSideMicro", Mat.TextureSideMicro);
+			DynMaterial->SetTextureParameterValue("TextureMacro", Mat.TextureMacro);
+			DynMaterial->SetTextureParameterValue("TextureNormal", Mat.TextureNormal);
+		}
+
+		RegularMaterialCache.Add(MaterialId, DynMaterial);
+		return DynMaterial;
+	}
+
+	return RegularMaterialCache[MaterialId];
+}
