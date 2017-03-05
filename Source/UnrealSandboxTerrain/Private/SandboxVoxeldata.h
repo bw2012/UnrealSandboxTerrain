@@ -7,6 +7,7 @@
 #include <list>
 #include <array>
 #include <memory>
+#include <set>
 
 #define LOD_ARRAY_SIZE 7
 
@@ -147,6 +148,8 @@ typedef struct TMeshMaterialSection {
 typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
 	FString TransitionName;
+
+	std::set<unsigned short> MaterialIdSet;
 
 } TMeshMaterialTransitionSection;
 

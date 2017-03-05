@@ -5,6 +5,7 @@
 #include <memory>
 #include <queue>
 #include <mutex>
+#include <set>
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
@@ -183,7 +184,7 @@ public:
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
-	//UMaterialInterface* GetTransitionTerrainMaterial(TArray MaterialIdArray);
+	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
 private:
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;

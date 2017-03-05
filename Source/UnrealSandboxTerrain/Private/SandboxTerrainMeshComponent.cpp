@@ -262,7 +262,10 @@ public:
 					TMeshMaterialSection& SrcMaterialSection = Element.Value;
 					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
-					UMaterialInterface* Material = (TerrainController->TransitionMaterial != nullptr) ? TerrainController->TransitionMaterial : DefaultMaterial;
+					UMaterialInterface* Material = TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet);
+					if (Material == nullptr) { Material = DefaultMaterial; }
+
+					//UMaterialInterface* Material = (TerrainController->TransitionMaterial != nullptr) ? TerrainController->TransitionMaterial : DefaultMaterial;
 
 					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
 					NewMaterialProxySection->Material = Material;
@@ -583,6 +586,10 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 
 			for (auto& Element : sectionLOD.MaterialSectionMap) {
 				LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
+			}
+
+			for (auto& Element : sectionLOD.MaterialTransitionSectionMap) {
+				LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet));
 			}
 
 			if (bLodFlag) {

@@ -7,7 +7,6 @@
 #include <cmath>
 #include <vector>
 #include <mutex>
-#include <set>
 
 #include <iterator>
 
@@ -526,7 +525,7 @@ private:
 			}
 		}
 
-		FORCEINLINE void addVertexMatTransition(unsigned short matId, const TmpPoint &point, const FVector& n) {
+		FORCEINLINE void addVertexMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, const TmpPoint &point, const FVector& n) {
 			const FVector& v = point.v;
 
 			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
@@ -560,23 +559,22 @@ private:
 				Vertex.UV0 = FVector2D(0.f, 0.f);
 				Vertex.Tangent = FProcMeshTangent();
 
-				switch (point.matNumber) {
+				int i = 0;
+				int test = -1;
+				for (unsigned short m : materialIdSet) {
+					if (m == point.matId) {
+						test = i;
+					}
+
+					i++;
+				}
+
+
+				switch (test) {
 					case 0:  Vertex.Color = FColor(255,	0,		0,		0); break;
 					case 1:  Vertex.Color = FColor(0,	255,	0,		0); break;
 					case 2:  Vertex.Color = FColor(0,	0,		255,	0); break;
 					default: Vertex.Color = FColor(0,	0,		0,		0); break;
-				}
-
-				if (point.matId == 1) {
-					Vertex.Color = FColor(255, 0, 0, 0); //dirt
-				}
-
-				if (point.matId == 2) {
-					Vertex.Color = FColor(0, 255, 0, 0); //grass
-				}
-
-				if (point.matId == 3) {
-					Vertex.Color = FColor(0, 0, 255, 0); //sand
 				}
 
 				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
@@ -588,17 +586,24 @@ private:
 		}
 
 	public:
-		FORCEINLINE unsigned short getTransitionMaterialIndex(FString& transitionMaterialName) {
+		FORCEINLINE unsigned short getTransitionMaterialIndex(std::set<unsigned short>& materialIdSet) {
+			FString transitionMaterialName = TEXT("");
+			FString separator = TEXT("");
+			for (unsigned short matId : materialIdSet) {
+				transitionMaterialName = FString::Printf(TEXT("%s%s%d"), *transitionMaterialName, *separator, matId);
+				separator = TEXT("-");
+			}
+
 			if (transitionMaterialDict.Contains(transitionMaterialName)) {
 				return transitionMaterialDict[transitionMaterialName];
-			}
-			else {
+			} else {
 				unsigned short idx = transitionMaterialIndex;
 				transitionMaterialDict.Add(transitionMaterialName, idx);
 				transitionMaterialIndex++;
 
 				TMeshMaterialTransitionSection& sectionRef = materialTransitionSectionMapPtr->FindOrAdd(idx);
 				sectionRef.TransitionName = transitionMaterialName;
+				sectionRef.MaterialIdSet = materialIdSet;
 
 				return idx;
 			}
@@ -622,12 +627,12 @@ private:
 			addVertexMat(matId, tmp3, n);
 		}
 
-		FORCEINLINE void addTriangleMatTransition(unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+		FORCEINLINE void addTriangleMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
-			addVertexMatTransition(matId, tmp1, n);
-			addVertexMatTransition(matId, tmp2, n);
-			addVertexMatTransition(matId, tmp3, n);
+			addVertexMatTransition(materialIdSet, matId, tmp1, n);
+			addVertexMatTransition(materialIdSet, matId, tmp2, n);
+			addVertexMatTransition(materialIdSet, matId, tmp3, n);
 		}
 
 	};
@@ -824,7 +829,10 @@ private:
 
 			vertexList.push_back(tp);
 			std::pair<std::set<unsigned short>::iterator, bool> ret = materialIdSet.insert(tp.matId);
-			tp.matNumber = std::distance(materialIdSet.begin(), ret.first);
+
+			//tp.matNumber = *std::next(materialIdSet.begin(), tp.matId);
+			//UE_LOG(LogTemp, Warning, TEXT("test -> %d"), tp.matNumber);
+			//tp.matNumber = std::distance(materialIdSet.begin(), ret.first);
 		}
 
 		bool isTransitionMaterialSection = materialIdSet.size() > 1;
@@ -839,7 +847,7 @@ private:
 				separator = TEXT("-");
 			}
 
-			transitionMatId = mainMeshHandler->getTransitionMaterialIndex(test);
+			transitionMatId = mainMeshHandler->getTransitionMaterialIndex(materialIdSet);
 			//UE_LOG(LogTemp, Warning, TEXT("transition material section -> %d -> %s"), transitionMatId, *test);
 		}
 
@@ -854,7 +862,7 @@ private:
 				// add transition material section
 				//UE_LOG(LogTemp, Warning, TEXT("test1 -> %d "), tmp1);
 
-				mainMeshHandler->addTriangleMatTransition(transitionMatId, tmp1, tmp2, tmp3);
+				mainMeshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
 			} else {
 				// always one iteration
 				for (unsigned short matId : materialIdSet) {

@@ -104,7 +104,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 		UE_LOG(LogTemp, Warning, TEXT("material transition section -> %d - [%s] -> %d "), matId, *matSection.TransitionName, matSection.MaterialMesh.ProcVertexBuffer.Num());
 
 		for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
-			DrawDebugPoint(GetWorld(), p.Position, 3, FColor(255, 255, 255, 100), false, 1000000);
+			//DrawDebugPoint(GetWorld(), p.Position, 3, FColor(255, 255, 255, 100), false, 1000000);
 		}
 	}
 	//##########################################
@@ -301,7 +301,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshTy
 	}
 
 	if (InstancedStaticMeshComponent == nullptr) {
-		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh -%d -> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
+		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - %d -> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
 		InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
 

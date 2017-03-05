@@ -926,3 +926,39 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 
 	return RegularMaterialCache[MaterialId];
 }
+
+UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet) {
+	if (TransitionMaterial == nullptr) {
+		return nullptr;
+	}
+
+	if (!TransitionMaterialCache.Contains(TransitionName)) {
+		UE_LOG(LogTemp, Warning, TEXT("create new transition terrain material instance ----> id: %s"), *TransitionName);
+
+		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(TransitionMaterial, this);
+
+		int Idx = 0;
+		for (unsigned short MatId : MaterialIdSet) {
+			if (MaterialMap.Contains(MatId)) {
+				FSandboxTerrainMaterial Mat = MaterialMap[MatId];
+
+				FName TextureTopMicroParam = FName(*FString::Printf(TEXT("TextureTopMicro%d"), Idx));
+				FName TextureSideMicroParam = FName(*FString::Printf(TEXT("TextureSideMicro%d"), Idx));
+				FName TextureMacroParam = FName(*FString::Printf(TEXT("TextureMacro%d"), Idx));
+				FName TextureNormalParam = FName(*FString::Printf(TEXT("TextureNormal%d"), Idx));
+
+				DynMaterial->SetTextureParameterValue(TextureTopMicroParam, Mat.TextureTopMicro);
+				DynMaterial->SetTextureParameterValue(TextureSideMicroParam, Mat.TextureSideMicro);
+				DynMaterial->SetTextureParameterValue(TextureMacroParam, Mat.TextureMacro);
+				DynMaterial->SetTextureParameterValue(TextureNormalParam, Mat.TextureNormal);
+			}
+
+			Idx++;
+		}
+
+		TransitionMaterialCache.Add(TransitionName, DynMaterial);
+		return DynMaterial;
+	}
+
+	return TransitionMaterialCache[TransitionName];
+}
