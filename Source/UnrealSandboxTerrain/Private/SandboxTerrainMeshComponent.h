@@ -21,7 +21,7 @@ class UNREALSANDBOXTERRAIN_API USandboxTerrainMeshComponent : public UMeshCompon
 
 public:
 
-	void SetMeshData(MeshDataPtr mdPtr);
+	void SetMeshData(TMeshDataPtr mdPtr);
 
 	void SetLodFlag(bool bLodFlag) {
 		this->bLodFlag = bLodFlag;
@@ -42,6 +42,8 @@ public:
 
 	bool bLodFlag;
 
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+
 private:
 
 	//MeshDataPtr meshDataPtr;
@@ -54,12 +56,13 @@ private:
 	void UpdateLocalBounds();
 
 	/** Array of sections of mesh */
-	TArray<MeshLodSection> ProcMeshSections;
+	TArray<TMeshLodSection> MeshSectionLodArray;
 
 	/** Local space bounds of mesh */
 	UPROPERTY()
 	FBoxSphereBounds LocalBounds;
 
+	TArray<UMaterialInterface*> LocalMaterials;
 
 	friend class FProceduralMeshSceneProxy;
 

@@ -34,7 +34,7 @@ bool USandboxTerrainCollisionComponent::GetPhysicsTriMeshData(struct FTriMeshCol
 
 	if (!this->mesh_data_ptr) return false;
 
-	MeshData* mesh_data = mesh_data_ptr.get();
+	TMeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data->CollisionMeshPtr == NULL) return false;
 
@@ -129,7 +129,7 @@ void USandboxTerrainCollisionComponent::UpdateLocalBounds() {
 		return;
 	}
 
-	MeshData* mesh_data = mesh_data_ptr.get();
+	TMeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data->CollisionMeshPtr == NULL) {
 		return;
@@ -163,7 +163,7 @@ bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAll
 		return false;
 	}
 
-	MeshData* mesh_data = mesh_data_ptr.get();
+	TMeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data->CollisionMeshPtr == NULL) {
 		return false;
@@ -226,7 +226,7 @@ UBodySetup* USandboxTerrainCollisionComponent::GetBodySetup() {
 	return ProcMeshBodySetup;
 }
 
-void USandboxTerrainCollisionComponent::SetMeshData(MeshDataPtr md_ptr) {
+void USandboxTerrainCollisionComponent::SetMeshData(TMeshDataPtr md_ptr) {
 	this->mesh_data_ptr = md_ptr;
 
 	UpdateLocalBounds();

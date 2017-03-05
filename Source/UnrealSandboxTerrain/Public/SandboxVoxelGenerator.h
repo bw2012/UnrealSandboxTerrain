@@ -2,12 +2,12 @@
 
 #include "EngineMinimal.h"
 
-class VoxelData;
+class TVoxelData;
 
 class SandboxVoxelGenerator {
 
 public:
-	SandboxVoxelGenerator(VoxelData& vd, int32 Seed);
+	SandboxVoxelGenerator(TVoxelData& vd, int32 Seed);
 
 	~SandboxVoxelGenerator();
 

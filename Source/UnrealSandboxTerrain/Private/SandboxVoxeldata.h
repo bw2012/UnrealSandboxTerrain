@@ -7,43 +7,44 @@
 #include <list>
 #include <array>
 #include <memory>
+#include <set>
 
 #define LOD_ARRAY_SIZE 7
 
-typedef struct VoxelPoint {
+typedef struct TVoxelPoint {
 	unsigned char density;
-	unsigned char material;
-} VoxelPoint;
+	unsigned short material;
+} TVoxelPoint;
 
 
-typedef struct VoxelCell {
-	VoxelPoint point[8];
-} VoxelCell;
+typedef struct TVoxelCell {
+	TVoxelPoint point[8];
+} TVoxelCell;
 
 
-enum VoxelDataFillState{
+enum TVoxelDataFillState{
 	ZERO, ALL, MIX
 };
 
-typedef struct SubstanceCache {
+typedef struct TSubstanceCache {
 	std::list<int> cellList;
-} SubstanceCache;
+} TSubstanceCache;
 
-enum VoxelDataState {
+enum TVoxelDataState {
 	UNDEFINED, NEW_GENERATED, NEW_LOADED, NORMAL
 };
 
 
-class VoxelData {
+class TVoxelData {
 
 private:
-	VoxelDataFillState density_state;
-	unsigned char base_fill_mat = 0;
+	TVoxelDataFillState density_state;
+	unsigned short base_fill_mat = 0;
 
     int voxel_num;
     float volume_size;
 	unsigned char* density_data;
-	unsigned char* material_data;
+	unsigned short* material_data;
 
 	volatile double last_change;
 	volatile double last_save;
@@ -60,10 +61,10 @@ private:
 	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
 
 public: 
-	std::array<SubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
+	std::array<TSubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
-    VoxelData(int, float);
-    ~VoxelData();
+    TVoxelData(int, float);
+    ~TVoxelData();
 
 	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
 		return x * voxel_num * voxel_num + y * voxel_num + z;
@@ -73,8 +74,8 @@ public:
     float getDensity(int x, int y, int z) const;
 	unsigned char getRawDensity(int x, int y, int z) const;
 
-	void setMaterial(const int x, const int y, const int z, const int material);
-	int getMaterial(int x, int y, int z) const;
+	void setMaterial(const int x, const int y, const int z, unsigned short material);
+	unsigned short getMaterial(int x, int y, int z) const;
 
     float size() const;
     int num() const;
@@ -87,19 +88,19 @@ public:
 	FVector getLower() const { return lower; };
 	FVector getUpper() const { return upper; };
 
-	VoxelPoint getVoxelPoint(int x, int y, int z) const;
-	void setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material);
+	TVoxelPoint getVoxelPoint(int x, int y, int z) const;
+	void setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material);
 	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
-	void setVoxelPointMaterial(int x, int y, int z, unsigned char material);
+	void setVoxelPointMaterial(int x, int y, int z, unsigned short material);
 
 	void performSubstanceCacheNoLOD(int x, int y, int z);
 	void performSubstanceCacheLOD(int x, int y, int z);
 
-	VoxelDataFillState getDensityFillState() const; 
+	TVoxelDataFillState getDensityFillState() const; 
 	//VoxelDataFillState getMaterialFillState() const; 
 
-	void deinitializeDensity(VoxelDataFillState density_state);
-	void deinitializeMaterial(unsigned char base_mat);
+	void deinitializeDensity(TVoxelDataFillState density_state);
+	void deinitializeMaterial(unsigned short base_mat);
 
 	void setChanged() { last_change = FPlatformTime::Seconds(); }
 	bool isChanged() { return last_change > last_save; }
@@ -111,61 +112,83 @@ public:
 	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
 
 	void clearSubstanceCache() { 
-		for (SubstanceCache& lodCache : substanceCacheLOD) {
+		for (TSubstanceCache& lodCache : substanceCacheLOD) {
 			lodCache.cellList.clear();
 		}
 
 		last_cache_check = -1;
 	};
 
-	VoxelDataState DataState = VoxelDataState::UNDEFINED;
+	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
 
 	// mesh is generated
 	bool isNewGenerated() {
-		return DataState == VoxelDataState::NEW_GENERATED;
+		return DataState == TVoxelDataState::NEW_GENERATED;
 	}
 
 	bool isNewLoaded() {
-		return DataState == VoxelDataState::NEW_LOADED;
+		return DataState == TVoxelDataState::NEW_LOADED;
 	}
 
-	friend void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
-	friend bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
+	friend void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
+	friend bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
 };
 
-typedef struct MeshLodSection {
+typedef struct TMeshMaterialSection {
+
+	unsigned short MaterialId = 0;
+
+	FProcMeshSection MaterialMesh;
+
+	int32 vertexIndexCounter = 0;
+
+} TMeshMaterialSection;
+
+
+typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
+
+	FString TransitionName;
+
+	std::set<unsigned short> MaterialIdSet;
+
+} TMeshMaterialTransitionSection;
+
+
+typedef TMap<unsigned short, TMeshMaterialSection> TMaterialSectionMap;
+typedef TMap<unsigned short, TMeshMaterialTransitionSection> TMaterialTransitionSectionMap;
+
+typedef struct TMeshLodSection {
+	TMaterialSectionMap MaterialSectionMap;
+	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
 
 	FProcMeshSection mainMesh;
-
 	TArray<FProcMeshSection> transitionMeshArray;
-
 	TArray<FVector> DebugPointList;
 
-	MeshLodSection() {
+	TMeshLodSection() {
 		transitionMeshArray.SetNum(6); 
 	}
+} TMeshLodSection;
 
-} MeshLodSection;
 
-
-typedef struct MeshData {
-	MeshData() {
+typedef struct TMeshData {
+	TMeshData() {
 		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
 	}
 
-	TArray<MeshLodSection> MeshSectionLodArray;
+	TArray<TMeshLodSection> MeshSectionLodArray;
 	FProcMeshSection* CollisionMeshPtr;
 
-	~MeshData() {
+	~TMeshData() {
 		// for memory leaks checking
 		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
-} MeshData;
+} TMeshData;
 
-typedef std::shared_ptr<MeshData> MeshDataPtr;
+typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
-typedef struct VoxelDataParam {
+typedef struct TVoxelDataParam {
 	bool bGenerateLOD = false;
 
 	int collisionLOD = 0;
@@ -178,12 +201,12 @@ typedef struct VoxelDataParam {
 		return 1 << lod;
 	}
 
-} VoxelDataParam;
+} TVoxelDataParam;
 
-std::shared_ptr<MeshData> sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp);
+std::shared_ptr<TMeshData> sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp);
 
-void sandboxSaveVoxelData(const VoxelData &vd, FString &fileName);
-bool sandboxLoadVoxelData(VoxelData &vd, FString &fileName);
+void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
+bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range);
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec);

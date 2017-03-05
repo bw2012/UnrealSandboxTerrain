@@ -1,14 +1,15 @@
 #pragma once
 
-#include "EngineMinimal.h"
+#include "Engine.h"
 #include "SandboxVoxelGenerator.h"
 #include <memory>
 #include <queue>
 #include <mutex>
+#include <set>
 #include "SandboxTerrainController.generated.h"
 
-struct MeshData;
-class VoxelData;
+struct TMeshData;
+class TVoxelData;
 class FLoadInitialZonesThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
@@ -74,6 +75,24 @@ struct FSandboxFoliage {
 	float ScaleMaxZ = 1.0f;
 };
 
+
+USTRUCT()
+struct FSandboxTerrainMaterial {
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureTopMicro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideMicro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureMacro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureNormal;
+};
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -89,6 +108,8 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	virtual void PostLoad() override;
 
 	//===============================================================================
 
@@ -107,8 +128,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FString MapName;
 
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	UMaterialInterface* TerrainMaterial;
+	//========================================================================================
+	// materials
+	//========================================================================================
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	UMaterialInterface* RegularMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	UMaterialInterface* TransitionMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+
+	//========================================================================================
 
 	//UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	EVoxelDimEnum ZoneGridDimension;
@@ -147,7 +180,11 @@ public:
 	template<class H>
 	void performTerrainChange(FVector v, float radius, float s, H handler);
 
-	virtual SandboxVoxelGenerator newTerrainGenerator(VoxelData &voxel_data);
+	virtual SandboxVoxelGenerator newTerrainGenerator(TVoxelData &voxel_data);
+
+	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
+
+	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
 private:
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
@@ -158,13 +195,13 @@ private:
 
 	UTerrainZoneComponent* addTerrainZone(FVector pos);
 
-	VoxelData* createZoneVoxeldata(FVector location);
+	TVoxelData* createZoneVoxeldata(FVector location);
 
-	void generateTerrain(VoxelData &voxel_data);
+	void generateTerrain(TVoxelData &voxel_data);
 
 	FLoadInitialZonesThread* initial_zone_loader;
 
-	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<MeshData> mesh_data_ptr);
+	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 
 	void invokeLazyZoneAsync(FVector index);
 
@@ -180,13 +217,13 @@ private:
 
 	std::mutex VoxelDataMapMutex;
 
-	TMap<FVector, VoxelData*> VoxelDataMap;
+	TMap<FVector, TVoxelData*> VoxelDataMap;
 
-	void RegisterTerrainVoxelData(VoxelData* vd, FVector index);
+	void RegisterTerrainVoxelData(TVoxelData* vd, FVector index);
 
-	VoxelData* GetTerrainVoxelDataByPos(FVector point);
+	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
 
-	VoxelData* GetTerrainVoxelDataByIndex(FVector index);
+	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
 
 	//===============================================================================
 	// foliage
@@ -197,6 +234,16 @@ private:
 	void LoadFoliage(UTerrainZoneComponent* Zone);
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
+
+	//===============================================================================
+	// materials
+	//===============================================================================
+
+	UPROPERTY()
+	TMap<FString, UMaterialInterface*> TransitionMaterialCache;
+
+	UPROPERTY()
+	TMap<uint16, UMaterialInterface*> RegularMaterialCache;
 
 protected:
 

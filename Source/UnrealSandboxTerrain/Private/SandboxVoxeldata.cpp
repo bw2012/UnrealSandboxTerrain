@@ -8,16 +8,21 @@
 #include <vector>
 #include <mutex>
 
+#include <iterator>
+
+//#include <unordered_map>
+#include <map>
+
 
 //====================================================================================
 // Voxel data impl
 //====================================================================================
 
-    VoxelData::VoxelData(int num, float size){
+    TVoxelData::TVoxelData(int num, float size){
        // int s = num*num*num;
 
         density_data = NULL;
-		density_state = VoxelDataFillState::ZERO;
+		density_state = TVoxelDataFillState::ZERO;
 
 		material_data = NULL;
 
@@ -25,22 +30,22 @@
         volume_size = size;
     }
 
-    VoxelData::~VoxelData(){
+    TVoxelData::~TVoxelData(){
         delete[] density_data;
 		delete[] material_data;
     }
 
-	FORCEINLINE void VoxelData::initializeDensity() {
+	FORCEINLINE void TVoxelData::initializeDensity() {
 		int s = voxel_num * voxel_num * voxel_num;
 		density_data = new unsigned char[s];
 		for (auto x = 0; x < voxel_num; x++) {
 			for (auto y = 0; y < voxel_num; y++) {
 				for (auto z = 0; z < voxel_num; z++) {
-					if (density_state == VoxelDataFillState::ALL) {
+					if (density_state == TVoxelDataFillState::ALL) {
 						setDensity(x, y, z, 1);
 					}
 
-					if (density_state == VoxelDataFillState::ZERO) {
+					if (density_state == TVoxelDataFillState::ZERO) {
 						setDensity(x, y, z, 0);
 					}
 				}
@@ -48,9 +53,9 @@
 		}
 	}
 
-	FORCEINLINE void VoxelData::initializeMaterial() {
+	FORCEINLINE void TVoxelData::initializeMaterial() {
 		int s = voxel_num * voxel_num * voxel_num;
-		material_data = new unsigned char[s];
+		material_data = new unsigned short[s];
 		for (auto x = 0; x < voxel_num; x++) {
 			for (auto y = 0; y < voxel_num; y++) {
 				for (auto z = 0; z < voxel_num; z++) {
@@ -60,18 +65,18 @@
 		}
 	}
 
-	FORCEINLINE void VoxelData::setDensity(int x, int y, int z, float density){
+	FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density){
 		if (density_data == NULL) {
-			if (density_state == VoxelDataFillState::ZERO && density == 0){
+			if (density_state == TVoxelDataFillState::ZERO && density == 0){
 				return;
 			}
 
-			if (density_state == VoxelDataFillState::ALL && density == 1) {
+			if (density_state == TVoxelDataFillState::ALL && density == 1) {
 				return;
 			}
 
 			initializeDensity();
-			density_state = VoxelDataFillState::MIX;
+			density_state = TVoxelDataFillState::MIX;
 		}
 
         if(x < voxel_num && y < voxel_num && z < voxel_num){
@@ -86,9 +91,9 @@
         }
     }
 
-	FORCEINLINE float VoxelData::getDensity(int x, int y, int z) const {
+	FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 		if (density_data == NULL) {
-			if (density_state == VoxelDataFillState::ALL) {
+			if (density_state == TVoxelDataFillState::ALL) {
 				return 1;
 			}
 
@@ -105,12 +110,12 @@
         }
     }
 
-	FORCEINLINE unsigned char VoxelData::getRawDensity(int x, int y, int z) const {
+	FORCEINLINE unsigned char TVoxelData::getRawDensity(int x, int y, int z) const {
 		auto index = x * voxel_num * voxel_num + y * voxel_num + z;
 		return density_data[index];
 	}
 
-	FORCEINLINE void VoxelData::setMaterial(const int x, const int y, const int z, const int material) {
+	FORCEINLINE void TVoxelData::setMaterial(const int x, const int y, const int z, const unsigned short material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
@@ -121,7 +126,7 @@
 		}
 	}
 
-	FORCEINLINE int VoxelData::getMaterial(int x, int y, int z) const {
+	FORCEINLINE unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
 		if (material_data == NULL) {
 			return base_fill_mat;
 		}
@@ -134,7 +139,7 @@
 		}
 	}
 
-	FORCEINLINE FVector VoxelData::voxelIndexToVector(int x, int y, int z) const {
+	FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
 		static const float step = size() / (num() - 1);
 		static const float s = -size() / 2;
 		FVector v(s, s, s);
@@ -143,26 +148,26 @@
 		return v;
 	}
 
-	void VoxelData::setOrigin(FVector o) {
+	void TVoxelData::setOrigin(FVector o) {
 		origin = o;
 		lower = FVector(o.X - volume_size, o.Y - volume_size, o.Z - volume_size);
 		upper = FVector(o.X + volume_size, o.Y + volume_size, o.Z + volume_size);
 	}
 
-	FORCEINLINE FVector VoxelData::getOrigin() const {
+	FORCEINLINE FVector TVoxelData::getOrigin() const {
 		return origin;
 	}
 
-	FORCEINLINE float VoxelData::size() const {
+	FORCEINLINE float TVoxelData::size() const {
         return volume_size;
     }
     
-	FORCEINLINE int VoxelData::num() const {
+	FORCEINLINE int TVoxelData::num() const {
         return voxel_num;
     }
 
-	FORCEINLINE VoxelPoint VoxelData::getVoxelPoint(int x, int y, int z) const {
-		VoxelPoint vp;
+	FORCEINLINE TVoxelPoint TVoxelData::getVoxelPoint(int x, int y, int z) const {
+		TVoxelPoint vp;
 		int index = x * voxel_num * voxel_num + y * voxel_num + z;
 
 		vp.material = base_fill_mat;
@@ -179,10 +184,10 @@
 		return vp;
 	}
 
-	FORCEINLINE void VoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned char material) {
+	FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material) {
 		if (density_data == NULL) {
 			initializeDensity();
-			density_state = VoxelDataFillState::MIX;
+			density_state = TVoxelDataFillState::MIX;
 		}
 
 		if (material_data == NULL) {
@@ -194,17 +199,17 @@
 		density_data[index] = density;
 	}
 
-	FORCEINLINE void VoxelData::setVoxelPointDensity(int x, int y, int z, unsigned char density) {
+	FORCEINLINE void TVoxelData::setVoxelPointDensity(int x, int y, int z, unsigned char density) {
 		if (density_data == NULL) {
 			initializeDensity();
-			density_state = VoxelDataFillState::MIX;
+			density_state = TVoxelDataFillState::MIX;
 		}
 
 		int index = x * voxel_num * voxel_num + y * voxel_num + z;
 		density_data[index] = density;
 	}
 
-	FORCEINLINE void VoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned char material) {
+	FORCEINLINE void TVoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned short material) {
 		if (material_data == NULL) {
 			initializeMaterial();
 		}
@@ -213,8 +218,8 @@
 		material_data[index] = material;
 	}
 
-	FORCEINLINE void VoxelData::deinitializeDensity(VoxelDataFillState state) {
-		if (state == VoxelDataFillState::MIX) {
+	FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState state) {
+		if (state == TVoxelDataFillState::MIX) {
 			return;
 		}
 
@@ -226,7 +231,7 @@
 		density_data = NULL;
 	}
 
-	FORCEINLINE void VoxelData::deinitializeMaterial(unsigned char base_mat) {
+	FORCEINLINE void TVoxelData::deinitializeMaterial(unsigned short base_mat) {
 		base_fill_mat = base_mat;
 
 		if (material_data != NULL) {
@@ -236,11 +241,11 @@
 		material_data = NULL;
 	}
 
-	FORCEINLINE VoxelDataFillState VoxelData::getDensityFillState()	const {
+	FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 		return density_state;
 	}
 
-	FORCEINLINE bool VoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
+	FORCEINLINE bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
 		if (x <= 0 || y <= 0 || z <= 0) {
 			return false;
 		}
@@ -288,13 +293,13 @@
 		}
 
 		int index = clcLinearIndex(rx, ry, rz);
-		SubstanceCache& lodCache = substanceCacheLOD[lod];
+		TSubstanceCache& lodCache = substanceCacheLOD[lod];
 		lodCache.cellList.push_back(index);
 		return true;
 	}
 
 
-	FORCEINLINE void VoxelData::performSubstanceCacheNoLOD(int x, int y, int z) {
+	FORCEINLINE void TVoxelData::performSubstanceCacheNoLOD(int x, int y, int z) {
 		if (density_data == NULL) {
 			return;
 		}
@@ -302,7 +307,7 @@
 		performCellSubstanceCaching(x, y, z, 0, 1);
 	}
 
-	FORCEINLINE void VoxelData::performSubstanceCacheLOD(int x, int y, int z) {
+	FORCEINLINE void TVoxelData::performSubstanceCacheLOD(int x, int y, int z) {
 		if (density_data == NULL) {
 			return;
 		}
@@ -343,9 +348,9 @@ class VoxelMeshExtractor {
 
 private:
 
-	MeshLodSection &mesh_data;
-	const VoxelData &voxel_data;
-	const VoxelDataParam voxel_data_param;
+	TMeshLodSection &mesh_data;
+	const TVoxelData &voxel_data;
+	const TVoxelDataParam voxel_data_param;
 
 	typedef struct PointAddr {
 		uint8 x = 0;
@@ -381,13 +386,14 @@ private:
 		PointAddr adr;
 		FVector pos;
 		float density;
-		int material_id;
+		unsigned short material_id;
 	};
 
 	struct TmpPoint {
 		FVector v;
-		int mat_id;
-		float mat_weight = 0;
+		unsigned short matId;
+		int matNumber = 0;
+		float matWeight = 0;
 	};
 
 	class MeshHandler {
@@ -395,21 +401,38 @@ private:
 	private:
 		FProcMeshSection* meshSection;
 		VoxelMeshExtractor* extractor;
+		TMaterialSectionMap* materialSectionMapPtr;
+		TMaterialTransitionSectionMap* materialTransitionSectionMapPtr;
+
+		// transition material
+		unsigned short transitionMaterialIndex = 0;
+		TMap<FString, unsigned short> transitionMaterialDict;
 
 		int ntriang = 0;
 		int vertex_index = 0;
 
 		TMap<FVector, int> VertexMap;
 
-	public:
-		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s) : extractor(e), meshSection(s) { }
+		struct VertexInfo {
+			FVector normal;
 
+			std::map<unsigned short, int32> indexInMaterialSectionMap;
+			std::map<unsigned short, int32> indexInMaterialTransitionSectionMap;
+		};
+
+		TMap<FVector, VertexInfo> vertexInfoMap;
+
+	public:
+		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms, TMaterialTransitionSectionMap* mts) :
+			extractor(e), meshSection(s), materialSectionMapPtr(ms), materialTransitionSectionMapPtr(mts) { }
+
+	private:
 		FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
 			FVector v = point.v;
 
 			meshSection->ProcIndexBuffer.Add(index);
 
-			int t = point.mat_weight * 255;
+			int t = point.matWeight * 255;
 
 			FProcMeshVertex Vertex;
 			Vertex.Position = v;
@@ -443,7 +466,7 @@ private:
 			} else {
 				meshSection->ProcIndexBuffer.Add(index);
 
-				int t = point.mat_weight * 255;
+				int t = point.matWeight * 255;
 
 				FProcMeshVertex Vertex;
 				Vertex.Position = v;
@@ -461,6 +484,131 @@ private:
 			}
 		}
 
+		FORCEINLINE void addVertexMat(unsigned short matId, const TmpPoint &point, const FVector& n) {
+			const FVector& v = point.v;
+
+			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
+
+			if (vertexInfo.normal.IsZero()) {
+				vertexInfo.normal = n;
+			} else {
+				FVector tmp(vertexInfo.normal);
+				tmp += n;
+				tmp /= 2;
+				vertexInfo.normal = tmp;
+			}
+
+			// get current mat section
+			TMeshMaterialSection& matSectionRef = materialSectionMapPtr->FindOrAdd(matId);
+			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
+
+			if (vertexInfo.indexInMaterialSectionMap.find(matId) != vertexInfo.indexInMaterialSectionMap.end()) {
+				// vertex exist in mat section
+				// just get vertex index and put to index buffer
+				int32 vertexIndex = vertexInfo.indexInMaterialSectionMap[matId];
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(vertexIndex);
+			} else { // vertex not exist in mat section
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
+
+				FProcMeshVertex Vertex;
+				Vertex.Position = v;
+				Vertex.Normal = vertexInfo.normal;
+				Vertex.UV0 = FVector2D(0.f, 0.f);
+				Vertex.Color = FColor(0, 0, 0, 0);
+				Vertex.Tangent = FProcMeshTangent();
+
+				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
+				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
+
+				vertexInfo.indexInMaterialSectionMap[matId] = matSectionRef.vertexIndexCounter;
+				matSectionRef.vertexIndexCounter++;
+			}
+		}
+
+		FORCEINLINE void addVertexMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, const TmpPoint &point, const FVector& n) {
+			const FVector& v = point.v;
+
+			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
+
+			if (vertexInfo.normal.IsZero()) {
+				vertexInfo.normal = n;
+			}
+			else {
+				FVector tmp(vertexInfo.normal);
+				tmp += n;
+				tmp /= 2;
+				vertexInfo.normal = tmp;
+			}
+
+			// get current mat section
+			TMeshMaterialSection& matSectionRef = materialTransitionSectionMapPtr->FindOrAdd(matId);
+			matSectionRef.MaterialId = matId; // update mat id (if case of new section was created by FindOrAdd)
+
+			if (vertexInfo.indexInMaterialTransitionSectionMap.find(matId) != vertexInfo.indexInMaterialTransitionSectionMap.end()) {
+				// vertex exist in mat section
+				// just get vertex index and put to index buffer
+				int32 vertexIndex = vertexInfo.indexInMaterialTransitionSectionMap[matId];
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(vertexIndex);
+			}
+			else { // vertex not exist in mat section
+				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
+
+				FProcMeshVertex Vertex;
+				Vertex.Position = v;
+				Vertex.Normal = vertexInfo.normal;
+				Vertex.UV0 = FVector2D(0.f, 0.f);
+				Vertex.Tangent = FProcMeshTangent();
+
+				int i = 0;
+				int test = -1;
+				for (unsigned short m : materialIdSet) {
+					if (m == point.matId) {
+						test = i;
+					}
+
+					i++;
+				}
+
+
+				switch (test) {
+					case 0:  Vertex.Color = FColor(255,	0,		0,		0); break;
+					case 1:  Vertex.Color = FColor(0,	255,	0,		0); break;
+					case 2:  Vertex.Color = FColor(0,	0,		255,	0); break;
+					default: Vertex.Color = FColor(0,	0,		0,		0); break;
+				}
+
+				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
+				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
+
+				vertexInfo.indexInMaterialTransitionSectionMap[matId] = matSectionRef.vertexIndexCounter;
+				matSectionRef.vertexIndexCounter++;
+			}
+		}
+
+	public:
+		FORCEINLINE unsigned short getTransitionMaterialIndex(std::set<unsigned short>& materialIdSet) {
+			FString transitionMaterialName = TEXT("");
+			FString separator = TEXT("");
+			for (unsigned short matId : materialIdSet) {
+				transitionMaterialName = FString::Printf(TEXT("%s%s%d"), *transitionMaterialName, *separator, matId);
+				separator = TEXT("-");
+			}
+
+			if (transitionMaterialDict.Contains(transitionMaterialName)) {
+				return transitionMaterialDict[transitionMaterialName];
+			} else {
+				unsigned short idx = transitionMaterialIndex;
+				transitionMaterialDict.Add(transitionMaterialName, idx);
+				transitionMaterialIndex++;
+
+				TMeshMaterialTransitionSection& sectionRef = materialTransitionSectionMapPtr->FindOrAdd(idx);
+				sectionRef.TransitionName = transitionMaterialName;
+				sectionRef.MaterialIdSet = materialIdSet;
+
+				return idx;
+			}
+		}
+
 		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
@@ -471,6 +619,22 @@ private:
 			ntriang++;
 		}
 
+		FORCEINLINE void addTriangleMat(unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			addVertexMat(matId, tmp1, n);
+			addVertexMat(matId, tmp2, n);
+			addVertexMat(matId, tmp3, n);
+		}
+
+		FORCEINLINE void addTriangleMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			addVertexMatTransition(materialIdSet, matId, tmp1, n);
+			addVertexMatTransition(materialIdSet, matId, tmp2, n);
+			addVertexMatTransition(materialIdSet, matId, tmp3, n);
+		}
+
 	};
 
 
@@ -478,11 +642,11 @@ private:
 	TArray<MeshHandler*> transitionHandlerArray;
 
 public:
-	VoxelMeshExtractor(MeshLodSection &a, const VoxelData &b, const VoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.mainMesh);
+	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
+		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.MaterialSectionMap, &a.MaterialTransitionSectionMap);
 
 		for (auto i = 0; i < 6; i++) {
-			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i]));
+			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
 		}
 	}
 
@@ -523,7 +687,7 @@ private:
 		return voxel_data.getDensity(x, y, z);
 	}
 
-	FORCEINLINE int getMaterial(int x, int y, int z) {
+	FORCEINLINE unsigned short getMaterial(int x, int y, int z) {
 		return voxel_data.getMaterial(x, y, z);
 	}
 
@@ -554,23 +718,17 @@ private:
 		return tmp;
 	}
 
-	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point point1, Point point2) {
-		static const int base_mat = 1; // dirt is base material
+	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point& point1, Point& point2) {
+		static const unsigned short base_mat = 1; // dirt is base material
 
 		FVector p1 = point1.pos;
 		FVector p2 = point2.pos;
-		const int mat1 = point1.material_id;
-		const int mat2 = point2.material_id;
+		const unsigned short mat1 = point1.material_id;
+		const unsigned short mat2 = point2.material_id;
 		
-		if ((base_mat == mat1)&&(base_mat == mat2)) {
-			tp.mat_id = base_mat;
-			tp.mat_weight = 0;
-			return;
-		}
-
 		if (mat1 == mat2) {
-			tp.mat_id = base_mat;
-			tp.mat_weight = 1;
+			//tp.mat_weight = 1; //grass
+			tp.matId = mat1;
 			return;
 		}
 
@@ -584,18 +742,14 @@ private:
 		float s1 = p1.Size();
 		float s2 = p2.Size();
 
-		if (mat1 != base_mat) {
-			tp.mat_weight = s1 / s;
-			return;
-		}
-
-		if (mat2 != base_mat) {
-			tp.mat_weight = s2 / s;
-			return;
+		if (s1 > s2) {
+			tp.matId = mat2;
+		} else {
+			tp.matId = mat1;
 		}
 	}
 
-	FORCEINLINE void materialCalculation2(struct TmpPoint& tp, Point point1, Point point2) {
+	FORCEINLINE void materialCalculation2(struct TmpPoint& tp, Point& point1, Point& point2) {
 		static const int base_mat = 1; // dirt
 
 		float mu = (isolevel - point1.density) / (point2.density - point1.density);
@@ -605,12 +759,12 @@ private:
 		tmp.y = point1.adr.y + mu * (point2.adr.y - point1.adr.y);
 		tmp.z = point1.adr.z + mu * (point2.adr.z - point1.adr.z);
 
-		tp.mat_id = getMaterial(tmp.x, tmp.y, tmp.z);
+		tp.matId = getMaterial(tmp.x, tmp.y, tmp.z);
 
-		if (base_mat == tp.mat_id) {
-			tp.mat_weight = 0;
+		if (base_mat == tp.matId) {
+			tp.matWeight = 0;
 		} else {
-			tp.mat_weight = 1;
+			tp.matWeight = 1;
 		}
 	}
 
@@ -665,12 +819,36 @@ private:
 		std::vector<TmpPoint> vertexList;
 		vertexList.reserve(cd.GetTriangleCount() * 3);
 
+		std::set<unsigned short> materialIdSet;
+
 		for (int i = 0; i < cd.GetVertexCount(); i++) {
 			const int edgeCode = regularVertexData[caseCode][i];
 			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
 			const unsigned short v1 = edgeCode & 0x0F;
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
+
 			vertexList.push_back(tp);
+			std::pair<std::set<unsigned short>::iterator, bool> ret = materialIdSet.insert(tp.matId);
+
+			//tp.matNumber = *std::next(materialIdSet.begin(), tp.matId);
+			//UE_LOG(LogTemp, Warning, TEXT("test -> %d"), tp.matNumber);
+			//tp.matNumber = std::distance(materialIdSet.begin(), ret.first);
+		}
+
+		bool isTransitionMaterialSection = materialIdSet.size() > 1;
+		unsigned short transitionMatId = 0;
+
+		// if transition material
+		if (isTransitionMaterialSection) {
+			FString test = TEXT("");
+			FString separator = TEXT("");
+			for (unsigned short matId : materialIdSet) {
+				test = FString::Printf(TEXT("%s%s%d"), *test, *separator, matId);
+				separator = TEXT("-");
+			}
+
+			transitionMatId = mainMeshHandler->getTransitionMaterialIndex(materialIdSet);
+			//UE_LOG(LogTemp, Warning, TEXT("transition material section -> %d -> %s"), transitionMatId, *test);
 		}
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
@@ -679,6 +857,20 @@ private:
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
 			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
+
+			if (isTransitionMaterialSection) {
+				// add transition material section
+				//UE_LOG(LogTemp, Warning, TEXT("test1 -> %d "), tmp1);
+
+				mainMeshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
+			} else {
+				// always one iteration
+				for (unsigned short matId : materialIdSet) {
+					// add regular material section
+					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+				}
+			}
+
 		}
 	}
 
@@ -802,8 +994,8 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 //####################################################################################################################################
 
-MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
-	MeshData* mesh_data = new MeshData();
+TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
+	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	int step = vdp.step();
@@ -819,17 +1011,17 @@ MeshDataPtr polygonizeCellSubstanceCacheNoLOD(const VoxelData &vd, const VoxelDa
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
-	return MeshDataPtr(mesh_data);
+	return TMeshDataPtr(mesh_data);
 }
 
 
-MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
-	MeshData* mesh_data = new MeshData();
+TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
+	TMeshData* mesh_data = new TMeshData();
 	static const int max_lod = LOD_ARRAY_SIZE;
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
-		VoxelDataParam me_vdp = vdp;
+		TVoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
 
 		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
@@ -848,12 +1040,12 @@ MeshDataPtr polygonizeCellSubstanceCacheLOD(const VoxelData &vd, const VoxelData
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
-	return MeshDataPtr(mesh_data);
+	return TMeshDataPtr(mesh_data);
 }
 
 
-MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
-	MeshData* mesh_data = new MeshData();
+TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
+	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	int step = vdp.step();
@@ -868,11 +1060,11 @@ MeshDataPtr polygonizeVoxelGridNoLOD(const VoxelData &vd, const VoxelDataParam &
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
-	return MeshDataPtr(mesh_data);
+	return TMeshDataPtr(mesh_data);
 }
 
-MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam &vdp) {
-	MeshData* mesh_data = new MeshData();
+TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
+	TMeshData* mesh_data = new TMeshData();
 	std::vector<VoxelMeshExtractorPtr> MeshExtractorLod;
 	//VoxelMeshExtractorPtr MeshExtractorLod[LOD_ARRAY_SIZE];
 
@@ -880,7 +1072,7 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
-		VoxelDataParam me_vdp = vdp;
+		TVoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
 		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
 		MeshExtractorLod.push_back(me_ptr);
@@ -907,10 +1099,10 @@ MeshDataPtr polygonizeVoxelGridWithLOD(const VoxelData &vd, const VoxelDataParam
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
 
-	return MeshDataPtr(mesh_data);
+	return TMeshDataPtr(mesh_data);
 }
 
-MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &vdp) {
+TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
 		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
 			//UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
@@ -926,7 +1118,7 @@ MeshDataPtr sandboxVoxelGenerateMesh(const VoxelData &vd, const VoxelDataParam &
 // terrain
 // =================================================================
 
-void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
+void sandboxSaveVoxelData(const TVoxelData &vd, FString &fullFileName) {
 
 	UE_LOG(LogTemp, Warning, TEXT("sandboxSaveVoxelData -> %s"), *fullFileName);
 
@@ -940,23 +1132,23 @@ void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
 	binaryData << size;
 
 	// save density
-	if (vd.getDensityFillState() == VoxelDataFillState::ZERO) {
+	if (vd.getDensityFillState() == TVoxelDataFillState::ZERO) {
 		volume_state = 0;
 		binaryData << volume_state;
 	}
 
-	if (vd.getDensityFillState() == VoxelDataFillState::ALL) {
+	if (vd.getDensityFillState() == TVoxelDataFillState::ALL) {
 		volume_state = 1;
 		binaryData << volume_state;
 	}
 
-	if (vd.getDensityFillState() == VoxelDataFillState::MIX) {
+	if (vd.getDensityFillState() == TVoxelDataFillState::MIX) {
 		volume_state = 2;
 		binaryData << volume_state;
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					VoxelPoint vp = vd.getVoxelPoint(x, y, z);
+					TVoxelPoint vp = vd.getVoxelPoint(x, y, z);
 					unsigned char density = vp.density;
 					binaryData << density;
 				}
@@ -971,7 +1163,7 @@ void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
 		volume_state = 2;
 	}
 
-	unsigned char base_mat = vd.base_fill_mat;
+	unsigned short base_mat = vd.base_fill_mat;
 
 	binaryData << volume_state;
 	binaryData << base_mat;
@@ -980,9 +1172,9 @@ void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					VoxelPoint vp = vd.getVoxelPoint(x, y, z);
-					unsigned char mat_id = vp.material;
-					binaryData << mat_id;
+					TVoxelPoint vp = vd.getVoxelPoint(x, y, z);
+					unsigned short matId = vp.material;
+					binaryData << matId;
 				}
 			}
 		}
@@ -997,7 +1189,7 @@ void sandboxSaveVoxelData(const VoxelData &vd, FString &fullFileName) {
 	}
 }
 
-bool sandboxLoadVoxelData(VoxelData &vd, FString &fullFileName) {
+bool sandboxLoadVoxelData(TVoxelData &vd, FString &fullFileName) {
 	double start = FPlatformTime::Seconds();
 
 	TArray<uint8> TheBinaryArray;
@@ -1014,7 +1206,7 @@ bool sandboxLoadVoxelData(VoxelData &vd, FString &fullFileName) {
 	int32 num;
 	float size;
 	unsigned char volume_state;
-	unsigned char base_mat;
+	unsigned short base_mat;
 
 	binaryData << num;
 	binaryData << size;
@@ -1023,11 +1215,11 @@ bool sandboxLoadVoxelData(VoxelData &vd, FString &fullFileName) {
 	binaryData << volume_state;
 
 	if (volume_state == 0) {
-		vd.deinitializeDensity(VoxelDataFillState::ZERO);
+		vd.deinitializeDensity(TVoxelDataFillState::ZERO);
 	}
 
 	if (volume_state == 1) {
-		vd.deinitializeDensity(VoxelDataFillState::ALL);
+		vd.deinitializeDensity(TVoxelDataFillState::ALL);
 	}
 
 	if (volume_state == 2) {
@@ -1050,9 +1242,9 @@ bool sandboxLoadVoxelData(VoxelData &vd, FString &fullFileName) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					unsigned char mat_id;
-					binaryData << mat_id;
-					vd.setVoxelPointMaterial(x, y, z, mat_id);
+					unsigned short matId;
+					binaryData << matId;
+					vd.setVoxelPointMaterial(x, y, z, matId);
 				}
 			}
 		}
