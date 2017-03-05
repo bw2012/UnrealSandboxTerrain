@@ -406,9 +406,8 @@ public:
 
 					// draw each material section
 					for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
-						if (MatSection != nullptr) {
+						if (MatSection != nullptr &&  MatSection->Material != nullptr) {
 							FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
-
 							DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 						}
 					}

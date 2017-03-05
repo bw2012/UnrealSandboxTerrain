@@ -235,8 +235,14 @@ private:
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
 
+	//===============================================================================
+	// materials
+	//===============================================================================
+
+	UPROPERTY()
 	TMap<FString, UMaterialInterface*> TransitionMaterialCache;
 
+	UPROPERTY()
 	TMap<uint16, UMaterialInterface*> RegularMaterialCache;
 
 protected:
