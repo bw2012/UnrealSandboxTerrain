@@ -392,7 +392,6 @@ private:
 	struct TmpPoint {
 		FVector v;
 		unsigned short matId;
-		int matNumber = 0;
 		float matWeight = 0;
 	};
 
@@ -564,11 +563,11 @@ private:
 				for (unsigned short m : materialIdSet) {
 					if (m == point.matId) {
 						test = i;
+						break;
 					}
 
 					i++;
 				}
-
 
 				switch (test) {
 					case 0:  Vertex.Color = FColor(255,	0,		0,		0); break;
@@ -827,12 +826,8 @@ private:
 			const unsigned short v1 = edgeCode & 0x0F;
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
 
+			materialIdSet.insert(tp.matId);
 			vertexList.push_back(tp);
-			std::pair<std::set<unsigned short>::iterator, bool> ret = materialIdSet.insert(tp.matId);
-
-			//tp.matNumber = *std::next(materialIdSet.begin(), tp.matId);
-			//UE_LOG(LogTemp, Warning, TEXT("test -> %d"), tp.matNumber);
-			//tp.matNumber = std::distance(materialIdSet.begin(), ret.first);
 		}
 
 		bool isTransitionMaterialSection = materialIdSet.size() > 1;
@@ -840,15 +835,7 @@ private:
 
 		// if transition material
 		if (isTransitionMaterialSection) {
-			FString test = TEXT("");
-			FString separator = TEXT("");
-			for (unsigned short matId : materialIdSet) {
-				test = FString::Printf(TEXT("%s%s%d"), *test, *separator, matId);
-				separator = TEXT("-");
-			}
-
 			transitionMatId = mainMeshHandler->getTransitionMaterialIndex(materialIdSet);
-			//UE_LOG(LogTemp, Warning, TEXT("transition material section -> %d -> %s"), transitionMatId, *test);
 		}
 
 		for (int i = 0; i < cd.GetTriangleCount() * 3; i += 3) {
@@ -860,8 +847,6 @@ private:
 
 			if (isTransitionMaterialSection) {
 				// add transition material section
-				//UE_LOG(LogTemp, Warning, TEXT("test1 -> %d "), tmp1);
-
 				mainMeshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
 			} else {
 				// always one iteration
