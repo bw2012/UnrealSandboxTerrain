@@ -14,7 +14,7 @@ Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI
 * Procedural landscape/caves generation
 * Level of details (experimental, still in progress)
 * Up to 65535 terrain material (dirt, grass, sand, clay etc)
-* Based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
+* Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
 * Tested with Unreal Engine 4.14.2
 
 # License
