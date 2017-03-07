@@ -915,7 +915,7 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 			FSandboxTerrainMaterial Mat = MaterialMap[MaterialId];
 
 			DynMaterial->SetTextureParameterValue("TextureTopMicro", Mat.TextureTopMicro);
-			DynMaterial->SetTextureParameterValue("TextureSideMicro", Mat.TextureSideMicro);
+			//DynMaterial->SetTextureParameterValue("TextureSideMicro", Mat.TextureSideMicro);
 			DynMaterial->SetTextureParameterValue("TextureMacro", Mat.TextureMacro);
 			DynMaterial->SetTextureParameterValue("TextureNormal", Mat.TextureNormal);
 		}
@@ -943,12 +943,12 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 				FSandboxTerrainMaterial Mat = MaterialMap[MatId];
 
 				FName TextureTopMicroParam = FName(*FString::Printf(TEXT("TextureTopMicro%d"), Idx));
-				FName TextureSideMicroParam = FName(*FString::Printf(TEXT("TextureSideMicro%d"), Idx));
+				//FName TextureSideMicroParam = FName(*FString::Printf(TEXT("TextureSideMicro%d"), Idx));
 				FName TextureMacroParam = FName(*FString::Printf(TEXT("TextureMacro%d"), Idx));
 				FName TextureNormalParam = FName(*FString::Printf(TEXT("TextureNormal%d"), Idx));
 
 				DynMaterial->SetTextureParameterValue(TextureTopMicroParam, Mat.TextureTopMicro);
-				DynMaterial->SetTextureParameterValue(TextureSideMicroParam, Mat.TextureSideMicro);
+				//DynMaterial->SetTextureParameterValue(TextureSideMicroParam, Mat.TextureSideMicro);
 				DynMaterial->SetTextureParameterValue(TextureMacroParam, Mat.TextureMacro);
 				DynMaterial->SetTextureParameterValue(TextureNormalParam, Mat.TextureNormal);
 			}

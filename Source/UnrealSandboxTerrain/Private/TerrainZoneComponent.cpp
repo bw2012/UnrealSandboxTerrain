@@ -57,7 +57,7 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 
 	return md_ptr;
 }
@@ -86,6 +86,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 	//##########################################
 	// mat section test
 	//##########################################
+	/*
 	TMeshLodSection& section0 = mesh_data->MeshSectionLodArray[0];
 	TMaterialSectionMap matSectionMap = section0.MaterialSectionMap;
 
@@ -107,6 +108,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 			//DrawDebugPoint(GetWorld(), p.Position, 3, FColor(255, 255, 255, 100), false, 1000000);
 		}
 	}
+	*/
 	//##########################################
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Movable);

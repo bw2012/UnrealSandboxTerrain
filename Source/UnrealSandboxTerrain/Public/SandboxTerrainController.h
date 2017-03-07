@@ -83,8 +83,8 @@ struct FSandboxTerrainMaterial {
 	UPROPERTY(EditAnywhere)
 	UTexture* TextureTopMicro;
 
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureSideMicro;
+	//UPROPERTY(EditAnywhere)
+	//UTexture* TextureSideMicro;
 
 	UPROPERTY(EditAnywhere)
 	UTexture* TextureMacro;
