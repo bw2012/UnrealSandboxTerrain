@@ -220,6 +220,29 @@ public:
 		}
 	}
 
+	template<class T>
+	FORCEINLINE void CopyMaterialMesh(USandboxTerrainMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, FMeshProxyLodSection* NewLodSection, std::function<UMaterialInterface*(T)> GetMaterial) {
+		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+
+		for (auto& Element : MaterialMap) {
+			unsigned short MatId = Element.Key;
+
+			T& Section = Element.Value;
+
+			TMeshMaterialSection& SrcMaterialSection = static_cast<TMeshMaterialSection&>(Section);
+			FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
+
+			UMaterialInterface* Material = GetMaterial(Section);
+			if (Material == nullptr) { Material = DefaultMaterial; }
+
+			FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
+			NewMaterialProxySection->Material = Material;
+
+			CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
+			NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
+		}
+	}
+
 	FORCEINLINE void CopyAll(USandboxTerrainMeshComponent* Component) {
 		ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
 
@@ -236,48 +259,18 @@ public:
 			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
-				// copy material mesh
+				// copy regular material mesh
 				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].MaterialSectionMap;
-				for (auto& Element : MaterialMap) {
-					unsigned short MatId = Element.Key;
+				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection, 
+					[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId);} );
 
-					TMeshMaterialSection& SrcMaterialSection = Element.Value;
-					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
-
-					UMaterialInterface* Material = TerrainController->GetRegularTerrainMaterial(MatId);
-					if (Material == nullptr) { Material = DefaultMaterial; }
-
-					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
-					NewMaterialProxySection->Material = Material;
-
-					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
-					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
-				}
-
-				// copy material mesh
+				// copy transition material mesh
 				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].MaterialTransitionSectionMap;
-				for (auto& Element : MaterialTransitionMap) {
-					unsigned short MatId = Element.Key;
-
-					TMeshMaterialSection& SrcMaterialSection = Element.Value;
-					FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
-
-					UMaterialInterface* Material = TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet);
-					if (Material == nullptr) { Material = DefaultMaterial; }
-
-					//UMaterialInterface* Material = (TerrainController->TransitionMaterial != nullptr) ? TerrainController->TransitionMaterial : DefaultMaterial;
-
-					FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
-					NewMaterialProxySection->Material = Material;
-						
-					CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
-					NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
-				}
-				
-				UE_LOG(LogTemp, Warning, TEXT("NewLodSection->MaterialMeshPtrArray -> %d "), NewLodSection->MaterialMeshPtrArray.Num());
+				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection,
+					[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 
 				if (SectionIdx > 0) {
-					// copy transition section
+					// copy transition lod section
 					FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[0];
 					for (auto i = 0; i < 6; i++) {
 						FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[i];
