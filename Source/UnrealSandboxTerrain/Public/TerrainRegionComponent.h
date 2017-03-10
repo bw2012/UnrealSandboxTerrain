@@ -4,6 +4,7 @@
 
 #include "EngineMinimal.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "SandboxVoxeldata.h"
 #include "TerrainRegionComponent.generated.h"
 
 
@@ -28,5 +29,11 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	
+	void PutMeshDataToCache(FVector ZoneIndex, TMeshDataPtr MeshDataPtr) {
+		MeshDataCache.Add(ZoneIndex, MeshDataPtr);
+	}
+
+private:
+	TMap<FVector, TMeshDataPtr> MeshDataCache;
+
 };

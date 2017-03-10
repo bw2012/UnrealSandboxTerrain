@@ -2,7 +2,9 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "TerrainZoneComponent.h"
+#include "TerrainRegionComponent.h"
 #include "SandboxTerrainController.h"
+#include "SandboxVoxeldata.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -62,12 +64,17 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
 	return md_ptr;
 }
 
-void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr) {
+void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 	double start = FPlatformTime::Seconds();
 
-	TMeshData* mesh_data = mesh_data_ptr.get();
+	TMeshData* MeshData = MeshDataPtr.get();
 
-	if (mesh_data == NULL) {
+	if (MeshData == nullptr) {
+		return;
+	}
+
+	UTerrainRegionComponent* Region = Cast<UTerrainRegionComponent>(GetAttachParent());
+	if (Region == nullptr) {
 		return;
 	}
 
@@ -118,7 +125,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 
 	MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
 
-	MainTerrainMesh->SetMeshData(mesh_data_ptr);
+	MainTerrainMesh->SetMeshData(MeshDataPtr);
 
 	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 
@@ -126,7 +133,7 @@ void UTerrainZoneComponent::applyTerrainMesh(std::shared_ptr<TMeshData> mesh_dat
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetVisibility(true);
 
-	CollisionMesh->SetMeshData(mesh_data_ptr);
+	CollisionMesh->SetMeshData(MeshDataPtr);
 	CollisionMesh->SetCollisionProfileName(TEXT("BlockAll"));
 
 	double end = FPlatformTime::Seconds();
