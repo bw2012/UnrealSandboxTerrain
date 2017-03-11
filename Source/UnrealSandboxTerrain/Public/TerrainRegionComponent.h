@@ -5,6 +5,7 @@
 #include "EngineMinimal.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "SandboxVoxeldata.h"
+#include "SandboxTerrainController.h"
 #include "TerrainRegionComponent.generated.h"
 
 
@@ -32,6 +33,16 @@ public:
 	void PutMeshDataToCache(FVector ZoneIndex, TMeshDataPtr MeshDataPtr) {
 		MeshDataCache.Add(ZoneIndex, MeshDataPtr);
 	}
+
+	void CleanMeshDataCache() {
+		MeshDataCache.Empty();
+	}
+
+	void SerializeRegionMeshData(FBufferArchive& BinaryData);
+
+	void SaveRegionToFile();
+
+	void LoadRegionFromFile();
 
 private:
 	TMap<FVector, TMeshDataPtr> MeshDataCache;

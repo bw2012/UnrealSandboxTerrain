@@ -78,6 +78,9 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 		return;
 	}
 
+	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+	Region->PutMeshDataToCache(Index, MeshDataPtr);
+
 	//##########################################
 	// draw debug points
 	//##########################################

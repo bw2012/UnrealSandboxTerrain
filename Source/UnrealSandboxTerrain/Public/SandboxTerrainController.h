@@ -199,7 +199,7 @@ private:
 
 	void generateTerrain(TVoxelData &voxel_data);
 
-	FLoadInitialZonesThread* initial_zone_loader;
+	FLoadInitialZonesThread* InitialZoneLoader;
 
 	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 

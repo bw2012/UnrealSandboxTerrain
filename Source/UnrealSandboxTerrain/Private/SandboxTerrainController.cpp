@@ -143,9 +143,9 @@ void ASandboxTerrainController::BeginPlay() {
 	TSet<FVector> InitialZoneSet = spawnInitialZone();
 	
 	//zone initial generation list
-	initial_zone_loader = new FLoadInitialZonesThread();
+	InitialZoneLoader = new FLoadInitialZonesThread();
 
-	initial_zone_loader->controller = this;
+	InitialZoneLoader->controller = this;
 	if (!bGenerateOnlySmallSpawnPoint) {
 		for (int num = 0; num < TerrainSize; num++) {
 			int s = num;
@@ -158,7 +158,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 						if(!InitialZoneSet.Contains(zone_index)) {
 							// Until the end of the process some functions can be unavailable.
-							initial_zone_loader->zone_list.Add(zone_index);
+							InitialZoneLoader->zone_list.Add(zone_index);
 							InitialZoneSet.Add(zone_index);
 						}
 					}
@@ -167,36 +167,42 @@ void ASandboxTerrainController::BeginPlay() {
 		}
 	}
 
-	initial_zone_loader->Start();
+	InitialZoneLoader->Start();
 }
 
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
 
-	if (initial_zone_loader != NULL) {
-		initial_zone_loader->Stop();
-		initial_zone_loader->WaitForFinish();
+	if (InitialZoneLoader != NULL) {
+		InitialZoneLoader->Stop();
+		InitialZoneLoader->WaitForFinish();
 	}
 
 	if (GetWorld()->GetAuthGameMode() == NULL) {
 		return;
 	}
 
-	for (auto& Elem : VoxelDataMap) {
-		TVoxelData* voxel_data = Elem.Value;
+	for (auto& Elem : TerrainRegionMap) {
+		UTerrainRegionComponent* Region = Elem.Value;
+		Region->SaveRegionToFile();
+		Region->CleanMeshDataCache();
+	}
 
-		if (voxel_data->isChanged()) {
+	for (auto& Elem : VoxelDataMap) {
+		TVoxelData* VoxelData = Elem.Value;
+
+		if (VoxelData->isChanged()) {
 			// save voxel data
-			FVector index = getZoneIndex(voxel_data->getOrigin());
+			FVector index = getZoneIndex(VoxelData->getOrigin());
 			FString fileName = getZoneFileName(index.X, index.Y, index.Z);
 
 			UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
-			sandboxSaveVoxelData(*voxel_data, fileName);
+			sandboxSaveVoxelData(*VoxelData, fileName);
 		}
 		
 		//TODO replace with share pointer
 		VoxelDataMap.Remove(Elem.Key);
-		delete voxel_data;
+		delete VoxelData;
 	}
 
 	if (!bDisableFoliage) {
@@ -315,6 +321,10 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
 		RegionComponent->RegisterComponent();
 		RegionComponent->SetWorldLocation(RegionIndex);
+
+		// test only
+		RegionComponent->LoadRegionFromFile();
+		//
 
 		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
 	}
