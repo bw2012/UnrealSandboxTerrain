@@ -230,7 +230,6 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 		UE_LOG(LogTemp, Warning, TEXT("LodArraySize -> %d"), LodArraySize);
 
 		for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
-
 			int32 LodIndex;
 			BinaryData << LodIndex;
 
@@ -242,6 +241,33 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 			UE_LOG(LogTemp, Warning, TEXT("LodSectionRegularMatNum -> %d"), LodSectionRegularMatNum);
 
 			for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
+				unsigned short MatId;
+				BinaryData << MatId;
+
+				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
+
+				FProcMeshSection Mesh;
+				DeserializeMesh(BinaryData, Mesh);
+			}
+
+			// transition materials
+			int32 LodSectionTransitionMatNum;
+			BinaryData << LodSectionTransitionMatNum;
+
+			UE_LOG(LogTemp, Warning, TEXT("LodSectionTransitionMatNum -> %d"), LodSectionTransitionMatNum);
+
+			for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
+
+				int MatSetSize;
+				BinaryData << MatSetSize;
+
+				UE_LOG(LogTemp, Warning, TEXT("MatSetSize -> %d"), MatSetSize);
+				for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
+					unsigned short MatSetElement;
+					BinaryData << MatSetElement;
+
+					UE_LOG(LogTemp, Warning, TEXT("MatSetElement -> %d"), MatSetElement);
+				}
 
 				unsigned short MatId;
 				BinaryData << MatId;
@@ -249,11 +275,8 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
 
 				FProcMeshSection Mesh;
-
 				DeserializeMesh(BinaryData, Mesh);
 			}
-
-			return;
 			
 		}
 	}
