@@ -400,6 +400,9 @@ private:
 	private:
 		FProcMeshSection* meshSection;
 		VoxelMeshExtractor* extractor;
+
+		TMeshContainer targetMeshSection;
+
 		TMaterialSectionMap* materialSectionMapPtr;
 		TMaterialTransitionSectionMap* materialTransitionSectionMapPtr;
 
@@ -430,7 +433,7 @@ private:
 
 	private:
 
-		FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n) {
+		FORCEINLINE void addVertexGeneral(const TmpPoint &point, const FVector& n) {
 			const FVector v = point.v;
 			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
 
@@ -583,12 +586,12 @@ private:
 			}
 		}
 
-		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+		FORCEINLINE void addTriangleGeneral(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
-			addVertex(tmp1, n);
-			addVertex(tmp2, n);
-			addVertex(tmp3, n);
+			addVertexGeneral(tmp1, n);
+			addVertexGeneral(tmp2, n);
+			addVertexGeneral(tmp3, n);
 
 			triangleCount++;
 		}
@@ -621,7 +624,7 @@ private:
 
 public:
 	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.MaterialSectionMap, &a.MaterialTransitionSectionMap);
+		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.RegularMeshContainer.MaterialSectionMap, &a.RegularMeshContainer.MaterialTransitionSectionMap);
 
 		for (auto i = 0; i < 6; i++) {
 			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
@@ -822,7 +825,7 @@ private:
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
-			mainMeshHandler->addTriangle(tmp1, tmp2, tmp3);
+			mainMeshHandler->addTriangleGeneral(tmp1, tmp2, tmp3);
 
 			if (isTransitionMaterialSection) {
 				// add transition material section
@@ -912,9 +915,9 @@ private:
 			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
 
 			if (inverse) {
-				meshHandler->addTriangle(tmp3, tmp2, tmp1);
+				meshHandler->addTriangleGeneral(tmp3, tmp2, tmp1);
 			} else {
-				meshHandler->addTriangle(tmp1, tmp2, tmp3);
+				meshHandler->addTriangleGeneral(tmp1, tmp2, tmp3);
 			}
 			
 		}

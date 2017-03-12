@@ -80,9 +80,9 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 			BinaryData << LodIdx;
 
 			// save regular materials
-			int32 LodSectionRegularMatNum = LodSection.MaterialSectionMap.Num();
+			int32 LodSectionRegularMatNum = LodSection.RegularMeshContainer.MaterialSectionMap.Num();
 			BinaryData << LodSectionRegularMatNum;
-			for (auto& Elem2 : LodSection.MaterialSectionMap) {
+			for (auto& Elem2 : LodSection.RegularMeshContainer.MaterialSectionMap) {
 				unsigned short MatId = Elem2.Key;
 				TMeshMaterialSection& MaterialSection = Elem2.Value;
 
@@ -93,9 +93,9 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 			}
 
 			// save transition materials
-			int32 LodSectionTransitionMatNum = LodSection.MaterialTransitionSectionMap.Num();
+			int32 LodSectionTransitionMatNum = LodSection.RegularMeshContainer.MaterialTransitionSectionMap.Num();
 			BinaryData << LodSectionTransitionMatNum;
-			for (auto& Elem2 : LodSection.MaterialTransitionSectionMap) {
+			for (auto& Elem2 : LodSection.RegularMeshContainer.MaterialTransitionSectionMap) {
 				unsigned short MatId = Elem2.Key;
 				TMeshMaterialTransitionSection& TransitionMaterialSection = Elem2.Value;
 
@@ -225,7 +225,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 
 				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
 
-				TMeshMaterialSection& MatSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].MaterialSectionMap.FindOrAdd(MatId);
+				TMeshMaterialSection& MatSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialSectionMap.FindOrAdd(MatId);
 				MatSection.MaterialId = MatId;
 
 				DeserializeMesh(BinaryData, MatSection.MaterialMesh);
@@ -256,7 +256,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 					UE_LOG(LogTemp, Warning, TEXT("MatSetElement -> %d"), MatSetElement);
 				}
 
-				TMeshMaterialTransitionSection& MatTransSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].MaterialTransitionSectionMap.FindOrAdd(MatId);
+				TMeshMaterialTransitionSection& MatTransSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
 				MatTransSection.MaterialId = MatId;
 				MatTransSection.MaterialIdSet = MatSet;
 				MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);

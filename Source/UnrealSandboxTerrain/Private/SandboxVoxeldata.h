@@ -171,12 +171,20 @@ typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 typedef TMap<unsigned short, TMeshMaterialSection> TMaterialSectionMap;
 typedef TMap<unsigned short, TMeshMaterialTransitionSection> TMaterialTransitionSectionMap;
 
-typedef struct TMeshLodSection {
+typedef struct TMeshContainer {
+
 	TMaterialSectionMap MaterialSectionMap;
+
 	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
+
+} TMeshContainer;
+
+typedef struct TMeshLodSection {
+	TMeshContainer RegularMeshContainer;
 
 	FProcMeshSection mainMesh;
 	TArray<FProcMeshSection> transitionMeshArray;
+
 	TArray<FVector> DebugPointList;
 
 	TMeshLodSection() {

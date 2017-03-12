@@ -260,12 +260,12 @@ public:
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
 				// copy regular material mesh
-				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].MaterialSectionMap;
+				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
 				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection, 
 					[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId);} );
 
 				// copy transition material mesh
-				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].MaterialTransitionSectionMap;
+				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
 				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection,
 					[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 
@@ -574,14 +574,14 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 		auto lodIndex = 0;
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
 			MeshSectionLodArray[lodIndex].mainMesh = sectionLOD.mainMesh;
-			MeshSectionLodArray[lodIndex].MaterialSectionMap = sectionLOD.MaterialSectionMap;
-			MeshSectionLodArray[lodIndex].MaterialTransitionSectionMap = sectionLOD.MaterialTransitionSectionMap;
+			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialSectionMap = sectionLOD.RegularMeshContainer.MaterialSectionMap;
+			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialTransitionSectionMap = sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap;
 
-			for (auto& Element : sectionLOD.MaterialSectionMap) {
+			for (auto& Element : sectionLOD.RegularMeshContainer.MaterialSectionMap) {
 				LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
 			}
 
-			for (auto& Element : sectionLOD.MaterialTransitionSectionMap) {
+			for (auto& Element : sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap) {
 				LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet));
 			}
 
