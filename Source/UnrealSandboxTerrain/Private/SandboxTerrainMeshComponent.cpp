@@ -539,11 +539,11 @@ void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, boo
 */
 
 void USandboxTerrainMeshComponent::UpdateLocalBounds() {
-	//FBox LocalBox(0);
-	//LocalBox += MeshSectionLodArray[0].mainMesh.SectionLocalBox;
-	//LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
+	FBox LocalBox(0);
+	LocalBox += MeshSectionLodArray[0].mainMesh.SectionLocalBox;
+	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
 
-	LocalBounds = FBoxSphereBounds(FVector(0, 0, 0), FVector(500, 500, 500), 1000); 
+	//LocalBounds = FBoxSphereBounds(FVector(0, 0, 0), FVector(500, 500, 500), 1000); 
 
 	UpdateBounds(); // Update global bounds
 	MarkRenderTransformDirty(); // Need to send to render thread

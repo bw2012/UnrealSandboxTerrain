@@ -407,16 +407,19 @@ private:
 		unsigned short transitionMaterialIndex = 0;
 		TMap<FString, unsigned short> transitionMaterialDict;
 
-		int ntriang = 0;
-		int vertex_index = 0;
+		int triangleCount = 0;
 
-		TMap<FVector, int> VertexMap;
+		int vertexGeneralIndex = 0;
+
+		//TMap<FVector, int> VertexMap;
 
 		struct VertexInfo {
 			FVector normal;
 
 			std::map<unsigned short, int32> indexInMaterialSectionMap;
 			std::map<unsigned short, int32> indexInMaterialTransitionSectionMap;
+
+			int vertexIndex = 0;
 		};
 
 		TMap<FVector, VertexInfo> vertexInfoMap;
@@ -426,66 +429,39 @@ private:
 			extractor(e), meshSection(s), materialSectionMapPtr(ms), materialTransitionSectionMapPtr(mts) { }
 
 	private:
-		FORCEINLINE void addVertexTest(TmpPoint &point, FVector n, int &index) {
-			FVector v = point.v;
 
-			meshSection->ProcIndexBuffer.Add(index);
+		FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n) {
+			const FVector v = point.v;
+			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
 
-			int t = point.matWeight * 255;
+			if (vertexInfo.normal.IsZero()) {
+				// new vertex
+				vertexInfo.normal = n;
 
-			FProcMeshVertex Vertex;
-			Vertex.Position = v;
-			Vertex.Normal = n;
-			Vertex.UV0 = FVector2D(0.f, 0.f);
-			Vertex.Color = FColor(t, 0, 0, 0);
-			Vertex.Tangent = FProcMeshTangent();
+				FProcMeshVertex vertex;
+				vertex.Position = v;
+				vertex.Normal = n;
 
-			meshSection->SectionLocalBox += Vertex.Position;
-			meshSection->ProcVertexBuffer.Add(Vertex);
+				meshSection->SectionLocalBox += v;
 
-			vertex_index++;
-		}
+				meshSection->ProcIndexBuffer.Add(vertexGeneralIndex);
+				meshSection->ProcVertexBuffer.Add(vertex);
+				vertexInfo.vertexIndex = vertexGeneralIndex;
 
-		FORCEINLINE void addVertex(const TmpPoint &point, const FVector& n, int &index) {
-			FVector v = point.v;
-
-			if (VertexMap.Contains(v)) {
-				int vindex = VertexMap[v];
-
-				FProcMeshVertex& Vertex = meshSection->ProcVertexBuffer[vindex];
-				FVector nvert = Vertex.Normal;
-
-				FVector tmp(nvert);
+				vertexGeneralIndex++;
+			} else {
+				// existing vertex
+				FVector tmp(vertexInfo.normal);
 				tmp += n;
 				tmp /= 2;
+				vertexInfo.normal = tmp;
 
-				Vertex.Normal = tmp;
-				meshSection->ProcIndexBuffer.Add(vindex);
-
-			} else {
-				meshSection->ProcIndexBuffer.Add(index);
-
-				int t = point.matWeight * 255;
-
-				FProcMeshVertex Vertex;
-				Vertex.Position = v;
-				Vertex.Normal = n;
-				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Color = FColor(t, 0, 0, 0);
-				Vertex.Tangent = FProcMeshTangent();
-
-				//meshSection->SectionLocalBox += Vertex.Position;
-
-				meshSection->ProcVertexBuffer.Add(Vertex);
-
-				VertexMap.Add(v, index);
-				vertex_index++;
+				meshSection->ProcIndexBuffer.Add(vertexInfo.vertexIndex);
 			}
 		}
 
 		FORCEINLINE void addVertexMat(unsigned short matId, const TmpPoint &point, const FVector& n) {
 			const FVector& v = point.v;
-
 			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
 
 			if (vertexInfo.normal.IsZero()) {
@@ -526,7 +502,6 @@ private:
 
 		FORCEINLINE void addVertexMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, const TmpPoint &point, const FVector& n) {
 			const FVector& v = point.v;
-
 			VertexInfo& vertexInfo = vertexInfoMap.FindOrAdd(v);
 
 			if (vertexInfo.normal.IsZero()) {
@@ -611,11 +586,11 @@ private:
 		FORCEINLINE void addTriangle(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
 			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
 
-			addVertex(tmp1, n, vertex_index);
-			addVertex(tmp2, n, vertex_index);
-			addVertex(tmp3, n, vertex_index);
+			addVertex(tmp1, n);
+			addVertex(tmp2, n);
+			addVertex(tmp3, n);
 
-			ntriang++;
+			triangleCount++;
 		}
 
 		FORCEINLINE void addTriangleMat(unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
@@ -624,6 +599,8 @@ private:
 			addVertexMat(matId, tmp1, n);
 			addVertexMat(matId, tmp2, n);
 			addVertexMat(matId, tmp3, n);
+
+			triangleCount++;
 		}
 
 		FORCEINLINE void addTriangleMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
@@ -632,6 +609,8 @@ private:
 			addVertexMatTransition(materialIdSet, matId, tmp1, n);
 			addVertexMatTransition(materialIdSet, matId, tmp2, n);
 			addVertexMatTransition(materialIdSet, matId, tmp3, n);
+
+			triangleCount++;
 		}
 
 	};
