@@ -11,17 +11,12 @@ UTerrainRegionComponent::UTerrainRegionComponent(const FObjectInitializer& Objec
 }
 
 void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData) {
-
 	int32 MeshDataCount = MeshDataCache.Num();
 	BinaryData << MeshDataCount;
-
-	UE_LOG(LogTemp, Warning, TEXT("region total zone meshes -> %d"), MeshDataCount);
 
 	for (auto& Elem : MeshDataCache) {
 		TMeshDataPtr& MeshDataPtr = Elem.Value;
 		FVector ZoneIndex = Elem.Key;
-
-		UE_LOG(LogTemp, Warning, TEXT("save region zone mesh -> %f %f %f"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 		BinaryData << ZoneIndex.X;
 		BinaryData << ZoneIndex.Y;
@@ -71,13 +66,8 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 				FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
 				Mesh.SerializeMesh(BinaryData);
 			}
-
 		}
-
-
-
 	}
-
 }
 
 
@@ -109,8 +99,6 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 	int32 MeshDataCount;
 	BinaryData << MeshDataCount;
 
-	UE_LOG(LogTemp, Warning, TEXT("MeshDataCount -> %d"), MeshDataCount);
-
 	for (int ZoneIdx = 0; ZoneIdx < MeshDataCount; ZoneIdx++) {
 		FVector ZoneIndex;
 
@@ -118,12 +106,8 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 		BinaryData << ZoneIndex.Y;
 		BinaryData << ZoneIndex.Z;
 
-		UE_LOG(LogTemp, Warning, TEXT("region zone mesh -> %f %f %f"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-
 		int32 LodArraySize;
 		BinaryData << LodArraySize;
-
-		UE_LOG(LogTemp, Warning, TEXT("LodArraySize -> %d"), LodArraySize);
 
 		TMeshDataPtr MeshDataPtr(new TMeshData);
 
@@ -140,14 +124,9 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			int32 LodSectionRegularMatNum;
 			BinaryData << LodSectionRegularMatNum;
 
-			UE_LOG(LogTemp, Warning, TEXT("LodIndex -> %d"), LodIndex);
-			UE_LOG(LogTemp, Warning, TEXT("LodSectionRegularMatNum -> %d"), LodSectionRegularMatNum);
-
 			for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
 				unsigned short MatId;
 				BinaryData << MatId;
-
-				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
 
 				TMeshMaterialSection& MatSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialSectionMap.FindOrAdd(MatId);
 				MatSection.MaterialId = MatId;
@@ -159,25 +138,19 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			int32 LodSectionTransitionMatNum;
 			BinaryData << LodSectionTransitionMatNum;
 
-			UE_LOG(LogTemp, Warning, TEXT("LodSectionTransitionMatNum -> %d"), LodSectionTransitionMatNum);
-
 			for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
 				unsigned short MatId;
 				BinaryData << MatId;
-				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
 
 				int MatSetSize;
 				BinaryData << MatSetSize;
 
-				UE_LOG(LogTemp, Warning, TEXT("MatSetSize -> %d"), MatSetSize);
 				std::set<unsigned short> MatSet;
 				for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
 					unsigned short MatSetElement;
 					BinaryData << MatSetElement;
 
 					MatSet.insert(MatSetElement);
-
-					UE_LOG(LogTemp, Warning, TEXT("MatSetElement -> %d"), MatSetElement);
 				}
 
 				TMeshMaterialTransitionSection& MatTransSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
@@ -187,7 +160,6 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 
 				MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
 			}
-
 		}
 
 		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
