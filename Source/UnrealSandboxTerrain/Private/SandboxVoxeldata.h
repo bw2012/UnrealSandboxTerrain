@@ -177,12 +177,13 @@ typedef struct TMeshContainer {
 
 	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
 
+	FProcMeshSection WholeMesh;
+
 } TMeshContainer;
 
 typedef struct TMeshLodSection {
 	TMeshContainer RegularMeshContainer;
 
-	FProcMeshSection mainMesh;
 	TArray<FProcMeshSection> transitionMeshArray;
 
 	TArray<FVector> DebugPointList;

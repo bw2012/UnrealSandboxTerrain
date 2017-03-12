@@ -536,7 +536,7 @@ void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, boo
 
 void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 	FBox LocalBox(0);
-	LocalBox += MeshSectionLodArray[0].mainMesh.SectionLocalBox;
+	LocalBox += MeshSectionLodArray[0].RegularMeshContainer.WholeMesh.SectionLocalBox;
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
 
 	UpdateBounds(); // Update global bounds
@@ -567,7 +567,7 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 
 		auto lodIndex = 0;
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
-			MeshSectionLodArray[lodIndex].mainMesh = sectionLOD.mainMesh;
+			MeshSectionLodArray[lodIndex].RegularMeshContainer.WholeMesh = sectionLOD.RegularMeshContainer.WholeMesh;
 			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialSectionMap = sectionLOD.RegularMeshContainer.MaterialSectionMap;
 			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialTransitionSectionMap = sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap;
 

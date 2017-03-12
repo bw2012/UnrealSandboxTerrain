@@ -67,25 +67,17 @@ struct FProcMeshSection {
 	/** Local bounding box of section */
 	FBox SectionLocalBox;
 
-	/** Should we build collision data for triangles in this section */
-	bool bEnableCollision;
-
-	/** Should we display this section */
-	bool bSectionVisible;
-
-	FProcMeshSection()
-		: SectionLocalBox(0)
-		, bEnableCollision(false)
-		, bSectionVisible(true)
-	{}
+	FProcMeshSection() : SectionLocalBox(0)	{ }
 
 	/** Reset this section, clear all mesh info. */
-	void Reset()
-	{
+	void Reset() {
 		ProcVertexBuffer.Empty();
 		ProcIndexBuffer.Empty();
 		SectionLocalBox.Init();
-		bEnableCollision = false;
-		bSectionVisible = true;
+	}
+
+	void AddVertex(FProcMeshVertex& Vertex) {
+		ProcVertexBuffer.Add(Vertex);
+		SectionLocalBox += Vertex.Position;
 	}
 };

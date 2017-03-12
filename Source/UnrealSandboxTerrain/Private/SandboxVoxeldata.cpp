@@ -401,7 +401,7 @@ private:
 		FProcMeshSection* meshSection;
 		VoxelMeshExtractor* extractor;
 
-		TMeshContainer targetMeshSection;
+		TMeshContainer MeshContainer;
 
 		TMaterialSectionMap* materialSectionMapPtr;
 		TMaterialTransitionSectionMap* materialTransitionSectionMapPtr;
@@ -445,10 +445,8 @@ private:
 				vertex.Position = v;
 				vertex.Normal = n;
 
-				meshSection->SectionLocalBox += v;
-
 				meshSection->ProcIndexBuffer.Add(vertexGeneralIndex);
-				meshSection->ProcVertexBuffer.Add(vertex);
+				meshSection->AddVertex(vertex);
 				vertexInfo.vertexIndex = vertexGeneralIndex;
 
 				vertexGeneralIndex++;
@@ -495,8 +493,7 @@ private:
 				Vertex.Color = FColor(0, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
 
-				//matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
-				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
+				matSectionRef.MaterialMesh.AddVertex(Vertex);
 
 				vertexInfo.indexInMaterialSectionMap[matId] = matSectionRef.vertexIndexCounter;
 				matSectionRef.vertexIndexCounter++;
@@ -554,8 +551,7 @@ private:
 					default: Vertex.Color = FColor(0,	0,		0,		0); break;
 				}
 
-				//matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
-				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
+				matSectionRef.MaterialMesh.AddVertex(Vertex);
 
 				vertexInfo.indexInMaterialTransitionSectionMap[matId] = matSectionRef.vertexIndexCounter;
 				matSectionRef.vertexIndexCounter++;
@@ -624,7 +620,7 @@ private:
 
 public:
 	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.mainMesh, &a.RegularMeshContainer.MaterialSectionMap, &a.RegularMeshContainer.MaterialTransitionSectionMap);
+		mainMeshHandler = new MeshHandler(this, &a.RegularMeshContainer.WholeMesh, &a.RegularMeshContainer.MaterialSectionMap, &a.RegularMeshContainer.MaterialTransitionSectionMap);
 
 		for (auto i = 0; i < 6; i++) {
 			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
@@ -976,7 +972,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 		mesh_extractor_ptr->generateCell(x, y, z);
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1005,7 +1001,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1025,7 +1021,7 @@ TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataPara
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1064,7 +1060,7 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].mainMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
