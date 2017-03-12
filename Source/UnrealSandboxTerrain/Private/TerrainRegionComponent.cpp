@@ -10,49 +10,6 @@ UTerrainRegionComponent::UTerrainRegionComponent(const FObjectInitializer& Objec
 
 }
 
-void SerializeMesh(FBufferArchive& BinaryData, const FProcMeshSection& Mesh) {
-	// vertexes
-	int32 VertexNum = Mesh.ProcVertexBuffer.Num();
-	BinaryData << VertexNum;
-	for (auto& Vertex : Mesh.ProcVertexBuffer) {
-
-		float PosX = Vertex.Position.X;
-		float PosY = Vertex.Position.Y;
-		float PosZ = Vertex.Position.Z;
-
-		BinaryData << PosX;
-		BinaryData << PosY;
-		BinaryData << PosZ;
-
-		float NormalX = Vertex.Normal.X;
-		float NormalY = Vertex.Normal.Y;
-		float NormalZ = Vertex.Normal.Z;
-
-		BinaryData << NormalX;
-		BinaryData << NormalY;
-		BinaryData << NormalZ;
-
-		uint8 ColorR = Vertex.Color.R;
-		uint8 ColorG = Vertex.Color.G;
-		uint8 ColorB = Vertex.Color.B;
-		uint8 ColorA = Vertex.Color.A;
-
-		BinaryData << ColorR;
-		BinaryData << ColorG;
-		BinaryData << ColorB;
-		BinaryData << ColorA;
-	}
-
-	// indexes
-	int32 IndexNum = Mesh.ProcIndexBuffer.Num();
-	BinaryData << IndexNum;
-	for (int32 Index : Mesh.ProcIndexBuffer) {
-		BinaryData << Index;
-	}
-
-	//Mesh.SectionLocalBox.Min
-}
-
 void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData) {
 
 	int32 MeshDataCount = MeshDataCache.Num();
@@ -80,7 +37,7 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 			BinaryData << LodIdx;
 
 			// save whole mesh
-			SerializeMesh(BinaryData, LodSection.RegularMeshContainer.WholeMesh);
+			LodSection.RegularMeshContainer.WholeMesh.SerializeMesh(BinaryData);
 
 			// save regular materials
 			int32 LodSectionRegularMatNum = LodSection.RegularMeshContainer.MaterialSectionMap.Num();
@@ -92,7 +49,7 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 				BinaryData << MatId;
 
 				FProcMeshSection& Mesh = MaterialSection.MaterialMesh;
-				SerializeMesh(BinaryData, Mesh);
+				Mesh.SerializeMesh(BinaryData);
 			}
 
 			// save transition materials
@@ -112,7 +69,7 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 				}
 
 				FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
-				SerializeMesh(BinaryData, Mesh);
+				Mesh.SerializeMesh(BinaryData);
 			}
 
 		}
@@ -143,45 +100,6 @@ void UTerrainRegionComponent::SaveFile() {
 	if (FFileHelper::SaveArrayToFile(BinaryData, *FileName)) {
 		BinaryData.FlushCache();
 		BinaryData.Empty();
-	}
-}
-
-
-void DeserializeMesh(FMemoryReader& BinaryData, FProcMeshSection& Mesh) {
-
-	int32 VertexNum; 
-	BinaryData << VertexNum;
-
-	UE_LOG(LogTemp, Warning, TEXT("VertexNum -> %d"), VertexNum);
-
-	for (int Idx = 0; Idx < VertexNum; Idx++) {
-
-		FProcMeshVertex Vertex;
-
-		BinaryData << Vertex.Position.X;
-		BinaryData << Vertex.Position.Y;
-		BinaryData << Vertex.Position.Z;
-
-		BinaryData << Vertex.Normal.X;
-		BinaryData << Vertex.Normal.Y;
-		BinaryData << Vertex.Normal.Z;
-
-		BinaryData << Vertex.Color.R;
-		BinaryData << Vertex.Color.G;
-		BinaryData << Vertex.Color.B;
-		BinaryData << Vertex.Color.A;
-
-		Mesh.AddVertex(Vertex);
-	}
-
-	int32 IndexNum;
-	BinaryData << IndexNum;
-	UE_LOG(LogTemp, Warning, TEXT("IndexNum -> %d"), IndexNum);
-
-	for (int Idx = 0; Idx < IndexNum; Idx++) {
-		int32 Index;
-		BinaryData << Index;
-		Mesh.ProcIndexBuffer.Add(Index);
 	}
 }
 
@@ -216,7 +134,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			BinaryData << LodIndex;
 
 			// whole mesh
-			DeserializeMesh(BinaryData, MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.WholeMesh);
+			MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.WholeMesh.DeserializeMesh(BinaryData);
 
 			// regular materials
 			int32 LodSectionRegularMatNum;
@@ -234,7 +152,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 				TMeshMaterialSection& MatSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialSectionMap.FindOrAdd(MatId);
 				MatSection.MaterialId = MatId;
 
-				DeserializeMesh(BinaryData, MatSection.MaterialMesh);
+				MatSection.MaterialMesh.DeserializeMesh(BinaryData);
 			}
 
 			// transition materials
@@ -267,7 +185,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 				MatTransSection.MaterialIdSet = MatSet;
 				MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
 
-				DeserializeMesh(BinaryData, MatTransSection.MaterialMesh);
+				MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
 			}
 
 		}
