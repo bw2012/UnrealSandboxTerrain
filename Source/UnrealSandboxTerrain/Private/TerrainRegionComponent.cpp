@@ -97,14 +97,14 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 				unsigned short MatId = Elem2.Key;
 				TMeshMaterialTransitionSection& TransitionMaterialSection = Elem2.Value;
 
+				BinaryData << MatId;
+
 				int MatSetSize = TransitionMaterialSection.MaterialIdSet.size();
 				BinaryData << MatSetSize;
 
 				for (unsigned short MatSetElement : TransitionMaterialSection.MaterialIdSet) {
 					BinaryData << MatSetElement;
 				}
-
-				BinaryData << MatId;
 
 				FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
 				SerializeMesh(BinaryData, Mesh);
@@ -210,6 +210,9 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 	BinaryData.Seek(0);
 
 	//=============================
+
+	TMeshDataPtr MeshDataPtr(new TMeshData);
+
 	int32 MeshDataCount;
 	BinaryData << MeshDataCount;
 
@@ -246,8 +249,10 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 
 				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
 
-				FProcMeshSection Mesh;
-				DeserializeMesh(BinaryData, Mesh);
+				TMeshMaterialSection& MatSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].MaterialSectionMap.FindOrAdd(MatId);
+				MatSection.MaterialId = MatId;
+
+				DeserializeMesh(BinaryData, MatSection.MaterialMesh);
 			}
 
 			// transition materials
@@ -258,21 +263,27 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 
 			for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
 
+				unsigned short MatId;
+				BinaryData << MatId;
+				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
+
 				int MatSetSize;
 				BinaryData << MatSetSize;
 
 				UE_LOG(LogTemp, Warning, TEXT("MatSetSize -> %d"), MatSetSize);
+				std::set<unsigned short> MatSet;
 				for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
 					unsigned short MatSetElement;
 					BinaryData << MatSetElement;
 
+					MatSet.insert(MatSetElement);
+
 					UE_LOG(LogTemp, Warning, TEXT("MatSetElement -> %d"), MatSetElement);
 				}
 
-				unsigned short MatId;
-				BinaryData << MatId;
-
-				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
+				TMeshMaterialTransitionSection& MatTransSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].MaterialTransitionSectionMap.FindOrAdd(MatId);
+				MatTransSection.MaterialId = MatId;
+				MatTransSection.MaterialIdSet = MatSet;
 
 				FProcMeshSection Mesh;
 				DeserializeMesh(BinaryData, Mesh);
