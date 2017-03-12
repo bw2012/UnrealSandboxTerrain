@@ -79,6 +79,9 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 			TMeshLodSection& LodSection = MeshData->MeshSectionLodArray[LodIdx];
 			BinaryData << LodIdx;
 
+			// save whole mesh
+			SerializeMesh(BinaryData, LodSection.RegularMeshContainer.WholeMesh);
+
 			// save regular materials
 			int32 LodSectionRegularMatNum = LodSection.RegularMeshContainer.MaterialSectionMap.Num();
 			BinaryData << LodSectionRegularMatNum;
@@ -168,7 +171,7 @@ void DeserializeMesh(FMemoryReader& BinaryData, FProcMeshSection& Mesh) {
 		BinaryData << Vertex.Color.B;
 		BinaryData << Vertex.Color.A;
 
-		Mesh.ProcVertexBuffer.Add(Vertex);
+		Mesh.AddVertex(Vertex);
 	}
 
 	int32 IndexNum;
@@ -211,6 +214,9 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 		for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
 			int32 LodIndex;
 			BinaryData << LodIndex;
+
+			// whole mesh
+			DeserializeMesh(BinaryData, MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.WholeMesh);
 
 			// regular materials
 			int32 LodSectionRegularMatNum;
@@ -265,6 +271,8 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			}
 
 		}
+
+		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
 	}
 }
 
