@@ -58,6 +58,10 @@ public:
 
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
+	UTerrainRegionComponent* GetRegion() {
+		return Cast<UTerrainRegionComponent>(GetAttachParent());
+	}
+
 private:
 	TVoxelData* voxel_data;
 };

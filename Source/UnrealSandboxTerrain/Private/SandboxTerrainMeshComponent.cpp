@@ -256,7 +256,7 @@ public:
 		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++) {
 			FProcMeshSection& SrcSection = Component->MeshSectionLodArray[SectionIdx].mainMesh;
 
-			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
+			//if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
 				// copy regular material mesh
@@ -284,7 +284,7 @@ public:
 
 				// Save ref to new section
 				LodSectionArray[SectionIdx] = NewLodSection;
-			}
+			//}
 		}
 	}
 
@@ -539,11 +539,12 @@ void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, boo
 */
 
 void USandboxTerrainMeshComponent::UpdateLocalBounds() {
-	FBox LocalBox(0);
+	//FBox LocalBox(0);
+	//LocalBox += MeshSectionLodArray[0].mainMesh.SectionLocalBox;
+	//LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
 
-	LocalBox += MeshSectionLodArray[0].mainMesh.SectionLocalBox;
+	LocalBounds = FBoxSphereBounds(FVector(0, 0, 0), FVector(500, 500, 500), 1000); 
 
-	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
 	UpdateBounds(); // Update global bounds
 	MarkRenderTransformDirty(); // Need to send to render thread
 }

@@ -73,7 +73,7 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 		return;
 	}
 
-	UTerrainRegionComponent* Region = Cast<UTerrainRegionComponent>(GetAttachParent());
+	UTerrainRegionComponent* Region = GetRegion();
 	if (Region == nullptr) {
 		return;
 	}
@@ -96,8 +96,8 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 	//##########################################
 	// mat section test
 	//##########################################
-	/*
-	TMeshLodSection& section0 = mesh_data->MeshSectionLodArray[0];
+	
+	TMeshLodSection& section0 = MeshData->MeshSectionLodArray[0];
 	TMaterialSectionMap matSectionMap = section0.MaterialSectionMap;
 
 	for (auto& Elem : matSectionMap) {
@@ -107,6 +107,7 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 		UE_LOG(LogTemp, Warning, TEXT("material section -> %d - %d -> %d "), matId, matSection.MaterialId, matSection.MaterialMesh.ProcVertexBuffer.Num());
 	}	
 
+	/*
 	TMaterialTransitionSectionMap& matTraSectionMap = section0.MaterialTransitionSectionMap;
 	for (auto& Elem : matTraSectionMap) {
 		short matId = Elem.Key;

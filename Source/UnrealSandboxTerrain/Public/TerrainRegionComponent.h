@@ -34,15 +34,25 @@ public:
 		MeshDataCache.Add(ZoneIndex, MeshDataPtr);
 	}
 
+	TMeshDataPtr GetMeshData(FVector ZoneIndex) {
+		if (MeshDataCache.Contains(ZoneIndex)) {
+			return MeshDataCache[ZoneIndex];
+		}
+
+		return nullptr;
+	}
+
 	void CleanMeshDataCache() {
 		MeshDataCache.Empty();
 	}
 
 	void SerializeRegionMeshData(FBufferArchive& BinaryData);
 
-	void SaveRegionToFile();
+	void DeserializeRegionMeshData(FMemoryReader& BinaryData);
 
-	void LoadRegionFromFile();
+	void SaveFile();
+
+	void LoadFile();
 
 private:
 	TMap<FVector, TMeshDataPtr> MeshDataCache;

@@ -154,6 +154,17 @@ typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
 	std::set<unsigned short> MaterialIdSet;
 
+	static FString GenerateTransitionName(std::set<unsigned short>& MaterialIdSet) {
+		FString TransitionMaterialName = TEXT("");
+		FString Separator = TEXT("");
+		for (unsigned short MaterialId : MaterialIdSet) {
+			TransitionMaterialName = FString::Printf(TEXT("%s%s%d"), *TransitionMaterialName, *Separator, MaterialId);
+			Separator = TEXT("-");
+		}
+
+		return TransitionMaterialName;
+	}
+
 } TMeshMaterialTransitionSection;
 
 
@@ -175,12 +186,13 @@ typedef struct TMeshLodSection {
 
 
 typedef struct TMeshData {
-	TMeshData() {
-		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
-	}
-
 	TArray<TMeshLodSection> MeshSectionLodArray;
 	FProcMeshSection* CollisionMeshPtr;
+
+	TMeshData() {
+		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
+		CollisionMeshPtr = nullptr;
+	}
 
 	~TMeshData() {
 		// for memory leaks checking

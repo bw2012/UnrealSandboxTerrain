@@ -474,7 +474,7 @@ private:
 				Vertex.Color = FColor(t, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
 
-				meshSection->SectionLocalBox += Vertex.Position;
+				//meshSection->SectionLocalBox += Vertex.Position;
 
 				meshSection->ProcVertexBuffer.Add(Vertex);
 
@@ -516,7 +516,7 @@ private:
 				Vertex.Color = FColor(0, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
 
-				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
+				//matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
 				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
 
 				vertexInfo.indexInMaterialSectionMap[matId] = matSectionRef.vertexIndexCounter;
@@ -576,7 +576,7 @@ private:
 					default: Vertex.Color = FColor(0,	0,		0,		0); break;
 				}
 
-				matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
+				//matSectionRef.MaterialMesh.SectionLocalBox += Vertex.Position;
 				matSectionRef.MaterialMesh.ProcVertexBuffer.Add(Vertex);
 
 				vertexInfo.indexInMaterialTransitionSectionMap[matId] = matSectionRef.vertexIndexCounter;

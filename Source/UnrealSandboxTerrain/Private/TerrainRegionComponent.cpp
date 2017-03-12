@@ -49,6 +49,8 @@ void SerializeMesh(FBufferArchive& BinaryData, const FProcMeshSection& Mesh) {
 	for (int32 Index : Mesh.ProcIndexBuffer) {
 		BinaryData << Index;
 	}
+
+	//Mesh.SectionLocalBox.Min
 }
 
 void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData) {
@@ -119,7 +121,7 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 }
 
 
-void UTerrainRegionComponent::SaveRegionToFile() {
+void UTerrainRegionComponent::SaveFile() {
 	FString SavePath = FPaths::GameSavedDir();
 	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
 
@@ -151,31 +153,22 @@ void DeserializeMesh(FMemoryReader& BinaryData, FProcMeshSection& Mesh) {
 
 	for (int Idx = 0; Idx < VertexNum; Idx++) {
 
-		float PosX;
-		float PosY;
-		float PosZ;
+		FProcMeshVertex Vertex;
 
-		BinaryData << PosX;
-		BinaryData << PosY;
-		BinaryData << PosZ;
+		BinaryData << Vertex.Position.X;
+		BinaryData << Vertex.Position.Y;
+		BinaryData << Vertex.Position.Z;
 
-		float NormalX;
-		float NormalY;
-		float NormalZ;
+		BinaryData << Vertex.Normal.X;
+		BinaryData << Vertex.Normal.Y;
+		BinaryData << Vertex.Normal.Z;
 
-		BinaryData << NormalX;
-		BinaryData << NormalY;
-		BinaryData << NormalZ;
+		BinaryData << Vertex.Color.R;
+		BinaryData << Vertex.Color.G;
+		BinaryData << Vertex.Color.B;
+		BinaryData << Vertex.Color.A;
 
-		uint8 ColorR;
-		uint8 ColorG;
-		uint8 ColorB;
-		uint8 ColorA;
-
-		BinaryData << ColorR;
-		BinaryData << ColorG;
-		BinaryData << ColorB;
-		BinaryData << ColorA;
+		Mesh.ProcVertexBuffer.Add(Vertex);
 	}
 
 	int32 IndexNum;
@@ -185,33 +178,12 @@ void DeserializeMesh(FMemoryReader& BinaryData, FProcMeshSection& Mesh) {
 	for (int Idx = 0; Idx < IndexNum; Idx++) {
 		int32 Index;
 		BinaryData << Index;
+		Mesh.ProcIndexBuffer.Add(Index);
 	}
 }
 
-void UTerrainRegionComponent::LoadRegionFromFile() {
-	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
-
-	int tx = Index.X;
-	int ty = Index.Y;
-	int tz = Index.Z;
-
-	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
-
-	TArray<uint8> BinaryArray;
-	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {
-		UE_LOG(LogTemp, Warning, TEXT("file not found -> %s"), *FileName);
-		return;
-	}
-
-	if (BinaryArray.Num() <= 0) return;
-
-	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
-	BinaryData.Seek(0);
-
-	//=============================
-
-	TMeshDataPtr MeshDataPtr(new TMeshData);
+void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryData) {
+	MeshDataCache.Empty();
 
 	int32 MeshDataCount;
 	BinaryData << MeshDataCount;
@@ -231,6 +203,10 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 		BinaryData << LodArraySize;
 
 		UE_LOG(LogTemp, Warning, TEXT("LodArraySize -> %d"), LodArraySize);
+
+		TMeshDataPtr MeshDataPtr(new TMeshData);
+
+		MeshDataCache.Add(ZoneIndex, MeshDataPtr);
 
 		for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
 			int32 LodIndex;
@@ -262,7 +238,6 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 			UE_LOG(LogTemp, Warning, TEXT("LodSectionTransitionMatNum -> %d"), LodSectionTransitionMatNum);
 
 			for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
-
 				unsigned short MatId;
 				BinaryData << MatId;
 				UE_LOG(LogTemp, Warning, TEXT("MatId -> %d"), MatId);
@@ -284,18 +259,40 @@ void UTerrainRegionComponent::LoadRegionFromFile() {
 				TMeshMaterialTransitionSection& MatTransSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].MaterialTransitionSectionMap.FindOrAdd(MatId);
 				MatTransSection.MaterialId = MatId;
 				MatTransSection.MaterialIdSet = MatSet;
+				MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
 
-				FProcMeshSection Mesh;
-				DeserializeMesh(BinaryData, Mesh);
+				DeserializeMesh(BinaryData, MatTransSection.MaterialMesh);
 			}
-			
+
 		}
 	}
+}
 
+void UTerrainRegionComponent::LoadFile() {
+	FString SavePath = FPaths::GameSavedDir();
+	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+
+	int tx = Index.X;
+	int ty = Index.Y;
+	int tz = Index.Z;
+
+	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
+
+	TArray<uint8> BinaryArray;
+	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {
+		UE_LOG(LogTemp, Warning, TEXT("file not found -> %s"), *FileName);
+		return;
+	}
+
+	if (BinaryArray.Num() <= 0) return;
+
+	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
+	BinaryData.Seek(0);
 
 	//=============================
-
-
+	DeserializeRegionMeshData(BinaryData);
+	
+	//=============================
 
 	BinaryData.FlushCache();
 	BinaryArray.Empty();

@@ -184,7 +184,7 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	for (auto& Elem : TerrainRegionMap) {
 		UTerrainRegionComponent* Region = Elem.Value;
-		Region->SaveRegionToFile();
+		Region->SaveFile();
 		Region->CleanMeshDataCache();
 	}
 
@@ -276,7 +276,18 @@ TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
 		if (vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 			UTerrainZoneComponent* zone = addTerrainZone(v);
 			zone->setVoxelData(vd);
-			zone->makeTerrain();
+
+			TMeshDataPtr MeshDataPtr = zone->GetRegion()->GetMeshData(v);
+			if (MeshDataPtr != nullptr) {
+				UE_LOG(LogTemp, Warning, TEXT("mesh data cache found!"));
+
+				zone->applyTerrainMesh(MeshDataPtr);
+
+			} else {
+				zone->makeTerrain();
+			}
+
+
 		}
 
 		InitialZoneSet.Add(FVector(0, 0, 0));
@@ -323,7 +334,7 @@ UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
 		RegionComponent->SetWorldLocation(RegionIndex);
 
 		// test only
-		RegionComponent->LoadRegionFromFile();
+		RegionComponent->LoadFile();
 		//
 
 		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
