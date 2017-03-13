@@ -15,7 +15,7 @@ class FLoadInitialZonesThread : public FRunnable {
 
 private:
 	 
-	volatile int state = TH_STATE_NEW;
+	volatile int State = TH_STATE_NEW;
 
 	FRunnableThread* thread;
 
@@ -31,16 +31,16 @@ public:
 		}
 	}
 
-	TArray<FVector> zone_list;
+	TArray<FVector> ZoneList;
 	ASandboxTerrainController* Controller;
 
 	bool IsFinished() {
-		return state == TH_STATE_FINISHED;
+		return State == TH_STATE_FINISHED;
 	}
 
 	virtual void Stop() { 
-		if (state == TH_STATE_NEW || state == TH_STATE_RUNNING) {
-			state = TH_STATE_STOP;
+		if (State == TH_STATE_NEW || State == TH_STATE_RUNNING) {
+			State = TH_STATE_STOP;
 		}
 	}
 
@@ -55,21 +55,21 @@ public:
 	}
 
 	virtual uint32 Run() {
-		state = TH_STATE_RUNNING;
-		UE_LOG(LogTemp, Warning, TEXT("zone initial loader %d"), zone_list.Num());
-		for (auto i = 0; i < zone_list.Num(); i++) {
+		State = TH_STATE_RUNNING;
+		UE_LOG(LogTemp, Warning, TEXT("zone initial loader %d"), ZoneList.Num());
+		for (auto i = 0; i < ZoneList.Num(); i++) {
 			if (!Controller->IsValidLowLevel()) {
 				// controller is not valid anymore
-				state = TH_STATE_FINISHED;
+				State = TH_STATE_FINISHED;
 				return 0;
 			}
 
-			if (state == TH_STATE_STOP) {
-				state = TH_STATE_FINISHED;
+			if (State == TH_STATE_STOP) {
+				State = TH_STATE_FINISHED;
 				return 0;
 			}
 
-			FVector Index = zone_list[i];
+			FVector Index = ZoneList[i];
 			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 
 			//TODO maybe pass index?
@@ -77,21 +77,21 @@ public:
 			if (NewVoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
 				UTerrainZoneComponent* Zone = Controller->GetZoneByVectorIndex(Index);
 				if (Zone == NULL) {
-					Controller->invokeLazyZoneAsync(Index);
+					Controller->InvokeLazyZoneAsync(Index);
 				} else {
 					Zone->SetVoxelData(NewVoxelData);
-					std::shared_ptr<TMeshData> MeshDataPtr = Zone->generateMesh();
+					std::shared_ptr<TMeshData> MeshDataPtr = Zone->GenerateMesh();
 					Zone->getVoxelData()->resetLastMeshRegenerationTime();
-					Controller->invokeZoneMeshAsync(Zone, MeshDataPtr);
+					Controller->InvokeZoneMeshAsync(Zone, MeshDataPtr);
 				}
 			}
 
-			Controller->OnLoadZoneProgress(i, zone_list.Num());
+			Controller->OnLoadZoneProgress(i, ZoneList.Num());
 		}
 
 		Controller->OnLoadZoneListFinished();
 
-		state = TH_STATE_FINISHED;
+		State = TH_STATE_FINISHED;
 		return 0;
 	}
 
@@ -162,7 +162,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 						if(!InitialZoneSet.Contains(zone_index)) {
 							// Until the end of the process some functions can be unavailable.
-							InitialZoneLoader->zone_list.Add(zone_index);
+							InitialZoneLoader->ZoneList.Add(zone_index);
 							InitialZoneSet.Add(zone_index);
 						}
 					}
@@ -638,10 +638,9 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				if (is_changed) {
 					vd->setChanged();
 					vd->setCacheToValid();
-					std::shared_ptr<TMeshData> md_ptr = zone->generateMesh();
+					std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
 					vd->resetLastMeshRegenerationTime();
 					vd->vd_edit_mutex.unlock();
-
 					invokeZoneMeshAsync(zone, md_ptr);
 				} else {
 					vd->vd_edit_mutex.unlock();
@@ -656,7 +655,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 }
 
 
-void ASandboxTerrainController::invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr) {
+void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr) {
 	TerrainControllerTask task;
 	task.f = [=]() {
 		if (mesh_data_ptr) {
@@ -667,7 +666,7 @@ void ASandboxTerrainController::invokeZoneMeshAsync(UTerrainZoneComponent* zone,
 	AddAsyncTask(task);
 }
 
-void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
+void ASandboxTerrainController::InvokeLazyZoneAsync(FVector index) {
 	TerrainControllerTask task;
 	FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
 	TVoxelData* vd = GetTerrainVoxelDataByIndex(index);
@@ -681,7 +680,7 @@ void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 		UTerrainZoneComponent* zone = AddTerrainZone(v);
 		zone->SetVoxelData(vd);
 
-		std::shared_ptr<TMeshData> md_ptr = zone->generateMesh();
+		std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
 		vd->resetLastMeshRegenerationTime();
 		zone->ApplyTerrainMesh(md_ptr);
 	};

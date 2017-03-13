@@ -205,9 +205,9 @@ private:
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
-	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
+	void InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 
-	void invokeLazyZoneAsync(FVector index);
+	void InvokeLazyZoneAsync(FVector index);
 
 	void AddAsyncTask(TerrainControllerTask zone_make_task);
 

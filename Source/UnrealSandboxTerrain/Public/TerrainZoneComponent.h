@@ -48,7 +48,7 @@ public:
 
 	void ApplyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr, bool bPutToCache = true);
 
-	std::shared_ptr<TMeshData> generateMesh();
+	std::shared_ptr<TMeshData> GenerateMesh();
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 

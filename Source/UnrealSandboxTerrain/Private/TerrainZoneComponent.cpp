@@ -22,7 +22,7 @@ void UTerrainZoneComponent::MakeTerrain() {
 		return;
 	}
 
-	std::shared_ptr<TMeshData> md_ptr = generateMesh();
+	std::shared_ptr<TMeshData> md_ptr = GenerateMesh();
 
 	if (IsInGameThread()) {
 		ApplyTerrainMesh(md_ptr);
@@ -30,12 +30,12 @@ void UTerrainZoneComponent::MakeTerrain() {
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
 		if (GetTerrainController() != NULL) {
-			GetTerrainController()->invokeZoneMeshAsync(this, md_ptr);
+			GetTerrainController()->InvokeZoneMeshAsync(this, md_ptr);
 		}
 	}
 }
 
-std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
+std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
 	double start = FPlatformTime::Seconds();
 
 	if (voxel_data->getDensityFillState() == TVoxelDataFillState::ZERO || voxel_data->getDensityFillState() == TVoxelDataFillState::ALL) {

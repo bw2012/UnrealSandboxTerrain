@@ -218,12 +218,12 @@
 		material_data[index] = material;
 	}
 
-	FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState state) {
-		if (state == TVoxelDataFillState::MIX) {
+	FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState State) {
+		if (State == TVoxelDataFillState::MIX) {
 			return;
 		}
 
-		density_state = state;
+		density_state = State;
 		if (density_data != NULL) {
 			delete density_data;
 		}
