@@ -246,17 +246,19 @@ FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
 }
 
 
-void ASandboxTerrainController::SpawnZone(FVector pos) {
-	TVoxelData* VoxelData = createZoneVoxeldata(pos);
+void ASandboxTerrainController::SpawnZone(FVector Pos) {
+	FVector ZoneIndex = getZoneIndex(Pos);
+
+	TVoxelData* VoxelData = createZoneVoxeldata(Pos);
 
 	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
-		UTerrainZoneComponent* Zone = addTerrainZone(pos);
+		UTerrainZoneComponent* Zone = addTerrainZone(Pos);
 		Zone->setVoxelData(VoxelData);
 
-		TMeshDataPtr MeshDataPtr = Zone->GetRegion()->GetMeshData(pos);
+		TMeshDataPtr MeshDataPtr = Zone->GetRegion()->GetMeshData(ZoneIndex);
 		if (MeshDataPtr != nullptr) {
-			UE_LOG(LogTemp, Warning, TEXT("mesh data cache found!"));
-			Zone->applyTerrainMesh(MeshDataPtr);
+			UE_LOG(LogTemp, Warning, TEXT("mesh data cache found -> %f %f %f"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+			Zone->applyTerrainMesh(MeshDataPtr, false); // already in cache
 		} else {
 			Zone->makeTerrain();
 		}
@@ -277,16 +279,8 @@ TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
 		for (auto x = -s; x <= s; x++) {
 			for (auto y = -s; y <= s; y++) {
 				for (auto z = -s; z <= s; z++) {
-					FVector v = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
-					//TODO maybe pass index?
-					TVoxelData* vd = createZoneVoxeldata(v);
-
-					if (vd->getDensityFillState() == TVoxelDataFillState::MIX) {
-						UTerrainZoneComponent* zone = addTerrainZone(v);
-						zone->setVoxelData(vd);
-						zone->makeTerrain();
-					}
-
+					FVector Pos = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
+					SpawnZone(Pos);
 					InitialZoneSet.Add(FVector(x, y, z));
 				}
 			}
@@ -700,9 +694,6 @@ void ASandboxTerrainController::invokeLazyZoneAsync(FVector index) {
 
 TVoxelData* ASandboxTerrainController::createZoneVoxeldata(FVector location) {
 	double start = FPlatformTime::Seconds();
-	//	if (GetWorld()->GetAuthGameMode() == NULL) {
-	//		return;
-	//	}
 
 	int dim = static_cast<int>(ZoneGridDimension);
 	TVoxelData* vd = new TVoxelData(dim, 100 * 10);

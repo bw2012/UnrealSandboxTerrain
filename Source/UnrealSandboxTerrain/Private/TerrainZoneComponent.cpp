@@ -64,7 +64,7 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
 	return md_ptr;
 }
 
-void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
+void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
 	double start = FPlatformTime::Seconds();
 
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -78,8 +78,10 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 		return;
 	}
 
-	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
-	Region->PutMeshDataToCache(Index, MeshDataPtr);
+	if (bPutToCache) {
+		FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+		Region->PutMeshDataToCache(Index, MeshDataPtr);
+	}
 
 	//##########################################
 	// draw debug points

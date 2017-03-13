@@ -46,7 +46,7 @@ public:
 		this->voxel_data = vd; 
 	};
 
-	void applyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr);
+	void applyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr, bool bPutToCache = true);
 
 	std::shared_ptr<TMeshData> generateMesh();
 
