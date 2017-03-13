@@ -224,8 +224,8 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 
 	if (HasNextAsyncTask()) {
 		TerrainControllerTask task = GetAsyncTask();
-		if (task.f) {
-			task.f();
+		if (task.Function) {
+			task.Function();
 		}
 	}	
 }
@@ -657,7 +657,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 
 void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr) {
 	TerrainControllerTask task;
-	task.f = [=]() {
+	task.Function = [=]() {
 		if (mesh_data_ptr) {
 			zone->ApplyTerrainMesh(mesh_data_ptr);
 		}
@@ -666,31 +666,31 @@ void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone,
 	AddAsyncTask(task);
 }
 
-void ASandboxTerrainController::InvokeLazyZoneAsync(FVector index) {
-	TerrainControllerTask task;
-	FVector v = FVector((float)(index.X * 1000), (float)(index.Y * 1000), (float)(index.Z * 1000));
-	TVoxelData* vd = GetTerrainVoxelDataByIndex(index);
+void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
+	TerrainControllerTask Task;
+	FVector Pos = FVector((float)(ZoneIndex.X * 1000), (float)(ZoneIndex.Y * 1000), (float)(ZoneIndex.Z * 1000));
+	TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-	if (vd == NULL) {
+	if (VoxelData == NULL) {
 		UE_LOG(LogTemp, Warning, TEXT("FAIL"));
 		return;
 	}
 
-	task.f = [=]() {
-		UTerrainZoneComponent* zone = AddTerrainZone(v);
-		zone->SetVoxelData(vd);
+	Task.Function = [=]() {
+		UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+		Zone->SetVoxelData(VoxelData);
 
-		TMeshDataPtr MeshDataPtr = zone->GetRegion()->GetMeshData(index);
+		TMeshDataPtr MeshDataPtr = Zone->GetRegion()->GetMeshData(ZoneIndex);
 		if (MeshDataPtr != nullptr) {
-			zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
 		} else {
-			MeshDataPtr = zone->GenerateMesh();
-			vd->resetLastMeshRegenerationTime();
-			zone->ApplyTerrainMesh(MeshDataPtr);
+			MeshDataPtr = Zone->GenerateMesh();
+			VoxelData->resetLastMeshRegenerationTime();
+			Zone->ApplyTerrainMesh(MeshDataPtr);
 		}
 	};
 
-	AddAsyncTask(task);
+	AddAsyncTask(Task);
 }
 
 //======================================================================================================================================================================

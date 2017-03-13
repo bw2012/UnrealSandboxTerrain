@@ -21,7 +21,7 @@ class UTerrainRegionComponent;
 #define TH_STATE_FINISHED	3
 
 typedef struct TerrainControllerTask {
-	std::function<void()> f;
+	std::function<void()> Function;
 } TerrainControllerTask;
 
 UENUM(BlueprintType)
