@@ -4,6 +4,11 @@
 
 #include "ModuleManager.h"
 
+#define USBT_REGION_FILE_VERSION		1
+#define USBT_REGION_VOXELDATA_VERSION	1
+
+DECLARE_LOG_CATEGORY_EXTERN(LogSandboxTerrain, Log, All);
+
 class FUnrealSandboxTerrainModule : public IModuleInterface
 {
 public:

@@ -166,9 +166,9 @@ public:
 
 	void fillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
 
-	FVector getZoneIndex(FVector v);
+	FVector GetZoneIndex(FVector v);
 
-	UTerrainZoneComponent* getZoneByVectorIndex(FVector v);
+	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
 
 	FVector GetRegionIndex(FVector v);
 
@@ -195,11 +195,11 @@ private:
 
 	void SpawnZone(FVector pos);
 
-	UTerrainZoneComponent* addTerrainZone(FVector pos);
+	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelData* createZoneVoxeldata(FVector location);
+	TVoxelData* CreateZoneVoxeldata(FVector location);
 
 	void generateTerrain(TVoxelData &voxel_data);
 

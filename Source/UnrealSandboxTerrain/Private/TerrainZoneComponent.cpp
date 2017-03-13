@@ -13,7 +13,7 @@ UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectIni
 }
 
 
-void UTerrainZoneComponent::makeTerrain() {
+void UTerrainZoneComponent::MakeTerrain() {
 	if (voxel_data == NULL) {
 		voxel_data = GetTerrainController()->GetTerrainVoxelDataByPos(GetComponentLocation());
 	}
@@ -25,7 +25,7 @@ void UTerrainZoneComponent::makeTerrain() {
 	std::shared_ptr<TMeshData> md_ptr = generateMesh();
 
 	if (IsInGameThread()) {
-		applyTerrainMesh(md_ptr);
+		ApplyTerrainMesh(md_ptr);
 		voxel_data->resetLastMeshRegenerationTime();
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
@@ -64,7 +64,7 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::generateMesh() {
 	return md_ptr;
 }
 
-void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
 	double start = FPlatformTime::Seconds();
 
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -79,7 +79,7 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	}
 
 	if (bPutToCache) {
-		FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+		FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
 		Region->PutMeshDataToCache(Index, MeshDataPtr);
 	}
 
@@ -159,7 +159,7 @@ void UTerrainZoneComponent::applyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 
 void UTerrainZoneComponent::SaveInstancedMeshesToFile() {
 	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+	FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
 
 	int tx = Index.X;
 	int ty = Index.Y;
@@ -179,7 +179,7 @@ void UTerrainZoneComponent::SaveInstancedMeshesToFile() {
 
 void UTerrainZoneComponent::LoadInstancedMeshesFromFile() {
 	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+	FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
 
 	int tx = Index.X;
 	int ty = Index.Y;

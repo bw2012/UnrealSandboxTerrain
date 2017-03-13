@@ -72,6 +72,8 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 
 
 void UTerrainRegionComponent::SaveFile() {
+	double Start = FPlatformTime::Seconds();
+
 	FString SavePath = FPaths::GameSavedDir();
 	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
 
@@ -91,6 +93,11 @@ void UTerrainRegionComponent::SaveFile() {
 		BinaryData.FlushCache();
 		BinaryData.Empty();
 	}
+
+	double End = FPlatformTime::Seconds();
+	double LogTime = (End - Start) * 1000;
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save region file -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
 }
 
 void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryData) {
@@ -167,8 +174,10 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 }
 
 void UTerrainRegionComponent::LoadFile() {
+	double Start = FPlatformTime::Seconds();
+
 	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->getZoneIndex(GetComponentLocation());
+	FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
 
 	int tx = Index.X;
 	int ty = Index.Y;
@@ -189,10 +198,14 @@ void UTerrainRegionComponent::LoadFile() {
 
 	//=============================
 	DeserializeRegionMeshData(BinaryData);
-	
 	//=============================
 
 	BinaryData.FlushCache();
 	BinaryArray.Empty();
 	BinaryData.Close();
+
+	double End = FPlatformTime::Seconds();
+	double LogTime = (End - Start) * 1000;
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Load region file -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
 }

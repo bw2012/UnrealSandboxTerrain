@@ -36,17 +36,17 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	void makeTerrain();
+	void MakeTerrain();
 
 	TVoxelData* getVoxelData() { 
 		return voxel_data; 
 	};
 
-	void setVoxelData(TVoxelData* vd) {
+	void SetVoxelData(TVoxelData* vd) {
 		this->voxel_data = vd; 
 	};
 
-	void applyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr, bool bPutToCache = true);
+	void ApplyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr, bool bPutToCache = true);
 
 	std::shared_ptr<TMeshData> generateMesh();
 
