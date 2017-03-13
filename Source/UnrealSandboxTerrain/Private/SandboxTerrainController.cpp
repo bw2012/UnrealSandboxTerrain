@@ -680,9 +680,14 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector index) {
 		UTerrainZoneComponent* zone = AddTerrainZone(v);
 		zone->SetVoxelData(vd);
 
-		std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
-		vd->resetLastMeshRegenerationTime();
-		zone->ApplyTerrainMesh(md_ptr);
+		TMeshDataPtr MeshDataPtr = zone->GetRegion()->GetMeshData(index);
+		if (MeshDataPtr != nullptr) {
+			zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+		} else {
+			MeshDataPtr = zone->GenerateMesh();
+			vd->resetLastMeshRegenerationTime();
+			zone->ApplyTerrainMesh(MeshDataPtr);
+		}
 	};
 
 	AddAsyncTask(task);
