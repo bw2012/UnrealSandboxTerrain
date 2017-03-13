@@ -193,7 +193,11 @@ private:
 
 	TSet<FVector> spawnInitialZone();
 
+	void SpawnZone(FVector pos);
+
 	UTerrainZoneComponent* addTerrainZone(FVector pos);
+
+	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
 	TVoxelData* createZoneVoxeldata(FVector location);
 

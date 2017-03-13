@@ -140,6 +140,10 @@ void ASandboxTerrainController::BeginPlay() {
 		//return;
 	}
 
+	UTerrainRegionComponent* Region = GetOrCreateRegion(FVector(0, 0, 0));
+	Region->LoadFile();
+
+
 	TSet<FVector> InitialZoneSet = spawnInitialZone();
 	
 	//zone initial generation list
@@ -241,6 +245,25 @@ FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
 	return fileName;
 }
 
+
+void ASandboxTerrainController::SpawnZone(FVector pos) {
+	TVoxelData* VoxelData = createZoneVoxeldata(pos);
+
+	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
+		UTerrainZoneComponent* Zone = addTerrainZone(pos);
+		Zone->setVoxelData(VoxelData);
+
+		TMeshDataPtr MeshDataPtr = Zone->GetRegion()->GetMeshData(pos);
+		if (MeshDataPtr != nullptr) {
+			UE_LOG(LogTemp, Warning, TEXT("mesh data cache found!"));
+			Zone->applyTerrainMesh(MeshDataPtr);
+		} else {
+			Zone->makeTerrain();
+		}
+	}
+}
+
+
 TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
 	double start = FPlatformTime::Seconds();
 
@@ -269,28 +292,9 @@ TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
 			}
 		}
 	} else {
-		FVector v = FVector(0);
-		//TODO maybe pass index?
-		TVoxelData* vd = createZoneVoxeldata(v);
-
-		if (vd->getDensityFillState() == TVoxelDataFillState::MIX) {
-			UTerrainZoneComponent* zone = addTerrainZone(v);
-			zone->setVoxelData(vd);
-
-			TMeshDataPtr MeshDataPtr = zone->GetRegion()->GetMeshData(v);
-			if (MeshDataPtr != nullptr) {
-				UE_LOG(LogTemp, Warning, TEXT("mesh data cache found!"));
-
-				zone->applyTerrainMesh(MeshDataPtr);
-
-			} else {
-				zone->makeTerrain();
-			}
-
-
-		}
-
-		InitialZoneSet.Add(FVector(0, 0, 0));
+		FVector Pos = FVector(0);
+		SpawnZone(Pos);
+		InitialZoneSet.Add(Pos);
 	}	
 
 	double end = FPlatformTime::Seconds();
@@ -324,28 +328,30 @@ UTerrainZoneComponent* ASandboxTerrainController::getZoneByVectorIndex(FVector i
 	return NULL;
 }
 
-UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
+UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector pos) {
 	FVector RegionIndex = GetRegionIndex(pos);
 	UTerrainRegionComponent* RegionComponent = GetRegionByVectorIndex(RegionIndex);
 	if (RegionComponent == NULL) {
 		FString RegionName = FString::Printf(TEXT("Region -> [%.0f, %.0f, %.0f]"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
 		RegionComponent->RegisterComponent();
-		RegionComponent->SetWorldLocation(RegionIndex);
-
-		// test only
-		RegionComponent->LoadFile();
-		//
+		RegionComponent->SetRelativeLocation(pos);
 
 		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
 	}
+
+	return RegionComponent;
+}
+
+UTerrainZoneComponent* ASandboxTerrainController::addTerrainZone(FVector pos) {
+	UTerrainRegionComponent* RegionComponent = GetOrCreateRegion(pos);
 
 	FVector index = getZoneIndex(pos);
 	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*zone_name));
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
-		ZoneComponent->SetWorldLocation(pos);
+		ZoneComponent->SetRelativeLocation(pos);
 		ZoneComponent->AttachTo(RegionComponent);
 
 		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
