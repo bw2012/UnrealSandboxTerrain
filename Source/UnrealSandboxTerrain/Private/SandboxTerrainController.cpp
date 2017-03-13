@@ -80,9 +80,9 @@ public:
 					Controller->invokeLazyZoneAsync(Index);
 				} else {
 					Zone->SetVoxelData(NewVoxelData);
-					std::shared_ptr<TMeshData> md_ptr = Zone->generateMesh();
+					std::shared_ptr<TMeshData> MeshDataPtr = Zone->generateMesh();
 					Zone->getVoxelData()->resetLastMeshRegenerationTime();
-					Controller->invokeZoneMeshAsync(Zone, md_ptr);
+					Controller->invokeZoneMeshAsync(Zone, MeshDataPtr);
 				}
 			}
 
