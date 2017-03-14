@@ -135,6 +135,10 @@ public:
 
 	friend void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
 	friend bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
+
+	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
+	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
+
 };
 
 typedef struct TMeshMaterialSection {

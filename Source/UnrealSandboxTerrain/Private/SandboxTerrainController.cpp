@@ -174,6 +174,14 @@ void ASandboxTerrainController::BeginPlay() {
 	InitialZoneLoader->Start();
 }
 
+typedef struct TSaveBuffer {
+
+	TArray<TVoxelData*> VoxelDataArray;
+
+	bool bShouldBeSaved = false;
+
+} TSaveBuffer;
+
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
 
@@ -186,27 +194,50 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		return;
 	}
 
-	for (auto& Elem : TerrainRegionMap) {
-		UTerrainRegionComponent* Region = Elem.Value;
-		Region->SaveFile();
-		Region->CleanMeshDataCache();
-	}
+	TMap<FVector, TSaveBuffer> SaveBufferByRegion;
 
 	for (auto& Elem : VoxelDataMap) {
 		TVoxelData* VoxelData = Elem.Value;
+
+		FVector RegionIndex = GetRegionIndex(VoxelData->getOrigin());
+		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
+
+		SaveBuffer.VoxelDataArray.Add(VoxelData);
+		if (VoxelData->isChanged()) {
+			SaveBuffer.bShouldBeSaved = true;
+		}
 
 		if (VoxelData->isChanged()) {
 			// save voxel data
 			FVector index = GetZoneIndex(VoxelData->getOrigin());
 			FString fileName = getZoneFileName(index.X, index.Y, index.Z);
 
-			UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
-			sandboxSaveVoxelData(*VoxelData, fileName);
+			//UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
+			//sandboxSaveVoxelData(*VoxelData, fileName);
 		}
 		
 		//TODO replace with share pointer
 		VoxelDataMap.Remove(Elem.Key);
-		delete VoxelData;
+		//delete VoxelData;
+	}
+
+	for (auto& Elem : SaveBufferByRegion) {
+		FVector RegionIndex = Elem.Key;
+		TSaveBuffer& SaveBuffer = Elem.Value;
+
+		if (SaveBuffer.bShouldBeSaved) {
+			UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.VoxelDataArray.Num());
+
+			UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+
+			Region->SaveFile();
+			Region->SaveVoxelData(SaveBuffer.VoxelDataArray);
+		}
+	}
+
+	for (auto& Elem : TerrainRegionMap) {
+		UTerrainRegionComponent* Region = Elem.Value;
+		Region->CleanMeshDataCache();
 	}
 
 	if (!bDisableFoliage) {
@@ -328,7 +359,9 @@ UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector po
 		FString RegionName = FString::Printf(TEXT("Region -> [%.0f, %.0f, %.0f]"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
 		RegionComponent->RegisterComponent();
-		RegionComponent->SetRelativeLocation(pos);
+		RegionComponent->AttachTo(RootComponent);
+		//RegionComponent->SetRelativeLocation(pos);
+		RegionComponent->SetWorldLocation(pos);
 
 		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
 	}
@@ -344,8 +377,9 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*zone_name));
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
-		ZoneComponent->SetRelativeLocation(pos);
+		//ZoneComponent->SetRelativeLocation(pos);
 		ZoneComponent->AttachTo(RegionComponent);
+		ZoneComponent->SetWorldLocation(pos);
 
 		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
 		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));

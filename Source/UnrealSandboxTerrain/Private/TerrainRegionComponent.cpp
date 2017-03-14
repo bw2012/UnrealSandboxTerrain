@@ -6,6 +6,8 @@
 
 #include "DrawDebugHelpers.h"
 
+#include <memory>
+
 UTerrainRegionComponent::UTerrainRegionComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
 }
@@ -208,4 +210,59 @@ void UTerrainRegionComponent::LoadFile() {
 	double LogTime = (End - Start) * 1000;
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Load region file -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
+}
+
+
+void UTerrainRegionComponent::SerializeRegionVoxelData(FBufferArchive& BinaryData, TArray<TVoxelData*>& VoxalDataArray) {
+	int32 VoxelDataCount = VoxalDataArray.Num();
+	BinaryData << VoxelDataCount;
+
+	for (TVoxelData* VoxelData : VoxalDataArray) {
+
+		float X = VoxelData->getOrigin().X;
+		float Y = VoxelData->getOrigin().Y;
+		float Z = VoxelData->getOrigin().Z;
+
+		BinaryData << X;
+		BinaryData << Y;
+		BinaryData <<  Z;
+
+		serializeVoxelData(*VoxelData, BinaryData);
+	}
+}
+
+void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt) {
+	double Start = FPlatformTime::Seconds();
+
+	FString SavePath = FPaths::GameSavedDir();
+	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
+
+	int tx = Index.X;
+	int ty = Index.Y;
+	int tz = Index.Z;
+
+	FString FileName = SavePath + TEXT("/Map/") +
+		GetTerrainController()->MapName + TEXT("/region.") +
+		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + FileExt;
+
+	FBufferArchive BinaryData;
+
+	SaveFunction(BinaryData);
+
+	if (FFileHelper::SaveArrayToFile(BinaryData, *FileName)) {
+		BinaryData.FlushCache();
+		BinaryData.Empty();
+	}
+
+	double End = FPlatformTime::Seconds();
+	double LogTime = (End - Start) * 1000;
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save region '%s' file -------------> %f %f %f --> %f ms"), *FileExt, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
+
+}
+
+
+void UTerrainRegionComponent::SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray) {
+	FString Ext = TEXT("vd");
+	Save([&](FBufferArchive& BinaryData) { SerializeRegionVoxelData(BinaryData, VoxalDataArray); }, Ext);
 }
