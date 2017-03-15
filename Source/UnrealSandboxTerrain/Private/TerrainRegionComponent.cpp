@@ -72,34 +72,6 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 	}
 }
 
-
-void UTerrainRegionComponent::SaveFile() {
-	double Start = FPlatformTime::Seconds();
-
-	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
-
-	int tx = Index.X;
-	int ty = Index.Y;
-	int tz = Index.Z;
-
-	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
-
-	FBufferArchive BinaryData;
-
-	SerializeRegionMeshData(BinaryData);
-
-	if (FFileHelper::SaveArrayToFile(BinaryData, *FileName)) {
-		BinaryData.FlushCache();
-		BinaryData.Empty();
-	}
-
-	double End = FPlatformTime::Seconds();
-	double LogTime = (End - Start) * 1000;
-
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Save region file -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
-}
-
 void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryData) {
 	MeshDataCache.Empty();
 
@@ -172,44 +144,6 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
 	}
 }
-
-void UTerrainRegionComponent::LoadFile() {
-	double Start = FPlatformTime::Seconds();
-
-	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
-
-	int tx = Index.X;
-	int ty = Index.Y;
-	int tz = Index.Z;
-
-	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
-
-	TArray<uint8> BinaryArray;
-	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {
-		UE_LOG(LogTemp, Warning, TEXT("file not found -> %s"), *FileName);
-		return;
-	}
-
-	if (BinaryArray.Num() <= 0) return;
-
-	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
-	BinaryData.Seek(0);
-
-	//=============================
-	DeserializeRegionMeshData(BinaryData);
-	//=============================
-
-	BinaryData.FlushCache();
-	BinaryArray.Empty();
-	BinaryData.Close();
-
-	double End = FPlatformTime::Seconds();
-	double LogTime = (End - Start) * 1000;
-
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Load region file -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
-}
-
 
 void UTerrainRegionComponent::SerializeRegionVoxelData(FBufferArchive& BinaryData, TArray<TVoxelData*>& VoxalDataArray) {
 	int32 VoxelDataCount = VoxalDataArray.Num();
@@ -326,4 +260,12 @@ void UTerrainRegionComponent::LoadVoxelData() {
 	Load([&](FMemoryReader& BinaryData) { DeserializeRegionVoxelData(BinaryData); }, Ext);
 }
 
+void UTerrainRegionComponent::SaveFile() {
+	FString Ext = TEXT("dat");
+	Save([&](FBufferArchive& BinaryData) { SerializeRegionMeshData(BinaryData); }, Ext);
+}
 
+void UTerrainRegionComponent::LoadFile() {
+	FString Ext = TEXT("dat");
+	Load([&](FMemoryReader& BinaryData) { DeserializeRegionMeshData(BinaryData); }, Ext);
+}
