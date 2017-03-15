@@ -72,9 +72,9 @@ public:
 			FVector Index = ZoneList[i];
 			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 
-			//TODO maybe pass index?
 			TVoxelData* NewVoxelData = Controller->FindOrCreateZoneVoxeldata(Pos);
 			if (NewVoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
+
 				UTerrainZoneComponent* Zone = Controller->GetZoneByVectorIndex(Index);
 				if (Zone == NULL) {
 					Controller->InvokeLazyZoneAsync(Index);
@@ -85,6 +85,7 @@ public:
 					Controller->InvokeZoneMeshAsync(Zone, MeshDataPtr);
 				}
 			}
+			
 
 			Controller->OnLoadZoneProgress(i, ZoneList.Num());
 		}
@@ -140,7 +141,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 	UTerrainRegionComponent* Region = GetOrCreateRegion(FVector(0, 0, 0));
 	Region->LoadFile();
-	Region->LoadVoxelData();
+	//Region->LoadVoxelData();
 
 	UE_LOG(LogTemp, Warning, TEXT("voxel data map -> %d"), VoxelDataMap.Num());
 
@@ -260,19 +261,24 @@ SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(TVoxelData 
 
 void ASandboxTerrainController::SpawnZone(FVector Pos) {
 	FVector ZoneIndex = GetZoneIndex(Pos);
+	FVector RegionIndex = GetRegionIndex(Pos);
+
+	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+
+	if (Region != nullptr) {
+		TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndex);
+		if (MeshDataPtr != nullptr) {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			return;
+		}
+	} 
 
 	TVoxelData* VoxelData = FindOrCreateZoneVoxeldata(Pos);
-
 	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
 		UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 		Zone->SetVoxelData(VoxelData);
-
-		TMeshDataPtr MeshDataPtr = Zone->GetRegion()->GetMeshData(ZoneIndex);
-		if (MeshDataPtr != nullptr) {
-			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
-		} else {
-			Zone->MakeTerrain();
-		}
+		Zone->MakeTerrain();
 	}
 }
 
@@ -722,7 +728,7 @@ TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Locatio
 		Vd = new TVoxelData(Dim, 100 * 10);
 		Vd->setOrigin(Location);
 
-		generateTerrain(*Vd);
+		//generateTerrain(*Vd);
 
 		Vd->DataState = TVoxelDataState::NEW_GENERATED;
 

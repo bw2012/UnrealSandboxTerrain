@@ -9,7 +9,7 @@
 #include "DrawDebugHelpers.h"
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-
+	voxel_data = nullptr;
 }
 
 
@@ -146,14 +146,16 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	double time = (end - start) * 1000;
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 
-	if (voxel_data->isNewGenerated()) {
-		voxel_data->DataState = TVoxelDataState::NORMAL;
-		GetTerrainController()->OnGenerateNewZone(this);
-	} 
-	
-	if (voxel_data->isNewLoaded()) {
-		voxel_data->DataState = TVoxelDataState::NORMAL;
-		GetTerrainController()->OnLoadZone(this);
+	if (voxel_data != nullptr) {
+		if (voxel_data->isNewGenerated()) {
+			voxel_data->DataState = TVoxelDataState::NORMAL;
+			GetTerrainController()->OnGenerateNewZone(this);
+		}
+
+		if (voxel_data->isNewLoaded()) {
+			voxel_data->DataState = TVoxelDataState::NORMAL;
+			GetTerrainController()->OnLoadZone(this);
+		}
 	}
 }
 

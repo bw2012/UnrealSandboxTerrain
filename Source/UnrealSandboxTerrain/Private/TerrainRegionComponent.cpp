@@ -203,15 +203,20 @@ void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData
 
 	SaveFunction(BinaryData);
 
-	if (FFileHelper::SaveArrayToFile(BinaryData, *FileName)) {
-		BinaryData.FlushCache();
-		BinaryData.Empty();
-	}
+	bool bIsSaved = FFileHelper::SaveArrayToFile(BinaryData, *FileName);
+
+	BinaryData.FlushCache();
+	BinaryData.Empty();
 
 	double End = FPlatformTime::Seconds();
 	double LogTime = (End - Start) * 1000;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Save region '%s' file -------------> %f %f %f --> %f ms"), *FileExt, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
+	if(bIsSaved){
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Save region '%s' file -------------> %f %f %f --> %f ms"), *FileExt, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
+	} else {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Failed to save region '%s' file ----> %f %f %f"), *FileExt, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
+	}
+
 }
 
 void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)> LoadFunction, FString& FileExt) {

@@ -251,6 +251,9 @@ public:
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
+
+		if (NumSections == 0) return;
+
 		LodSectionArray.AddZeroed(NumSections);
 
 		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++) {
@@ -366,9 +369,10 @@ public:
 	}
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
+		if (LodSectionArray.Num() == 0) return;
+
 		// Set up wireframe material (if needed)
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
-
 		FColoredMaterialRenderProxy* WireframeMaterialInstance = NULL;
 		if (bWireframe) {
 			WireframeMaterialInstance = new FColoredMaterialRenderProxy(
