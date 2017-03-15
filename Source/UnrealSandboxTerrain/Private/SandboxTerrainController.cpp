@@ -69,24 +69,8 @@ public:
 				return 0;
 			}
 
-			FVector Index = ZoneList[i];
-			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
-
-			TVoxelData* NewVoxelData = Controller->FindOrCreateZoneVoxeldata(Pos);
-			if (NewVoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
-
-				UTerrainZoneComponent* Zone = Controller->GetZoneByVectorIndex(Index);
-				if (Zone == NULL) {
-					Controller->InvokeLazyZoneAsync(Index);
-				} else {
-					Zone->SetVoxelData(NewVoxelData);
-					std::shared_ptr<TMeshData> MeshDataPtr = Zone->GenerateMesh();
-					Zone->getVoxelData()->resetLastMeshRegenerationTime();
-					Controller->InvokeZoneMeshAsync(Zone, MeshDataPtr);
-				}
-			}
-			
-
+			FVector Pos = ZoneList[i];
+			Controller->SpawnZone(Pos);
 			Controller->OnLoadZoneProgress(i, ZoneList.Num());
 		}
 
@@ -157,12 +141,12 @@ void ASandboxTerrainController::BeginPlay() {
 			for (int x = -s; x <= s; x++) {
 				for (int y = -s; y <= s; y++) {
 					for (int z = -s; z <= s; z++) {
-						FVector zone_index = FVector(x, y, z);
+						FVector Pos = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
 
-						if(!InitialZoneSet.Contains(zone_index)) {
+						if(!InitialZoneSet.Contains(Pos)) {
 							// Until the end of the process some functions can be unavailable.
-							InitialZoneLoader->ZoneList.Add(zone_index);
-							InitialZoneSet.Add(zone_index);
+							InitialZoneLoader->ZoneList.Add(Pos);
+							InitialZoneSet.Add(Pos);
 						}
 					}
 				}
@@ -259,26 +243,41 @@ SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(TVoxelData 
 	return SandboxVoxelGenerator(voxel_data, Seed);
 };
 
+void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
+	if (IsInGameThread()) {
+		Function();
+	} else {
+		TerrainControllerTask AsyncTask;
+		AsyncTask.Function = Function;
+		AddAsyncTask(AsyncTask);
+	}
+}
+
 void ASandboxTerrainController::SpawnZone(FVector Pos) {
 	FVector ZoneIndex = GetZoneIndex(Pos);
-	FVector RegionIndex = GetRegionIndex(Pos);
+	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
 
+	FVector RegionIndex = GetRegionIndex(Pos);
 	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
 	if (Region != nullptr) {
 		TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndex);
 		if (MeshDataPtr != nullptr) {
-			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			InvokeSafe([=]() {
+				UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+				Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			});
 			return;
 		}
 	} 
 
 	TVoxelData* VoxelData = FindOrCreateZoneVoxeldata(Pos);
 	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
-		UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-		Zone->SetVoxelData(VoxelData);
-		Zone->MakeTerrain();
+		InvokeSafe([=]() {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+			Zone->SetVoxelData(VoxelData);
+			Zone->MakeTerrain();
+		});
 	}
 }
 
@@ -298,7 +297,7 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 				for (auto z = -s; z <= s; z++) {
 					FVector Pos = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
 					SpawnZone(Pos);
-					InitialZoneSet.Add(FVector(x, y, z));
+					InitialZoneSet.Add(Pos);
 				}
 			}
 		}
@@ -689,25 +688,33 @@ void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone,
 
 void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 	TerrainControllerTask Task;
-	FVector Pos = FVector((float)(ZoneIndex.X * 1000), (float)(ZoneIndex.Y * 1000), (float)(ZoneIndex.Z * 1000));
-	TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-	if (VoxelData == NULL) {
-		UE_LOG(LogTemp, Warning, TEXT("FAIL"));
-		return;
+	FVector Pos = FVector((float)(ZoneIndex.X * 1000), (float)(ZoneIndex.Y * 1000), (float)(ZoneIndex.Z * 1000));
+	FVector RegionIndex = GetRegionIndex(Pos);
+
+	TMeshDataPtr MeshDataPtr;
+
+	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+
+	if (Region != nullptr) {
+		MeshDataPtr = Region->GetMeshData(ZoneIndex);
 	}
 
-	Task.Function = [=]() {
-		UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-		Zone->SetVoxelData(VoxelData);
+	TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-		TMeshDataPtr MeshDataPtr = Zone->GetRegion()->GetMeshData(ZoneIndex);
+	Task.Function = [=]() {
 		if (MeshDataPtr != nullptr) {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
-		} else {
-			MeshDataPtr = Zone->GenerateMesh();
+			return;
+		} 
+		
+		if(VoxelData != nullptr) {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+			Zone->SetVoxelData(VoxelData);
+			TMeshDataPtr NewMeshDataPtr = Zone->GenerateMesh();
 			VoxelData->resetLastMeshRegenerationTime();
-			Zone->ApplyTerrainMesh(MeshDataPtr);
+			Zone->ApplyTerrainMesh(NewMeshDataPtr);
 		}
 	};
 

@@ -174,6 +174,8 @@ public:
 
 	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
+	void InvokeSafe(std::function<void()> Function);
+
 private:
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
