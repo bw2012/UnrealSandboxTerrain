@@ -384,7 +384,6 @@
 	}
 
 	void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
-		binaryData.Seek(0);
 
 		int32 num;
 		float size;
@@ -431,8 +430,7 @@
 					}
 				}
 			}
-		}
-		else {
+		} else {
 			vd.deinitializeMaterial(base_mat);
 		}
 

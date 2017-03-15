@@ -142,7 +142,9 @@ void ASandboxTerrainController::BeginPlay() {
 
 	UTerrainRegionComponent* Region = GetOrCreateRegion(FVector(0, 0, 0));
 	Region->LoadFile();
+	Region->LoadVoxelData();
 
+	UE_LOG(LogTemp, Warning, TEXT("voxel data map -> %d"), VoxelDataMap.Num());
 
 	TSet<FVector> InitialZoneSet = spawnInitialZone();
 	

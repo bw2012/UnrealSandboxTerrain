@@ -231,6 +231,28 @@ void UTerrainRegionComponent::SerializeRegionVoxelData(FBufferArchive& BinaryDat
 	}
 }
 
+void UTerrainRegionComponent::DeserializeRegionVoxelData(FMemoryReader& BinaryData) {
+	int32 VoxelDataCount;
+	BinaryData << VoxelDataCount;
+
+	for (int Idx = 0; Idx < VoxelDataCount; Idx++) {
+		FVector VoxelDataOrigin;
+
+		BinaryData << VoxelDataOrigin.X;
+		BinaryData << VoxelDataOrigin.Y;
+		BinaryData << VoxelDataOrigin.Z;
+
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("test ----> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
+
+		TVoxelData* Vd = new TVoxelData(65, 100 * 10);
+		FVector VoxelDataIndex = GetTerrainController()->GetZoneIndex(VoxelDataOrigin);
+
+		deserializeVoxelData(*Vd, BinaryData);
+
+		GetTerrainController()->RegisterTerrainVoxelData(Vd, VoxelDataIndex);
+	}
+}
+
 void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt) {
 	double Start = FPlatformTime::Seconds();
 
@@ -258,11 +280,52 @@ void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData
 	double LogTime = (End - Start) * 1000;
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save region '%s' file -------------> %f %f %f --> %f ms"), *FileExt, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
-
 }
 
+void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)> LoadFunction, FString& FileExt) {
+	double Start = FPlatformTime::Seconds();
+
+	FString SavePath = FPaths::GameSavedDir();
+	FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
+
+	int tx = Index.X;
+	int ty = Index.Y;
+	int tz = Index.Z;
+
+	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") +
+		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + FileExt;
+
+	TArray<uint8> BinaryArray;
+	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {
+		UE_LOG(LogTemp, Warning, TEXT("File not found -> %s"), *FileName);
+		return;
+	}
+
+	if (BinaryArray.Num() <= 0) return;
+
+	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
+	BinaryData.Seek(0);
+
+	LoadFunction(BinaryData);
+
+	BinaryData.FlushCache();
+	BinaryArray.Empty();
+	BinaryData.Close();
+
+	double End = FPlatformTime::Seconds();
+	double LogTime = (End - Start) * 1000;
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Load region %s file -------------> %f %f %f --> %f ms"), *FileExt, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, LogTime);
+}
 
 void UTerrainRegionComponent::SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray) {
 	FString Ext = TEXT("vd");
 	Save([&](FBufferArchive& BinaryData) { SerializeRegionVoxelData(BinaryData, VoxalDataArray); }, Ext);
 }
+
+void UTerrainRegionComponent::LoadVoxelData() {
+	FString Ext = TEXT("vd");
+	Load([&](FMemoryReader& BinaryData) { DeserializeRegionVoxelData(BinaryData); }, Ext);
+}
+
+

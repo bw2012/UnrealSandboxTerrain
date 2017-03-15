@@ -52,15 +52,21 @@ public:
 
 	void DeserializeRegionMeshData(FMemoryReader& BinaryData);
 
+	void DeserializeRegionVoxelData(FMemoryReader& BinaryData);
+
 	void SaveFile();
 
 	void LoadFile();
 
 	void SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray);
 
+	void LoadVoxelData();
+
 private:
 
 	void Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt);
+
+	void Load(std::function<void(FMemoryReader& BinaryData)> LoadFunction, FString& FileExt);
 
 	TMap<FVector, TMeshDataPtr> MeshDataCache;
 

@@ -102,6 +102,7 @@ public:
 
 	friend FLoadInitialZonesThread;
 	friend UTerrainZoneComponent;
+	friend UTerrainRegionComponent;
 
 	virtual void BeginPlay() override;
 
