@@ -85,8 +85,6 @@ void UTerrainRegionComponent::SaveFile() {
 
 	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".dat");
 
-	UE_LOG(LogTemp, Warning, TEXT("save region -> %s"), *FileName);
-
 	FBufferArchive BinaryData;
 
 	SerializeRegionMeshData(BinaryData);
@@ -242,10 +240,10 @@ void UTerrainRegionComponent::DeserializeRegionVoxelData(FMemoryReader& BinaryDa
 		BinaryData << VoxelDataOrigin.Y;
 		BinaryData << VoxelDataOrigin.Z;
 
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("test ----> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
-
 		TVoxelData* Vd = new TVoxelData(65, 100 * 10);
 		FVector VoxelDataIndex = GetTerrainController()->GetZoneIndex(VoxelDataOrigin);
+
+		Vd->setOrigin(VoxelDataOrigin);
 
 		deserializeVoxelData(*Vd, BinaryData);
 
@@ -265,7 +263,7 @@ void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData
 
 	FString FileName = SavePath + TEXT("/Map/") +
 		GetTerrainController()->MapName + TEXT("/region.") +
-		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + FileExt;
+		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".") + FileExt;
 
 	FBufferArchive BinaryData;
 
@@ -293,7 +291,7 @@ void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)
 	int tz = Index.Z;
 
 	FString FileName = SavePath + TEXT("/Map/") + GetTerrainController()->MapName + TEXT("/region.") +
-		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + FileExt;
+		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".") + FileExt;
 
 	TArray<uint8> BinaryArray;
 	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {

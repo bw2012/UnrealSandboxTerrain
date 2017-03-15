@@ -73,7 +73,7 @@ public:
 			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 
 			//TODO maybe pass index?
-			TVoxelData* NewVoxelData = Controller->CreateZoneVoxeldata(Pos);
+			TVoxelData* NewVoxelData = Controller->FindOrCreateZoneVoxeldata(Pos);
 			if (NewVoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
 				UTerrainZoneComponent* Zone = Controller->GetZoneByVectorIndex(Index);
 				if (Zone == NULL) {
@@ -101,7 +101,6 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
-	ZoneGridDimension = EVoxelDimEnum::VS_64;
 	bEnableLOD = false;
 }
 
@@ -109,7 +108,6 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
 	TerrainSize = 5;
-	ZoneGridDimension = EVoxelDimEnum::VS_64;
 	bEnableLOD = false;
 }
 
@@ -146,7 +144,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 	UE_LOG(LogTemp, Warning, TEXT("voxel data map -> %d"), VoxelDataMap.Num());
 
-	TSet<FVector> InitialZoneSet = spawnInitialZone();
+	TSet<FVector> InitialZoneSet = SpawnInitialZone();
 	
 	//zone initial generation list
 	InitialZoneLoader = new FLoadInitialZonesThread();
@@ -159,8 +157,6 @@ void ASandboxTerrainController::BeginPlay() {
 				for (int y = -s; y <= s; y++) {
 					for (int z = -s; z <= s; z++) {
 						FVector zone_index = FVector(x, y, z);
-						UTerrainZoneComponent* zone = GetZoneByVectorIndex(zone_index);
-						TVoxelData* vd = GetTerrainVoxelDataByIndex(zone_index);
 
 						if(!InitialZoneSet.Contains(zone_index)) {
 							// Until the end of the process some functions can be unavailable.
@@ -207,15 +203,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		SaveBuffer.VoxelDataArray.Add(VoxelData);
 		if (VoxelData->isChanged()) {
 			SaveBuffer.bShouldBeSaved = true;
-		}
-
-		if (VoxelData->isChanged()) {
-			// save voxel data
-			FVector index = GetZoneIndex(VoxelData->getOrigin());
-			FString fileName = getZoneFileName(index.X, index.Y, index.Z);
-
-			//UE_LOG(LogTemp, Warning, TEXT("save voxeldata -> %f %f %f"), index.X, index.Y, index.Z);
-			//sandboxSaveVoxelData(*VoxelData, fileName);
 		}
 		
 		//TODO replace with share pointer
@@ -271,18 +258,10 @@ SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(TVoxelData 
 	return SandboxVoxelGenerator(voxel_data, Seed);
 };
 
-FString ASandboxTerrainController::getZoneFileName(int tx, int ty, int tz) {
-	FString savePath = FPaths::GameSavedDir();
-
-	FString fileName = savePath + TEXT("/Map/") + MapName + TEXT("/zone.") + FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".sbin");
-	return fileName;
-}
-
-
 void ASandboxTerrainController::SpawnZone(FVector Pos) {
 	FVector ZoneIndex = GetZoneIndex(Pos);
 
-	TVoxelData* VoxelData = CreateZoneVoxeldata(Pos);
+	TVoxelData* VoxelData = FindOrCreateZoneVoxeldata(Pos);
 
 	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
 		UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -298,7 +277,7 @@ void ASandboxTerrainController::SpawnZone(FVector Pos) {
 }
 
 
-TSet<FVector> ASandboxTerrainController::spawnInitialZone() {
+TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 	double start = FPlatformTime::Seconds();
 
 	const int s = static_cast<int>(TerrainInitialArea);
@@ -731,36 +710,40 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 
 //======================================================================================================================================================================
 
-TVoxelData* ASandboxTerrainController::CreateZoneVoxeldata(FVector location) {
-	double start = FPlatformTime::Seconds();
+TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
+	double Start = FPlatformTime::Seconds();
 
-	int dim = static_cast<int>(ZoneGridDimension);
-	TVoxelData* vd = new TVoxelData(dim, 100 * 10);
-	vd->setOrigin(location);
+	FVector Index = GetZoneIndex(Location);
+	TVoxelData* Vd = GetTerrainVoxelDataByIndex(Index);
 
-	FVector index = GetZoneIndex(location);
-	FString fileName = getZoneFileName(index.X, index.Y, index.Z);
+	if (Vd == NULL) {
+		// not found - generate new
+		static const int Dim = 65;
+		Vd = new TVoxelData(Dim, 100 * 10);
+		Vd->setOrigin(Location);
 
-	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*fileName)) {
-		sandboxLoadVoxelData(*vd, fileName);
-		vd->DataState = TVoxelDataState::NEW_LOADED;
+		generateTerrain(*Vd);
+
+		Vd->DataState = TVoxelDataState::NEW_GENERATED;
+
+		Vd->setChanged();
+		Vd->setCacheToValid();
+
+		RegisterTerrainVoxelData(Vd, Index);
 	} else {
-		generateTerrain(*vd);
-		sandboxSaveVoxelData(*vd, fileName);
-		vd->DataState = TVoxelDataState::NEW_GENERATED;
+		Vd->DataState = TVoxelDataState::NEW_LOADED;
+
+		Vd->setChanged();
+		Vd->resetLastSave();
+		Vd->setCacheToValid();
 	}
 
-	vd->setChanged();
-	vd->resetLastSave();
-	vd->setCacheToValid();
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
 
-	RegisterTerrainVoxelData(vd, index);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::FindOrCreateZoneVoxeldata -------------> %f %f %f --> %f ms"), Index.X, Index.Y, Index.Z, Time);
 
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::createZoneVoxeldata() -> %.8f %.8f %.8f --> %f ms"), index.X, index.Y, index.Z, time);
-
-	return vd;
+	return Vd;
 }
 
 void ASandboxTerrainController::generateTerrain(TVoxelData &voxel_data) {

@@ -30,14 +30,6 @@ enum class ETerrainInitialArea : uint8 {
 	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
 };
 
-UENUM(BlueprintType)	
-enum class EVoxelDimEnum : uint8 {
-	VS_8  = 9	UMETA(DisplayName = "8"),
-	VS_16 = 17	UMETA(DisplayName = "16"),
-	VS_32 = 33	UMETA(DisplayName = "32"),
-	VS_64 = 65 	UMETA(DisplayName = "64"),
-};
-
 USTRUCT()
 struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
@@ -144,9 +136,6 @@ public:
 
 	//========================================================================================
 
-	//UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	EVoxelDimEnum ZoneGridDimension;
-
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 Seed;
 
@@ -158,9 +147,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	TMap<uint32, FSandboxFoliage> FoliageMap;
-
-	FString getZoneFileName(int tx, int ty, int tz);
-		
+	
 	void digTerrainRoundHole(FVector v, float radius, float s);
 
 	void digTerrainCubeHole(FVector origin, float r, float strength);
@@ -192,7 +179,7 @@ private:
 
 	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
 
-	TSet<FVector> spawnInitialZone();
+	TSet<FVector> SpawnInitialZone();
 
 	void SpawnZone(FVector pos);
 
@@ -200,7 +187,7 @@ private:
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelData* CreateZoneVoxeldata(FVector location);
+	TVoxelData* FindOrCreateZoneVoxeldata(FVector location);
 
 	void generateTerrain(TVoxelData &voxel_data);
 
