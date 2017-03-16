@@ -226,7 +226,7 @@ private:
 
 	std::list<FAsyncThread*> ThreadList;
 
-	void RunThread(std::function<void()> Function);
+	void RunThread(std::function<void(FAsyncThread&)> Function);
 
 	//===============================================================================
 	// foliage

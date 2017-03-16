@@ -91,11 +91,11 @@ private:
 
 	FRunnableThread* Thread;
 
-	std::function<void()> Function;
+	std::function<void(FAsyncThread&)> Function;
 
 public:
 
-	FAsyncThread(std::function<void()> Function) {
+	FAsyncThread(std::function<void(FAsyncThread&)> Function) {
 		Thread = NULL;
 		this->Function = Function;
 	}
@@ -108,6 +108,15 @@ public:
 
 	bool IsFinished() {
 		return State == TH_STATE_FINISHED;
+	}
+
+	bool CheckState() {
+		if (State == TH_STATE_STOP) {
+			State = TH_STATE_FINISHED;
+			return true;
+		}
+
+		return false;
 	}
 
 	virtual void Stop() {
@@ -123,11 +132,13 @@ public:
 	}
 
 	void Start() {
+		State = TH_STATE_RUNNING;
 		Thread = FRunnableThread::Create(this, TEXT("THREAD_TEST"));
+
 	}
 
 	virtual uint32 Run() {
-		Function();
+		Function(*this);
 		
 		State = TH_STATE_FINISHED;
 		return 0;
@@ -184,8 +195,9 @@ void ASandboxTerrainController::BeginPlay() {
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
 
 	// async loading other zones
-	RunThread([&]() { 
+	RunThread([&](FAsyncThread& ThisThread) {
 		Region->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+			if (ThisThread.CheckState()) return;
 			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 			SpawnZone(Pos);
 		});
@@ -237,9 +249,8 @@ typedef struct TSaveBuffer {
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
 
-	if (InitialZoneLoader != NULL) {
-		InitialZoneLoader->Stop();
-		InitialZoneLoader->WaitForFinish();
+	for (auto* ThreadTask : ThreadList) {
+		ThreadTask->WaitForFinish();
 	}
 
 	if (GetWorld()->GetAuthGameMode() == NULL) {
@@ -933,7 +944,7 @@ void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelData* vd, FVector
 	VoxelDataMapMutex.unlock();
 }
 
-void ASandboxTerrainController::RunThread(std::function<void()> Function) {
+void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Function) {
 	FAsyncThread* ThreadTask = new FAsyncThread(Function);
 	ThreadListMutex.lock();
 	ThreadList.push_back(ThreadTask);
