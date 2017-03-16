@@ -6,11 +6,13 @@
 #include <queue>
 #include <mutex>
 #include <set>
+#include <list>
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
 class TVoxelData;
 class FLoadInitialZonesThread;
+class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
 class UTerrainRegionComponent;
@@ -93,6 +95,7 @@ public:
 	ASandboxTerrainController();
 
 	friend FLoadInitialZonesThread;
+	friend FAsyncThread;
 	friend UTerrainZoneComponent;
 	friend UTerrainRegionComponent;
 
@@ -183,7 +186,7 @@ private:
 
 	TSet<FVector> SpawnInitialZone();
 
-	void SpawnZone(FVector pos);
+	void SpawnZone(const FVector& pos);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
@@ -218,6 +221,12 @@ private:
 	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
 
 	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
+
+	std::mutex ThreadListMutex;
+
+	std::list<FAsyncThread*> ThreadList;
+
+	void RunThread(std::function<void()> Function);
 
 	//===============================================================================
 	// foliage

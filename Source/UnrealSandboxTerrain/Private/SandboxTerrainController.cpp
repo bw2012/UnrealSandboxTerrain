@@ -82,6 +82,59 @@ public:
 
 };
 
+
+class FAsyncThread : public FRunnable {
+
+private:
+
+	volatile int State = TH_STATE_NEW;
+
+	FRunnableThread* Thread;
+
+	std::function<void()> Function;
+
+public:
+
+	FAsyncThread(std::function<void()> Function) {
+		Thread = NULL;
+		this->Function = Function;
+	}
+
+	~FAsyncThread() {
+		if (Thread != NULL) {
+			delete Thread;
+		}
+	}
+
+	bool IsFinished() {
+		return State == TH_STATE_FINISHED;
+	}
+
+	virtual void Stop() {
+		if (State == TH_STATE_NEW || State == TH_STATE_RUNNING) {
+			State = TH_STATE_STOP;
+		}
+	}
+
+	virtual void WaitForFinish() {
+		while (!IsFinished()) {
+
+		}
+	}
+
+	void Start() {
+		Thread = FRunnableThread::Create(this, TEXT("THREAD_TEST"));
+	}
+
+	virtual uint32 Run() {
+		Function();
+		
+		State = TH_STATE_FINISHED;
+		return 0;
+	}
+};
+
+
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
@@ -111,26 +164,41 @@ void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
 
-	UWorld* const world = GetWorld();
-	if (!world) {
-		return;
-	}
+	if (!GetWorld()) return;
 
 	if (GetWorld()->GetAuthGameMode() != NULL) {
 		UE_LOG(LogTemp, Warning, TEXT("SERVER"));
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
-		//return;
 	}
 
+	//===========================
+	// load existing
+	//===========================
+
+	// load initial region
 	UTerrainRegionComponent* Region = GetOrCreateRegion(FVector(0, 0, 0));
 	Region->LoadFile();
-	//Region->LoadVoxelData();
 
-	UE_LOG(LogTemp, Warning, TEXT("voxel data map -> %d"), VoxelDataMap.Num());
-
+	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
-	
+
+	// async loading other zones
+	RunThread([&]() { 
+		Region->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
+			SpawnZone(Pos);
+		});
+
+		Region->LoadVoxelData();
+	});
+
+	//===========================
+	// generate new
+	//===========================
+
+
+	/*
 	//zone initial generation list
 	InitialZoneLoader = new FLoadInitialZonesThread();
 
@@ -155,6 +223,7 @@ void ASandboxTerrainController::BeginPlay() {
 	}
 
 	InitialZoneLoader->Start();
+	*/
 }
 
 typedef struct TSaveBuffer {
@@ -233,6 +302,20 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 			task.Function();
 		}
 	}	
+
+	auto It = ThreadList.begin();
+	while (It != ThreadList.end()) {
+		FAsyncThread* ThreadPtr = *It;
+		if (ThreadPtr->IsFinished()) {
+			//UE_LOG(LogTemp, Warning, TEXT("thread finished"));
+			ThreadListMutex.lock();
+			delete ThreadPtr;
+			It = ThreadList.erase(It);
+			ThreadListMutex.unlock();
+		} else {
+			It++;
+		}
+	}
 }
 
 //======================================================================================================================================================================
@@ -253,7 +336,7 @@ void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 	}
 }
 
-void ASandboxTerrainController::SpawnZone(FVector Pos) {
+void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	FVector ZoneIndex = GetZoneIndex(Pos);
 	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
 
@@ -658,6 +741,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 				if (is_changed) {
 					vd->setChanged();
 					vd->setCacheToValid();
+					zone->SetVoxelData(vd); // if zone was loaded from mesh cache
 					std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
 					vd->resetLastMeshRegenerationTime();
 					vd->vd_edit_mutex.unlock();
@@ -690,25 +774,13 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 	TerrainControllerTask Task;
 
 	FVector Pos = FVector((float)(ZoneIndex.X * 1000), (float)(ZoneIndex.Y * 1000), (float)(ZoneIndex.Z * 1000));
-	FVector RegionIndex = GetRegionIndex(Pos);
-
-	TMeshDataPtr MeshDataPtr;
-
-	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
-
-	if (Region != nullptr) {
-		MeshDataPtr = Region->GetMeshData(ZoneIndex);
-	}
-
 	TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-	Task.Function = [=]() {
-		if (MeshDataPtr != nullptr) {
-			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
-			return;
-		} 
-		
+	if (VoxelData == nullptr) {
+		return;
+	}
+
+	Task.Function = [=]() {	
 		if(VoxelData != nullptr) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			Zone->SetVoxelData(VoxelData);
@@ -859,6 +931,14 @@ void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelData* vd, FVector
 	VoxelDataMapMutex.lock();
 	VoxelDataMap.Add(index, vd);
 	VoxelDataMapMutex.unlock();
+}
+
+void ASandboxTerrainController::RunThread(std::function<void()> Function) {
+	FAsyncThread* ThreadTask = new FAsyncThread(Function);
+	ThreadListMutex.lock();
+	ThreadList.push_back(ThreadTask);
+	ThreadTask->Start();
+	ThreadListMutex.unlock();
 }
 
 TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByPos(FVector point) {

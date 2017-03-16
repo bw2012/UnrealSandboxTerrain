@@ -38,7 +38,9 @@ void UTerrainZoneComponent::MakeTerrain() {
 std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
 	double start = FPlatformTime::Seconds();
 
-	if (voxel_data->getDensityFillState() == TVoxelDataFillState::ZERO || voxel_data->getDensityFillState() == TVoxelDataFillState::ALL) {
+	if (voxel_data == NULL || 
+		voxel_data->getDensityFillState() == TVoxelDataFillState::ZERO || 
+		voxel_data->getDensityFillState() == TVoxelDataFillState::ALL) {
 		return NULL;
 	}
 

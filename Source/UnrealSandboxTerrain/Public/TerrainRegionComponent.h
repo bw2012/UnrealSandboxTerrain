@@ -6,6 +6,7 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "SandboxVoxeldata.h"
 #include "SandboxTerrainController.h"
+#include <memory>
 #include "TerrainRegionComponent.generated.h"
 
 
@@ -30,11 +31,11 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	void PutMeshDataToCache(FVector ZoneIndex, TMeshDataPtr MeshDataPtr) {
+	void PutMeshDataToCache(FVector& ZoneIndex, TMeshDataPtr MeshDataPtr) {
 		MeshDataCache.Add(ZoneIndex, MeshDataPtr);
 	}
 
-	TMeshDataPtr GetMeshData(FVector ZoneIndex) {
+	TMeshDataPtr GetMeshData(FVector& ZoneIndex) {
 		if (MeshDataCache.Contains(ZoneIndex)) {
 			return MeshDataCache[ZoneIndex];
 		}
@@ -46,6 +47,12 @@ public:
 		MeshDataCache.Empty();
 	}
 
+	void ForEachMeshData(std::function<void(FVector&, TMeshDataPtr&)> Function) {
+		for (auto& Elem : MeshDataCache) {
+			Function(Elem.Key, Elem.Value);
+		}
+	}
+	
 	void SerializeRegionMeshData(FBufferArchive& BinaryData);
 
 	void SerializeRegionVoxelData(FBufferArchive& BinaryData, TArray<TVoxelData*>& VoxalDataArray);
