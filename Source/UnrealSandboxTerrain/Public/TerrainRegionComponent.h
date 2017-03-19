@@ -12,6 +12,18 @@
 
 class ASandboxTerrainController;
 
+typedef struct TInstMeshTransArray {
+
+	TArray<FTransform> TransformArray;
+
+	FTerrainInstancedMeshType MeshType;
+
+} TInstMeshTransArray;
+
+typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
+
+typedef TMap<FVector, TInstMeshTypeMap> TInstMeshZoneTemp;
+
 /**
 *
 */
@@ -64,6 +76,10 @@ public:
 
 	void SerializeInstancedMeshes(FBufferArchive& BinaryData, TArray<UTerrainZoneComponent*>& ZoneArray);
 
+	void DeserializeZoneInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap);
+
+	void DeserializeRegionInstancedMeshes(FMemoryReader& BinaryData);
+
 
 	void SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray);
 
@@ -73,6 +89,8 @@ public:
 
 	void LoadVoxelData();
 
+	void SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone);
+
 private:
 
 	void Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt);
@@ -81,4 +99,5 @@ private:
 
 	TMap<FVector, TMeshDataPtr> MeshDataCache;
 
+	TInstMeshZoneTemp InstancedMeshLoadCache;
 };

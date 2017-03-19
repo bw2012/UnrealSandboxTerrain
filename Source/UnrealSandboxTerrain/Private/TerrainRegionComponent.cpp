@@ -190,15 +190,118 @@ void UTerrainRegionComponent::SerializeInstancedMeshes(FBufferArchive& BinaryDat
 	int32 ZonesCount = ZoneArray.Num();
 	BinaryData << ZonesCount;
 
-	for (UTerrainZoneComponent* Zone : ZoneArray) {
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("ZonesCount save----> %d"), ZonesCount);
 
+	for (UTerrainZoneComponent* Zone : ZoneArray) {
 		FVector Location = Zone->GetComponentLocation();
 
 		BinaryData << Location.X;
 		BinaryData << Location.Y;
 		BinaryData << Location.Z;
 
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("SerializeInstancedMeshes ----> %f %f %f"), Location.X, Location.Y, Location.Z);
+
 		Zone->SerializeInstancedMeshes(BinaryData);
+	}
+}
+
+
+void UTerrainRegionComponent::DeserializeZoneInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap) {
+	int32 MeshCount;
+	BinaryData << MeshCount;
+
+	for (int Idx = 0; Idx < MeshCount; Idx++) {
+		int32 MeshTypeId;
+		int32 MeshInstanceCount;
+
+		BinaryData << MeshTypeId;
+		BinaryData << MeshInstanceCount;
+
+		FTerrainInstancedMeshType MeshType;
+		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
+			MeshType.Mesh = GetTerrainController()->FoliageMap[MeshTypeId].Mesh;
+			MeshType.MeshTypeId = MeshTypeId;
+		}
+
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("MeshInstanceCount ----> %d"), MeshInstanceCount);
+
+		TInstMeshTransArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
+		InstMeshArray.MeshType = MeshType;
+		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
+
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			float X;
+			float Y;
+			float Z;
+
+			float Roll;
+			float Pitch;
+			float Yaw;
+
+			float ScaleX;
+			float ScaleY;
+			float ScaleZ;
+
+			BinaryData << X;
+			BinaryData << Y;
+			BinaryData << Z;
+
+			BinaryData << Roll;
+			BinaryData << Pitch;
+			BinaryData << Yaw;
+
+			BinaryData << ScaleX;
+			BinaryData << ScaleY;
+			BinaryData << ScaleZ;
+
+			FTransform Transform(FRotator(Pitch, Yaw, Roll), FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+
+			if (MeshType.Mesh != nullptr) {
+				InstMeshArray.TransformArray.Add(Transform);
+			}
+		}
+	}
+}
+
+void UTerrainRegionComponent::SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone) {
+	FVector ZoneIndex = GetTerrainController()->GetZoneIndex(Zone->GetComponentLocation());
+	if (InstancedMeshLoadCache.Contains(ZoneIndex)) {
+		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache[ZoneIndex];
+
+		for (auto& Elem : ZoneInstMeshMap) {
+			TInstMeshTransArray& InstMeshTransArray = Elem.Value;
+
+			for (FTransform& Transform : InstMeshTransArray.TransformArray) {
+				Zone->SpawnInstancedMesh(InstMeshTransArray.MeshType, Transform);
+			}
+
+		}
+
+		InstancedMeshLoadCache.Remove(ZoneIndex);
+	}
+
+}
+
+void UTerrainRegionComponent::DeserializeRegionInstancedMeshes(FMemoryReader& BinaryData) {
+	int32 ZonesCount;
+	BinaryData << ZonesCount;
+
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("ZonesCount ----> %d"), ZonesCount);
+
+	for (int Idx = 0; Idx < ZonesCount; Idx++) {
+		FVector ZoneLocation;
+
+		BinaryData << ZoneLocation.X;
+		BinaryData << ZoneLocation.Y;
+		BinaryData << ZoneLocation.Z;
+
+		FVector ZoneIndex = GetTerrainController()->GetZoneIndex(ZoneLocation);
+
+		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache.FindOrAdd(ZoneIndex);
+
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("DeserializeRegionInstancedMeshes ----> %f %f %f"), ZoneLocation.X, ZoneLocation.Y, ZoneLocation.Z);
+
+		DeserializeZoneInstancedMeshes(BinaryData, ZoneInstMeshMap);
 	}
 }
 
@@ -279,7 +382,9 @@ void UTerrainRegionComponent::SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray)
 
 void UTerrainRegionComponent::LoadVoxelData() {
 	FString Ext = TEXT("vd");
-	Load([&](FMemoryReader& BinaryData) { DeserializeRegionVoxelData(BinaryData); }, Ext);
+	Load([&](FMemoryReader& BinaryData) { 
+		DeserializeRegionVoxelData(BinaryData); 
+	}, Ext);
 }
 
 void UTerrainRegionComponent::SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray) {
@@ -292,5 +397,7 @@ void UTerrainRegionComponent::SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray
 
 void UTerrainRegionComponent::LoadFile() {
 	FString Ext = TEXT("dat");
-	Load([&](FMemoryReader& BinaryData) { DeserializeRegionMeshData(BinaryData); }, Ext);
+	Load([&](FMemoryReader& BinaryData) { 
+		DeserializeRegionMeshData(BinaryData);
+		DeserializeRegionInstancedMeshes(BinaryData); }, Ext);
 }

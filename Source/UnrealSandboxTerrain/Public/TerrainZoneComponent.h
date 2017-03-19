@@ -52,10 +52,6 @@ public:
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
-	void SaveInstancedMeshesToFile();
-
-	void LoadInstancedMeshesFromFile();
-
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
 	UTerrainRegionComponent* GetRegion() {

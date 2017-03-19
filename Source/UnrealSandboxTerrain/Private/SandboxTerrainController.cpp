@@ -403,6 +403,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 			InvokeSafe([=]() {
 				UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 				Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+				OnLoadZone(Zone);
 			});
 			return;
 		}
@@ -414,6 +415,16 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			Zone->SetVoxelData(VoxelData);
 			Zone->MakeTerrain();
+
+			if (VoxelData->isNewGenerated()) {
+				VoxelData->DataState = TVoxelDataState::NORMAL;
+				OnGenerateNewZone(Zone);
+			}
+
+			if (VoxelData->isNewLoaded()) {
+				VoxelData->DataState = TVoxelDataState::NORMAL;
+				OnLoadZone(Zone);
+			}
 		});
 	}
 }
@@ -1089,7 +1100,7 @@ void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliag
 }
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
-	Zone->LoadInstancedMeshesFromFile();
+	Zone->GetRegion()->SpawnInstMeshFromLoadCache(Zone);
 }
 
 //======================================================================================================================================================================
