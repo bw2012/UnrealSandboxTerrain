@@ -2,6 +2,7 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "TerrainRegionComponent.h"
+#include "TerrainZoneComponent.h"
 #include "SandboxTerrainController.h"
 
 #include "DrawDebugHelpers.h"
@@ -185,6 +186,22 @@ void UTerrainRegionComponent::DeserializeRegionVoxelData(FMemoryReader& BinaryDa
 	}
 }
 
+void UTerrainRegionComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData, TArray<UTerrainZoneComponent*>& ZoneArray) {
+	int32 ZonesCount = ZoneArray.Num();
+	BinaryData << ZonesCount;
+
+	for (UTerrainZoneComponent* Zone : ZoneArray) {
+
+		FVector Location = Zone->GetComponentLocation();
+
+		BinaryData << Location.X;
+		BinaryData << Location.Y;
+		BinaryData << Location.Z;
+
+		Zone->SerializeInstancedMeshes(BinaryData);
+	}
+}
+
 void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt) {
 	double Start = FPlatformTime::Seconds();
 
@@ -265,9 +282,12 @@ void UTerrainRegionComponent::LoadVoxelData() {
 	Load([&](FMemoryReader& BinaryData) { DeserializeRegionVoxelData(BinaryData); }, Ext);
 }
 
-void UTerrainRegionComponent::SaveFile() {
+void UTerrainRegionComponent::SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray) {
 	FString Ext = TEXT("dat");
-	Save([&](FBufferArchive& BinaryData) { SerializeRegionMeshData(BinaryData); }, Ext);
+	Save([&](FBufferArchive& BinaryData) { 
+		SerializeRegionMeshData(BinaryData); 
+		SerializeInstancedMeshes(BinaryData, ZoneArray);
+	}, Ext);
 }
 
 void UTerrainRegionComponent::LoadFile() {

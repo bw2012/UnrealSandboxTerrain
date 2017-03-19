@@ -61,7 +61,11 @@ public:
 
 	void DeserializeRegionVoxelData(FMemoryReader& BinaryData);
 
-	void SaveFile();
+
+	void SerializeInstancedMeshes(FBufferArchive& BinaryData, TArray<UTerrainZoneComponent*>& ZoneArray);
+
+
+	void SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray);
 
 	void LoadFile();
 

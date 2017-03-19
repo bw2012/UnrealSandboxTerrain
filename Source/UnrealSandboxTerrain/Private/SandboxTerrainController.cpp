@@ -203,6 +203,28 @@ void ASandboxTerrainController::BeginPlay() {
 		});
 
 		Region->LoadVoxelData();
+
+		if (!bGenerateOnlySmallSpawnPoint) {
+			for (int num = 0; num < TerrainSize; num++) {
+				int s = num;
+				for (int x = -s; x <= s; x++) {
+					for (int y = -s; y <= s; y++) {
+						for (int z = -s; z <= s; z++) {
+							FVector Index = FVector(x, y, z);
+							FVector Pos = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
+							if (ThisThread.CheckState()) return;
+
+							if (!VoxelDataMap.Contains(Index)) {
+								SpawnZone(Pos);
+							}
+
+							if (ThisThread.CheckState()) return;
+						}
+					}
+				}
+			}
+		}
+
 	});
 
 	//===========================
@@ -241,6 +263,7 @@ void ASandboxTerrainController::BeginPlay() {
 typedef struct TSaveBuffer {
 
 	TArray<TVoxelData*> VoxelDataArray;
+	TArray<UTerrainZoneComponent*> ZoneArray;
 
 	bool bShouldBeSaved = false;
 
@@ -249,16 +272,20 @@ typedef struct TSaveBuffer {
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
 
+	// wait threads for finish
 	for (auto* ThreadTask : ThreadList) {
+		ThreadTask->Stop();
 		ThreadTask->WaitForFinish();
 	}
 
+	// save only on server side
 	if (GetWorld()->GetAuthGameMode() == NULL) {
 		return;
 	}
 
 	TMap<FVector, TSaveBuffer> SaveBufferByRegion;
 
+	// put voxel data to save buffer
 	for (auto& Elem : VoxelDataMap) {
 		TVoxelData* VoxelData = Elem.Value;
 
@@ -275,6 +302,19 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		//delete VoxelData;
 	}
 
+	// put zones to save buffer
+	for (auto& Elem : TerrainZoneMap) {
+		FVector ZoneIndex = Elem.Key;
+		UTerrainZoneComponent* Zone = Elem.Value;
+		FVector RegionIndex = GetRegionIndex(Zone->GetComponentLocation());
+
+		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
+
+		SaveBuffer.ZoneArray.Add(Zone);
+		SaveBuffer.bShouldBeSaved = true;
+	}
+
+	// save regions accordind data from save buffer
 	for (auto& Elem : SaveBufferByRegion) {
 		FVector RegionIndex = Elem.Key;
 		TSaveBuffer& SaveBuffer = Elem.Value;
@@ -284,22 +324,25 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 			UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-			Region->SaveFile();
+			Region->SaveFile(SaveBuffer.ZoneArray);
 			Region->SaveVoxelData(SaveBuffer.VoxelDataArray);
 		}
 	}
 
+	// clean region mesh data cache
 	for (auto& Elem : TerrainRegionMap) {
 		UTerrainRegionComponent* Region = Elem.Value;
 		Region->CleanMeshDataCache();
 	}
 
+	/*
 	if (!bDisableFoliage) {
 		for (auto& Elem : TerrainZoneMap) {
 			UTerrainZoneComponent* Zone = Elem.Value;
 			Zone->SaveInstancedMeshesToFile();
 		}
 	}
+	*/
 
 	TerrainZoneMap.Empty();
 }
@@ -818,7 +861,7 @@ TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Locatio
 		Vd = new TVoxelData(Dim, 100 * 10);
 		Vd->setOrigin(Location);
 
-		//generateTerrain(*Vd);
+		generateTerrain(*Vd);
 
 		Vd->DataState = TVoxelDataState::NEW_GENERATED;
 
