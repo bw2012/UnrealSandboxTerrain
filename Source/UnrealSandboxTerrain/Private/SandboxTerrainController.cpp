@@ -525,7 +525,7 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	te->instance = this;
 
 	FString thread_name = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
-	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
+	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name, true, true);
 	//FIXME delete thread after finish
 
 
@@ -632,7 +632,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
 }
 
 
