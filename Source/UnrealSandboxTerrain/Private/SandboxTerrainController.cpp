@@ -780,7 +780,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 						if (is_changed) {
 							vd->setChanged();
 							vd->vd_edit_mutex.unlock();
-							invokeLazyZoneAsync(zone_index);
+							InvokeLazyZoneAsync(zone_index);
 						} else {
 							vd->vd_edit_mutex.unlock();
 						}
@@ -810,7 +810,7 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
 					vd->resetLastMeshRegenerationTime();
 					vd->vd_edit_mutex.unlock();
-					invokeZoneMeshAsync(zone, md_ptr);
+					InvokeZoneMeshAsync(zone, md_ptr);
 				} else {
 					vd->vd_edit_mutex.unlock();
 				}
