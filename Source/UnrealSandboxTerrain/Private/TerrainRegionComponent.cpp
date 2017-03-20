@@ -190,16 +190,12 @@ void UTerrainRegionComponent::SerializeInstancedMeshes(FBufferArchive& BinaryDat
 	int32 ZonesCount = ZoneArray.Num();
 	BinaryData << ZonesCount;
 
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("ZonesCount save----> %d"), ZonesCount);
-
 	for (UTerrainZoneComponent* Zone : ZoneArray) {
 		FVector Location = Zone->GetComponentLocation();
 
 		BinaryData << Location.X;
 		BinaryData << Location.Y;
 		BinaryData << Location.Z;
-
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("SerializeInstancedMeshes ----> %f %f %f"), Location.X, Location.Y, Location.Z);
 
 		Zone->SerializeInstancedMeshes(BinaryData);
 	}
@@ -222,8 +218,6 @@ void UTerrainRegionComponent::DeserializeZoneInstancedMeshes(FMemoryReader& Bina
 			MeshType.Mesh = GetTerrainController()->FoliageMap[MeshTypeId].Mesh;
 			MeshType.MeshTypeId = MeshTypeId;
 		}
-
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("MeshInstanceCount ----> %d"), MeshInstanceCount);
 
 		TInstMeshTransArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
 		InstMeshArray.MeshType = MeshType;
@@ -286,8 +280,6 @@ void UTerrainRegionComponent::DeserializeRegionInstancedMeshes(FMemoryReader& Bi
 	int32 ZonesCount;
 	BinaryData << ZonesCount;
 
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("ZonesCount ----> %d"), ZonesCount);
-
 	for (int Idx = 0; Idx < ZonesCount; Idx++) {
 		FVector ZoneLocation;
 
@@ -298,8 +290,6 @@ void UTerrainRegionComponent::DeserializeRegionInstancedMeshes(FMemoryReader& Bi
 		FVector ZoneIndex = GetTerrainController()->GetZoneIndex(ZoneLocation);
 
 		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache.FindOrAdd(ZoneIndex);
-
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("DeserializeRegionInstancedMeshes ----> %f %f %f"), ZoneLocation.X, ZoneLocation.Y, ZoneLocation.Z);
 
 		DeserializeZoneInstancedMeshes(BinaryData, ZoneInstMeshMap);
 	}
