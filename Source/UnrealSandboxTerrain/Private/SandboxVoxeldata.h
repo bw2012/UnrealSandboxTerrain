@@ -8,6 +8,7 @@
 #include <array>
 #include <memory>
 #include <set>
+#include <mutex>
 
 #define LOD_ARRAY_SIZE 7
 
@@ -65,6 +66,8 @@ public:
 
     TVoxelData(int, float);
     ~TVoxelData();
+
+	std::mutex vd_edit_mutex;
 
 	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
 		return x * voxel_num * voxel_num + y * voxel_num + z;

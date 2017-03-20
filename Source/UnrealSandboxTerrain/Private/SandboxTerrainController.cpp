@@ -525,7 +525,7 @@ void ASandboxTerrainController::performTerrainChange(FVector origin, float radiu
 	te->instance = this;
 
 	FString thread_name = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
-	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name);
+	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name, true, true);
 	//FIXME delete thread after finish
 
 
@@ -587,10 +587,14 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 
 				if (zone == NULL) {
 					if (vd != NULL) {
+						vd->vd_edit_mutex.lock();
 						bool is_changed = handler(vd, v, radius, s);
 						if (is_changed) {
 							vd->setChanged();
+							vd->vd_edit_mutex.unlock();
 							invokeLazyZoneAsync(zone_index);
+						} else {
+							vd->vd_edit_mutex.unlock();
 						}
 
 						continue;
@@ -609,22 +613,26 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					continue;
 				}
 
+				vd->vd_edit_mutex.lock();
 				bool is_changed = handler(vd, v, radius, s);
 				if (is_changed) {
 					vd->setChanged();
 					vd->setCacheToValid();
 					std::shared_ptr<TMeshData> md_ptr = zone->generateMesh();
 					vd->resetLastMeshRegenerationTime();
-					invokeZoneMeshAsync(zone, md_ptr);
-				}
+					vd->vd_edit_mutex.unlock();
 
+					invokeZoneMeshAsync(zone, md_ptr);
+				} else {
+					vd->vd_edit_mutex.unlock();
+				}
 			}
 		}
 	}
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
 }
 
 
