@@ -587,10 +587,14 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 
 				if (zone == NULL) {
 					if (vd != NULL) {
+						vd->vd_edit_mutex.lock();
 						bool is_changed = handler(vd, v, radius, s);
 						if (is_changed) {
 							vd->setChanged();
+							vd->vd_edit_mutex.unlock();
 							invokeLazyZoneAsync(zone_index);
+						} else {
+							vd->vd_edit_mutex.unlock();
 						}
 
 						continue;
@@ -609,15 +613,19 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					continue;
 				}
 
+				vd->vd_edit_mutex.lock();
 				bool is_changed = handler(vd, v, radius, s);
 				if (is_changed) {
 					vd->setChanged();
 					vd->setCacheToValid();
 					std::shared_ptr<TMeshData> md_ptr = zone->generateMesh();
 					vd->resetLastMeshRegenerationTime();
-					invokeZoneMeshAsync(zone, md_ptr);
-				}
+					vd->vd_edit_mutex.unlock();
 
+					invokeZoneMeshAsync(zone, md_ptr);
+				} else {
+					vd->vd_edit_mutex.unlock();
+				}
 			}
 		}
 	}
