@@ -333,7 +333,7 @@ void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)
 	double Start = FPlatformTime::Seconds();
 
 	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
+	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
 
 	int tx = Index.X;
 	int ty = Index.Y;

@@ -146,11 +146,12 @@ void ASandboxTerrainController::BeginPlay() {
 
 			UE_LOG(LogTemp, Warning, TEXT("test -> %f %f %f"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 
-			UTerrainRegionComponent* Region2 = GetOrCreateRegion(RegionIndex);
+			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
 			Region2->LoadFile();
 			if (ThisThread.CheckState()) return;
 
 			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+				UE_LOG(LogTemp, Warning, TEXT("test2 -> %f %f %f"), Index.X, Index.Y, Index.Z);
 				if (ThisThread.CheckState()) return;
 				FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 				SpawnZone(Pos);
