@@ -144,14 +144,11 @@ void ASandboxTerrainController::BeginPlay() {
 				continue;
 			}
 
-			UE_LOG(LogTemp, Warning, TEXT("test -> %f %f %f"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
-
 			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
 			Region2->LoadFile();
 			if (ThisThread.CheckState()) return;
 
 			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
-				UE_LOG(LogTemp, Warning, TEXT("test2 -> %f %f %f"), Index.X, Index.Y, Index.Z);
 				if (ThisThread.CheckState()) return;
 				FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 				SpawnZone(Pos);
@@ -409,10 +406,10 @@ void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
 			//float y = position_array[1]->AsNumber();
 			//float z = position_array[2]->AsNumber();
 
-			TArray <TSharedPtr<FJsonValue>> rotation_array = RegionObj->GetArrayField("Index");
-			double x = rotation_array[0]->AsNumber();
-			double y = rotation_array[1]->AsNumber();
-			double z = rotation_array[2]->AsNumber();
+			TArray <TSharedPtr<FJsonValue>> IndexValArray = RegionObj->GetArrayField("Index");
+			double x = IndexValArray[0]->AsNumber();
+			double y = IndexValArray[1]->AsNumber();
+			double z = IndexValArray[2]->AsNumber();
 
 			RegionIndexSet.Add(FVector(x, y, z));
 

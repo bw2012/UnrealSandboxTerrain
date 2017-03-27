@@ -311,6 +311,9 @@ void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData
 
 	FBufferArchive BinaryData;
 
+	int32 version = 1;
+	BinaryData << version;
+
 	SaveFunction(BinaryData);
 
 	bool bIsSaved = FFileHelper::SaveArrayToFile(BinaryData, *FileName);
@@ -352,6 +355,11 @@ void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)
 
 	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 	BinaryData.Seek(0);
+
+	int32 version = 1;
+	BinaryData << version;
+
+	UE_LOG(LogTemp, Warning, TEXT("File format version -> %d"), version);
 
 	LoadFunction(BinaryData);
 
