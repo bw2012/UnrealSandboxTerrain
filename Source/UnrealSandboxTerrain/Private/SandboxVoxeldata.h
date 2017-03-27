@@ -238,6 +238,7 @@ bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range);
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec);
-FVector sandboxGridIndex(FVector v, int range);
+
+extern FVector sandboxGridIndex(const FVector& v, int range);
 
 #endif

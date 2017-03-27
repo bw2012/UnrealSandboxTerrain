@@ -163,6 +163,8 @@ public:
 
 	FVector GetRegionIndex(FVector v);
 
+	FVector GetRegionPos(FVector Index);
+
 	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
 
 	template<class H>
@@ -180,6 +182,10 @@ public:
 	void InvokeSafe(std::function<void()> Function);
 
 private:
+	void Save();
+
+	void SaveJson(const TSet<FVector>& RegionPosSet);
+	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
 	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
