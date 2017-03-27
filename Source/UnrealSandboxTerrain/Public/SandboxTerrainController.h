@@ -185,10 +185,14 @@ private:
 	void Save();
 
 	void SaveJson(const TSet<FVector>& RegionPosSet);
+
+	void LoadJson(TSet<FVector>& RegionIndexSet);
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
 	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
+
+	TSet<FVector> RegionIndexSet;
 
 	TSet<FVector> SpawnInitialZone();
 

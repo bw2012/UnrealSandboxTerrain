@@ -7,80 +7,9 @@
 #include <cmath>
 #include "DrawDebugHelpers.h"
 #include "Async.h"
+#include "Json.h"
 
 #include "SandboxTerrainMeshComponent.h"
-
-
-class FLoadInitialZonesThread : public FRunnable {
-
-private:
-	 
-	volatile int State = TH_STATE_NEW;
-
-	FRunnableThread* thread;
-
-public:
-
-	FLoadInitialZonesThread() {
-		thread = NULL;
-	}
-
-	~FLoadInitialZonesThread() {
-		if (thread != NULL) {
-			delete thread;
-		}
-	}
-
-	TArray<FVector> ZoneList;
-	ASandboxTerrainController* Controller;
-
-	bool IsFinished() {
-		return State == TH_STATE_FINISHED;
-	}
-
-	virtual void Stop() { 
-		if (State == TH_STATE_NEW || State == TH_STATE_RUNNING) {
-			State = TH_STATE_STOP;
-		}
-	}
-
-	virtual void WaitForFinish() {
-		while (!IsFinished()) {
-
-		}
-	}
-
-	void Start() {
-		thread = FRunnableThread::Create(this, TEXT("THREAD_TEST"));
-	}
-
-	virtual uint32 Run() {
-		State = TH_STATE_RUNNING;
-		UE_LOG(LogTemp, Warning, TEXT("zone initial loader %d"), ZoneList.Num());
-		for (auto i = 0; i < ZoneList.Num(); i++) {
-			if (!Controller->IsValidLowLevel()) {
-				// controller is not valid anymore
-				State = TH_STATE_FINISHED;
-				return 0;
-			}
-
-			if (State == TH_STATE_STOP) {
-				State = TH_STATE_FINISHED;
-				return 0;
-			}
-
-			FVector Pos = ZoneList[i];
-			Controller->SpawnZone(Pos);
-			Controller->OnLoadZoneProgress(i, ZoneList.Num());
-		}
-
-		Controller->OnLoadZoneListFinished();
-
-		State = TH_STATE_FINISHED;
-		return 0;
-	}
-
-};
 
 
 class FAsyncThread : public FRunnable {
@@ -186,23 +115,51 @@ void ASandboxTerrainController::BeginPlay() {
 	//===========================
 	// load existing
 	//===========================
+	RegionIndexSet.Empty();
+	LoadJson(RegionIndexSet);
 
 	// load initial region
-	UTerrainRegionComponent* Region = GetOrCreateRegion(FVector(0, 0, 0));
-	Region->LoadFile();
+	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
+	Region1->LoadFile();
 
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
 
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
-		Region->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+		Region1->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
 			if (ThisThread.CheckState()) return;
 			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
 			SpawnZone(Pos);
 		});
 
-		Region->LoadVoxelData();
+		if (ThisThread.CheckState()) return;
+
+		Region1->LoadVoxelData();
+
+		if (ThisThread.CheckState()) return;
+
+		for (FVector RegionIndex : RegionIndexSet) {
+			if (RegionIndex.Equals(FVector::ZeroVector)) {
+				continue;
+			}
+
+			UE_LOG(LogTemp, Warning, TEXT("test -> %f %f %f"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+
+			UTerrainRegionComponent* Region2 = GetOrCreateRegion(RegionIndex);
+			Region2->LoadFile();
+			if (ThisThread.CheckState()) return;
+
+			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+				if (ThisThread.CheckState()) return;
+				FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
+				SpawnZone(Pos);
+			});
+			if (ThisThread.CheckState()) return;
+
+			Region2->LoadVoxelData();
+			if (ThisThread.CheckState()) return;
+		}
 
 		if (!bGenerateOnlySmallSpawnPoint) {
 			for (int num = 0; num < TerrainSize; num++) {
@@ -310,7 +267,7 @@ typedef struct TSaveVdBuffer {
 
 void ASandboxTerrainController::Save() {
 
-	TSet<FVector> RegionPosSet;
+	TSet<FVector> RegionIndexSetLocal;
 
 	// put voxel data to save buffer
 	TMap<FVector, TSaveVdBuffer> SaveVdBufferByRegion;
@@ -325,7 +282,7 @@ void ASandboxTerrainController::Save() {
 			SaveBuffer.bShouldBeSaved = true;
 		}
 
-		RegionPosSet.Add(RegionIndex);
+		RegionIndexSetLocal.Add(RegionIndex);
 
 		//TODO replace with share pointer
 		VoxelDataMap.Remove(Elem.Key);
@@ -344,7 +301,7 @@ void ASandboxTerrainController::Save() {
 		SaveBuffer.ZoneArray.Add(Zone);
 		SaveBuffer.bShouldBeSaved = true;
 
-		RegionPosSet.Add(RegionIndex);
+		RegionIndexSetLocal.Add(RegionIndex);
 	}
 
 	// save regions accordind data from save buffer
@@ -372,7 +329,8 @@ void ASandboxTerrainController::Save() {
 		}
 	}
 
-	SaveJson(RegionPosSet);
+	RegionIndexSetLocal.Append(RegionIndexSet);
+	SaveJson(RegionIndexSetLocal);
 }
 
 
@@ -422,6 +380,44 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	JsonWriter->Close();
 
 	FFileHelper::SaveStringToFile(*JsonStr, *FullPath);
+}
+
+void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
+	UE_LOG(LogTemp, Warning, TEXT("----------- load json -----------"));
+
+	FString FileName = TEXT("terrain.json");
+	FString SavePath = FPaths::GameSavedDir();
+	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
+
+	FString jsonRaw;
+	if (!FFileHelper::LoadFileToString(jsonRaw, *FullPath, 0)) {
+		UE_LOG(LogTemp, Error, TEXT("Error loading json file"));
+	}
+
+	TSharedPtr<FJsonObject> jsonParsed;
+	TSharedRef<TJsonReader<TCHAR>> jsonReader = TJsonReaderFactory<TCHAR>::Create(jsonRaw);
+	if (FJsonSerializer::Deserialize(jsonReader, jsonParsed)) {
+
+		TArray <TSharedPtr<FJsonValue>> array = jsonParsed->GetArrayField("Regions");
+		for (int i = 0; i < array.Num(); i++) {
+			TSharedPtr<FJsonObject> obj_ptr = array[i]->AsObject();
+			TSharedPtr<FJsonObject> RegionObj = obj_ptr->GetObjectField(TEXT("Region"));
+
+			//TArray <TSharedPtr<FJsonValue>> position_array = RegionObj->GetArrayField("Pos");
+			//float x = position_array[0]->AsNumber();
+			//float y = position_array[1]->AsNumber();
+			//float z = position_array[2]->AsNumber();
+
+			TArray <TSharedPtr<FJsonValue>> rotation_array = RegionObj->GetArrayField("Index");
+			double x = rotation_array[0]->AsNumber();
+			double y = rotation_array[1]->AsNumber();
+			double z = rotation_array[2]->AsNumber();
+
+			RegionIndexSet.Add(FVector(x, y, z));
+
+			UE_LOG(LogTemp, Warning, TEXT("index: %f %f %f"), x, y, z);
+		}
+	}
 }
 
 SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(TVoxelData &voxel_data) {
