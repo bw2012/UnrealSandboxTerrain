@@ -251,40 +251,39 @@ public:
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
+
+		if (NumSections == 0) return;
+
 		LodSectionArray.AddZeroed(NumSections);
 
 		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++) {
-			FProcMeshSection& SrcSection = Component->MeshSectionLodArray[SectionIdx].mainMesh;
+			FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
-			if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
-				FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
+			// copy regular material mesh
+			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
+			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection, 
+				[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId);} );
 
-				// copy regular material mesh
-				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].MaterialSectionMap;
-				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection, 
-					[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId);} );
+			// copy transition material mesh
+			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
+			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection,
+				[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 
-				// copy transition material mesh
-				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].MaterialTransitionSectionMap;
-				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection,
-					[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
+			if (SectionIdx > 0) {
+				// copy transition lod section
+				FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[0];
+				for (auto i = 0; i < 6; i++) {
+					FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[i];
 
-				if (SectionIdx > 0) {
-					// copy transition lod section
-					FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[0];
-					for (auto i = 0; i < 6; i++) {
-						FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[i];
-
-						if (SrcTransitionSection.ProcIndexBuffer.Num() > 0 && SrcTransitionSection.ProcVertexBuffer.Num() > 0) {
-							NewLodSection->transitionMesh[i] = new FProcMeshProxySection();
-							CopySection(SrcTransitionSection, NewLodSection->transitionMesh[i], Component);
-						}
+					if (SrcTransitionSection.ProcIndexBuffer.Num() > 0 && SrcTransitionSection.ProcVertexBuffer.Num() > 0) {
+						NewLodSection->transitionMesh[i] = new FProcMeshProxySection();
+						CopySection(SrcTransitionSection, NewLodSection->transitionMesh[i], Component);
 					}
 				}
-
-				// Save ref to new section
-				LodSectionArray[SectionIdx] = NewLodSection;
 			}
+
+			// Save ref to new section
+			LodSectionArray[SectionIdx] = NewLodSection;
 		}
 	}
 
@@ -370,9 +369,10 @@ public:
 	}
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
+		if (LodSectionArray.Num() == 0) return;
+
 		// Set up wireframe material (if needed)
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
-
 		FColoredMaterialRenderProxy* WireframeMaterialInstance = NULL;
 		if (bWireframe) {
 			WireframeMaterialInstance = new FColoredMaterialRenderProxy(
@@ -540,10 +540,9 @@ void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, boo
 
 void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 	FBox LocalBox(0);
-
-	LocalBox += MeshSectionLodArray[0].mainMesh.SectionLocalBox;
-
+	LocalBox += MeshSectionLodArray[0].RegularMeshContainer.WholeMesh.SectionLocalBox;
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
+
 	UpdateBounds(); // Update global bounds
 	MarkRenderTransformDirty(); // Need to send to render thread
 }
@@ -572,15 +571,15 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 
 		auto lodIndex = 0;
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
-			MeshSectionLodArray[lodIndex].mainMesh = sectionLOD.mainMesh;
-			MeshSectionLodArray[lodIndex].MaterialSectionMap = sectionLOD.MaterialSectionMap;
-			MeshSectionLodArray[lodIndex].MaterialTransitionSectionMap = sectionLOD.MaterialTransitionSectionMap;
+			MeshSectionLodArray[lodIndex].RegularMeshContainer.WholeMesh = sectionLOD.RegularMeshContainer.WholeMesh;
+			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialSectionMap = sectionLOD.RegularMeshContainer.MaterialSectionMap;
+			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialTransitionSectionMap = sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap;
 
-			for (auto& Element : sectionLOD.MaterialSectionMap) {
+			for (auto& Element : sectionLOD.RegularMeshContainer.MaterialSectionMap) {
 				LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
 			}
 
-			for (auto& Element : sectionLOD.MaterialTransitionSectionMap) {
+			for (auto& Element : sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap) {
 				LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet));
 			}
 

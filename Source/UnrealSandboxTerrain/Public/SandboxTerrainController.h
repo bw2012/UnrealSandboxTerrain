@@ -6,11 +6,13 @@
 #include <queue>
 #include <mutex>
 #include <set>
+#include <list>
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
 class TVoxelData;
 class FLoadInitialZonesThread;
+class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
 class UTerrainRegionComponent;
@@ -21,21 +23,13 @@ class UTerrainRegionComponent;
 #define TH_STATE_FINISHED	3
 
 typedef struct TerrainControllerTask {
-	std::function<void()> f;
+	std::function<void()> Function;
 } TerrainControllerTask;
 
 UENUM(BlueprintType)
 enum class ETerrainInitialArea : uint8 {
 	TIA_1_1 = 0	UMETA(DisplayName = "1x1"),
 	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
-};
-
-UENUM(BlueprintType)	
-enum class EVoxelDimEnum : uint8 {
-	VS_8  = 9	UMETA(DisplayName = "8"),
-	VS_16 = 17	UMETA(DisplayName = "16"),
-	VS_32 = 33	UMETA(DisplayName = "32"),
-	VS_64 = 65 	UMETA(DisplayName = "64"),
 };
 
 USTRUCT()
@@ -101,7 +95,9 @@ public:
 	ASandboxTerrainController();
 
 	friend FLoadInitialZonesThread;
+	friend FAsyncThread;
 	friend UTerrainZoneComponent;
+	friend UTerrainRegionComponent;
 
 	virtual void BeginPlay() override;
 
@@ -143,9 +139,6 @@ public:
 
 	//========================================================================================
 
-	//UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	EVoxelDimEnum ZoneGridDimension;
-
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 Seed;
 
@@ -157,20 +150,20 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	TMap<uint32, FSandboxFoliage> FoliageMap;
-
-	FString getZoneFileName(int tx, int ty, int tz);
-		
+	
 	void digTerrainRoundHole(FVector v, float radius, float s);
 
 	void digTerrainCubeHole(FVector origin, float r, float strength);
 
 	void fillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
 
-	FVector getZoneIndex(FVector v);
+	FVector GetZoneIndex(FVector v);
 
-	UTerrainZoneComponent* getZoneByVectorIndex(FVector v);
+	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
 
 	FVector GetRegionIndex(FVector v);
+
+	FVector GetRegionPos(FVector Index);
 
 	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
 
@@ -186,24 +179,38 @@ public:
 
 	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
+	void InvokeSafe(std::function<void()> Function);
+
 private:
+	void Save();
+
+	void SaveJson(const TSet<FVector>& RegionPosSet);
+
+	void LoadJson(TSet<FVector>& RegionIndexSet);
+	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
 	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
 
-	TSet<FVector> spawnInitialZone();
+	TSet<FVector> RegionIndexSet;
 
-	UTerrainZoneComponent* addTerrainZone(FVector pos);
+	TSet<FVector> SpawnInitialZone();
 
-	TVoxelData* createZoneVoxeldata(FVector location);
+	void SpawnZone(const FVector& pos);
+
+	UTerrainZoneComponent* AddTerrainZone(FVector pos);
+
+	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
+
+	TVoxelData* FindOrCreateZoneVoxeldata(FVector location);
 
 	void generateTerrain(TVoxelData &voxel_data);
 
-	FLoadInitialZonesThread* initial_zone_loader;
+	FLoadInitialZonesThread* InitialZoneLoader;
 
-	void invokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
+	void InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 
-	void invokeLazyZoneAsync(FVector index);
+	void InvokeLazyZoneAsync(FVector index);
 
 	void AddAsyncTask(TerrainControllerTask zone_make_task);
 
@@ -224,6 +231,12 @@ private:
 	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
 
 	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
+
+	std::mutex ThreadListMutex;
+
+	std::list<FAsyncThread*> ThreadList;
+
+	void RunThread(std::function<void(FAsyncThread&)> Function);
 
 	//===============================================================================
 	// foliage

@@ -135,6 +135,10 @@ public:
 
 	friend void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
 	friend bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
+
+	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
+	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
+
 };
 
 typedef struct TMeshMaterialSection {
@@ -154,18 +158,38 @@ typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
 	std::set<unsigned short> MaterialIdSet;
 
+	static FString GenerateTransitionName(std::set<unsigned short>& MaterialIdSet) {
+		FString TransitionMaterialName = TEXT("");
+		FString Separator = TEXT("");
+		for (unsigned short MaterialId : MaterialIdSet) {
+			TransitionMaterialName = FString::Printf(TEXT("%s%s%d"), *TransitionMaterialName, *Separator, MaterialId);
+			Separator = TEXT("-");
+		}
+
+		return TransitionMaterialName;
+	}
+
 } TMeshMaterialTransitionSection;
 
 
 typedef TMap<unsigned short, TMeshMaterialSection> TMaterialSectionMap;
 typedef TMap<unsigned short, TMeshMaterialTransitionSection> TMaterialTransitionSectionMap;
 
-typedef struct TMeshLodSection {
+typedef struct TMeshContainer {
+
 	TMaterialSectionMap MaterialSectionMap;
+
 	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
 
-	FProcMeshSection mainMesh;
+	FProcMeshSection WholeMesh;
+
+} TMeshContainer;
+
+typedef struct TMeshLodSection {
+	TMeshContainer RegularMeshContainer;
+
 	TArray<FProcMeshSection> transitionMeshArray;
+
 	TArray<FVector> DebugPointList;
 
 	TMeshLodSection() {
@@ -175,12 +199,13 @@ typedef struct TMeshLodSection {
 
 
 typedef struct TMeshData {
-	TMeshData() {
-		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
-	}
-
 	TArray<TMeshLodSection> MeshSectionLodArray;
 	FProcMeshSection* CollisionMeshPtr;
+
+	TMeshData() {
+		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
+		CollisionMeshPtr = nullptr;
+	}
 
 	~TMeshData() {
 		// for memory leaks checking
@@ -213,6 +238,7 @@ bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range);
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec);
-FVector sandboxGridIndex(FVector v, int range);
+
+extern FVector sandboxGridIndex(const FVector& v, int range);
 
 #endif

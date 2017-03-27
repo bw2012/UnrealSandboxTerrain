@@ -31,7 +31,9 @@ public class UnrealSandboxTerrain : ModuleRules
                 "Engine",
                 "RenderCore",
                 "ShaderCore",
-                "RHI"
+                "RHI",
+                "Json",
+                "JsonUtilities"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -45,7 +47,9 @@ public class UnrealSandboxTerrain : ModuleRules
                 "Engine",
                 "RenderCore",
                 "ShaderCore",
-                "RHI"
+                "RHI",
+                "Json",
+                "JsonUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

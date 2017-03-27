@@ -57,7 +57,10 @@ struct FProcMeshVertex {
 };
 
 /** One section of the procedural mesh. Each material has its own section. */
-struct FProcMeshSection {
+class FProcMeshSection {
+
+public:
+
 	/** Vertex buffer for this section */
 	TArray<FProcMeshVertex> ProcVertexBuffer;
 
@@ -67,25 +70,91 @@ struct FProcMeshSection {
 	/** Local bounding box of section */
 	FBox SectionLocalBox;
 
-	/** Should we build collision data for triangles in this section */
-	bool bEnableCollision;
-
-	/** Should we display this section */
-	bool bSectionVisible;
-
-	FProcMeshSection()
-		: SectionLocalBox(0)
-		, bEnableCollision(false)
-		, bSectionVisible(true)
-	{}
+	FProcMeshSection() : SectionLocalBox(0)	{ }
 
 	/** Reset this section, clear all mesh info. */
-	void Reset()
-	{
+	void Reset() {
 		ProcVertexBuffer.Empty();
 		ProcIndexBuffer.Empty();
 		SectionLocalBox.Init();
-		bEnableCollision = false;
-		bSectionVisible = true;
+	}
+
+	void AddVertex(FProcMeshVertex& Vertex) {
+		ProcVertexBuffer.Add(Vertex);
+		SectionLocalBox += Vertex.Position;
+	}
+
+	void SerializeMesh(FBufferArchive& BinaryData) const {
+		// vertexes
+		int32 VertexNum = ProcVertexBuffer.Num();
+		BinaryData << VertexNum;
+		for (auto& Vertex : ProcVertexBuffer) {
+
+			float PosX = Vertex.Position.X;
+			float PosY = Vertex.Position.Y;
+			float PosZ = Vertex.Position.Z;
+
+			BinaryData << PosX;
+			BinaryData << PosY;
+			BinaryData << PosZ;
+
+			float NormalX = Vertex.Normal.X;
+			float NormalY = Vertex.Normal.Y;
+			float NormalZ = Vertex.Normal.Z;
+
+			BinaryData << NormalX;
+			BinaryData << NormalY;
+			BinaryData << NormalZ;
+
+			uint8 ColorR = Vertex.Color.R;
+			uint8 ColorG = Vertex.Color.G;
+			uint8 ColorB = Vertex.Color.B;
+			uint8 ColorA = Vertex.Color.A;
+
+			BinaryData << ColorR;
+			BinaryData << ColorG;
+			BinaryData << ColorB;
+			BinaryData << ColorA;
+		}
+
+		// indexes
+		int32 IndexNum = ProcIndexBuffer.Num();
+		BinaryData << IndexNum;
+		for (int32 Index : ProcIndexBuffer) {
+			BinaryData << Index;
+		}
+	}
+
+	void DeserializeMesh(FMemoryReader& BinaryData) {
+		int32 VertexNum;
+		BinaryData << VertexNum;
+
+		for (int Idx = 0; Idx < VertexNum; Idx++) {
+			FProcMeshVertex Vertex;
+
+			BinaryData << Vertex.Position.X;
+			BinaryData << Vertex.Position.Y;
+			BinaryData << Vertex.Position.Z;
+
+			BinaryData << Vertex.Normal.X;
+			BinaryData << Vertex.Normal.Y;
+			BinaryData << Vertex.Normal.Z;
+
+			BinaryData << Vertex.Color.R;
+			BinaryData << Vertex.Color.G;
+			BinaryData << Vertex.Color.B;
+			BinaryData << Vertex.Color.A;
+
+			AddVertex(Vertex);
+		}
+
+		int32 IndexNum;
+		BinaryData << IndexNum;
+
+		for (int Idx = 0; Idx < IndexNum; Idx++) {
+			int32 Index;
+			BinaryData << Index;
+			ProcIndexBuffer.Add(Index);
+		}
 	}
 };

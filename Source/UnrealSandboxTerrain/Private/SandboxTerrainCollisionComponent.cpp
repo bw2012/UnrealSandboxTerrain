@@ -37,6 +37,7 @@ bool USandboxTerrainCollisionComponent::GetPhysicsTriMeshData(struct FTriMeshCol
 	TMeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data->CollisionMeshPtr == NULL) return false;
+	if (mesh_data->CollisionMeshPtr->ProcVertexBuffer.Num() == 0) return false;
 
 	FProcMeshSection* Section = mesh_data->CollisionMeshPtr;
 	// Copy vert data
@@ -139,8 +140,6 @@ void USandboxTerrainCollisionComponent::UpdateLocalBounds() {
 	LocalBox += Section->SectionLocalBox;
 
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
-
-																														   // Update global bounds
 	UpdateBounds();
 	// Need to send to render thread
 	MarkRenderTransformDirty();
@@ -166,7 +165,9 @@ bool USandboxTerrainCollisionComponent::ContainsPhysicsTriMeshData(bool InUseAll
 	TMeshData* mesh_data = mesh_data_ptr.get();
 
 	if (mesh_data->CollisionMeshPtr == NULL) {
-		return false;
+		if (mesh_data->CollisionMeshPtr->ProcVertexBuffer.Num() > 0) {
+			return false;
+		}
 	}
 
 	return true;
