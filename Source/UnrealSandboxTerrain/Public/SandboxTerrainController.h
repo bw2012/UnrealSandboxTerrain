@@ -154,6 +154,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	bool bEnableLOD;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Collision")
+	unsigned int CollisionSection;
+
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	TMap<uint32, FSandboxFoliage> FoliageMap;
 	
@@ -265,6 +268,23 @@ private:
 
 	UPROPERTY()
 	TMap<uint16, UMaterialInterface*> RegularMaterialCache;
+
+	//===============================================================================
+	// collision
+	//===============================================================================
+
+	int GetCollisionMeshSectionLodIndex() {
+		if (bEnableLOD) {
+			int collisionLODSection = CollisionSection;
+			if (collisionLODSection > 6) collisionLODSection = 6;
+
+			return collisionLODSection;
+		}
+
+		return 0;
+	}
+
+	
 
 protected:
 

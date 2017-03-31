@@ -1117,7 +1117,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].RegularMeshContainer.WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1176,16 +1176,16 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].RegularMeshContainer.WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
 
 TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	if (vd.isSubstanceCacheValid()) {
-		for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
-			//UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
-		}
+		//for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
+		//	UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
+		//}
 
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}

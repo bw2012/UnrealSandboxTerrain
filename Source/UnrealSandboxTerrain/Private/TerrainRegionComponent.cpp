@@ -142,7 +142,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			}
 		}
 
-		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
+		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].RegularMeshContainer.WholeMesh;
 	}
 }
 

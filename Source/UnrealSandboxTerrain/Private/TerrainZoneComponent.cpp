@@ -44,13 +44,11 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
 		return NULL;
 	}
 
-	bool enableLOD = GetTerrainController()->bEnableLOD;
-
 	TVoxelDataParam vdp;
 
-	if (enableLOD) {
+	if (GetTerrainController()->bEnableLOD) {
 		vdp.bGenerateLOD = true;
-		vdp.collisionLOD = 1;
+		vdp.collisionLOD = GetTerrainController()->GetCollisionMeshSectionLodIndex();
 	} else {
 		vdp.bGenerateLOD = false;
 		vdp.collisionLOD = 0;
@@ -146,7 +144,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {

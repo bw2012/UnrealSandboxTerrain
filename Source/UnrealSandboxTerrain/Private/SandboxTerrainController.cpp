@@ -1139,7 +1139,7 @@ float groundLevel(FVector v);
 
 void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) {
 	if (FoliageMap.Num() == 0) return;
-	if (groundLevel(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 1000) return;
+	if (groundLevel(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
 
 	FRandomStream rnd = FRandomStream();
 	rnd.Initialize(0);
