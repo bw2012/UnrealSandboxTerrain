@@ -215,8 +215,12 @@ void UTerrainRegionComponent::DeserializeZoneInstancedMeshes(FMemoryReader& Bina
 
 		FTerrainInstancedMeshType MeshType;
 		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
-			MeshType.Mesh = GetTerrainController()->FoliageMap[MeshTypeId].Mesh;
+			FSandboxFoliage FoliageType = GetTerrainController()->FoliageMap[MeshTypeId];
+
+			MeshType.Mesh = FoliageType.Mesh;
 			MeshType.MeshTypeId = MeshTypeId;
+			MeshType.StartCullDistance = FoliageType.StartCullDistance;
+			MeshType.EndCullDistance = FoliageType.EndCullDistance;
 		}
 
 		TInstMeshTransArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);

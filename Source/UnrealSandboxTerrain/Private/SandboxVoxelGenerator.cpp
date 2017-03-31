@@ -119,7 +119,12 @@ unsigned char SandboxVoxelGenerator::material(FVector& local, FVector& world) {
 	if (densityUpper < 0.5) {
 		mat = 2; // grass
 	} else {
-		mat = 1; // dirt
+
+		if(world.Z < -350) {
+			mat = 4; // basalt
+		} else {
+			mat = 1; // dirt
+		}
 	}
 
 
