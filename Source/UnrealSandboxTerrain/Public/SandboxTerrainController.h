@@ -41,6 +41,12 @@ struct FTerrainInstancedMeshType {
 
 	UPROPERTY()
 	UStaticMesh* Mesh;
+
+	UPROPERTY()
+	int32 StartCullDistance;
+
+	UPROPERTY()
+	int32 EndCullDistance;
 };
 
 USTRUCT()

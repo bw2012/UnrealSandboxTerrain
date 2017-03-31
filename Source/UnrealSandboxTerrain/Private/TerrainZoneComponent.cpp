@@ -208,7 +208,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshTy
 		InstancedStaticMeshComponent->RegisterComponent();
 		InstancedStaticMeshComponent->AttachTo(this);
 		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
-		InstancedStaticMeshComponent->SetCullDistances(100, 500);
+		InstancedStaticMeshComponent->SetCullDistances(MeshType.StartCullDistance, MeshType.EndCullDistance);
 		InstancedStaticMeshComponent->SetMobility(EComponentMobility::Static);
 		InstancedStaticMeshComponent->SetSimulatePhysics(false);
 
