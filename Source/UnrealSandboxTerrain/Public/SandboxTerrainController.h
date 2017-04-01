@@ -155,6 +155,8 @@ public:
 
 	void digTerrainCubeHole(FVector origin, float r, float strength);
 
+	void fillTerrainCubeHole(FVector origin, const float r, const float strength, const int matId);
+
 	void fillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
 
 	FVector GetZoneIndex(FVector v);
