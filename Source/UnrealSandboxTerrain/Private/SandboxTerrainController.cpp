@@ -78,14 +78,18 @@ public:
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
-	TerrainSize = 5;
+	TerrainSizeX = 5;
+	TerrainSizeY = 5;
+	TerrainSizeZ = 5;
 	bEnableLOD = false;
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
-	TerrainSize = 5;
+	TerrainSizeX = 5;
+	TerrainSizeY = 5;
+	TerrainSizeZ = 5;
 	bEnableLOD = false;
 }
 
@@ -160,21 +164,18 @@ void ASandboxTerrainController::BeginPlay() {
 		}
 
 		if (!bGenerateOnlySmallSpawnPoint) {
-			for (int num = 0; num < TerrainSize; num++) {
-				int s = num;
-				for (int x = -s; x <= s; x++) {
-					for (int y = -s; y <= s; y++) {
-						for (int z = -s; z <= s; z++) {
-							FVector Index = FVector(x, y, z);
-							FVector Pos = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
-							if (ThisThread.CheckState()) return;
+			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
+				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
+					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
+						FVector Index = FVector(x, y, z);
+						FVector Pos = GetZonePos(Index);
+						if (ThisThread.CheckState()) return;
 
-							if (!VoxelDataMap.Contains(Index)) {
-								SpawnZone(Pos);
-							}
-
-							if (ThisThread.CheckState()) return;
+						if (!VoxelDataMap.Contains(Index)) {
+							SpawnZone(Pos);
 						}
+
+						if (ThisThread.CheckState()) return;
 					}
 				}
 			}
@@ -523,6 +524,10 @@ UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVect
 
 FVector ASandboxTerrainController::GetZoneIndex(FVector v) {
 	return sandboxGridIndex(v, 1000);
+}
+
+FVector ASandboxTerrainController::GetZonePos(FVector Index) {
+	return FVector(Index.X * 1000, Index.Y * 1000, Index.Z * 1000);
 }
 
 UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(FVector index) {

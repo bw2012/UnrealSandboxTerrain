@@ -113,7 +113,9 @@ public:
 
 	virtual void PostLoad() override;
 
-	//===============================================================================
+	//========================================================================================
+	// debug only
+	//========================================================================================
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool bGenerateOnlySmallSpawnPoint = false;
@@ -126,9 +128,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	FString MapName;
 
 	//========================================================================================
 	// materials
@@ -144,21 +143,42 @@ public:
 	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
 
 	//========================================================================================
+	// general
+	//========================================================================================
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	FString MapName;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 Seed;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 TerrainSize;
+	int32 TerrainSizeX;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 TerrainSizeY;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 TerrainSizeZ;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	bool bEnableLOD;
 
+	//========================================================================================
+	// collision
+	//========================================================================================
+
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Collision")
 	unsigned int CollisionSection;
 
+	//========================================================================================
+	// foliage
+	//========================================================================================
+
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	TMap<uint32, FSandboxFoliage> FoliageMap;
+
+	//========================================================================================
 	
 	void digTerrainRoundHole(FVector v, float radius, float s);
 
@@ -169,6 +189,8 @@ public:
 	void fillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
 
 	FVector GetZoneIndex(FVector v);
+
+	FVector GetZonePos(FVector Index);
 
 	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
 
