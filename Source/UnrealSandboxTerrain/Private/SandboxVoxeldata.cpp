@@ -514,7 +514,7 @@ private:
 	class MeshHandler {
 
 	private:
-		FProcMeshSection* meshSection;
+		FProcMeshSection* generalMeshSection;
 		VoxelMeshExtractor* extractor;
 
 		TMaterialSectionMap* materialSectionMapPtr;
@@ -543,7 +543,7 @@ private:
 
 	public:
 		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms, TMaterialTransitionSectionMap* mts) :
-			extractor(e), meshSection(s), materialSectionMapPtr(ms), materialTransitionSectionMapPtr(mts) { }
+			extractor(e), generalMeshSection(s), materialSectionMapPtr(ms), materialTransitionSectionMapPtr(mts) { }
 
 	private:
 
@@ -559,8 +559,8 @@ private:
 				vertex.Position = v;
 				vertex.Normal = n;
 
-				meshSection->ProcIndexBuffer.Add(vertexGeneralIndex);
-				meshSection->AddVertex(vertex);
+				generalMeshSection->ProcIndexBuffer.Add(vertexGeneralIndex);
+				generalMeshSection->AddVertex(vertex);
 				vertexInfo.vertexIndex = vertexGeneralIndex;
 
 				vertexGeneralIndex++;
@@ -571,7 +571,7 @@ private:
 				tmp /= 2;
 				vertexInfo.normal = tmp;
 
-				meshSection->ProcIndexBuffer.Add(vertexInfo.vertexIndex);
+				generalMeshSection->ProcIndexBuffer.Add(vertexInfo.vertexIndex);
 			}
 		}
 
