@@ -188,13 +188,20 @@ typedef struct TMeshContainer {
 typedef struct TMeshLodSection {
 	TMeshContainer RegularMeshContainer;
 
+	TArray<TMeshContainer> TransitionPatchArray;
+
+	TArray<TMeshContainer> NormalPatchArray;
+
 	TArray<FProcMeshSection> transitionMeshArray;
 
 	TArray<FVector> DebugPointList;
 
 	TMeshLodSection() {
 		transitionMeshArray.SetNum(6); 
+		TransitionPatchArray.SetNum(6);
+		NormalPatchArray.SetNum(6);
 	}
+
 } TMeshLodSection;
 
 

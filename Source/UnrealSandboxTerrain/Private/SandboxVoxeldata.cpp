@@ -517,8 +517,6 @@ private:
 		FProcMeshSection* meshSection;
 		VoxelMeshExtractor* extractor;
 
-		TMeshContainer MeshContainer;
-
 		TMaterialSectionMap* materialSectionMapPtr;
 		TMaterialTransitionSectionMap* materialTransitionSectionMapPtr;
 
@@ -949,7 +947,6 @@ private:
 					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
 				}
 			}
-
 		}
 	}
 
