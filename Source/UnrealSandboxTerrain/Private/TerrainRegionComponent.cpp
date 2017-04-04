@@ -35,7 +35,7 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 			BinaryData << LodIdx;
 
 			// save whole mesh
-			LodSection.RegularMeshContainer.WholeMesh.SerializeMesh(BinaryData);
+			LodSection.WholeMesh.SerializeMesh(BinaryData);
 
 			// save regular materials
 			int32 LodSectionRegularMatNum = LodSection.RegularMeshContainer.MaterialSectionMap.Num();
@@ -98,7 +98,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			BinaryData << LodIndex;
 
 			// whole mesh
-			MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.WholeMesh.DeserializeMesh(BinaryData);
+			MeshDataPtr.get()->MeshSectionLodArray[LodIndex].WholeMesh.DeserializeMesh(BinaryData);
 
 			// regular materials
 			int32 LodSectionRegularMatNum;
@@ -142,7 +142,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			}
 		}
 
-		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].RegularMeshContainer.WholeMesh;
+		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].WholeMesh;
 	}
 }
 

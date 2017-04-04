@@ -177,27 +177,37 @@ typedef TMap<unsigned short, TMeshMaterialTransitionSection> TMaterialTransition
 
 typedef struct TMeshContainer {
 
+	// single materials map
 	TMaterialSectionMap MaterialSectionMap;
 
+	// materials with blending
 	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
-
-	FProcMeshSection WholeMesh;
 
 } TMeshContainer;
 
 typedef struct TMeshLodSection {
+
+	// whole mesh (collision only)
+	FProcMeshSection WholeMesh; 
+
+	// used only for render main mesh
 	TMeshContainer RegularMeshContainer;
 
-	TArray<TMeshContainer> TransitionPatchArray;
+	// used for render transition 1 to 2 LOD patch mesh 
+	TArray<TMeshContainer> TransitionPatchArray;	
 
-	TArray<TMeshContainer> NormalPatchArray;
+	// used for render transition 1 to 1 LOD patch mesh 
+	TArray<TMeshContainer> NormalPatchArray;		
 
-	TArray<FProcMeshSection> transitionMeshArray;
+	// should be deleted
+	TArray<FProcMeshSection> transitionMeshArray;	 
 
+	// just point to draw debug. remove it after release
 	TArray<FVector> DebugPointList;
 
 	TMeshLodSection() {
 		transitionMeshArray.SetNum(6); 
+
 		TransitionPatchArray.SetNum(6);
 		NormalPatchArray.SetNum(6);
 	}

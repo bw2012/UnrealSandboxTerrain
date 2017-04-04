@@ -734,7 +734,7 @@ private:
 
 public:
 	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.RegularMeshContainer.WholeMesh, &a.RegularMeshContainer.MaterialSectionMap, &a.RegularMeshContainer.MaterialTransitionSectionMap);
+		mainMeshHandler = new MeshHandler(this, &a.WholeMesh, &a.RegularMeshContainer.MaterialSectionMap, &a.RegularMeshContainer.MaterialTransitionSectionMap);
 
 		for (auto i = 0; i < 6; i++) {
 			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
@@ -1085,7 +1085,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 		mesh_extractor_ptr->generateCell(x, y, z);
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1114,7 +1114,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].RegularMeshContainer.WholeMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1134,7 +1134,7 @@ TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataPara
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].RegularMeshContainer.WholeMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
@@ -1173,7 +1173,7 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].RegularMeshContainer.WholeMesh;
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
 
 	return TMeshDataPtr(mesh_data);
 }
