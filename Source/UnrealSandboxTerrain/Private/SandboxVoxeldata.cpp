@@ -517,6 +517,8 @@ private:
 		FProcMeshSection* generalMeshSection;
 		VoxelMeshExtractor* extractor;
 
+		TMeshContainer* meshMatContainer;
+
 		TMaterialSectionMap* materialSectionMapPtr;
 		TMaterialTransitionSectionMap* materialTransitionSectionMapPtr;
 
@@ -542,8 +544,11 @@ private:
 		TMap<FVector, VertexInfo> vertexInfoMap;
 
 	public:
-		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMaterialSectionMap* ms, TMaterialTransitionSectionMap* mts) :
-			extractor(e), generalMeshSection(s), materialSectionMapPtr(ms), materialTransitionSectionMapPtr(mts) { }
+		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMeshContainer* mc) :
+			extractor(e), generalMeshSection(s), meshMatContainer(mc) {
+			materialSectionMapPtr = &meshMatContainer->MaterialSectionMap;
+			materialTransitionSectionMapPtr = &meshMatContainer->MaterialTransitionSectionMap;
+		}
 
 	private:
 
@@ -732,12 +737,15 @@ private:
 	MeshHandler* mainMeshHandler;
 	TArray<MeshHandler*> transitionHandlerArray;
 
+	TArray<MeshHandler*> normalPatchHandlerArray;
+
 public:
 	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
-		mainMeshHandler = new MeshHandler(this, &a.WholeMesh, &a.RegularMeshContainer.MaterialSectionMap, &a.RegularMeshContainer.MaterialTransitionSectionMap);
+		mainMeshHandler = new MeshHandler(this, &a.WholeMesh, &a.RegularMeshContainer);
 
 		for (auto i = 0; i < 6; i++) {
-			transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
+			//transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
+			normalPatchHandlerArray.Add(new MeshHandler(this, &a.WholeMesh, &a.NormalPatchArray[i]));
 		}
 	}
 
@@ -886,7 +894,7 @@ private:
 		return PointAddr(x, y, z);
 	}
 
-	FORCEINLINE void extractRegularCell(Point (&d)[8]) {
+	FORCEINLINE void extractRegularCell(Point (&d)[8], MeshHandler* target) {
 		int8 corner[8];
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
@@ -935,16 +943,19 @@ private:
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
+			// add to whole mesh
 			mainMeshHandler->addTriangleGeneral(tmp1, tmp2, tmp3);
+
+			if (target == NULL) continue;
 
 			if (isTransitionMaterialSection) {
 				// add transition material section
-				mainMeshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
+				target->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
 			} else {
 				// always one iteration
 				for (unsigned short matId : materialIdSet) {
 					// add regular material section
-					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+					target->addTriangleMat(matId, tmp1, tmp2, tmp3);
 				}
 			}
 		}
@@ -1046,19 +1057,54 @@ public:
         d[5] = getVoxelpoint(x, y, z + step);
         d[6] = getVoxelpoint(x + step, y + step, z + step);
         d[7] = getVoxelpoint(x + step, y, z + step);
-		
-		extractRegularCell(d);
+
+		MeshHandler* target = mainMeshHandler;
 
 		if (voxel_data_param.bGenerateLOD) {
 			if (voxel_data_param.lod > 0) {
 				const int e = voxel_data.num() - step - 1;
 
+				if (x == 0) { // X+
+					target = normalPatchHandlerArray[0];
+				}
+
+				if (x == e) { // X-
+					target = normalPatchHandlerArray[1]; 
+				}
+
+				if (y == 0) { // Y-
+					target = normalPatchHandlerArray[2]; 
+				}
+
+				if (y == e) { // Y+
+					target = normalPatchHandlerArray[3]; 
+				}
+
+				if (z == 0) { // Z-
+					target = normalPatchHandlerArray[4];
+				}
+
+				if (z == e) { // Z+
+					target = normalPatchHandlerArray[5];
+				}
+
+			}
+		}
+
+		extractRegularCell(d, target);
+
+		if (voxel_data_param.bGenerateLOD) {
+			if (voxel_data_param.lod > 0) {
+				const int e = voxel_data.num() - step - 1;
+
+				/*
 				if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
 				if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
 				if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
 				if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
 				if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
 				if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
+				*/
 			}
 		}
 
