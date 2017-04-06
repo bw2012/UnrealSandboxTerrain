@@ -141,15 +141,27 @@ public:
 	}
 };
 
+typedef TArray<FProcMeshProxySection*> TMeshPtrArray;
+
 class FMeshProxyLodSection
 {
 public:
 
 	/** Array of material sections */
-	TArray<FProcMeshProxySection*> MaterialMeshPtrArray;
+	TMeshPtrArray MaterialMeshPtrArray;
+
+	/** */
+	TMeshPtrArray NormalPatchPtrArray[6];
 
 	/** Array of transition sections (todo: should be changed to mat sections)*/
 	FProcMeshProxySection* transitionMesh[6];
+
+	FMeshProxyLodSection() {
+		for (auto i = 0; i < 6; i++) {
+			transitionMesh[i] = nullptr;
+			NormalPatchPtrArray[i].Empty();
+		}
+	}
 
 	~FMeshProxyLodSection() {
 
@@ -160,6 +172,12 @@ public:
 		for (auto i = 0; i < 6; i++) {
 			if (transitionMesh[i] != nullptr) {
 				delete transitionMesh[i];
+			}
+
+			for (FProcMeshProxySection* Section : NormalPatchPtrArray[i]) {
+				if (Section != nullptr) {
+					delete Section;
+				}
 			}
 		}
 	}
@@ -197,7 +215,20 @@ private:
 
 	FMaterialRelevance MaterialRelevance;
 
+	FVector ZoneOrigin;
+
 	bool bLodFlag;
+
+	const FVector V[6] = { 
+		FVector(-USBT_ZONE_SIZE, 0, 0), // -X
+		FVector(USBT_ZONE_SIZE, 0, 0),	// +X
+
+		FVector(0, -USBT_ZONE_SIZE, 0), // -Y
+		FVector(0, USBT_ZONE_SIZE, 0),	// +Y
+
+		FVector(0, 0, -USBT_ZONE_SIZE), // -Z
+		FVector(0, 0, USBT_ZONE_SIZE),	// +Z
+	};
 
 public:
 
@@ -207,6 +238,10 @@ public:
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
 		bLodFlag = Component->bLodFlag;
+
+		ZoneOrigin = Component->GetComponentLocation();
+
+		//UE_LOG(LogTemp, Warning, TEXT("ZoneOrigin -> %f %f %f "), ZoneOrigin.X, ZoneOrigin.Y, ZoneOrigin.Z);
 
 		// Copy each section
 		CopyAll(Component);
@@ -221,7 +256,7 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE void CopyMaterialMesh(USandboxTerrainMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, FMeshProxyLodSection* NewLodSection, std::function<UMaterialInterface*(T)> GetMaterial) {
+	FORCEINLINE void CopyMaterialMesh(USandboxTerrainMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, TMeshPtrArray& TargetMeshPtrArray, std::function<UMaterialInterface*(T)> GetMaterial) {
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
 		for (auto& Element : MaterialMap) {
@@ -239,7 +274,7 @@ public:
 			NewMaterialProxySection->Material = Material;
 
 			CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
-			NewLodSection->MaterialMeshPtrArray.Add(NewMaterialProxySection);
+			TargetMeshPtrArray.Add(NewMaterialProxySection);
 		}
 	}
 
@@ -261,16 +296,30 @@ public:
 
 			// copy regular material mesh
 			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
-			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection, 
+			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray, 
 				[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId);} );
 
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
-			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection,
+			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
 				[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 
-			if (SectionIdx > 0) {
+			//if (SectionIdx > 0) 
+			{
+				for (auto i = 0; i < 6; i++) {
+					// copy regular material mesh
+					TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
+					CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->NormalPatchPtrArray[i],
+						[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); });
+
+					// copy transition material mesh
+					TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
+					CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
+						[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
+				}
+
 				// copy transition lod section
+				/*
 				FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[0];
 				for (auto i = 0; i < 6; i++) {
 					FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[i];
@@ -280,6 +329,8 @@ public:
 						CopySection(SrcTransitionSection, NewLodSection->transitionMesh[i], Component);
 					}
 				}
+				*/
+
 			}
 
 			// Save ref to new section
@@ -391,7 +442,7 @@ public:
 				const FSceneView* View = Views[ViewIndex];
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
 				const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
-				const int LodIndex = GetLodIndex(View);
+				const int LodIndex = GetLodIndex(ZoneOrigin, View->ViewMatrices.GetViewOrigin());
 
 				// draw section according lod index
 				FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
@@ -407,6 +458,7 @@ public:
 					
 					if (LodIndex > 0) {
 						// draw transition patches
+						/*
 						for (auto i = 0; i < 6; i++) {
 							const FProcMeshProxySection* TransitionSection = LodSectionArray[LodIndex]->transitionMesh[i];
 
@@ -415,6 +467,35 @@ public:
 								DrawSection(TransitionSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 							}
 						}
+						*/
+
+						// draw transition patches
+						for (auto i = 0; i < 6; i++) {
+							FVector ooo = ZoneOrigin;
+
+							if(!(ooo.X == 0 && ooo.Y == 0 && ooo.Z == 0)) {
+								//break;
+							}
+
+							FVector test = ZoneOrigin + V[i];
+							const int NeighborLodIndex = GetLodIndex(test, View->ViewMatrices.GetViewOrigin());
+
+							/*
+							UE_LOG(LogTemp, Warning, TEXT("test -> %f %f %f -> %d -> %f %f %f -> %d %d"), ZoneOrigin.X, ZoneOrigin.Y, ZoneOrigin.Z, i,
+								test.X, test.Y, test.Z, LodIndex, NeighborLodIndex);
+								*/
+
+							//if (NeighborLodIndex == LodIndex) {
+								for (FProcMeshProxySection* MatSection : LodSectionProxy->NormalPatchPtrArray[i]) {
+									if (MatSection != nullptr &&  MatSection->Material != nullptr) {
+										FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
+										DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+									}
+								}
+							//}
+						}
+
+
 					}
 
 				}
@@ -442,13 +523,9 @@ public:
 		Collector.AddMesh(ViewIndex, Mesh);
 	}
 
-	int GetLodIndex(const FSceneView* View) const {
+	int GetLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) const {
 		if (bLodFlag) {
-			//const FBoxSphereBounds& ProxyBounds = GetBounds();
-			//const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
-
-			FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
-			float Distance = FVector::Dist(ViewOrigin, GetBounds().Origin);
+			float Distance = FVector::Dist(ViewOrigin, ZoneOrigin);//GetBounds().Origin
 
 			const static float LodThreshold = 1500.0f;
 
@@ -540,7 +617,7 @@ void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, boo
 
 void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 	FBox LocalBox(0);
-	LocalBox += MeshSectionLodArray[0].RegularMeshContainer.WholeMesh.SectionLocalBox;
+	LocalBox += MeshSectionLodArray[0].WholeMesh.SectionLocalBox;
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
 
 	UpdateBounds(); // Update global bounds
@@ -548,7 +625,7 @@ void USandboxTerrainMeshComponent::UpdateLocalBounds() {
 }
 
 int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
-	return MeshSectionLodArray.Num();
+	return LocalMaterials.Num();
 }
 
 void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
@@ -564,6 +641,7 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 
 	LocalMaterials.Empty();
 	//LocalMaterials.Reserve(10);
+
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
 	if (mdPtr) {
@@ -571,7 +649,8 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 
 		auto lodIndex = 0;
 		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
-			MeshSectionLodArray[lodIndex].RegularMeshContainer.WholeMesh = sectionLOD.RegularMeshContainer.WholeMesh;
+			MeshSectionLodArray[lodIndex].WholeMesh = sectionLOD.WholeMesh;
+
 			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialSectionMap = sectionLOD.RegularMeshContainer.MaterialSectionMap;
 			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialTransitionSectionMap = sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap;
 
@@ -584,14 +663,19 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 			}
 
 			if (bLodFlag) {
+
 				for (auto i = 0; i < 6; i++) {
-					MeshSectionLodArray[lodIndex].transitionMeshArray[i] = sectionLOD.transitionMeshArray[i];
+					//UE_LOG(LogTemp, Warning, TEXT("test -> %d -> %d -> %d"), i, sectionLOD.TransitionPatchArray[i].MaterialSectionMap.Num(), sectionLOD.TransitionPatchArray[i].MaterialTransitionSectionMap.Num());
+
+					MeshSectionLodArray[lodIndex].TransitionPatchArray[i].MaterialSectionMap = sectionLOD.TransitionPatchArray[i].MaterialSectionMap;
+					MeshSectionLodArray[lodIndex].TransitionPatchArray[i].MaterialTransitionSectionMap = sectionLOD.TransitionPatchArray[i].MaterialTransitionSectionMap;
 				}
 			}
 
 			lodIndex++;
 		}
 	}
+	
 
 	UpdateLocalBounds(); // Update overall bounds
 	MarkRenderStateDirty(); // New section requires recreating scene proxy

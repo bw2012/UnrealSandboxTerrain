@@ -46,12 +46,11 @@ public:
 
 private:
 
-	//MeshDataPtr meshDataPtr;
+	TMeshDataPtr MeshDataPtr;
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
-
 
 	void UpdateLocalBounds();
 

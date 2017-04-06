@@ -13,6 +13,84 @@ UTerrainRegionComponent::UTerrainRegionComponent(const FObjectInitializer& Objec
 
 }
 
+void SerializeMeshContainer(FBufferArchive& BinaryData, TMeshContainer& MeshContainer) {
+	// save regular materials
+	int32 LodSectionRegularMatNum = MeshContainer.MaterialSectionMap.Num();
+	BinaryData << LodSectionRegularMatNum;
+	for (auto& Elem2 : MeshContainer.MaterialSectionMap) {
+		unsigned short MatId = Elem2.Key;
+		TMeshMaterialSection& MaterialSection = Elem2.Value;
+
+		BinaryData << MatId;
+
+		FProcMeshSection& Mesh = MaterialSection.MaterialMesh;
+		Mesh.SerializeMesh(BinaryData);
+	}
+
+	// save transition materials
+	int32 LodSectionTransitionMatNum = MeshContainer.MaterialTransitionSectionMap.Num();
+	BinaryData << LodSectionTransitionMatNum;
+	for (auto& Elem2 : MeshContainer.MaterialTransitionSectionMap) {
+		unsigned short MatId = Elem2.Key;
+		TMeshMaterialTransitionSection& TransitionMaterialSection = Elem2.Value;
+
+		BinaryData << MatId;
+
+		int MatSetSize = TransitionMaterialSection.MaterialIdSet.size();
+		BinaryData << MatSetSize;
+
+		for (unsigned short MatSetElement : TransitionMaterialSection.MaterialIdSet) {
+			BinaryData << MatSetElement;
+		}
+
+		FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
+		Mesh.SerializeMesh(BinaryData);
+	}
+}
+
+void DeserializeMeshContainer(FMemoryReader& BinaryData, TMeshContainer& MeshContainer) {
+	// regular materials
+	int32 LodSectionRegularMatNum;
+	BinaryData << LodSectionRegularMatNum;
+
+	for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
+		unsigned short MatId;
+		BinaryData << MatId;
+
+		TMeshMaterialSection& MatSection = MeshContainer.MaterialSectionMap.FindOrAdd(MatId);
+		MatSection.MaterialId = MatId;
+
+		MatSection.MaterialMesh.DeserializeMesh(BinaryData);
+	}
+
+	// transition materials
+	int32 LodSectionTransitionMatNum;
+	BinaryData << LodSectionTransitionMatNum;
+
+	for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
+		unsigned short MatId;
+		BinaryData << MatId;
+
+		int MatSetSize;
+		BinaryData << MatSetSize;
+
+		std::set<unsigned short> MatSet;
+		for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
+			unsigned short MatSetElement;
+			BinaryData << MatSetElement;
+
+			MatSet.insert(MatSetElement);
+		}
+
+		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
+		MatTransSection.MaterialId = MatId;
+		MatTransSection.MaterialIdSet = MatSet;
+		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
+
+		MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
+	}
+}
+
 void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData) {
 	int32 MeshDataCount = MeshDataCache.Num();
 	BinaryData << MeshDataCount;
@@ -35,39 +113,14 @@ void UTerrainRegionComponent::SerializeRegionMeshData(FBufferArchive& BinaryData
 			BinaryData << LodIdx;
 
 			// save whole mesh
-			LodSection.RegularMeshContainer.WholeMesh.SerializeMesh(BinaryData);
+			LodSection.WholeMesh.SerializeMesh(BinaryData);
 
-			// save regular materials
-			int32 LodSectionRegularMatNum = LodSection.RegularMeshContainer.MaterialSectionMap.Num();
-			BinaryData << LodSectionRegularMatNum;
-			for (auto& Elem2 : LodSection.RegularMeshContainer.MaterialSectionMap) {
-				unsigned short MatId = Elem2.Key;
-				TMeshMaterialSection& MaterialSection = Elem2.Value;
+			SerializeMeshContainer(BinaryData, LodSection.RegularMeshContainer);
 
-				BinaryData << MatId;
-
-				FProcMeshSection& Mesh = MaterialSection.MaterialMesh;
-				Mesh.SerializeMesh(BinaryData);
-			}
-
-			// save transition materials
-			int32 LodSectionTransitionMatNum = LodSection.RegularMeshContainer.MaterialTransitionSectionMap.Num();
-			BinaryData << LodSectionTransitionMatNum;
-			for (auto& Elem2 : LodSection.RegularMeshContainer.MaterialTransitionSectionMap) {
-				unsigned short MatId = Elem2.Key;
-				TMeshMaterialTransitionSection& TransitionMaterialSection = Elem2.Value;
-
-				BinaryData << MatId;
-
-				int MatSetSize = TransitionMaterialSection.MaterialIdSet.size();
-				BinaryData << MatSetSize;
-
-				for (unsigned short MatSetElement : TransitionMaterialSection.MaterialIdSet) {
-					BinaryData << MatSetElement;
+			if (LodIdx > 0) {
+				for (auto i = 0; i < 6; i++) {
+					SerializeMeshContainer(BinaryData, LodSection.TransitionPatchArray[i]);
 				}
-
-				FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
-				Mesh.SerializeMesh(BinaryData);
 			}
 		}
 	}
@@ -98,51 +151,19 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			BinaryData << LodIndex;
 
 			// whole mesh
-			MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.WholeMesh.DeserializeMesh(BinaryData);
+			MeshDataPtr.get()->MeshSectionLodArray[LodIndex].WholeMesh.DeserializeMesh(BinaryData);
 
-			// regular materials
-			int32 LodSectionRegularMatNum;
-			BinaryData << LodSectionRegularMatNum;
+			DeserializeMeshContainer(BinaryData, MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer);
 
-			for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
-				unsigned short MatId;
-				BinaryData << MatId;
-
-				TMeshMaterialSection& MatSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialSectionMap.FindOrAdd(MatId);
-				MatSection.MaterialId = MatId;
-
-				MatSection.MaterialMesh.DeserializeMesh(BinaryData);
-			}
-
-			// transition materials
-			int32 LodSectionTransitionMatNum;
-			BinaryData << LodSectionTransitionMatNum;
-
-			for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
-				unsigned short MatId;
-				BinaryData << MatId;
-
-				int MatSetSize;
-				BinaryData << MatSetSize;
-
-				std::set<unsigned short> MatSet;
-				for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
-					unsigned short MatSetElement;
-					BinaryData << MatSetElement;
-
-					MatSet.insert(MatSetElement);
+			if (LodIdx > 0) {
+				for (auto i = 0; i < 6; i++) {
+					DeserializeMeshContainer(BinaryData, MeshDataPtr.get()->MeshSectionLodArray[LodIndex].TransitionPatchArray[i]);
+					//SerializeMeshContainer(BinaryData, LodSection.TransitionPatchArray[i]);
 				}
-
-				TMeshMaterialTransitionSection& MatTransSection = MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
-				MatTransSection.MaterialId = MatId;
-				MatTransSection.MaterialIdSet = MatSet;
-				MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
-
-				MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
 			}
 		}
 
-		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].RegularMeshContainer.WholeMesh;
+		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].WholeMesh;
 	}
 }
 
