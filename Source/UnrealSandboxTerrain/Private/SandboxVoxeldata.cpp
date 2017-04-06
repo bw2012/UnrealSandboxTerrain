@@ -1038,8 +1038,6 @@ private:
 
 			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
 
-
-
 			if (isTransitionMaterialSection) {
 				// add transition material section
 				if (inverse) {
