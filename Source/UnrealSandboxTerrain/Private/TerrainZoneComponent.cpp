@@ -44,13 +44,11 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
 		return NULL;
 	}
 
-	bool enableLOD = GetTerrainController()->bEnableLOD;
-
 	TVoxelDataParam vdp;
 
-	if (enableLOD) {
+	if (GetTerrainController()->bEnableLOD) {
 		vdp.bGenerateLOD = true;
-		vdp.collisionLOD = 1;
+		vdp.collisionLOD = GetTerrainController()->GetCollisionMeshSectionLodIndex();
 	} else {
 		vdp.bGenerateLOD = false;
 		vdp.collisionLOD = 0;
@@ -208,7 +206,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshTy
 		InstancedStaticMeshComponent->RegisterComponent();
 		InstancedStaticMeshComponent->AttachTo(this);
 		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
-		InstancedStaticMeshComponent->SetCullDistances(100, 500);
+		InstancedStaticMeshComponent->SetCullDistances(MeshType.StartCullDistance, MeshType.EndCullDistance);
 		InstancedStaticMeshComponent->SetMobility(EComponentMobility::Static);
 		InstancedStaticMeshComponent->SetSimulatePhysics(false);
 
