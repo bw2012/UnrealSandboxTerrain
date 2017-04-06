@@ -193,23 +193,14 @@ typedef struct TMeshLodSection {
 	// used only for render main mesh
 	TMeshContainer RegularMeshContainer;
 
-	// used for render transition 1 to 2 LOD patch mesh 
-	TArray<TMeshContainer> TransitionPatchArray;	
-
 	// used for render transition 1 to 1 LOD patch mesh 
-	TArray<TMeshContainer> NormalPatchArray;		
-
-	// should be deleted
-	TArray<FProcMeshSection> transitionMeshArray;	 
+	TArray<TMeshContainer> TransitionPatchArray;		
 
 	// just point to draw debug. remove it after release
 	TArray<FVector> DebugPointList;
 
 	TMeshLodSection() {
-		transitionMeshArray.SetNum(6); 
-
 		TransitionPatchArray.SetNum(6);
-		NormalPatchArray.SetNum(6);
 	}
 
 } TMeshLodSection;

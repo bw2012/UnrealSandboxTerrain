@@ -737,15 +737,12 @@ private:
 	MeshHandler* mainMeshHandler;
 	TArray<MeshHandler*> transitionHandlerArray;
 
-	TArray<MeshHandler*> normalPatchHandlerArray;
-
 public:
 	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
 		mainMeshHandler = new MeshHandler(this, &a.WholeMesh, &a.RegularMeshContainer);
 
 		for (auto i = 0; i < 6; i++) {
-			//transitionHandlerArray.Add(new MeshHandler(this, &a.transitionMeshArray[i], nullptr, nullptr));
-			normalPatchHandlerArray.Add(new MeshHandler(this, &a.WholeMesh, &a.NormalPatchArray[i]));
+			transitionHandlerArray.Add(new MeshHandler(this, &a.WholeMesh, &a.TransitionPatchArray[i]));
 		}
 	}
 
@@ -894,7 +891,7 @@ private:
 		return PointAddr(x, y, z);
 	}
 
-	FORCEINLINE void extractRegularCell(Point (&d)[8], MeshHandler* target) {
+	FORCEINLINE void extractRegularCell(Point (&d)[8]) {
 		int8 corner[8];
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
@@ -946,16 +943,14 @@ private:
 			// add to whole mesh
 			mainMeshHandler->addTriangleGeneral(tmp1, tmp2, tmp3);
 
-			if (target == NULL) continue;
-
 			if (isTransitionMaterialSection) {
 				// add transition material section
-				target->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
+				mainMeshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
 			} else {
 				// always one iteration
 				for (unsigned short matId : materialIdSet) {
 					// add regular material section
-					target->addTriangleMat(matId, tmp1, tmp2, tmp3);
+					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
 				}
 			}
 		}
@@ -1015,16 +1010,25 @@ private:
 
 		std::vector<TmpPoint> vertexList;
 		vertexList.reserve(cellData.GetTriangleCount() * 3);
+		std::set<unsigned short> materialIdSet;
 
 		for (int i = 0; i < cellData.GetVertexCount(); i++) {
 			const int edgeCode = transitionVertexData[caseCode][i];
 			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
 			const unsigned short v1 = edgeCode & 0x0F;
-
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
-			vertexList.push_back(tp);
 
-			mesh_data.DebugPointList.Add(tp.v);
+			materialIdSet.insert(tp.matId);
+			vertexList.push_back(tp);
+			//mesh_data.DebugPointList.Add(tp.v);
+		}
+
+		bool isTransitionMaterialSection = materialIdSet.size() > 1;
+		unsigned short transitionMatId = 0;
+
+		// if transition material
+		if (isTransitionMaterialSection) {
+			transitionMatId = mainMeshHandler->getTransitionMaterialIndex(materialIdSet);
 		}
 
 		for (int i = 0; i < cellData.GetTriangleCount() * 3; i += 3) {
@@ -1034,12 +1038,26 @@ private:
 
 			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
 
-			if (inverse) {
-				meshHandler->addTriangleGeneral(tmp3, tmp2, tmp1);
+
+
+			if (isTransitionMaterialSection) {
+				// add transition material section
+				if (inverse) {
+					meshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp3, tmp2, tmp1);
+				} else {
+					meshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
+				}
 			} else {
-				meshHandler->addTriangleGeneral(tmp1, tmp2, tmp3);
+				// always one iteration
+				for (unsigned short matId : materialIdSet) {
+					// add regular material section
+					if (inverse) {
+						meshHandler->addTriangleMat(matId, tmp3, tmp2, tmp1);
+					} else {
+						meshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+					}
+				}
 			}
-			
 		}
 	}
 
@@ -1058,56 +1076,20 @@ public:
         d[6] = getVoxelpoint(x + step, y + step, z + step);
         d[7] = getVoxelpoint(x + step, y, z + step);
 
-		MeshHandler* target = mainMeshHandler;
+		extractRegularCell(d);
 
 		if (voxel_data_param.bGenerateLOD) {
 			if (voxel_data_param.lod > 0) {
 				const int e = voxel_data.num() - step - 1;
 
-				if (x == 0) { // X+
-					target = normalPatchHandlerArray[0];
-				}
-
-				if (x == e) { // X-
-					target = normalPatchHandlerArray[1]; 
-				}
-
-				if (y == 0) { // Y-
-					target = normalPatchHandlerArray[2]; 
-				}
-
-				if (y == e) { // Y+
-					target = normalPatchHandlerArray[3]; 
-				}
-
-				if (z == 0) { // Z-
-					target = normalPatchHandlerArray[4];
-				}
-
-				if (z == e) { // Z+
-					target = normalPatchHandlerArray[5];
-				}
-
-			}
-		}
-
-		extractRegularCell(d, target);
-
-		if (voxel_data_param.bGenerateLOD) {
-			if (voxel_data_param.lod > 0) {
-				const int e = voxel_data.num() - step - 1;
-
-				/*
 				if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
 				if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
 				if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
 				if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
 				if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
 				if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
-				*/
 			}
 		}
-
     }
 
 };
