@@ -242,15 +242,11 @@ typedef struct TSaveBuffer {
 
 	TArray<UTerrainZoneComponent*> ZoneArray;
 
-	bool bShouldBeSaved = false;
-
 } TSaveBuffer;
 
 typedef struct TSaveVdBuffer {
 
 	TArray<TVoxelData*> VoxelDataArray;
-
-	bool bShouldBeSaved = false;
 
 } TSaveVdBuffer;
 
@@ -268,10 +264,6 @@ void ASandboxTerrainController::Save() {
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.VoxelDataArray.Add(VoxelData);
-		if (VoxelData->isChanged()) {
-			SaveBuffer.bShouldBeSaved = true;
-		}
-
 		RegionIndexSetLocal.Add(RegionIndex);
 
 		//TODO replace with share pointer
@@ -289,7 +281,6 @@ void ASandboxTerrainController::Save() {
 		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.ZoneArray.Add(Zone);
-		SaveBuffer.bShouldBeSaved = true;
 
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
@@ -298,10 +289,12 @@ void ASandboxTerrainController::Save() {
 	for (auto& Elem : SaveBufferByRegion) {
 		FVector RegionIndex = Elem.Key;
 		TSaveBuffer& SaveBuffer = Elem.Value;
+		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-		if (SaveBuffer.bShouldBeSaved) {
-			UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.ZoneArray.Num());
-			UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+		// region can not exist in case of uninitialized voxeldata
+		// TODO refactor it
+		if (Region != nullptr && Region->IsChanged()){
+			//UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.ZoneArray.Num());
 			if (Region == nullptr) { continue; }
 			Region->SaveFile(SaveBuffer.ZoneArray);
 		}
@@ -310,10 +303,12 @@ void ASandboxTerrainController::Save() {
 	for (auto& Elem : SaveVdBufferByRegion) {
 		FVector RegionIndex = Elem.Key;
 		TSaveVdBuffer& SaveVdBuffer = Elem.Value;
+		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-		if (SaveVdBuffer.bShouldBeSaved) {
-			UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
-			UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+		// region can not exist in case of uninitialized voxeldata
+		// TODO refactor it
+		if (Region != nullptr && Region->IsChanged()) {
+			//UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
 			if (Region == nullptr) { continue; }
 			Region->SaveVoxelData(SaveVdBuffer.VoxelDataArray);
 		}
@@ -453,6 +448,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 
 			if (VoxelData->isNewGenerated()) {
 				VoxelData->DataState = TVoxelDataState::NORMAL;
+				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
@@ -905,6 +901,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H 
 					std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
 					VoxelData->resetLastMeshRegenerationTime();
 					VoxelData->vd_edit_mutex.unlock();
+					Zone->GetRegion()->SetChanged();
 					InvokeZoneMeshAsync(Zone, md_ptr);
 				} else {
 					VoxelData->vd_edit_mutex.unlock();
@@ -946,6 +943,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 			Zone->SetVoxelData(VoxelData);
 			TMeshDataPtr NewMeshDataPtr = Zone->GenerateMesh();
 			VoxelData->resetLastMeshRegenerationTime();
+			Zone->GetRegion()->SetChanged();
 			Zone->ApplyTerrainMesh(NewMeshDataPtr);
 		}
 	};
