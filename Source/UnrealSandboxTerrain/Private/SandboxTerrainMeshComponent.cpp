@@ -504,6 +504,8 @@ public:
 	}
 
 	FORCEINLINE void DrawSection(const FProcMeshProxySection* Section, FMeshElementCollector& Collector, FMaterialRenderProxy* MaterialProxy, bool bWireframe, int32 ViewIndex) const {
+		if (Section->VertexBuffer.Vertices.Num() == 0) return;
+
 		// Draw the mesh.
 		FMeshBatch& Mesh = Collector.AllocateMesh();
 		FMeshBatchElement& BatchElement = Mesh.Elements[0];
