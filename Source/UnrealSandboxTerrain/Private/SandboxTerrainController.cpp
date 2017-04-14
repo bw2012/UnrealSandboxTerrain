@@ -600,7 +600,7 @@ public:
 	ASandboxTerrainController* instance;
 
 	virtual uint32 Run() {
-		instance->editTerrain(origin, radius, strength, zone_handler);
+		instance->EditTerrain(origin, radius, strength, zone_handler);
 		return 0;
 	}
 };
@@ -838,7 +838,7 @@ FORCEINLINE float squared(float v) {
 	return v * v;
 }
 
-bool isCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
+bool IsCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
 	float ds = radius * radius;
 
 	if (sphereOrigin.X < lower.X) ds -= squared(sphereOrigin.X - lower.X);
@@ -854,31 +854,31 @@ bool isCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, f
 }
 
 template<class H>
-void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
-	double start = FPlatformTime::Seconds();
+void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H handler) {
+	double Start = FPlatformTime::Seconds();
 	
-	FVector base_zone_index = GetZoneIndex(v);
+	FVector BaseZoneIndex = GetZoneIndex(v);
 
-	static const float vvv[3] = { -1, 0, 1 };
-	for (float x : vvv) {
-		for (float y : vvv) {
-			for (float z : vvv) {
-				FVector zone_index(x, y, z);
-				zone_index += base_zone_index;
+	static const float V[3] = { -1, 0, 1 };
+	for (float x : V) {
+		for (float y : V) {
+			for (float z : V) {
+				FVector ZoneIndex(x, y, z);
+				ZoneIndex += BaseZoneIndex;
 
-				UTerrainZoneComponent* zone = GetZoneByVectorIndex(zone_index);
-				TVoxelData* vd = GetTerrainVoxelDataByIndex(zone_index);
+				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
+				TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-				if (zone == NULL) {
-					if (vd != NULL) {
-						vd->vd_edit_mutex.lock();
-						bool is_changed = handler(vd, v, radius, s);
-						if (is_changed) {
-							vd->setChanged();
-							vd->vd_edit_mutex.unlock();
-							InvokeLazyZoneAsync(zone_index);
+				if (Zone == NULL) {
+					if (VoxelData != NULL) {
+						VoxelData->vd_edit_mutex.lock();
+						bool bIsChanged = handler(VoxelData, v, radius, s);
+						if (bIsChanged) {
+							VoxelData->setChanged();
+							VoxelData->vd_edit_mutex.unlock();
+							InvokeLazyZoneAsync(ZoneIndex);
 						} else {
-							vd->vd_edit_mutex.unlock();
+							VoxelData->vd_edit_mutex.unlock();
 						}
 						continue;
 					} else {
@@ -886,35 +886,35 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					}
 				}
 
-				if (vd == NULL) {
-					UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
+				if (VoxelData == NULL) {
+					UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					continue;
 				}
 
-				if (!isCubeIntersectSphere(vd->getLower(), vd->getUpper(), v, radius)) {
+				if (!IsCubeIntersectSphere(VoxelData->getLower(), VoxelData->getUpper(), v, radius)) {
 					//UE_LOG(LogTemp, Warning, TEXT("skip: voxel data --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
 					continue;
 				}
 
-				vd->vd_edit_mutex.lock();
-				bool is_changed = handler(vd, v, radius, s);
-				if (is_changed) {
-					vd->setChanged();
-					vd->setCacheToValid();
-					zone->SetVoxelData(vd); // if zone was loaded from mesh cache
-					std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
-					vd->resetLastMeshRegenerationTime();
-					vd->vd_edit_mutex.unlock();
-					InvokeZoneMeshAsync(zone, md_ptr);
+				VoxelData->vd_edit_mutex.lock();
+				bool bIsChanged = handler(VoxelData, v, radius, s);
+				if (bIsChanged) {
+					VoxelData->setChanged();
+					VoxelData->setCacheToValid();
+					Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
+					std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
+					VoxelData->resetLastMeshRegenerationTime();
+					VoxelData->vd_edit_mutex.unlock();
+					InvokeZoneMeshAsync(Zone, md_ptr);
 				} else {
-					vd->vd_edit_mutex.unlock();
+					VoxelData->vd_edit_mutex.unlock();
 				}
 			}
 		}
 	}
 
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
 }
 

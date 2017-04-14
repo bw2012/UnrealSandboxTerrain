@@ -201,7 +201,7 @@ public:
 	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
 
 	template<class H>
-	void editTerrain(FVector v, float radius, float s, H handler);
+	void EditTerrain(FVector v, float radius, float s, H handler);
 
 	template<class H>
 	void PerformTerrainChange(FVector v, float radius, float s, H handler);
