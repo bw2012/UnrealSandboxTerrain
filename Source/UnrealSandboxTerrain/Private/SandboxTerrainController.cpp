@@ -823,6 +823,9 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(OverlapItem.GetComponent());
 				if (InstancedMesh != nullptr) {
 					InstancedMesh->RemoveInstance(OverlapItem.Item);
+
+					UTerrainRegionComponent* Region = GetRegionByVectorIndex(GetRegionIndex(OverlapItem.ImpactPoint));
+					Region->SetChanged();
 				}
 			}
 		}
