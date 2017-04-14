@@ -206,15 +206,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		Region->CleanMeshDataCache();
 	}
 
-	/*
-	if (!bDisableFoliage) {
-		for (auto& Elem : TerrainZoneMap) {
-			UTerrainZoneComponent* Zone = Elem.Value;
-			Zone->SaveInstancedMeshesToFile();
-		}
-	}
-	*/
-
 	TerrainZoneMap.Empty();
 }
 
