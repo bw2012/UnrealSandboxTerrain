@@ -64,6 +64,10 @@ public:
 			Function(Elem.Key, Elem.Value);
 		}
 	}
+
+	void SetChanged() {	bIsChanged = true; }
+
+	bool IsChanged() { return bIsChanged; }
 	
 	void SerializeRegionMeshData(FBufferArchive& BinaryData);
 
@@ -100,4 +104,6 @@ private:
 	TMap<FVector, TMeshDataPtr> MeshDataCache;
 
 	TInstMeshZoneTemp InstancedMeshLoadCache;
+
+	bool bIsChanged = false;
 };

@@ -206,15 +206,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		Region->CleanMeshDataCache();
 	}
 
-	/*
-	if (!bDisableFoliage) {
-		for (auto& Elem : TerrainZoneMap) {
-			UTerrainZoneComponent* Zone = Elem.Value;
-			Zone->SaveInstancedMeshesToFile();
-		}
-	}
-	*/
-
 	TerrainZoneMap.Empty();
 }
 
@@ -251,15 +242,11 @@ typedef struct TSaveBuffer {
 
 	TArray<UTerrainZoneComponent*> ZoneArray;
 
-	bool bShouldBeSaved = false;
-
 } TSaveBuffer;
 
 typedef struct TSaveVdBuffer {
 
 	TArray<TVoxelData*> VoxelDataArray;
-
-	bool bShouldBeSaved = false;
 
 } TSaveVdBuffer;
 
@@ -277,10 +264,6 @@ void ASandboxTerrainController::Save() {
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.VoxelDataArray.Add(VoxelData);
-		if (VoxelData->isChanged()) {
-			SaveBuffer.bShouldBeSaved = true;
-		}
-
 		RegionIndexSetLocal.Add(RegionIndex);
 
 		//TODO replace with share pointer
@@ -298,7 +281,6 @@ void ASandboxTerrainController::Save() {
 		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.ZoneArray.Add(Zone);
-		SaveBuffer.bShouldBeSaved = true;
 
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
@@ -307,10 +289,12 @@ void ASandboxTerrainController::Save() {
 	for (auto& Elem : SaveBufferByRegion) {
 		FVector RegionIndex = Elem.Key;
 		TSaveBuffer& SaveBuffer = Elem.Value;
+		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-		if (SaveBuffer.bShouldBeSaved) {
-			UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.ZoneArray.Num());
-			UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+		// region can not exist in case of uninitialized voxeldata
+		// TODO refactor it
+		if (Region != nullptr && Region->IsChanged()){
+			//UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.ZoneArray.Num());
 			if (Region == nullptr) { continue; }
 			Region->SaveFile(SaveBuffer.ZoneArray);
 		}
@@ -319,10 +303,12 @@ void ASandboxTerrainController::Save() {
 	for (auto& Elem : SaveVdBufferByRegion) {
 		FVector RegionIndex = Elem.Key;
 		TSaveVdBuffer& SaveVdBuffer = Elem.Value;
+		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-		if (SaveVdBuffer.bShouldBeSaved) {
-			UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
-			UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+		// region can not exist in case of uninitialized voxeldata
+		// TODO refactor it
+		if (Region != nullptr && Region->IsChanged()) {
+			//UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
 			if (Region == nullptr) { continue; }
 			Region->SaveVoxelData(SaveVdBuffer.VoxelDataArray);
 		}
@@ -462,6 +448,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 
 			if (VoxelData->isNewGenerated()) {
 				VoxelData->DataState = TVoxelDataState::NORMAL;
+				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
@@ -609,7 +596,7 @@ public:
 	ASandboxTerrainController* instance;
 
 	virtual uint32 Run() {
-		instance->editTerrain(origin, radius, strength, zone_handler);
+		instance->EditTerrain(origin, radius, strength, zone_handler);
 		return 0;
 	}
 };
@@ -669,7 +656,7 @@ void ASandboxTerrainController::fillTerrainRound(const FVector origin, const flo
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 
@@ -713,7 +700,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 	} zh;
 
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, float strength) {
@@ -755,7 +742,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 	} zh;
 
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 void ASandboxTerrainController::fillTerrainCubeHole(FVector origin, const float r, const float strength, const int matId) {
@@ -805,36 +792,36 @@ void ASandboxTerrainController::fillTerrainCubeHole(FVector origin, const float 
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 template<class H>
-void ASandboxTerrainController::performTerrainChange(FVector origin, float radius, float strength, H handler) {
-	FTerrainEditThread<H>* te = new FTerrainEditThread<H>();
-	te->zone_handler = handler;
-	te->origin = origin;
-	te->radius = radius;
-	te->strength = strength;
-	te->instance = this;
+void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radius, float Strength, H Handler) {
+	FTerrainEditThread<H>* EditThread = new FTerrainEditThread<H>();
+	EditThread->zone_handler = Handler;
+	EditThread->origin = Origin;
+	EditThread->radius = Radius;
+	EditThread->strength = Strength;
+	EditThread->instance = this;
 
-	FString thread_name = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
-	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name, true, true);
+	FString ThreadName = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
+	FRunnableThread* Thread = FRunnableThread::Create(EditThread, *ThreadName, true, true);
 	//FIXME delete thread after finish
 
-
-	FVector ttt(origin);
-	ttt.Z -= 10;
+	FVector TestPoint(Origin);
+	TestPoint.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(radius)); // ECC_Visibility
-	if (overlap) {
-		for (auto item : OutHits) {
-			AActor* actor = item.GetActor();
-
-			if (Cast<ASandboxTerrainController>(item.GetActor()) != nullptr) {
-				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(item.GetComponent());
+	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Origin, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Radius)); // ECC_Visibility
+	if (bIsOverlap) {
+		for (auto OverlapItem : OutHits) {
+			AActor* Actor = OverlapItem.GetActor();
+			if (Cast<ASandboxTerrainController>(OverlapItem.GetActor()) != nullptr) {
+				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(OverlapItem.GetComponent());
 				if (InstancedMesh != nullptr) {
-					InstancedMesh->RemoveInstance(item.Item);
-					//UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %s -> %d"), *actor->GetName(), *item.Component->GetName(), item.Item);
+					InstancedMesh->RemoveInstance(OverlapItem.Item);
+
+					UTerrainRegionComponent* Region = GetRegionByVectorIndex(GetRegionIndex(OverlapItem.ImpactPoint));
+					Region->SetChanged();
 				}
 			}
 		}
@@ -847,7 +834,7 @@ FORCEINLINE float squared(float v) {
 	return v * v;
 }
 
-bool isCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
+bool IsCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
 	float ds = radius * radius;
 
 	if (sphereOrigin.X < lower.X) ds -= squared(sphereOrigin.X - lower.X);
@@ -863,31 +850,31 @@ bool isCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, f
 }
 
 template<class H>
-void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H handler) {
-	double start = FPlatformTime::Seconds();
+void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H handler) {
+	double Start = FPlatformTime::Seconds();
 	
-	FVector base_zone_index = GetZoneIndex(v);
+	FVector BaseZoneIndex = GetZoneIndex(v);
 
-	static const float vvv[3] = { -1, 0, 1 };
-	for (float x : vvv) {
-		for (float y : vvv) {
-			for (float z : vvv) {
-				FVector zone_index(x, y, z);
-				zone_index += base_zone_index;
+	static const float V[3] = { -1, 0, 1 };
+	for (float x : V) {
+		for (float y : V) {
+			for (float z : V) {
+				FVector ZoneIndex(x, y, z);
+				ZoneIndex += BaseZoneIndex;
 
-				UTerrainZoneComponent* zone = GetZoneByVectorIndex(zone_index);
-				TVoxelData* vd = GetTerrainVoxelDataByIndex(zone_index);
+				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
+				TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-				if (zone == NULL) {
-					if (vd != NULL) {
-						vd->vd_edit_mutex.lock();
-						bool is_changed = handler(vd, v, radius, s);
-						if (is_changed) {
-							vd->setChanged();
-							vd->vd_edit_mutex.unlock();
-							InvokeLazyZoneAsync(zone_index);
+				if (Zone == NULL) {
+					if (VoxelData != NULL) {
+						VoxelData->vd_edit_mutex.lock();
+						bool bIsChanged = handler(VoxelData, v, radius, s);
+						if (bIsChanged) {
+							VoxelData->setChanged();
+							VoxelData->vd_edit_mutex.unlock();
+							InvokeLazyZoneAsync(ZoneIndex);
 						} else {
-							vd->vd_edit_mutex.unlock();
+							VoxelData->vd_edit_mutex.unlock();
 						}
 						continue;
 					} else {
@@ -895,35 +882,36 @@ void ASandboxTerrainController::editTerrain(FVector v, float radius, float s, H 
 					}
 				}
 
-				if (vd == NULL) {
-					UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
+				if (VoxelData == NULL) {
+					UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					continue;
 				}
 
-				if (!isCubeIntersectSphere(vd->getLower(), vd->getUpper(), v, radius)) {
+				if (!IsCubeIntersectSphere(VoxelData->getLower(), VoxelData->getUpper(), v, radius)) {
 					//UE_LOG(LogTemp, Warning, TEXT("skip: voxel data --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
 					continue;
 				}
 
-				vd->vd_edit_mutex.lock();
-				bool is_changed = handler(vd, v, radius, s);
-				if (is_changed) {
-					vd->setChanged();
-					vd->setCacheToValid();
-					zone->SetVoxelData(vd); // if zone was loaded from mesh cache
-					std::shared_ptr<TMeshData> md_ptr = zone->GenerateMesh();
-					vd->resetLastMeshRegenerationTime();
-					vd->vd_edit_mutex.unlock();
-					InvokeZoneMeshAsync(zone, md_ptr);
+				VoxelData->vd_edit_mutex.lock();
+				bool bIsChanged = handler(VoxelData, v, radius, s);
+				if (bIsChanged) {
+					VoxelData->setChanged();
+					VoxelData->setCacheToValid();
+					Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
+					std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
+					VoxelData->resetLastMeshRegenerationTime();
+					VoxelData->vd_edit_mutex.unlock();
+					Zone->GetRegion()->SetChanged();
+					InvokeZoneMeshAsync(Zone, md_ptr);
 				} else {
-					vd->vd_edit_mutex.unlock();
+					VoxelData->vd_edit_mutex.unlock();
 				}
 			}
 		}
 	}
 
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
 }
 
@@ -955,6 +943,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 			Zone->SetVoxelData(VoxelData);
 			TMeshDataPtr NewMeshDataPtr = Zone->GenerateMesh();
 			VoxelData->resetLastMeshRegenerationTime();
+			Zone->GetRegion()->SetChanged();
 			Zone->ApplyTerrainMesh(NewMeshDataPtr);
 		}
 	};

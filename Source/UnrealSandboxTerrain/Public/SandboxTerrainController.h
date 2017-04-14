@@ -201,10 +201,10 @@ public:
 	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
 
 	template<class H>
-	void editTerrain(FVector v, float radius, float s, H handler);
+	void EditTerrain(FVector v, float radius, float s, H handler);
 
 	template<class H>
-	void performTerrainChange(FVector v, float radius, float s, H handler);
+	void PerformTerrainChange(FVector v, float radius, float s, H handler);
 
 	virtual SandboxVoxelGenerator newTerrainGenerator(TVoxelData &voxel_data);
 
