@@ -660,7 +660,7 @@ void ASandboxTerrainController::fillTerrainRound(const FVector origin, const flo
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 
@@ -704,7 +704,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 	} zh;
 
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, float strength) {
@@ -746,7 +746,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 	} zh;
 
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 void ASandboxTerrainController::fillTerrainCubeHole(FVector origin, const float r, const float strength, const int matId) {
@@ -796,36 +796,33 @@ void ASandboxTerrainController::fillTerrainCubeHole(FVector origin, const float 
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::performTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
 template<class H>
-void ASandboxTerrainController::performTerrainChange(FVector origin, float radius, float strength, H handler) {
-	FTerrainEditThread<H>* te = new FTerrainEditThread<H>();
-	te->zone_handler = handler;
-	te->origin = origin;
-	te->radius = radius;
-	te->strength = strength;
-	te->instance = this;
+void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radius, float Strength, H Handler) {
+	FTerrainEditThread<H>* EditThread = new FTerrainEditThread<H>();
+	EditThread->zone_handler = Handler;
+	EditThread->origin = Origin;
+	EditThread->radius = Radius;
+	EditThread->strength = Strength;
+	EditThread->instance = this;
 
-	FString thread_name = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
-	FRunnableThread* thread = FRunnableThread::Create(te, *thread_name, true, true);
+	FString ThreadName = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
+	FRunnableThread* Thread = FRunnableThread::Create(EditThread, *ThreadName, true, true);
 	//FIXME delete thread after finish
 
-
-	FVector ttt(origin);
-	ttt.Z -= 10;
+	FVector TestPoint(Origin);
+	TestPoint.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool overlap = GetWorld()->SweepMultiByChannel(OutHits, origin, ttt, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(radius)); // ECC_Visibility
-	if (overlap) {
-		for (auto item : OutHits) {
-			AActor* actor = item.GetActor();
-
-			if (Cast<ASandboxTerrainController>(item.GetActor()) != nullptr) {
-				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(item.GetComponent());
+	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Origin, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Radius)); // ECC_Visibility
+	if (bIsOverlap) {
+		for (auto OverlapItem : OutHits) {
+			AActor* Actor = OverlapItem.GetActor();
+			if (Cast<ASandboxTerrainController>(OverlapItem.GetActor()) != nullptr) {
+				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(OverlapItem.GetComponent());
 				if (InstancedMesh != nullptr) {
-					InstancedMesh->RemoveInstance(item.Item);
-					//UE_LOG(LogTemp, Warning, TEXT("overlap %s -> %s -> %d"), *actor->GetName(), *item.Component->GetName(), item.Item);
+					InstancedMesh->RemoveInstance(OverlapItem.Item);
 				}
 			}
 		}
