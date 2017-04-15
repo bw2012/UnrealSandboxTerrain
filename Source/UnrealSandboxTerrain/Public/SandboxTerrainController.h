@@ -130,6 +130,19 @@ public:
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
 	//========================================================================================
+	// debug only
+	//========================================================================================
+
+	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
+	void OnStartBuildTerrain();
+
+	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Finish Build Sandbox Terrain"))
+	void OnFinishBuildTerrain();
+
+	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
+	void OnProgressBuildTerrain(int Total, int Progress);
+
+	//========================================================================================
 	// materials
 	//========================================================================================
 

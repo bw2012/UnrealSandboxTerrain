@@ -120,6 +120,7 @@ void ASandboxTerrainController::BeginPlay() {
 	// load existing
 	//===========================
 	RegionIndexSet.Empty();
+	OnStartBuildTerrain();
 	LoadJson(RegionIndexSet);
 
 	// load initial region
@@ -180,6 +181,10 @@ void ASandboxTerrainController::BeginPlay() {
 				}
 			}
 		}
+
+		RunThread([&](FAsyncThread& ThisThread) {
+			OnFinishBuildTerrain();
+		});
 
 	});
 }
