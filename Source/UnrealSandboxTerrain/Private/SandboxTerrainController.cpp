@@ -606,7 +606,7 @@ public:
 	}
 };
 
-void ASandboxTerrainController::fillTerrainRound(const FVector origin, const float r, const float strength, const int matId) {
+void ASandboxTerrainController::FillTerrainRound(const FVector origin, const float r, const float strength, const int matId) {
 	//if (GetWorld() == NULL) return;
 
 	struct ZoneHandler {
@@ -665,7 +665,7 @@ void ASandboxTerrainController::fillTerrainRound(const FVector origin, const flo
 }
 
 
-void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, float strength) {
+void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, float strength) {
 	//if (GetWorld() == NULL) return;
 
 	struct ZoneHandler {
@@ -708,7 +708,7 @@ void ASandboxTerrainController::digTerrainRoundHole(FVector origin, float r, flo
 	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
-void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, float strength) {
+void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, float strength) {
 
 	struct ZoneHandler {
 		bool changed;
@@ -750,7 +750,7 @@ void ASandboxTerrainController::digTerrainCubeHole(FVector origin, float r, floa
 	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
-void ASandboxTerrainController::fillTerrainCubeHole(FVector origin, const float r, const float strength, const int matId) {
+void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, const float strength, const int matId) {
 
 	struct ZoneHandler {
 		int newMaterialId;
