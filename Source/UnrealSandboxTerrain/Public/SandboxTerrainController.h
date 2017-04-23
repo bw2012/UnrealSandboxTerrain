@@ -193,13 +193,13 @@ public:
 
 	//========================================================================================
 	
-	void digTerrainRoundHole(FVector v, float radius, float s);
+	void DigTerrainRoundHole(FVector v, float radius, float s);
 
-	void digTerrainCubeHole(FVector origin, float r, float strength);
+	void DigTerrainCubeHole(FVector origin, float r, float strength);
 
-	void fillTerrainCubeHole(FVector origin, const float r, const float strength, const int matId);
+	void FillTerrainCube(FVector origin, const float r, const float strength, const int matId);
 
-	void fillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
+	void FillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
 
 	FVector GetZoneIndex(FVector v);
 
@@ -310,16 +310,11 @@ private:
 
 	int GetCollisionMeshSectionLodIndex() {
 		if (bEnableLOD) {
-			int collisionLODSection = CollisionSection;
-			if (collisionLODSection > 6) collisionLODSection = 6;
-
-			return collisionLODSection;
+			if (CollisionSection > 6) return 6;
+			return CollisionSection;
 		}
-
 		return 0;
 	}
-
-	
 
 protected:
 
