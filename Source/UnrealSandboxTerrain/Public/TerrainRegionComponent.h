@@ -7,6 +7,7 @@
 #include "SandboxVoxeldata.h"
 #include "SandboxTerrainController.h"
 #include <memory>
+#include <fstream>
 #include "TerrainRegionComponent.generated.h"
 
 
@@ -20,9 +21,20 @@ typedef struct TInstMeshTransArray {
 
 } TInstMeshTransArray;
 
+
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 
 typedef TMap<FVector, TInstMeshTypeMap> TInstMeshZoneTemp;
+
+
+typedef struct TVoxelDataFileBodyPos {
+
+	int64 Offset;
+
+	int64 Size;
+
+} TVoxelDataFileBodyPos;
+
 
 /**
 *
@@ -36,6 +48,8 @@ public:
 
 	UPROPERTY()
 	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent;
+
+	virtual void BeginDestroy();
 
 public:
 
@@ -91,7 +105,13 @@ public:
 
 	void SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray);
 
+	void SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray);
+
 	void LoadVoxelData();
+
+	void LoadVoxelData2();
+
+	TVoxelData* LoadVoxelData3(FVector Index);
 
 	void SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone);
 
@@ -106,4 +126,14 @@ private:
 	TInstMeshZoneTemp InstancedMeshLoadCache;
 
 	bool bIsChanged = false;
+
+	//========================================================================================
+	// lazy voxel data loading
+	//========================================================================================
+
+	std::ifstream* VdInFilePtr = nullptr;
+
+	int64 VdBinaryDataStart;
+
+	TMap<FVector, TVoxelDataFileBodyPos> VdFileBodyMap;
 };

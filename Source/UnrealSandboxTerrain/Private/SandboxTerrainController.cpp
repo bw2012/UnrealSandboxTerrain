@@ -127,6 +127,10 @@ void ASandboxTerrainController::BeginPlay() {
 	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
 	Region1->LoadFile();
 
+	//test
+	Region1->LoadVoxelData2();
+	Region1->LoadVoxelData3(FVector(0));
+
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
 
@@ -316,6 +320,7 @@ void ASandboxTerrainController::Save() {
 			//UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
 			if (Region == nullptr) { continue; }
 			Region->SaveVoxelData(SaveVdBuffer.VoxelDataArray);
+			Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
 		}
 	}
 
