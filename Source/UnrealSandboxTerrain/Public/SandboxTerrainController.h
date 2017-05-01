@@ -81,6 +81,9 @@ struct FSandboxTerrainMaterial {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
+	FString Name;
+
+	UPROPERTY(EditAnywhere)
 	UTexture* TextureTopMicro;
 
 	//UPROPERTY(EditAnywhere)

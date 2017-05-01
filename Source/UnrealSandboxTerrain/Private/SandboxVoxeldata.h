@@ -73,6 +73,8 @@ public:
 		return x * voxel_num * voxel_num + y * voxel_num + z;
 	};
 
+	void forEachWithCache(std::function<void(TVoxelData* thisVd, int x, int y, int z)> func, bool enableLOD);
+
     void setDensity(int x, int y, int z, float density);
     float getDensity(int x, int y, int z) const;
 	unsigned char getRawDensity(int x, int y, int z) const;
