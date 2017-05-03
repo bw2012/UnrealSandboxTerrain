@@ -597,11 +597,10 @@ public:
 	H zone_handler;
 	FVector origin;
 	float radius;
-	float strength;
 	ASandboxTerrainController* instance;
 
 	virtual uint32 Run() {
-		instance->EditTerrain(origin, radius, strength, zone_handler);
+		instance->EditTerrain(origin, radius, zone_handler);
 		return 0;
 	}
 };
@@ -609,13 +608,13 @@ public:
 struct TZoneEditHandler {
 	bool changed = false;
 	bool enableLOD = false;
+	float Strength;
 };
 
 void ASandboxTerrainController::FillTerrainRound(const FVector origin, const float r, const int matId) {
-
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
-		bool operator()(TVoxelData* vd, FVector v, float radius, float strength) {
+		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 
 			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
@@ -627,7 +626,7 @@ void ASandboxTerrainController::FillTerrainRound(const FVector origin, const flo
 				float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
 				if (rl < radius) {
 					//2^-((x^2)/20)
-					float d = density + 1 / rl * strength;
+					float d = density + 1 / rl * Strength;
 					thisVd->setDensity(x, y, z, d);
 					changed = true;
 				}
@@ -643,7 +642,8 @@ void ASandboxTerrainController::FillTerrainRound(const FVector origin, const flo
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, 0, zh);
+	zh.Strength = 5;
+	ASandboxTerrainController::PerformTerrainChange(origin, r, zh);
 }
 
 
@@ -652,7 +652,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
-		bool operator()(TVoxelData* vd, FVector v, float radius, float s) {
+		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 			
 			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
@@ -666,9 +666,9 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 					unsigned short  MatId = vd->getMaterial(x, y, z);
 					FSandboxTerrainMaterial& Mat = MaterialMapPtr->FindOrAdd(MatId);
 
-					float strength = (Mat.RockHardness == 0) ? s : (s / Mat.RockHardness);
-					if (strength > 0.1) {
-						float d = density - 1 / rl * (strength);
+					float ClcStrength = (Mat.RockHardness == 0) ? Strength : (Strength / Mat.RockHardness);
+					if (ClcStrength > 0.1) {
+						float d = density - 1 / rl * (ClcStrength);
 						vd->setDensity(x, y, z, d);
 					}
 
@@ -682,7 +682,8 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 
 	zh.MaterialMapPtr = &MaterialMap;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
+	zh.Strength = strength;
+	ASandboxTerrainController::PerformTerrainChange(origin, r, zh);
 }
 
 void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, float strength) {
@@ -690,7 +691,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, floa
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
-		bool operator()(TVoxelData* vd, FVector v, float radius, float strength) {
+		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 
 			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
@@ -713,14 +714,14 @@ void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, floa
 
 	zh.enableLOD = bEnableLOD;
 	zh.MaterialMapPtr = &MaterialMap;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, zh);
 }
 
-void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, const float strength, const int matId) {
+void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, const int matId) {
 
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
-		bool operator()(TVoxelData* vd, FVector v, float radius, float strength) {
+		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 
 			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
@@ -744,16 +745,15 @@ void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, c
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, zh);
 }
 
 template<class H>
-void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radius, float Strength, H Handler) {
+void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radius, H Handler) {
 	FTerrainEditThread<H>* EditThread = new FTerrainEditThread<H>();
 	EditThread->zone_handler = Handler;
 	EditThread->origin = Origin;
 	EditThread->radius = Radius;
-	EditThread->strength = Strength;
 	EditThread->instance = this;
 
 	FString ThreadName = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
@@ -801,7 +801,7 @@ bool IsCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, f
 }
 
 template<class H>
-void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H handler) {
+void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) {
 	double Start = FPlatformTime::Seconds();
 	
 	FVector BaseZoneIndex = GetZoneIndex(v);
@@ -819,7 +819,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H 
 				if (Zone == NULL) {
 					if (VoxelData != NULL) {
 						VoxelData->vd_edit_mutex.lock();
-						bool bIsChanged = handler(VoxelData, v, radius, s);
+						bool bIsChanged = handler(VoxelData, v, radius);
 						if (bIsChanged) {
 							VoxelData->setChanged();
 							VoxelData->vd_edit_mutex.unlock();
@@ -843,7 +843,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H 
 				}
 
 				VoxelData->vd_edit_mutex.lock();
-				bool bIsChanged = handler(VoxelData, v, radius, s);
+				bool bIsChanged = handler(VoxelData, v, radius);
 				if (bIsChanged) {
 					VoxelData->setChanged();
 					VoxelData->setCacheToValid();
