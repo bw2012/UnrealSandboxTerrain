@@ -81,6 +81,12 @@ struct FSandboxTerrainMaterial {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
+	FString Name;
+
+	UPROPERTY(EditAnywhere)
+	float RockHardness;
+
+	UPROPERTY(EditAnywhere)
 	UTexture* TextureTopMicro;
 
 	//UPROPERTY(EditAnywhere)
@@ -197,9 +203,9 @@ public:
 
 	void DigTerrainCubeHole(FVector origin, float r, float strength);
 
-	void FillTerrainCube(FVector origin, const float r, const float strength, const int matId);
+	void FillTerrainCube(FVector origin, const float r, const int matId);
 
-	void FillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
+	void FillTerrainRound(const FVector origin, const float r, const int matId);
 
 	FVector GetZoneIndex(FVector v);
 
@@ -214,10 +220,10 @@ public:
 	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
 
 	template<class H>
-	void EditTerrain(FVector v, float radius, float s, H handler);
+	void EditTerrain(FVector v, float radius, H handler);
 
 	template<class H>
-	void PerformTerrainChange(FVector v, float radius, float s, H handler);
+	void PerformTerrainChange(FVector v, float radius, H handler);
 
 	virtual SandboxVoxelGenerator newTerrainGenerator(TVoxelData &voxel_data);
 
