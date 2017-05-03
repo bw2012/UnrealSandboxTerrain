@@ -611,7 +611,7 @@ struct TZoneEditHandler {
 	bool enableLOD = false;
 };
 
-void ASandboxTerrainController::FillTerrainRound(const FVector origin, const float r, const float strength, const int matId) {
+void ASandboxTerrainController::FillTerrainRound(const FVector origin, const float r, const int matId) {
 
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
@@ -637,21 +637,22 @@ void ASandboxTerrainController::FillTerrainRound(const FVector origin, const flo
 				}			
 			}, enableLOD);
 
-
 			return changed;
 		}
 	} zh;
 
 	zh.newMaterialId = matId;
 	zh.enableLOD = bEnableLOD;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
+	ASandboxTerrainController::PerformTerrainChange(origin, r, 0, zh);
 }
 
 
 void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, float strength) {
 
 	struct ZoneHandler : TZoneEditHandler {
-		bool operator()(TVoxelData* vd, FVector v, float radius, float strength) {
+		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
+
+		bool operator()(TVoxelData* vd, FVector v, float radius, float s) {
 			changed = false;
 			
 			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
@@ -662,8 +663,15 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 
 				float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
 				if (rl < radius) {
-					float d = density - 1 / rl * strength;
-					vd->setDensity(x, y, z, d);
+					unsigned short  MatId = vd->getMaterial(x, y, z);
+					FSandboxTerrainMaterial& Mat = MaterialMapPtr->FindOrAdd(MatId);
+
+					float strength = (Mat.RockHardness == 0) ? s : (s / Mat.RockHardness);
+					if (strength > 0.1) {
+						float d = density - 1 / rl * (strength);
+						vd->setDensity(x, y, z, d);
+					}
+
 					changed = true;
 				}
 			}, enableLOD);
@@ -672,6 +680,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 		}
 	} zh;
 
+	zh.MaterialMapPtr = &MaterialMap;
 	zh.enableLOD = bEnableLOD;
 	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
@@ -679,6 +688,8 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, float strength) {
 
 	struct ZoneHandler : TZoneEditHandler {
+		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
+
 		bool operator()(TVoxelData* vd, FVector v, float radius, float strength) {
 			changed = false;
 
@@ -687,8 +698,12 @@ void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, floa
 				o += vd->getOrigin();
 				o -= v;
 				if (o.X < radius && o.X > -radius && o.Y < radius && o.Y > -radius && o.Z < radius && o.Z > -radius) {
-					vd->setDensity(x, y, z, 0);
-					changed = true;
+					unsigned short  MatId = vd->getMaterial(x, y, z);
+					FSandboxTerrainMaterial& Mat = MaterialMapPtr->FindOrAdd(MatId);
+					if (Mat.RockHardness < 100) {
+						vd->setDensity(x, y, z, 0);
+						changed = true;
+					}
 				}
 			}, enableLOD);
 
@@ -697,6 +712,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, floa
 	} zh;
 
 	zh.enableLOD = bEnableLOD;
+	zh.MaterialMapPtr = &MaterialMap;
 	ASandboxTerrainController::PerformTerrainChange(origin, r, strength, zh);
 }
 
@@ -762,7 +778,6 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 			}
 		}
 	}
-
 }
 
 
@@ -824,7 +839,6 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, float s, H 
 				}
 
 				if (!IsCubeIntersectSphere(VoxelData->getLower(), VoxelData->getUpper(), v, radius)) {
-					//UE_LOG(LogTemp, Warning, TEXT("skip: voxel data --> %.8f %.8f %.8f "), zone_index.X, zone_index.Y, zone_index.Z);
 					continue;
 				}
 

@@ -84,6 +84,9 @@ struct FSandboxTerrainMaterial {
 	FString Name;
 
 	UPROPERTY(EditAnywhere)
+	float RockHardness;
+
+	UPROPERTY(EditAnywhere)
 	UTexture* TextureTopMicro;
 
 	//UPROPERTY(EditAnywhere)
@@ -202,7 +205,7 @@ public:
 
 	void FillTerrainCube(FVector origin, const float r, const float strength, const int matId);
 
-	void FillTerrainRound(const FVector origin, const float r, const float strength, const int matId);
+	void FillTerrainRound(const FVector origin, const float r, const int matId);
 
 	FVector GetZoneIndex(FVector v);
 
