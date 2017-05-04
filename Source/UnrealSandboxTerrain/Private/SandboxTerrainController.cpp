@@ -617,22 +617,22 @@ void ASandboxTerrainController::FillTerrainRound(const FVector origin, const flo
 		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 
-			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
-				float density = thisVd->getDensity(x, y, z);
-				FVector o = thisVd->voxelIndexToVector(x, y, z);
-				o += thisVd->getOrigin();
+			vd->forEachWithCache([&](int x, int y, int z) {
+				float density = vd->getDensity(x, y, z);
+				FVector o = vd->voxelIndexToVector(x, y, z);
+				o += vd->getOrigin();
 				o -= v;
 
 				float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
 				if (rl < radius) {
 					//2^-((x^2)/20)
 					float d = density + 1 / rl * Strength;
-					thisVd->setDensity(x, y, z, d);
+					vd->setDensity(x, y, z, d);
 					changed = true;
 				}
 
 				if (rl < radius + 20) {
-					thisVd->setMaterial(x, y, z, newMaterialId);
+					vd->setMaterial(x, y, z, newMaterialId);
 				}			
 			}, enableLOD);
 
@@ -655,7 +655,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 			
-			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
+			vd->forEachWithCache([&](int x, int y, int z) {
 				float density = vd->getDensity(x, y, z);
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
@@ -694,7 +694,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, floa
 		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 
-			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
+			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
 				o -= v;
@@ -724,7 +724,7 @@ void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, c
 		bool operator()(TVoxelData* vd, FVector v, float radius) {
 			changed = false;
 
-			vd->forEachWithCache([&](TVoxelData* thisVd, int x, int y, int z) {
+			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
 				o -= v;

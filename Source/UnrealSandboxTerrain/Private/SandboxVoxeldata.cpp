@@ -322,13 +322,13 @@
 		}
 	}
 
-	void TVoxelData::forEachWithCache(std::function<void(TVoxelData* thisVd, int x, int y, int z)> func, bool LOD) {
+	void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func, bool LOD) {
 		clearSubstanceCache();
 
 		for (int x = 0; x < num(); x++) {
 			for (int y = 0; y < num(); y++) {
 				for (int z = 0; z < num(); z++) {
-					func(this, x, y, z);
+					func(x, y, z);
 
 					if (LOD) {
 						performSubstanceCacheLOD(x, y, z);
