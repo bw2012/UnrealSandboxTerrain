@@ -589,7 +589,6 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelData3(FVector Index) {
 
 		FVector VoxelDataOrigin = GetTerrainController()->GetZonePos(Index);
 
-
 		FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 		BinaryData.Seek(0);
 

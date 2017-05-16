@@ -39,7 +39,7 @@ public:
 		return State == TH_STATE_FINISHED;
 	}
 
-	bool CheckState() {
+	bool IsNotValid() {
 		if (State == TH_STATE_STOP) {
 			State = TH_STATE_FINISHED;
 			return true;
@@ -137,16 +137,12 @@ void ASandboxTerrainController::BeginPlay() {
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
 		Region1->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
-			if (ThisThread.CheckState()) return;
-			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
+			if (ThisThread.IsNotValid()) return;
+			FVector Pos = GetZonePos(Index);
 			SpawnZone(Pos);
 		});
 
-		if (ThisThread.CheckState()) return;
-
-		Region1->LoadVoxelData();
-
-		if (ThisThread.CheckState()) return;
+		if (ThisThread.IsNotValid()) return;
 
 		for (FVector RegionIndex : RegionIndexSet) {
 			if (RegionIndex.Equals(FVector::ZeroVector)) {
@@ -155,17 +151,15 @@ void ASandboxTerrainController::BeginPlay() {
 
 			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
 			Region2->LoadFile();
-			if (ThisThread.CheckState()) return;
+			if (ThisThread.IsNotValid()) return;
 
 			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
-				if (ThisThread.CheckState()) return;
-				FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
+				if (ThisThread.IsNotValid()) return;
+				FVector Pos = GetZonePos(Index);
 				SpawnZone(Pos);
 			});
-			if (ThisThread.CheckState()) return;
 
-			Region2->LoadVoxelData();
-			if (ThisThread.CheckState()) return;
+			if (ThisThread.IsNotValid()) return;
 		}
 
 		if (!bGenerateOnlySmallSpawnPoint) {
@@ -174,13 +168,13 @@ void ASandboxTerrainController::BeginPlay() {
 					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
 						FVector Index = FVector(x, y, z);
 						FVector Pos = GetZonePos(Index);
-						if (ThisThread.CheckState()) return;
+						if (ThisThread.IsNotValid()) return;
 
 						if (!VoxelDataMap.Contains(Index)) {
 							SpawnZone(Pos);
 						}
 
-						if (ThisThread.CheckState()) return;
+						if (ThisThread.IsNotValid()) return;
 					}
 				}
 			}
