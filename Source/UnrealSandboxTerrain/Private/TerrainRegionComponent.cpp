@@ -431,7 +431,6 @@ void UTerrainRegionComponent::LoadFile() {
 
 void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray) {
 
-
 	FString Ext = TEXT("vd2");
 	Save([&](FBufferArchive& BinaryData) {
 
@@ -477,8 +476,6 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 			for (uint8 B : BodyDataEntry) {
 				BinaryData << B;
 			}
-
-			
 		}
 
 		UE_LOG(LogTemp, Warning, TEXT("tttt -> %d"), BinaryData.Tell());
@@ -572,25 +569,36 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelData3(FVector Index) {
 
 		VdInFilePtr->seekg(BodyPos.Offset + VdBinaryDataStart);
 
-		int32 num;
-		float size;
+		TArray<uint8> BinaryArray;
+		BinaryArray.Reserve(BodyPos.Size);
 
-		read(VdInFilePtr, num);
-		read(VdInFilePtr, size);
+		for (int Idx = 0; Idx < BodyPos.Size; Idx++) {
+			uint8 Byte;
+			read(VdInFilePtr, Byte);
+			BinaryArray.Add(Byte);
+		}
 
-		UE_LOG(LogTemp, Warning, TEXT("test3 -> %f %f %f -- %d -- %d"), Index.X, Index.Y, Index.Z, BodyPos.Offset, BodyPos.Offset + VdBinaryDataStart);
-		UE_LOG(LogTemp, Warning, TEXT("test4-> %f %f %f -- %d -- %f"), Index.X, Index.Y, Index.Z, num, size);
+		//int32 num;
+		//float size;
 
-		/*
+		//read(VdInFilePtr, num);
+		//read(VdInFilePtr, size);
+
+		//UE_LOG(LogTemp, Warning, TEXT("test3 -> %f %f %f -- %d -- %d"), Index.X, Index.Y, Index.Z, BodyPos.Offset, BodyPos.Offset + VdBinaryDataStart);
+		//UE_LOG(LogTemp, Warning, TEXT("test4 -> %f %f %f -- %d -- %f"), Index.X, Index.Y, Index.Z, num, size);
+
+		FVector VoxelDataOrigin = GetTerrainController()->GetZonePos(Index);
+
+
+		FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
+		BinaryData.Seek(0);
+
 		TVoxelData* Vd = new TVoxelData(65, 100 * 10);
-		FVector VoxelDataIndex = GetTerrainController()->GetZoneIndex(VoxelDataOrigin);
-
 		Vd->setOrigin(VoxelDataOrigin);
 
 		deserializeVoxelData(*Vd, BinaryData);
 
-		GetTerrainController()->RegisterTerrainVoxelData(Vd, VoxelDataIndex);
-		*/
+		GetTerrainController()->RegisterTerrainVoxelData(Vd, Index);
 	}
 
 
