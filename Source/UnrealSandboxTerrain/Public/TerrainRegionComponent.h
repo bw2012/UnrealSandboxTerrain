@@ -136,4 +136,6 @@ private:
 	int64 VdBinaryDataStart;
 
 	TMap<FVector, TVoxelDataFileBodyPos> VdFileBodyMap;
+
+	std::mutex VdFileMutex;
 };
