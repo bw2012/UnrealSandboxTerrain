@@ -15,6 +15,10 @@ UTerrainRegionComponent::UTerrainRegionComponent(const FObjectInitializer& Objec
 
 void UTerrainRegionComponent::BeginDestroy() {
 	Super::BeginDestroy();
+
+	if (VdInFilePtr == nullptr || !VdInFilePtr->is_open()) return;
+
+	VdInFilePtr->close();
 }
 
 void SerializeMeshContainer(FBufferArchive& BinaryData, TMeshContainer& MeshContainer) {
