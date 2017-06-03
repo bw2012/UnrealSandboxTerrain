@@ -109,9 +109,9 @@ public:
 
 	void LoadVoxelData();
 
-	void LoadVoxelData2();
+	void OpenRegionVdFile();
 
-	TVoxelData* LoadVoxelData3(FVector Index);
+	TVoxelData* LoadVoxelDataByZoneIndex(FVector Index);
 
 	void SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone);
 

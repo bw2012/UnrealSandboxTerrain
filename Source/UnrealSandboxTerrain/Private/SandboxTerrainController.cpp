@@ -128,8 +128,8 @@ void ASandboxTerrainController::BeginPlay() {
 	Region1->LoadFile();
 
 	//test
-	Region1->LoadVoxelData2();
-	Region1->LoadVoxelData3(FVector(0,1,0));
+	Region1->OpenRegionVdFile();
+	Region1->LoadVoxelDataByZoneIndex(FVector(0,1,0));
 
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
@@ -835,7 +835,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				if (VoxelData == NULL) {
 					//try to load lazy voxel data
 					UTerrainRegionComponent* Region = Zone->GetRegion();
-					VoxelData = Region->LoadVoxelData3(ZoneIndex);
+					VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
 
 					if (VoxelData == nullptr) {
 						//UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);

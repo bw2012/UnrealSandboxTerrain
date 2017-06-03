@@ -434,7 +434,6 @@ void UTerrainRegionComponent::LoadFile() {
 }
 
 void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray) {
-
 	FString Ext = TEXT("vd2");
 	Save([&](FBufferArchive& BinaryData) {
 
@@ -492,7 +491,7 @@ void read(std::istream* is, const T& obj) {
 	is->read((char*)&obj, sizeof(obj));
 }
 
-void UTerrainRegionComponent::LoadVoxelData2() {
+void UTerrainRegionComponent::OpenRegionVdFile() {
 
 	FString FileExt = TEXT("vd2");
 
@@ -560,7 +559,7 @@ void UTerrainRegionComponent::LoadVoxelData2() {
 	UE_LOG(LogTemp, Warning, TEXT("VdBinaryDataStart -> %d"), VdBinaryDataStart);
 }
 
-TVoxelData* UTerrainRegionComponent::LoadVoxelData3(FVector Index) {
+TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 	if (VdInFilePtr == nullptr) return nullptr;
 	if (!VdInFilePtr->is_open()) return nullptr;
 
