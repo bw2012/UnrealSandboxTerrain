@@ -16,9 +16,8 @@ UTerrainRegionComponent::UTerrainRegionComponent(const FObjectInitializer& Objec
 void UTerrainRegionComponent::BeginDestroy() {
 	Super::BeginDestroy();
 
-	if (VdInFilePtr == nullptr || !VdInFilePtr->is_open()) return;
-
-	VdInFilePtr->close();
+	//if (VdInFilePtr == nullptr || !VdInFilePtr->is_open()) return;
+	//VdInFilePtr->close();
 }
 
 void SerializeMeshContainer(FBufferArchive& BinaryData, TMeshContainer& MeshContainer) {
@@ -411,13 +410,6 @@ void UTerrainRegionComponent::SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray)
 	Save([&](FBufferArchive& BinaryData) { SerializeRegionVoxelData(BinaryData, VoxalDataArray); }, Ext);
 }
 
-void UTerrainRegionComponent::LoadVoxelData() {
-	FString Ext = TEXT("vd");
-	Load([&](FMemoryReader& BinaryData) { 
-		DeserializeRegionVoxelData(BinaryData); 
-	}, Ext);
-}
-
 void UTerrainRegionComponent::SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray) {
 	FString Ext = TEXT("dat");
 	Save([&](FBufferArchive& BinaryData) { 
@@ -442,6 +434,12 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 		for (TVoxelData* Vd : VoxalDataArray) {
 			FVector Pos = Vd->getOrigin();
 			FBufferArchive& SaveEntry = VdSaveMap.FindOrAdd(Pos);
+
+			if (SaveEntry.Num() > 0) {
+				UE_LOG(LogTemp, Warning, TEXT("duplicate -> -> %f %f %f"), Pos.X, Pos.Y, Pos.Z);
+				continue;
+			}
+
 			serializeVoxelData(*Vd, SaveEntry);
 		}
 
@@ -453,8 +451,6 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 
 		BinaryData << HeaderEntriesNum;
 
-		UE_LOG(LogTemp, Warning, TEXT("HeaderEntriesNum -> %d"), HeaderEntriesNum);
-
 		for (FVector& Pos : KeyArray) {
 			BinaryData << Pos.X;
 			BinaryData << Pos.Y;
@@ -465,9 +461,6 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 			int64 Size = BodyDataEntry.Num();
 
 			BinaryData << Size;
-
-			UE_LOG(LogTemp, Warning, TEXT("data block -> %f %f %f -- %d ---> %d "), Pos.X, Pos.Y, Pos.Z, Offset, Size);
-
 			Offset += BodyDataEntry.Num();
 		}
 
@@ -478,10 +471,6 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 				BinaryData << B;
 			}
 		}
-
-		UE_LOG(LogTemp, Warning, TEXT("BinaryData.Tell() -> %d"), BinaryData.Tell());
-		UE_LOG(LogTemp, Warning, TEXT("BinaryData -> %d"), BinaryData.Num());
-
 	}, Ext);
 }
 
@@ -520,19 +509,13 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("file opened -> %s"), *FileName);
-
 	VdInFilePtr->seekg(0);
 
 	int32 version = 0;
 	read(VdInFilePtr, version);
 
-	UE_LOG(LogTemp, Warning, TEXT("file version -> %d"), version);
-
 	int32 HeaderEntriesNum;
 	read(VdInFilePtr, HeaderEntriesNum);
-
-	UE_LOG(LogTemp, Warning, TEXT("HeaderEntriesNum -> %d"), HeaderEntriesNum);
 
 	for (int32 Idx = 0; Idx < HeaderEntriesNum; Idx++) {
 		float X, Y, Z;
@@ -550,14 +533,22 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 		VoxelDataFileBodyPos.Size = Size;
 
 		VdFileBodyMap.Add(FVector(X, Y, Z), VoxelDataFileBodyPos);
-
-		UE_LOG(LogTemp, Warning, TEXT("test2 -> %d ---- %f %f %f -- %d -- %d"), VdInFilePtr->tellg().seekpos(), X, Y, Z, Offset, Size);
 	}
 
 	VdBinaryDataStart = VdInFilePtr->tellg().seekpos();
-
-	UE_LOG(LogTemp, Warning, TEXT("VdBinaryDataStart -> %d"), VdBinaryDataStart);
 }
+
+void UTerrainRegionComponent::LoadVoxelByInnerPos(TVoxelDataFileBodyPos& BodyPos, TArray<uint8>& BinaryArray) {
+	VdInFilePtr->seekg(BodyPos.Offset + VdBinaryDataStart);
+	BinaryArray.Reserve(BodyPos.Size);
+
+	for (int Idx = 0; Idx < BodyPos.Size; Idx++) {
+		uint8 Byte;
+		read(VdInFilePtr, Byte);
+		BinaryArray.Add(Byte);
+	}
+}
+
 
 TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 	if (VdInFilePtr == nullptr) return nullptr;
@@ -571,27 +562,11 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 		VdFileMutex.lock();
 
 		TVoxelDataFileBodyPos& BodyPos = VdFileBodyMap[VoxelDataOrigin];
-		VdInFilePtr->seekg(BodyPos.Offset + VdBinaryDataStart);
-
 		TArray<uint8> BinaryArray;
-		BinaryArray.Reserve(BodyPos.Size);
 
-		for (int Idx = 0; Idx < BodyPos.Size; Idx++) {
-			uint8 Byte;
-			read(VdInFilePtr, Byte);
-			BinaryArray.Add(Byte);
-		}
+		LoadVoxelByInnerPos(BodyPos, BinaryArray);
 
 		VdFileMutex.unlock();
-
-		//int32 num;
-		//float size;
-
-		//read(VdInFilePtr, num);
-		//read(VdInFilePtr, size);
-
-		//UE_LOG(LogTemp, Warning, TEXT("test3 -> %f %f %f -- %d -- %d"), Index.X, Index.Y, Index.Z, BodyPos.Offset, BodyPos.Offset + VdBinaryDataStart);
-		//UE_LOG(LogTemp, Warning, TEXT("test4 -> %f %f %f -- %d -- %f"), Index.X, Index.Y, Index.Z, num, size);
 
 		FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 		BinaryData.Seek(0);
@@ -603,6 +578,8 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 
 		GetTerrainController()->RegisterTerrainVoxelData(Vd, Index);
 
+		BodyPos.bIsLoaded = true;
+
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
 
@@ -611,4 +588,46 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 	}
 
 	return nullptr;
+}
+
+void UTerrainRegionComponent::LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArray) {
+	if (VdInFilePtr == nullptr) return;
+	if (!VdInFilePtr->is_open()) return;
+
+	double Start = FPlatformTime::Seconds();
+
+	for (auto& Elem : VdFileBodyMap) {
+		FVector& VoxelDataOrigin = Elem.Key;
+		TVoxelDataFileBodyPos& BodyPos = Elem.Value;
+
+		if (!BodyPos.bIsLoaded) {
+			TArray<uint8> BinaryArray;
+			LoadVoxelByInnerPos(BodyPos, BinaryArray);
+
+			FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
+			BinaryData.Seek(0);
+
+			TVoxelData* Vd = new TVoxelData(65, 100 * 10);
+			Vd->setOrigin(VoxelDataOrigin);
+
+			deserializeVoxelData(*Vd, BinaryData);
+			GetTerrainController()->RegisterTerrainVoxelData(Vd, GetTerrainController()->GetZoneIndex(VoxelDataOrigin));
+			LoadedVdArray.Add(Vd);
+
+			UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
+			BodyPos.bIsLoaded = true;
+		} else {
+			UE_LOG(LogTemp, Log, TEXT("ttttt -> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
+		}
+	}
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+
+	UE_LOG(LogTemp, Log, TEXT("loading all vd -> %f ms"), Time);
+}
+
+void UTerrainRegionComponent::CloseRegionVdFile() {
+	if (VdInFilePtr == nullptr || !VdInFilePtr->is_open()) return;
+	VdInFilePtr->close();
 }

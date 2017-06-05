@@ -33,6 +33,8 @@ typedef struct TVoxelDataFileBodyPos {
 
 	int64 Size;
 
+	volatile bool bIsLoaded = false;
+
 } TVoxelDataFileBodyPos;
 
 
@@ -107,15 +109,19 @@ public:
 
 	void SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray);
 
-	void LoadVoxelData();
-
 	void OpenRegionVdFile();
+
+	void CloseRegionVdFile();
 
 	TVoxelData* LoadVoxelDataByZoneIndex(FVector Index);
 
 	void SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone);
 
+	void LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArray);
+
 private:
+
+	void LoadVoxelByInnerPos(TVoxelDataFileBodyPos& BodyPos, TArray<uint8>& BinaryArray);
 
 	void Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt);
 

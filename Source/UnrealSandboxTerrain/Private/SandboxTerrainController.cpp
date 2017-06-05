@@ -284,7 +284,6 @@ void ASandboxTerrainController::Save() {
 		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.ZoneArray.Add(Zone);
-
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
 
@@ -297,8 +296,6 @@ void ASandboxTerrainController::Save() {
 		// region can not exist in case of uninitialized voxeldata
 		// TODO refactor it
 		if (Region != nullptr && Region->IsChanged()){
-			//UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.ZoneArray.Num());
-			if (Region == nullptr) { continue; }
 			Region->SaveFile(SaveBuffer.ZoneArray);
 		}
 	}
@@ -311,9 +308,8 @@ void ASandboxTerrainController::Save() {
 		// region can not exist in case of uninitialized voxeldata
 		// TODO refactor it
 		if (Region != nullptr && Region->IsChanged()) {
-			//UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
-			if (Region == nullptr) { continue; }
-			Region->SaveVoxelData(SaveVdBuffer.VoxelDataArray);
+			Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
+			Region->CloseRegionVdFile();
 			Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
 		}
 	}
