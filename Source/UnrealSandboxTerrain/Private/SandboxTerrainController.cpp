@@ -775,30 +775,12 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 	}
 }
 
-
-FORCEINLINE float squared(float v) {
-	return v * v;
-}
-
-bool IsCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
-	float ds = radius * radius;
-
-	if (sphereOrigin.X < lower.X) ds -= squared(sphereOrigin.X - lower.X);
-	else if (sphereOrigin.X > upper.X) ds -= squared(sphereOrigin.X - upper.X);
-
-	if (sphereOrigin.Y < lower.Y) ds -= squared(sphereOrigin.Y - lower.Y);
-	else if (sphereOrigin.Y > upper.Y) ds -= squared(sphereOrigin.Y - upper.Y);
-
-	if (sphereOrigin.Z < lower.Z) ds -= squared(sphereOrigin.Z - lower.Z);
-	else if (sphereOrigin.Z > upper.Z) ds -= squared(sphereOrigin.Z - upper.Z);
-
-	return ds > 0;
-}
-
 template<class H>
 void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) {
 	double Start = FPlatformTime::Seconds();
-	
+
+	static float ZoneVolumeSize = 100 * 10 / 2;
+
 	FVector BaseZoneIndex = GetZoneIndex(v);
 
 	static const float V[3] = { -1, 0, 1 };
@@ -811,51 +793,56 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-				if (Zone == NULL) {
-					if (VoxelData != NULL) {
-						VoxelData->vd_edit_mutex.lock();
-						bool bIsChanged = handler(VoxelData, v, radius);
-						if (bIsChanged) {
-							VoxelData->setChanged();
-							VoxelData->vd_edit_mutex.unlock();
-							InvokeLazyZoneAsync(ZoneIndex);
-						} else {
-							VoxelData->vd_edit_mutex.unlock();
+				// check zone bounds
+				FVector ZoneOrigin = GetZonePos(ZoneIndex);
+				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
+				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
+
+				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
+					if (Zone == NULL) {
+						if (VoxelData != NULL) {
+							VoxelData->vd_edit_mutex.lock();
+							bool bIsChanged = handler(VoxelData, v, radius);
+							if (bIsChanged) {
+								VoxelData->setChanged();
+								VoxelData->vd_edit_mutex.unlock();
+								InvokeLazyZoneAsync(ZoneIndex);
+							}
+							else {
+								VoxelData->vd_edit_mutex.unlock();
+							}
+							continue;
 						}
-						continue;
-					} else {
-						continue;
+						else {
+							continue;
+						}
 					}
-				}
 
-				if (VoxelData == NULL) {
-					//try to load lazy voxel data
-					UTerrainRegionComponent* Region = Zone->GetRegion();
-					VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
+					if (VoxelData == NULL) {
+						//try to load lazy voxel data
+						UTerrainRegionComponent* Region = Zone->GetRegion();
+						VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
 
-					if (VoxelData == nullptr) {
-						//UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-						continue;
+						if (VoxelData == nullptr) {
+							continue;
+						}
 					}
-				}
 
-				if (!IsCubeIntersectSphere(VoxelData->getLower(), VoxelData->getUpper(), v, radius)) {
-					continue;
-				}
-
-				VoxelData->vd_edit_mutex.lock();
-				bool bIsChanged = handler(VoxelData, v, radius);
-				if (bIsChanged) {
-					VoxelData->setChanged();
-					VoxelData->setCacheToValid();
-					Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
-					std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
-					VoxelData->resetLastMeshRegenerationTime();
-					VoxelData->vd_edit_mutex.unlock();
-					Zone->GetRegion()->SetChanged();
-					InvokeZoneMeshAsync(Zone, md_ptr);
-				} else {
-					VoxelData->vd_edit_mutex.unlock();
+					VoxelData->vd_edit_mutex.lock();
+					bool bIsChanged = handler(VoxelData, v, radius);
+					if (bIsChanged) {
+						VoxelData->setChanged();
+						VoxelData->setCacheToValid();
+						Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
+						std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
+						VoxelData->resetLastMeshRegenerationTime();
+						VoxelData->vd_edit_mutex.unlock();
+						Zone->GetRegion()->SetChanged();
+						InvokeZoneMeshAsync(Zone, md_ptr);
+					}
+					else {
+						VoxelData->vd_edit_mutex.unlock();
+					}
 				}
 			}
 		}
