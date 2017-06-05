@@ -32,6 +32,29 @@ enum class ETerrainInitialArea : uint8 {
 	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
 };
 
+enum TVoxelDataState {
+	UNDEFINED, 
+	GENERATED, 
+	LOADED,
+	READY_TO_LOAD
+};
+
+struct TVoxelDataInfo {
+	TVoxelData* Vd = nullptr;
+
+	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
+
+	// mesh is generated
+	bool isNewGenerated() const {
+		return DataState == TVoxelDataState::GENERATED;
+	}
+
+	bool isNewLoaded() const {
+		return DataState == TVoxelDataState::LOADED;
+	}
+
+};
+
 USTRUCT()
 struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
@@ -254,7 +277,7 @@ private:
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelData* FindOrCreateZoneVoxeldata(FVector location);
+	TVoxelDataInfo FindOrCreateZoneVoxeldata(FVector location);
 
 	void generateTerrain(TVoxelData &voxel_data);
 
@@ -276,9 +299,9 @@ private:
 
 	std::mutex VoxelDataMapMutex;
 
-	TMap<FVector, TVoxelData*> VoxelDataMap;
+	TMap<FVector, TVoxelDataInfo> VoxelDataMap;
 
-	void RegisterTerrainVoxelData(TVoxelData* vd, FVector index);
+	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index);
 
 	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
 

@@ -210,7 +210,11 @@ void UTerrainRegionComponent::DeserializeRegionVoxelData(FMemoryReader& BinaryDa
 
 		deserializeVoxelData(*Vd, BinaryData);
 
-		GetTerrainController()->RegisterTerrainVoxelData(Vd, VoxelDataIndex);
+		TVoxelDataInfo VdInfo;
+		VdInfo.DataState = TVoxelDataState::LOADED;
+		VdInfo.Vd = Vd;
+
+		GetTerrainController()->RegisterTerrainVoxelData(VdInfo, VoxelDataIndex);
 	}
 }
 
@@ -505,7 +509,7 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 	VdInFilePtr = new std::ifstream(TCHAR_TO_ANSI(*FileName), std::ios::binary);
 
 	if (!VdInFilePtr->is_open()) {
-		UE_LOG(LogTemp, Warning, TEXT("error open -> %s"), *FileName);
+		UE_LOG(LogTemp, Warning, TEXT("error open vd2 file -> %s"), *FileName);
 		return;
 	}
 
@@ -532,7 +536,14 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 		VoxelDataFileBodyPos.Offset = Offset;
 		VoxelDataFileBodyPos.Size = Size;
 
-		VdFileBodyMap.Add(FVector(X, Y, Z), VoxelDataFileBodyPos);
+		FVector ZonePos(X, Y, Z);
+		VdFileBodyMap.Add(ZonePos, VoxelDataFileBodyPos);
+
+		TVoxelDataInfo VdInfo;
+		VdInfo.DataState = TVoxelDataState::READY_TO_LOAD;
+		VdInfo.Vd = nullptr;
+
+		GetTerrainController()->RegisterTerrainVoxelData(VdInfo, GetTerrainController()->GetZoneIndex(ZonePos));
 	}
 
 	VdBinaryDataStart = VdInFilePtr->tellg().seekpos();
@@ -576,7 +587,11 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 
 		deserializeVoxelData(*Vd, BinaryData);
 
-		GetTerrainController()->RegisterTerrainVoxelData(Vd, Index);
+		TVoxelDataInfo VdInfo;
+		VdInfo.DataState = TVoxelDataState::LOADED;
+		VdInfo.Vd = Vd;
+
+		GetTerrainController()->RegisterTerrainVoxelData(VdInfo, Index);
 
 		BodyPos.bIsLoaded = true;
 
@@ -611,13 +626,16 @@ void UTerrainRegionComponent::LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArra
 			Vd->setOrigin(VoxelDataOrigin);
 
 			deserializeVoxelData(*Vd, BinaryData);
-			GetTerrainController()->RegisterTerrainVoxelData(Vd, GetTerrainController()->GetZoneIndex(VoxelDataOrigin));
+
+			TVoxelDataInfo VdInfo;
+			VdInfo.DataState = TVoxelDataState::LOADED;
+			VdInfo.Vd = Vd;
+
+			GetTerrainController()->RegisterTerrainVoxelData(VdInfo, GetTerrainController()->GetZoneIndex(VoxelDataOrigin));
 			LoadedVdArray.Add(Vd);
 
 			UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
 			BodyPos.bIsLoaded = true;
-		} else {
-			UE_LOG(LogTemp, Log, TEXT("ttttt -> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
 		}
 	}
 

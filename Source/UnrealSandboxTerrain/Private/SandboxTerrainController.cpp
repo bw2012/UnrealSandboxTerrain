@@ -126,10 +126,7 @@ void ASandboxTerrainController::BeginPlay() {
 	// load initial region
 	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
 	Region1->LoadFile();
-
-	//test
 	Region1->OpenRegionVdFile();
-	Region1->LoadVoxelDataByZoneIndex(FVector(0,1,0));
 
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
@@ -151,6 +148,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
 			Region2->LoadFile();
+			Region2->OpenRegionVdFile();
 			if (ThisThread.IsNotValid()) return;
 
 			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
@@ -261,12 +259,16 @@ void ASandboxTerrainController::Save() {
 	// put voxel data to save buffer
 	TMap<FVector, TSaveVdBuffer> SaveVdBufferByRegion;
 	for (auto& Elem : VoxelDataMap) {
-		TVoxelData* VoxelData = Elem.Value;
+		TVoxelDataInfo VdInfo = Elem.Value;
 
-		FVector RegionIndex = GetRegionIndex(VoxelData->getOrigin());
+		if (VdInfo.Vd == nullptr) {
+			continue;
+		}
+
+		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
 
-		SaveBuffer.VoxelDataArray.Add(VoxelData);
+		SaveBuffer.VoxelDataArray.Add(VdInfo.Vd);
 		RegionIndexSetLocal.Add(RegionIndex);
 
 		//TODO replace with share pointer
@@ -439,21 +441,19 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		}
 	} 
 
-	TVoxelData* VoxelData = FindOrCreateZoneVoxeldata(Pos);
-	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
+	TVoxelDataInfo VoxelDataInfo = FindOrCreateZoneVoxeldata(Pos);
+	if (VoxelDataInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->SetVoxelData(VoxelData);
+			Zone->SetVoxelData(VoxelDataInfo.Vd);
 			Zone->MakeTerrain();
 
-			if (VoxelData->isNewGenerated()) {
-				VoxelData->DataState = TVoxelDataState::NORMAL;
+			if (VoxelDataInfo.isNewGenerated()) {
 				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
-			if (VoxelData->isNewLoaded()) {
-				VoxelData->DataState = TVoxelDataState::NORMAL;
+			if (VoxelDataInfo.isNewLoaded()) {
 				OnLoadZone(Zone);
 			}
 		});
@@ -807,13 +807,11 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 								VoxelData->setChanged();
 								VoxelData->vd_edit_mutex.unlock();
 								InvokeLazyZoneAsync(ZoneIndex);
-							}
-							else {
+							} else {
 								VoxelData->vd_edit_mutex.unlock();
 							}
 							continue;
-						}
-						else {
+						} else {
 							continue;
 						}
 					}
@@ -839,8 +837,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 						VoxelData->vd_edit_mutex.unlock();
 						Zone->GetRegion()->SetChanged();
 						InvokeZoneMeshAsync(Zone, md_ptr);
-					}
-					else {
+					} else {
 						VoxelData->vd_edit_mutex.unlock();
 					}
 				}
@@ -891,13 +888,26 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 
 //======================================================================================================================================================================
 
-TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
+TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
 	double Start = FPlatformTime::Seconds();
 
 	FVector Index = GetZoneIndex(Location);
 	TVoxelData* Vd = GetTerrainVoxelDataByIndex(Index);
 
-	if (Vd == NULL) {
+	TVoxelDataInfo ReturnVdInfo;
+
+	if (VoxelDataMap.Contains(Index)) {
+		TVoxelDataInfo& VdInfo = VoxelDataMap[Index];
+
+		VdInfo.DataState = TVoxelDataState::LOADED;
+		VdInfo.Vd = Vd;
+
+		Vd->setChanged();
+		Vd->resetLastSave();
+		Vd->setCacheToValid();
+
+		ReturnVdInfo = VdInfo;
+	} else {
 		// not found - generate new
 		static const int Dim = 65;
 		Vd = new TVoxelData(Dim, 100 * 10);
@@ -905,26 +915,19 @@ TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Locatio
 
 		generateTerrain(*Vd);
 
-		Vd->DataState = TVoxelDataState::NEW_GENERATED;
+		ReturnVdInfo.DataState = TVoxelDataState::GENERATED;
+		ReturnVdInfo.Vd = Vd;
 
 		Vd->setChanged();
 		Vd->setCacheToValid();
 
-		RegisterTerrainVoxelData(Vd, Index);
-	} else {
-		Vd->DataState = TVoxelDataState::NEW_LOADED;
-
-		Vd->setChanged();
-		Vd->resetLastSave();
-		Vd->setCacheToValid();
+		RegisterTerrainVoxelData(ReturnVdInfo, Index);
 	}
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::FindOrCreateZoneVoxeldata -------------> %f %f %f --> %f ms"), Index.X, Index.Y, Index.Z, Time);
-
-	return Vd;
+	return ReturnVdInfo;
 }
 
 void ASandboxTerrainController::generateTerrain(TVoxelData &voxel_data) {
@@ -1023,9 +1026,9 @@ bool ASandboxTerrainController::HasNextAsyncTask() {
 	return AsyncTaskList.size() > 0;
 }
 
-void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelData* vd, FVector index) {
+void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index) {
 	VoxelDataMapMutex.lock();
-	VoxelDataMap.Add(index, vd);
+	VoxelDataMap.Add(Index, VdInfo);
 	VoxelDataMapMutex.unlock();
 }
 
@@ -1038,25 +1041,16 @@ void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Fun
 }
 
 TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByPos(FVector point) {
-	FVector index = sandboxSnapToGrid(point, 1000) / 1000;
-
-	VoxelDataMapMutex.lock();
-	if (VoxelDataMap.Contains(index)) {
-		TVoxelData* vd = VoxelDataMap[index];
-		VoxelDataMapMutex.unlock();
-		return vd;
-	}
-
-	VoxelDataMapMutex.unlock();
-	return NULL;
+	FVector Index = GetZoneIndex(point);
+	return GetTerrainVoxelDataByIndex(Index);
 }
 
 TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index) {
 	VoxelDataMapMutex.lock();
 	if (VoxelDataMap.Contains(index)) {
-		TVoxelData* vd = VoxelDataMap[index];
+		TVoxelDataInfo VdInfo = VoxelDataMap[index];
 		VoxelDataMapMutex.unlock();
-		return vd;
+		return VdInfo.Vd;
 	}
 
 	VoxelDataMapMutex.unlock();
