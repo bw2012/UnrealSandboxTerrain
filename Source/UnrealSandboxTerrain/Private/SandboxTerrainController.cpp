@@ -340,6 +340,11 @@ void ASandboxTerrainController::Save() {
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
+
+	for (auto& Elem : TerrainRegionMap) {
+		UTerrainRegionComponent* Region = Elem.Value;
+		Region->CloseRegionVdFile();
+	}
 }
 
 
