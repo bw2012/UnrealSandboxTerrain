@@ -7,6 +7,7 @@
 #include "SandboxVoxeldata.h"
 #include "SandboxTerrainController.h"
 #include <memory>
+#include <fstream>
 #include "TerrainRegionComponent.generated.h"
 
 
@@ -20,9 +21,22 @@ typedef struct TInstMeshTransArray {
 
 } TInstMeshTransArray;
 
+
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 
 typedef TMap<FVector, TInstMeshTypeMap> TInstMeshZoneTemp;
+
+
+typedef struct TVoxelDataFileBodyPos {
+
+	int64 Offset;
+
+	int64 Size;
+
+	volatile bool bIsLoaded = false;
+
+} TVoxelDataFileBodyPos;
+
 
 /**
 *
@@ -36,6 +50,8 @@ public:
 
 	UPROPERTY()
 	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent;
+
+	virtual void BeginDestroy();
 
 public:
 
@@ -91,11 +107,21 @@ public:
 
 	void SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray);
 
-	void LoadVoxelData();
+	void SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray);
+
+	void OpenRegionVdFile();
+
+	void CloseRegionVdFile();
+
+	TVoxelData* LoadVoxelDataByZoneIndex(FVector Index);
 
 	void SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone);
 
+	void LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArray);
+
 private:
+
+	void LoadVoxelByInnerPos(TVoxelDataFileBodyPos& BodyPos, TArray<uint8>& BinaryArray);
 
 	void Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt);
 
@@ -106,4 +132,16 @@ private:
 	TInstMeshZoneTemp InstancedMeshLoadCache;
 
 	bool bIsChanged = false;
+
+	//========================================================================================
+	// lazy voxel data loading
+	//========================================================================================
+
+	std::ifstream* VdInFilePtr = nullptr;
+
+	int64 VdBinaryDataStart;
+
+	TMap<FVector, TVoxelDataFileBodyPos> VdFileBodyMap;
+
+	std::mutex VdFileMutex;
 };

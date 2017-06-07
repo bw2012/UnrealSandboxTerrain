@@ -31,11 +31,6 @@ typedef struct TSubstanceCache {
 	std::list<int> cellList;
 } TSubstanceCache;
 
-enum TVoxelDataState {
-	UNDEFINED, NEW_GENERATED, NEW_LOADED, NORMAL
-};
-
-
 class TVoxelData {
 
 private:
@@ -123,17 +118,6 @@ public:
 
 		last_cache_check = -1;
 	};
-
-	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
-
-	// mesh is generated
-	bool isNewGenerated() {
-		return DataState == TVoxelDataState::NEW_GENERATED;
-	}
-
-	bool isNewLoaded() {
-		return DataState == TVoxelDataState::NEW_LOADED;
-	}
 
 	friend void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
 	friend bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);

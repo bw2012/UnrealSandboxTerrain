@@ -39,7 +39,7 @@ public:
 		return State == TH_STATE_FINISHED;
 	}
 
-	bool CheckState() {
+	bool IsNotValid() {
 		if (State == TH_STATE_STOP) {
 			State = TH_STATE_FINISHED;
 			return true;
@@ -121,11 +121,13 @@ void ASandboxTerrainController::BeginPlay() {
 	//===========================
 	RegionIndexSet.Empty();
 	OnStartBuildTerrain();
+	bIsGeneratingTerrain = true;
 	LoadJson(RegionIndexSet);
 
 	// load initial region
 	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
 	Region1->LoadFile();
+	Region1->OpenRegionVdFile();
 
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
@@ -133,16 +135,12 @@ void ASandboxTerrainController::BeginPlay() {
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
 		Region1->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
-			if (ThisThread.CheckState()) return;
-			FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
+			if (ThisThread.IsNotValid()) return;
+			FVector Pos = GetZonePos(Index);
 			SpawnZone(Pos);
 		});
 
-		if (ThisThread.CheckState()) return;
-
-		Region1->LoadVoxelData();
-
-		if (ThisThread.CheckState()) return;
+		if (ThisThread.IsNotValid()) return;
 
 		for (FVector RegionIndex : RegionIndexSet) {
 			if (RegionIndex.Equals(FVector::ZeroVector)) {
@@ -151,38 +149,47 @@ void ASandboxTerrainController::BeginPlay() {
 
 			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
 			Region2->LoadFile();
-			if (ThisThread.CheckState()) return;
+			Region2->OpenRegionVdFile();
+			if (ThisThread.IsNotValid()) return;
 
 			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
-				if (ThisThread.CheckState()) return;
-				FVector Pos = FVector((float)(Index.X * 1000), (float)(Index.Y * 1000), (float)(Index.Z * 1000));
+				if (ThisThread.IsNotValid()) return;
+				FVector Pos = GetZonePos(Index);
 				SpawnZone(Pos);
 			});
-			if (ThisThread.CheckState()) return;
 
-			Region2->LoadVoxelData();
-			if (ThisThread.CheckState()) return;
+			if (ThisThread.IsNotValid()) return;
 		}
 
 		if (!bGenerateOnlySmallSpawnPoint) {
+			int Total = (TerrainSizeX * 2 + 1) + (TerrainSizeY * 2 + 1) + (TerrainSizeZ * 2 + 1);
+			int Progress = 0;
+
 			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
 				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
 					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
 						FVector Index = FVector(x, y, z);
 						FVector Pos = GetZonePos(Index);
-						if (ThisThread.CheckState()) return;
+						if (ThisThread.IsNotValid()) return;
 
 						if (!VoxelDataMap.Contains(Index)) {
 							SpawnZone(Pos);
 						}
 
-						if (ThisThread.CheckState()) return;
+						Progress++;
+
+						GeneratingProgress = (float)Progress / (float)Total;
+						// must invoke in main thread
+						//OnProgressBuildTerrain(PercentProgress);
+
+						if (ThisThread.IsNotValid()) return;
 					}
 				}
 			}
 		}
 
 		RunThread([&](FAsyncThread& ThisThread) {
+			bIsGeneratingTerrain = false;
 			OnFinishBuildTerrain();
 		});
 
@@ -237,6 +244,10 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 			It++;
 		}
 	}
+
+	if (bIsGeneratingTerrain) {
+		OnProgressBuildTerrain(GeneratingProgress);
+	}
 }
 
 //======================================================================================================================================================================
@@ -263,12 +274,16 @@ void ASandboxTerrainController::Save() {
 	// put voxel data to save buffer
 	TMap<FVector, TSaveVdBuffer> SaveVdBufferByRegion;
 	for (auto& Elem : VoxelDataMap) {
-		TVoxelData* VoxelData = Elem.Value;
+		TVoxelDataInfo VdInfo = Elem.Value;
 
-		FVector RegionIndex = GetRegionIndex(VoxelData->getOrigin());
+		if (VdInfo.Vd == nullptr) {
+			continue;
+		}
+
+		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
 
-		SaveBuffer.VoxelDataArray.Add(VoxelData);
+		SaveBuffer.VoxelDataArray.Add(VdInfo.Vd);
 		RegionIndexSetLocal.Add(RegionIndex);
 
 		//TODO replace with share pointer
@@ -286,7 +301,6 @@ void ASandboxTerrainController::Save() {
 		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.ZoneArray.Add(Zone);
-
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
 
@@ -299,8 +313,6 @@ void ASandboxTerrainController::Save() {
 		// region can not exist in case of uninitialized voxeldata
 		// TODO refactor it
 		if (Region != nullptr && Region->IsChanged()){
-			//UE_LOG(LogTemp, Warning, TEXT("save buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveBuffer.ZoneArray.Num());
-			if (Region == nullptr) { continue; }
 			Region->SaveFile(SaveBuffer.ZoneArray);
 		}
 	}
@@ -310,17 +322,29 @@ void ASandboxTerrainController::Save() {
 		TSaveVdBuffer& SaveVdBuffer = Elem.Value;
 		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
+		UE_LOG(LogTemp, Warning, TEXT("try to save region ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+
 		// region can not exist in case of uninitialized voxeldata
 		// TODO refactor it
-		if (Region != nullptr && Region->IsChanged()) {
-			//UE_LOG(LogTemp, Warning, TEXT("save vd buffer -> %f %f %f --> %d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, SaveVdBuffer.VoxelDataArray.Num());
-			if (Region == nullptr) { continue; }
-			Region->SaveVoxelData(SaveVdBuffer.VoxelDataArray);
+		if (Region != nullptr) {
+			if (Region->IsChanged())
+			{
+				Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
+				Region->CloseRegionVdFile();
+				Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
+			}
+		} else {
+			UE_LOG(LogTemp, Warning, TEXT("region not found ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 		}
 	}
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
+
+	for (auto& Elem : TerrainRegionMap) {
+		UTerrainRegionComponent* Region = Elem.Value;
+		Region->CloseRegionVdFile();
+	}
 }
 
 
@@ -444,24 +468,30 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		}
 	} 
 
-	TVoxelData* VoxelData = FindOrCreateZoneVoxeldata(Pos);
-	if (VoxelData->getDensityFillState() == TVoxelDataFillState::MIX) {
+	TVoxelDataInfo VoxelDataInfo = FindOrCreateZoneVoxeldata(Pos);
+	if (VoxelDataInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->SetVoxelData(VoxelData);
+			Zone->SetVoxelData(VoxelDataInfo.Vd);
 			Zone->MakeTerrain();
 
-			if (VoxelData->isNewGenerated()) {
-				VoxelData->DataState = TVoxelDataState::NORMAL;
+			if (VoxelDataInfo.isNewGenerated()) {
 				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
-			if (VoxelData->isNewLoaded()) {
-				VoxelData->DataState = TVoxelDataState::NORMAL;
+			if (VoxelDataInfo.isNewLoaded()) {
 				OnLoadZone(Zone);
 			}
 		});
+	} else {
+		if (VoxelDataInfo.isNewGenerated()) {
+			InvokeSafe([=]() {
+				// just create region
+				UTerrainRegionComponent* Region = GetOrCreateRegion(Pos);
+				Region->SetChanged();
+			});
+		}
 	}
 }
 
@@ -780,30 +810,12 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 	}
 }
 
-
-FORCEINLINE float squared(float v) {
-	return v * v;
-}
-
-bool IsCubeIntersectSphere(FVector lower, FVector upper, FVector sphereOrigin, float radius) {
-	float ds = radius * radius;
-
-	if (sphereOrigin.X < lower.X) ds -= squared(sphereOrigin.X - lower.X);
-	else if (sphereOrigin.X > upper.X) ds -= squared(sphereOrigin.X - upper.X);
-
-	if (sphereOrigin.Y < lower.Y) ds -= squared(sphereOrigin.Y - lower.Y);
-	else if (sphereOrigin.Y > upper.Y) ds -= squared(sphereOrigin.Y - upper.Y);
-
-	if (sphereOrigin.Z < lower.Z) ds -= squared(sphereOrigin.Z - lower.Z);
-	else if (sphereOrigin.Z > upper.Z) ds -= squared(sphereOrigin.Z - upper.Z);
-
-	return ds > 0;
-}
-
 template<class H>
 void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) {
 	double Start = FPlatformTime::Seconds();
-	
+
+	static float ZoneVolumeSize = 100 * 10 / 2;
+
 	FVector BaseZoneIndex = GetZoneIndex(v);
 
 	static const float V[3] = { -1, 0, 1 };
@@ -816,45 +828,53 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
-				if (Zone == NULL) {
-					if (VoxelData != NULL) {
-						VoxelData->vd_edit_mutex.lock();
-						bool bIsChanged = handler(VoxelData, v, radius);
-						if (bIsChanged) {
-							VoxelData->setChanged();
-							VoxelData->vd_edit_mutex.unlock();
-							InvokeLazyZoneAsync(ZoneIndex);
+				// check zone bounds
+				FVector ZoneOrigin = GetZonePos(ZoneIndex);
+				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
+				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
+
+				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
+					if (Zone == NULL) {
+						if (VoxelData != NULL) {
+							VoxelData->vd_edit_mutex.lock();
+							bool bIsChanged = handler(VoxelData, v, radius);
+							if (bIsChanged) {
+								VoxelData->setChanged();
+								VoxelData->vd_edit_mutex.unlock();
+								InvokeLazyZoneAsync(ZoneIndex);
+							} else {
+								VoxelData->vd_edit_mutex.unlock();
+							}
+							continue;
 						} else {
-							VoxelData->vd_edit_mutex.unlock();
+							continue;
 						}
-						continue;
-					} else {
-						continue;
 					}
-				}
 
-				if (VoxelData == NULL) {
-					UE_LOG(LogTemp, Warning, TEXT("ERROR: voxel data not found --> %.8f %.8f %.8f "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-					continue;
-				}
+					if (VoxelData == NULL) {
+						//try to load lazy voxel data
+						UTerrainRegionComponent* Region = Zone->GetRegion();
+						VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
 
-				if (!IsCubeIntersectSphere(VoxelData->getLower(), VoxelData->getUpper(), v, radius)) {
-					continue;
-				}
+						if (VoxelData == nullptr) {
+							continue;
+						}
+					}
 
-				VoxelData->vd_edit_mutex.lock();
-				bool bIsChanged = handler(VoxelData, v, radius);
-				if (bIsChanged) {
-					VoxelData->setChanged();
-					VoxelData->setCacheToValid();
-					Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
-					std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
-					VoxelData->resetLastMeshRegenerationTime();
-					VoxelData->vd_edit_mutex.unlock();
-					Zone->GetRegion()->SetChanged();
-					InvokeZoneMeshAsync(Zone, md_ptr);
-				} else {
-					VoxelData->vd_edit_mutex.unlock();
+					VoxelData->vd_edit_mutex.lock();
+					bool bIsChanged = handler(VoxelData, v, radius);
+					if (bIsChanged) {
+						VoxelData->setChanged();
+						VoxelData->setCacheToValid();
+						Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
+						std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
+						VoxelData->resetLastMeshRegenerationTime();
+						VoxelData->vd_edit_mutex.unlock();
+						Zone->GetRegion()->SetChanged();
+						InvokeZoneMeshAsync(Zone, md_ptr);
+					} else {
+						VoxelData->vd_edit_mutex.unlock();
+					}
 				}
 			}
 		}
@@ -903,13 +923,26 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 
 //======================================================================================================================================================================
 
-TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
+TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
 	double Start = FPlatformTime::Seconds();
 
 	FVector Index = GetZoneIndex(Location);
 	TVoxelData* Vd = GetTerrainVoxelDataByIndex(Index);
 
-	if (Vd == NULL) {
+	TVoxelDataInfo ReturnVdInfo;
+
+	if (VoxelDataMap.Contains(Index)) {
+		TVoxelDataInfo& VdInfo = VoxelDataMap[Index];
+
+		VdInfo.DataState = TVoxelDataState::LOADED;
+		VdInfo.Vd = Vd;
+
+		Vd->setChanged();
+		Vd->resetLastSave();
+		Vd->setCacheToValid();
+
+		ReturnVdInfo = VdInfo;
+	} else {
 		// not found - generate new
 		static const int Dim = 65;
 		Vd = new TVoxelData(Dim, 100 * 10);
@@ -917,26 +950,19 @@ TVoxelData* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Locatio
 
 		generateTerrain(*Vd);
 
-		Vd->DataState = TVoxelDataState::NEW_GENERATED;
+		ReturnVdInfo.DataState = TVoxelDataState::GENERATED;
+		ReturnVdInfo.Vd = Vd;
 
 		Vd->setChanged();
 		Vd->setCacheToValid();
 
-		RegisterTerrainVoxelData(Vd, Index);
-	} else {
-		Vd->DataState = TVoxelDataState::NEW_LOADED;
-
-		Vd->setChanged();
-		Vd->resetLastSave();
-		Vd->setCacheToValid();
+		RegisterTerrainVoxelData(ReturnVdInfo, Index);
 	}
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::FindOrCreateZoneVoxeldata -------------> %f %f %f --> %f ms"), Index.X, Index.Y, Index.Z, Time);
-
-	return Vd;
+	return ReturnVdInfo;
 }
 
 void ASandboxTerrainController::generateTerrain(TVoxelData &voxel_data) {
@@ -991,7 +1017,6 @@ void ASandboxTerrainController::generateTerrain(TVoxelData &voxel_data) {
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), voxel_data.getOrigin().X, voxel_data.getOrigin().Y, voxel_data.getOrigin().Z, time);
-
 }
 
 
@@ -1035,9 +1060,9 @@ bool ASandboxTerrainController::HasNextAsyncTask() {
 	return AsyncTaskList.size() > 0;
 }
 
-void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelData* vd, FVector index) {
+void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index) {
 	VoxelDataMapMutex.lock();
-	VoxelDataMap.Add(index, vd);
+	VoxelDataMap.Add(Index, VdInfo);
 	VoxelDataMapMutex.unlock();
 }
 
@@ -1050,25 +1075,16 @@ void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Fun
 }
 
 TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByPos(FVector point) {
-	FVector index = sandboxSnapToGrid(point, 1000) / 1000;
-
-	VoxelDataMapMutex.lock();
-	if (VoxelDataMap.Contains(index)) {
-		TVoxelData* vd = VoxelDataMap[index];
-		VoxelDataMapMutex.unlock();
-		return vd;
-	}
-
-	VoxelDataMapMutex.unlock();
-	return NULL;
+	FVector Index = GetZoneIndex(point);
+	return GetTerrainVoxelDataByIndex(Index);
 }
 
 TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index) {
 	VoxelDataMapMutex.lock();
 	if (VoxelDataMap.Contains(index)) {
-		TVoxelData* vd = VoxelDataMap[index];
+		TVoxelDataInfo VdInfo = VoxelDataMap[index];
 		VoxelDataMapMutex.unlock();
-		return vd;
+		return VdInfo.Vd;
 	}
 
 	VoxelDataMapMutex.unlock();

@@ -341,6 +341,8 @@
 		}
 	}
 
+#define DATA_END_MARKER 666999
+
 	void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 		int32 num = vd.num();
 		float size = vd.size();
@@ -398,7 +400,7 @@
 			}
 		}
 
-		int32 end_marker = 666999;
+		int32 end_marker = DATA_END_MARKER;
 		binaryData << end_marker;
 	}
 
@@ -455,6 +457,10 @@
 
 		int32 end_marker;
 		binaryData << end_marker;
+
+		if (end_marker != DATA_END_MARKER) {
+			UE_LOG(LogTemp, Warning, TEXT("Broken data! - end marker is not found"));
+		}
 	}
 
 	//====================================================================================
