@@ -121,6 +121,7 @@ void ASandboxTerrainController::BeginPlay() {
 	//===========================
 	RegionIndexSet.Empty();
 	OnStartBuildTerrain();
+	bIsGeneratingTerrain = true;
 	LoadJson(RegionIndexSet);
 
 	// load initial region
@@ -161,6 +162,9 @@ void ASandboxTerrainController::BeginPlay() {
 		}
 
 		if (!bGenerateOnlySmallSpawnPoint) {
+			int Total = (TerrainSizeX * 2 + 1) + (TerrainSizeY * 2 + 1) + (TerrainSizeZ * 2 + 1);
+			int Progress = 0;
+
 			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
 				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
 					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
@@ -172,6 +176,12 @@ void ASandboxTerrainController::BeginPlay() {
 							SpawnZone(Pos);
 						}
 
+						Progress++;
+
+						GeneratingProgress = (float)Progress / (float)Total;
+						// must invoke in main thread
+						//OnProgressBuildTerrain(PercentProgress);
+
 						if (ThisThread.IsNotValid()) return;
 					}
 				}
@@ -179,6 +189,7 @@ void ASandboxTerrainController::BeginPlay() {
 		}
 
 		RunThread([&](FAsyncThread& ThisThread) {
+			bIsGeneratingTerrain = false;
 			OnFinishBuildTerrain();
 		});
 
@@ -232,6 +243,10 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 		} else {
 			It++;
 		}
+	}
+
+	if (bIsGeneratingTerrain) {
+		OnProgressBuildTerrain(GeneratingProgress);
 	}
 }
 

@@ -169,7 +169,7 @@ public:
 	void OnFinishBuildTerrain();
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
-	void OnProgressBuildTerrain(int Total, int Progress);
+	void OnProgressBuildTerrain(float Progress);
 
 	//========================================================================================
 	// materials
@@ -257,6 +257,10 @@ public:
 	void InvokeSafe(std::function<void()> Function);
 
 private:
+	volatile bool bIsGeneratingTerrain = false;
+
+	volatile float GeneratingProgress;
+
 	void Save();
 
 	void SaveJson(const TSet<FVector>& RegionPosSet);
