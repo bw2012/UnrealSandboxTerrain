@@ -466,6 +466,8 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 
 			BinaryData << Size;
 			Offset += BodyDataEntry.Num();
+
+			UE_LOG(LogTemp, Log, TEXT("save voxel data block -> %f %f %f"), Pos.X, Pos.Y, Pos.Z);
 		}
 
 		for (FVector& Pos : KeyArray) {
@@ -544,6 +546,8 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 		VdInfo.Vd = nullptr;
 
 		GetTerrainController()->RegisterTerrainVoxelData(VdInfo, GetTerrainController()->GetZoneIndex(ZonePos));
+
+		UE_LOG(LogTemp, Log, TEXT("register vd -> %f %f %f"), ZonePos.X, ZonePos.Y, ZonePos.Z);
 	}
 
 	VdBinaryDataStart = VdInFilePtr->tellg().seekpos();

@@ -307,12 +307,19 @@ void ASandboxTerrainController::Save() {
 		TSaveVdBuffer& SaveVdBuffer = Elem.Value;
 		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
+		UE_LOG(LogTemp, Warning, TEXT("try to save region ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+
 		// region can not exist in case of uninitialized voxeldata
 		// TODO refactor it
-		if (Region != nullptr && Region->IsChanged()) {
-			Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
-			Region->CloseRegionVdFile();
-			Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
+		if (Region != nullptr) {
+			if (Region->IsChanged())
+			{
+				Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
+				Region->CloseRegionVdFile();
+				Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
+			}
+		} else {
+			UE_LOG(LogTemp, Warning, TEXT("region not found ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 		}
 	}
 
@@ -457,6 +464,14 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 				OnLoadZone(Zone);
 			}
 		});
+	} else {
+		if (VoxelDataInfo.isNewGenerated()) {
+			InvokeSafe([=]() {
+				// just create region
+				UTerrainRegionComponent* Region = GetOrCreateRegion(Pos);
+				Region->SetChanged();
+			});
+		}
 	}
 }
 
@@ -982,7 +997,6 @@ void ASandboxTerrainController::generateTerrain(TVoxelData &voxel_data) {
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), voxel_data.getOrigin().X, voxel_data.getOrigin().Y, voxel_data.getOrigin().Z, time);
-
 }
 
 
