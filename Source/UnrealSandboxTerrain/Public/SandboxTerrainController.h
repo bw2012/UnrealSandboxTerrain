@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Engine.h"
-#include "SandboxVoxelGenerator.h"
 #include "TerrainGeneratorComponent.h"
 #include <memory>
 #include <queue>

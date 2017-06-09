@@ -23,14 +23,14 @@ public:
 public:
 	void GenerateVoxelTerrain(TVoxelData &VoxelData);
 
+	float GroundLevelFunc(FVector v);
+
 private:
 
 	ASandboxTerrainController* GetTerrainController() {
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
-
-	float GroundLevelFunc(FVector v);
-
+	
 	float ClcDensityByGroundLevel(FVector v);
 
 	float DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos);

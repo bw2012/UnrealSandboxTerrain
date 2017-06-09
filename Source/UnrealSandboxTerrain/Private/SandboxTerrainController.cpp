@@ -1033,11 +1033,9 @@ TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index)
 // Sandbox Foliage
 //======================================================================================================================================================================
 
-float groundLevel(FVector v);
-
 void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) {
 	if (FoliageMap.Num() == 0) return;
-	if (groundLevel(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
+	if (TerrainGeneratorComponent->GroundLevelFunc(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
 
 	FRandomStream rnd = FRandomStream();
 	rnd.Initialize(0);
