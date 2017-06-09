@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 #include "SandboxVoxelGenerator.h"
+#include "TerrainGeneratorComponent.h"
 #include <memory>
 #include <queue>
 #include <mutex>
@@ -248,8 +249,6 @@ public:
 	template<class H>
 	void PerformTerrainChange(FVector v, float radius, H handler);
 
-	virtual SandboxVoxelGenerator newTerrainGenerator(TVoxelData &voxel_data);
-
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
 	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
@@ -282,8 +281,6 @@ private:
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
 	TVoxelDataInfo FindOrCreateZoneVoxeldata(FVector location);
-
-	void generateTerrain(TVoxelData &voxel_data);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
@@ -351,10 +348,9 @@ private:
 
 protected:
 
-	virtual void OnLoadZoneProgress(int progress, int total);
-
-	virtual void OnLoadZoneListFinished();
-		
+	UPROPERTY()
+	UTerrainGeneratorComponent* TerrainGeneratorComponent;
+	
 	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
 
 	virtual void OnLoadZone(UTerrainZoneComponent* Zone);

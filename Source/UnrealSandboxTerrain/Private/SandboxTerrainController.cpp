@@ -82,6 +82,9 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	TerrainSizeY = 5;
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
+
+	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
+	TerrainGeneratorComponent->AttachTo(RootComponent);
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
@@ -91,6 +94,9 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	TerrainSizeY = 5;
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
+
+	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
+	TerrainGeneratorComponent->AttachTo(RootComponent);
 }
 
 void ASandboxTerrainController::PostLoad() {
@@ -433,10 +439,6 @@ void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
 		}
 	}
 }
-
-SandboxVoxelGenerator ASandboxTerrainController::newTerrainGenerator(TVoxelData &voxel_data) {
-	return SandboxVoxelGenerator(voxel_data, Seed);
-};
 
 void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 	if (IsInGameThread()) {
@@ -948,7 +950,7 @@ TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loca
 		Vd = new TVoxelData(Dim, 100 * 10);
 		Vd->setOrigin(Location);
 
-		generateTerrain(*Vd);
+		TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
 
 		ReturnVdInfo.DataState = TVoxelDataState::GENERATED;
 		ReturnVdInfo.Vd = Vd;
@@ -963,70 +965,6 @@ TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loca
 	double Time = (End - Start) * 1000;
 
 	return ReturnVdInfo;
-}
-
-void ASandboxTerrainController::generateTerrain(TVoxelData &voxel_data) {
-	double start = FPlatformTime::Seconds();
-	SandboxVoxelGenerator generator = newTerrainGenerator(voxel_data);
-
-	TSet<unsigned char> material_list;
-	int zc = 0; int fc = 0;
-
-	for (int x = 0; x < voxel_data.num(); x++) {
-		for (int y = 0; y < voxel_data.num(); y++) {
-			for (int z = 0; z < voxel_data.num(); z++) {
-				FVector local = voxel_data.voxelIndexToVector(x, y, z);
-				FVector world = local + voxel_data.getOrigin();
-
-				float den = generator.density(local, world);
-				unsigned char mat = generator.material(local, world);
-
-				voxel_data.setDensity(x, y, z, den);
-				voxel_data.setMaterial(x, y, z, mat);
-
-				voxel_data.performSubstanceCacheLOD(x, y, z);
-
-				if (den == 0) zc++;
-				if (den == 1) fc++;
-				material_list.Add(mat);
-			}
-		}
-	}
-
-	int s = voxel_data.num() * voxel_data.num() * voxel_data.num();
-
-	if (zc == s) {
-		voxel_data.deinitializeDensity(TVoxelDataFillState::ZERO);
-	}
-
-	if (fc == s) {
-		voxel_data.deinitializeDensity(TVoxelDataFillState::ALL);
-	}
-
-	if (material_list.Num() == 1) {
-		unsigned char base_mat = 0;
-		for (auto m : material_list) {
-			base_mat = m;
-			break;
-		}
-		voxel_data.deinitializeMaterial(base_mat);
-	}
-
-	voxel_data.setCacheToValid();
-
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), voxel_data.getOrigin().X, voxel_data.getOrigin().Y, voxel_data.getOrigin().Z, time);
-}
-
-
-void ASandboxTerrainController::OnLoadZoneProgress(int progress, int total) {
-
-}
-
-
-void ASandboxTerrainController::OnLoadZoneListFinished() {
-
 }
 
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {

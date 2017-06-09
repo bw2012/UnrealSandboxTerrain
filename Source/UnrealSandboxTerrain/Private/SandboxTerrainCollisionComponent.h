@@ -14,7 +14,7 @@
 
 
 struct TMeshData;
-class USandboxTerrainCollisionComponent;
+//class USandboxTerrainCollisionComponent;
 
 UCLASS()
 class UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataProvider {
