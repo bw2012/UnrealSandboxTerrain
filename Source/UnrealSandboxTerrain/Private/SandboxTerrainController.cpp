@@ -168,7 +168,7 @@ void ASandboxTerrainController::BeginPlay() {
 		}
 
 		if (!bGenerateOnlySmallSpawnPoint) {
-			int Total = (TerrainSizeX * 2 + 1) + (TerrainSizeY * 2 + 1) + (TerrainSizeZ * 2 + 1);
+			int Total = (TerrainSizeX * 2 + 1) * (TerrainSizeY * 2 + 1) * (TerrainSizeZ * 2 + 1);
 			int Progress = 0;
 
 			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
