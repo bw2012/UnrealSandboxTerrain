@@ -437,14 +437,15 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 
 		for (TVoxelData* Vd : VoxalDataArray) {
 			FVector Pos = Vd->getOrigin();
-			FBufferArchive& SaveEntry = VdSaveMap.FindOrAdd(Pos);
 
-			if (SaveEntry.Num() > 0) {
-				UE_LOG(LogTemp, Warning, TEXT("duplicate -> -> %f %f %f"), Pos.X, Pos.Y, Pos.Z);
-				continue;
-			}
+			// FindOrAdd works strange in UE4.16
+			// created FBufferArchive is very strange and throws runtime failure while << operator
+			//FBufferArchive& SaveEntry = VdSaveMap.FindOrAdd(Pos);
 
+			FBufferArchive SaveEntry;
 			serializeVoxelData(*Vd, SaveEntry);
+			VdSaveMap.Add(Pos, SaveEntry);
+			//UE_LOG(LogTemp, Log, TEXT("save voxel data block -> %f %f %f -> %d"), Pos.X, Pos.Y, Pos.Z, Buffer2.Num());
 		}
 
 		TArray<FVector> KeyArray;
@@ -467,7 +468,7 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 			BinaryData << Size;
 			Offset += BodyDataEntry.Num();
 
-			UE_LOG(LogTemp, Log, TEXT("save voxel data block -> %f %f %f"), Pos.X, Pos.Y, Pos.Z);
+			UE_LOG(LogTemp, Log, TEXT("save voxel data block -> %f %f %f -> %d"), Pos.X, Pos.Y, Pos.Z, Size);
 		}
 
 		for (FVector& Pos : KeyArray) {
