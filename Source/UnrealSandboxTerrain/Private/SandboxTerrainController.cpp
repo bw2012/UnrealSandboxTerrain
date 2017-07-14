@@ -1043,7 +1043,6 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 
 	static const float s = 500;
 	static const float step = 25;
-	float counter = 0;
 
 	for (auto x = -s; x <= s; x += step) {
 		for (auto y = -s; y <= s; y += step) {
@@ -1056,12 +1055,15 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 				int32 FoliageTypeId = Elem.Key;
 
 				float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-				if ((int)counter % (int)FoliageType.SpawnStep == 0) {
-					SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
+				if ((int)x % (int)FoliageType.SpawnStep == 0 || (int)y % (int)FoliageType.SpawnStep == 0) {
+					float Chance = rnd.FRandRange(0.f, 1.f);
+					if (Chance <= FoliageType.Probability) {
+						SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
+					}
 				}
 			}
 
-			counter += step;
+
 		}
 	}
 }

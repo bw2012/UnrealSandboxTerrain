@@ -83,6 +83,9 @@ struct FSandboxFoliage {
 	int32 SpawnStep = 25;
 
 	UPROPERTY(EditAnywhere)
+	float Probability = 1;
+
+	UPROPERTY(EditAnywhere)
 	int32 StartCullDistance = 100;
 
 	UPROPERTY(EditAnywhere)
