@@ -1037,8 +1037,13 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 	if (FoliageMap.Num() == 0) return;
 	if (TerrainGeneratorComponent->GroundLevelFunc(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
 
+	int32 Hash = 7;
+	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().X;
+	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Y;
+	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Z;
+
 	FRandomStream rnd = FRandomStream();
-	rnd.Initialize(0);
+	rnd.Initialize(Hash);
 	rnd.Reset();
 
 	static const float s = 500;
@@ -1054,10 +1059,11 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 				FSandboxFoliage FoliageType = Elem.Value;
 				int32 FoliageTypeId = Elem.Key;
 
-				float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-				if ((int)x % (int)FoliageType.SpawnStep == 0 || (int)y % (int)FoliageType.SpawnStep == 0) {
+				if ((int)x % (int)FoliageType.SpawnStep == 0 && (int)y % (int)FoliageType.SpawnStep == 0) {
+					//UE_LOG(LogTemp, Warning, TEXT("%d - %d"), (int)x, (int)y);
 					float Chance = rnd.FRandRange(0.f, 1.f);
 					if (Chance <= FoliageType.Probability) {
+						float r = std::sqrt(v.X * v.X + v.Y * v.Y);
 						SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
 					}
 				}
