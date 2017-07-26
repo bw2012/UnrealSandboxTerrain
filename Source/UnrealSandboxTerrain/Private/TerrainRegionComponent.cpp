@@ -521,13 +521,15 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 	int32 version = 0;
 	read(VdInFilePtr, version);
 
-	int32 HeaderEntriesNum;
+	int32 HeaderEntriesNum = 0;
 	read(VdInFilePtr, HeaderEntriesNum);
 
 	for (int32 Idx = 0; Idx < HeaderEntriesNum; Idx++) {
-		float X, Y, Z;
-		int64 Offset;
-		int64 Size;
+        float X = 0;
+        float Y = 0;
+        float Z = 0;
+		int64 Offset = 0;
+		int64 Size = 0;
 
 		read(VdInFilePtr, X);
 		read(VdInFilePtr, Y);
@@ -551,7 +553,8 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 		UE_LOG(LogTemp, Log, TEXT("register vd -> %f %f %f"), ZonePos.X, ZonePos.Y, ZonePos.Z);
 	}
 
-	VdBinaryDataStart = VdInFilePtr->tellg().seekpos();
+    VdBinaryDataStart = VdInFilePtr->tellg();
+	//VdBinaryDataStart = VdInFilePtr->tellg().seekpos();
 }
 
 void UTerrainRegionComponent::LoadVoxelByInnerPos(TVoxelDataFileBodyPos& BodyPos, TArray<uint8>& BinaryArray) {
