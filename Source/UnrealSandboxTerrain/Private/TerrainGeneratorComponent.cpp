@@ -20,6 +20,14 @@ FORCEINLINE void TZoneHeightMapData::SetHeightLevel(TVoxelIndex VoxelIndex, floa
     if(VoxelIndex.X < Size && VoxelIndex.Y < Size && VoxelIndex.Z < Size){
         int Index = VoxelIndex.X * Size * Size + VoxelIndex.Y * Size + VoxelIndex.Z;
         HeightLevelArray[Index] = HeightLevel;
+        
+        if(HeightLevel > this->MaxHeightLevel){
+            this->MaxHeightLevel = HeightLevel;
+        }
+        
+        if(HeightLevel < this->MinHeightLevel){
+            this->MinHeightLevel = HeightLevel;
+        }
     }
 }
 

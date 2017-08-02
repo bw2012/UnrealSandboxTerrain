@@ -44,6 +44,10 @@ private:
     
     float* HeightLevelArray;
     
+    float MaxHeightLevel;
+    
+    float MinHeightLevel;
+    
 public:
     
     TZoneHeightMapData(int size);
@@ -53,6 +57,10 @@ public:
     FORCEINLINE void SetHeightLevel(TVoxelIndex VoxelIndex, float HeightLevel);
     
     FORCEINLINE float GetDensity(TVoxelIndex VoxelIndex) const ;
+    
+    FORCEINLINE float GetMaxHeightLevel() const { return this->MaxHeightLevel; };
+    
+    FORCEINLINE float GetMinHeightLevel() const { return this->MinHeightLevel; };
 };
 
 
