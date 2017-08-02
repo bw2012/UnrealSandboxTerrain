@@ -7,6 +7,34 @@
 #include "SandboxTerrainController.h"
 
 
+TZoneHeightMapData::TZoneHeightMapData(int Size){
+    this->Size = Size;
+    HeightLevelArray = new float[Size * Size * Size];
+}
+
+TZoneHeightMapData::~TZoneHeightMapData(){
+    delete[] HeightLevelArray;
+}
+
+FORCEINLINE void TZoneHeightMapData::SetHeightLevel(TVoxelIndex VoxelIndex, float HeightLevel){
+    if(VoxelIndex.X < Size && VoxelIndex.Y < Size && VoxelIndex.Z < Size){
+        int Index = VoxelIndex.X * Size * Size + VoxelIndex.Y * Size + VoxelIndex.Z;
+        HeightLevelArray[Index] = HeightLevel;
+    }
+}
+
+FORCEINLINE float TZoneHeightMapData::GetDensity(TVoxelIndex VoxelIndex) const {
+    if(VoxelIndex.X < Size && VoxelIndex.Y < Size && VoxelIndex.Z < Size){
+        int Index = VoxelIndex.X * Size * Size + VoxelIndex.Y * Size + VoxelIndex.Z;
+        return HeightLevelArray[Index];
+    } else {
+        return 0;
+    }
+}
+
+
+
+
 usand::PerlinNoise Pn;
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
