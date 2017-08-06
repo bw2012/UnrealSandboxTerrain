@@ -6,6 +6,10 @@
 #include "SandboxPerlinNoise.h"
 #include "SandboxTerrainController.h"
 
+#define USBT_VGEN_GRADIENT_THRESHOLD	400
+#define USBT_VD_MIN_DENSITY				0.003	// minimal density = 1f/255
+
+
 
 TZoneHeightMapData::TZoneHeightMapData(int Size){
     this->Size = Size;
@@ -74,7 +78,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const
 				float den = ClcDensityByGroundLevel(WorldPos, GroundLevel);
 				//float den = DensityFunc(ZoneIndex, LocalPos, WorldPos);
 
-				unsigned char mat = MaterialFunc(LocalPos, WorldPos);
+				unsigned char mat = MaterialFunc(LocalPos, WorldPos, GroundLevel);
 
 				VoxelData.setDensity(x, y, z, den);
 				VoxelData.setMaterial(x, y, z, mat);
@@ -150,7 +154,7 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), VoxelData.getOrigin().X, VoxelData.getOrigin().Y, VoxelData.getOrigin().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), VoxelData.getOrigin().X, VoxelData.getOrigin().Y, VoxelData.getOrigin().Z, time);
 }
 
 
@@ -173,50 +177,50 @@ float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVector& v, const float gl) const {
 	float val = 1;
 
-	if (v.Z > gl + 400) {
-		val = 0;
-	}
-	else if (v.Z > gl) {
+	if (v.Z > gl + USBT_VGEN_GRADIENT_THRESHOLD) {
+		return 0;
+	} else if (v.Z > gl) {
 		float d = (1 / (v.Z - gl)) * 100;
 		val = d;
 	}
 
 	if (val > 1) {
-		val = 1;
+		return 1;
 	}
 
-	if (val < 0.003) { // minimal density = 1f/255
-		val = 0;
+	if (val < USBT_VD_MIN_DENSITY) { // minimal density = 1f/255
+		return 0;
 	}
 
 	return val;
 }
 
+/*
 float UTerrainGeneratorComponent::ClcDensityByGroundLevel(FVector v) {
 	float gl = GroundLevelFunc(v);
 	float val = 1;
 
-	if (v.Z > gl + 400) {
-		val = 0;
-	}
-	else if (v.Z > gl) {
+	if (v.Z > gl + USBT_VGEN_GRADIENT_THRESHOLD) {
+		return 0;
+	} else if (v.Z > gl) {
 		float d = (1 / (v.Z - gl)) * 100;
 		val = d;
 	}
 
 	if (val > 1) {
-		val = 1;
+		return 1;
 	}
 
-	if (val < 0.003) { // minimal density = 1f/255
-		val = 0;
+	if (val < USBT_VD_MIN_DENSITY) { // minimal density = 1f/255
+		return 0;
 	}
 
 	return val;
 }
+*/
 
 float UTerrainGeneratorComponent::DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos) {
-	float den = ClcDensityByGroundLevel(WorldPos);
+	//float den = ClcDensityByGroundLevel(WorldPos);
 
 	// ==============================================================
 	// cavern
@@ -226,14 +230,14 @@ float UTerrainGeneratorComponent::DensityFunc(const FVector& ZoneIndex, const FV
 	//}
 	// ==============================================================
 
-	return den;
+	return 0;
 }
 
-unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, const FVector& WorldPos) {
+unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, const float GroundLevel) {
 	FVector test = FVector(WorldPos);
 	test.Z += 30;
 
-	float densityUpper = ClcDensityByGroundLevel(test);
+	float densityUpper = ClcDensityByGroundLevel(test, GroundLevel);
 
 	unsigned char mat = 0;
 
