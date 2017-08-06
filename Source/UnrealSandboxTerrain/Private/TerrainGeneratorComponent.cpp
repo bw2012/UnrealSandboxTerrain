@@ -14,6 +14,8 @@ TZoneHeightMapData::TZoneHeightMapData(int Size){
 
 TZoneHeightMapData::~TZoneHeightMapData(){
     delete[] HeightLevelArray;
+
+	UE_LOG(LogTemp, Warning, TEXT("~TZoneHeightMapData()"));
 }
 
 FORCEINLINE void TZoneHeightMapData::SetHeightLevel(TVoxelIndex VoxelIndex, float HeightLevel){
@@ -31,7 +33,7 @@ FORCEINLINE void TZoneHeightMapData::SetHeightLevel(TVoxelIndex VoxelIndex, floa
     }
 }
 
-FORCEINLINE float TZoneHeightMapData::GetDensity(TVoxelIndex VoxelIndex) const {
+FORCEINLINE float TZoneHeightMapData::GetHeightLevel(TVoxelIndex VoxelIndex) const {
     if(VoxelIndex.X < Size && VoxelIndex.Y < Size && VoxelIndex.Z < Size){
         int Index = VoxelIndex.X * Size * Size + VoxelIndex.Y * Size + VoxelIndex.Z;
         return HeightLevelArray[Index];
@@ -42,17 +44,13 @@ FORCEINLINE float TZoneHeightMapData::GetDensity(TVoxelIndex VoxelIndex) const {
 
 
 
-
 usand::PerlinNoise Pn;
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
 }
 
-void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
-	double start = FPlatformTime::Seconds();
-
-	FVector ZoneIndex = GetTerrainController()->GetZoneIndex(VoxelData.getOrigin());
+void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData) {
 
 	TSet<unsigned char> material_list;
 	int zc = 0; int fc = 0;
@@ -63,7 +61,11 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 				FVector LocalPos = VoxelData.voxelIndexToVector(x, y, z);
 				FVector WorldPos = LocalPos + VoxelData.getOrigin();
 
-				float den = DensityFunc(ZoneIndex, LocalPos, WorldPos);
+				float GroundLevel = ZoneHeightMapData->GetHeightLevel(TVoxelIndex(x, y, 0));
+
+				float den = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+				//float den = DensityFunc(ZoneIndex, LocalPos, WorldPos);
+
 				unsigned char mat = MaterialFunc(LocalPos, WorldPos);
 
 				VoxelData.setDensity(x, y, z, den);
@@ -97,6 +99,45 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 		VoxelData.deinitializeMaterial(base_mat);
 	}
 
+}
+
+void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
+	double start = FPlatformTime::Seconds();
+
+	FVector ZoneIndex = GetTerrainController()->GetZoneIndex(VoxelData.getOrigin());
+
+	// get heightmap data
+	//======================================
+	TVoxelIndex Index2((int)ZoneIndex.X, (int)ZoneIndex.Y, 0);
+	TZoneHeightMapData* ZoneHeightMapData = nullptr;
+
+	if (ZoneHeightMapCollection.find(Index2) == ZoneHeightMapCollection.end()) {
+		ZoneHeightMapData = new TZoneHeightMapData(VoxelData.num()); 
+		ZoneHeightMapCollection.insert({ Index2, ZoneHeightMapData });
+
+		for (int X = 0; X < VoxelData.num(); X++) {
+			for (int Y = 0; Y < VoxelData.num(); Y++) {
+				FVector LocalPos = VoxelData.voxelIndexToVector(X, Y, 0);
+				FVector WorldPos = LocalPos + VoxelData.getOrigin();
+
+				float GroundLevel = GroundLevelFunc(WorldPos);
+				ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
+			}
+		}
+
+	} else {
+		ZoneHeightMapData = ZoneHeightMapCollection[Index2];
+	}
+
+	//======================================
+
+	if (!(ZoneHeightMapData->GetMaxHeightLevel() < VoxelData.getOrigin().Z - 500.f)) {
+		GenerateZoneVolume(VoxelData, ZoneHeightMapData);
+	} else {
+		VoxelData.deinitializeDensity(TVoxelDataFillState::ZERO);
+		VoxelData.deinitializeMaterial(0);
+	}
+		
 	VoxelData.setCacheToValid();
 
 	double end = FPlatformTime::Seconds();
@@ -119,6 +160,28 @@ float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 	gl = gl * 100;
 
 	return gl;
+}
+
+float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVector& v, const float gl) const {
+	float val = 1;
+
+	if (v.Z > gl + 400) {
+		val = 0;
+	}
+	else if (v.Z > gl) {
+		float d = (1 / (v.Z - gl)) * 100;
+		val = d;
+	}
+
+	if (val > 1) {
+		val = 1;
+	}
+
+	if (val < 0.003) { // minimal density = 1f/255
+		val = 0;
+	}
+
+	return val;
 }
 
 float UTerrainGeneratorComponent::ClcDensityByGroundLevel(FVector v) {

@@ -225,6 +225,10 @@ public:
 
 	//========================================================================================
 	
+	//static bool CheckZoneBounds(FVector Origin, float Size);
+
+	//========================================================================================
+
 	void DigTerrainRoundHole(FVector v, float radius, float s);
 
 	void DigTerrainCubeHole(FVector origin, float r, float strength);
