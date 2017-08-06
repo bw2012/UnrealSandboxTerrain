@@ -549,8 +549,6 @@ void UTerrainRegionComponent::OpenRegionVdFile() {
 		VdInfo.Vd = nullptr;
 
 		GetTerrainController()->RegisterTerrainVoxelData(VdInfo, GetTerrainController()->GetZoneIndex(ZonePos));
-
-		UE_LOG(LogTemp, Log, TEXT("register vd -> %f %f %f"), ZonePos.X, ZonePos.Y, ZonePos.Z);
 	}
 
     VdBinaryDataStart = VdInFilePtr->tellg();
