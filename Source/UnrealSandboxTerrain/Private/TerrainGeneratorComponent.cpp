@@ -14,8 +14,6 @@ TZoneHeightMapData::TZoneHeightMapData(int Size){
 
 TZoneHeightMapData::~TZoneHeightMapData(){
     delete[] HeightLevelArray;
-
-	UE_LOG(LogTemp, Warning, TEXT("~TZoneHeightMapData()"));
 }
 
 FORCEINLINE void TZoneHeightMapData::SetHeightLevel(TVoxelIndex VoxelIndex, float HeightLevel){
@@ -48,6 +46,16 @@ usand::PerlinNoise Pn;
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
+}
+
+void UTerrainGeneratorComponent::BeginDestroy() {
+	Super::BeginDestroy();
+
+	for (std::unordered_map<TVoxelIndex, TZoneHeightMapData*>::iterator It = ZoneHeightMapCollection.begin(); It != ZoneHeightMapCollection.end(); ++It) {
+		delete It->second;
+	}
+
+	ZoneHeightMapCollection.clear();
 }
 
 void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData) {

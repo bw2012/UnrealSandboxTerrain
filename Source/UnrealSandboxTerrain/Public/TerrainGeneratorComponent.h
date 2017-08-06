@@ -76,7 +76,7 @@ class UNREALSANDBOXTERRAIN_API UTerrainGeneratorComponent : public USceneCompone
 	GENERATED_UCLASS_BODY()
 
 public:
-
+	virtual void BeginDestroy();
 
 public:
 	void GenerateVoxelTerrain (TVoxelData &VoxelData);
