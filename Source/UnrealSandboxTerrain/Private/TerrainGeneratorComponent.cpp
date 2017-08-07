@@ -143,7 +143,9 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 
 	//======================================
 
-	if (!(ZoneHeightMapData->GetMaxHeightLevel() < VoxelData.getOrigin().Z - 500.f)) {
+	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
+
+	if (!(ZoneHeightMapData->GetMaxHeightLevel() < VoxelData.getOrigin().Z - ZoneHalfSize)) {
 		GenerateZoneVolume(VoxelData, ZoneHeightMapData);
 	} else {
 		VoxelData.deinitializeDensity(TVoxelDataFillState::ZERO);

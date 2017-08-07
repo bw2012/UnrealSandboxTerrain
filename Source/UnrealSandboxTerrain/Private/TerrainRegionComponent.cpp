@@ -165,7 +165,6 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			if (LodIdx > 0) {
 				for (auto i = 0; i < 6; i++) {
 					DeserializeMeshContainer(BinaryData, MeshDataPtr.get()->MeshSectionLodArray[LodIndex].TransitionPatchArray[i]);
-					//SerializeMeshContainer(BinaryData, LodSection.TransitionPatchArray[i]);
 				}
 			}
 		}
@@ -203,7 +202,7 @@ void UTerrainRegionComponent::DeserializeRegionVoxelData(FMemoryReader& BinaryDa
 		BinaryData << VoxelDataOrigin.Y;
 		BinaryData << VoxelDataOrigin.Z;
 
-		TVoxelData* Vd = new TVoxelData(65, 100 * 10);
+		TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 		FVector VoxelDataIndex = GetTerrainController()->GetZoneIndex(VoxelDataOrigin);
 
 		Vd->setOrigin(VoxelDataOrigin);
@@ -382,8 +381,13 @@ void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)
 		FString::FromInt(tx) + TEXT(".") + FString::FromInt(ty) + TEXT(".") + FString::FromInt(tz) + TEXT(".") + FileExt;
 
 	TArray<uint8> BinaryArray;
+
+	if (!FPaths::FileExists(FileName)) {
+		return;
+	}
+
 	if (!FFileHelper::LoadFileToArray(BinaryArray, *FileName)) {
-		UE_LOG(LogTemp, Warning, TEXT("File not found -> %s"), *FileName);
+		//UE_LOG(LogTemp, Warning, TEXT("File not found -> %s"), *FileName);
 		return;
 	}
 
@@ -468,7 +472,7 @@ void UTerrainRegionComponent::SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray
 			BinaryData << Size;
 			Offset += BodyDataEntry.Num();
 
-			UE_LOG(LogTemp, Log, TEXT("save voxel data block -> %f %f %f -> %d"), Pos.X, Pos.Y, Pos.Z, Size);
+			//UE_LOG(LogTemp, Log, TEXT("save voxel data block -> %f %f %f -> %d"), Pos.X, Pos.Y, Pos.Z, Size);
 		}
 
 		for (FVector& Pos : KeyArray) {
@@ -588,7 +592,7 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 		FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 		BinaryData.Seek(0);
 
-		TVoxelData* Vd = new TVoxelData(65, 100 * 10);
+		TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 		Vd->setOrigin(VoxelDataOrigin);
 
 		deserializeVoxelData(*Vd, BinaryData);
@@ -604,7 +608,7 @@ TVoxelData* UTerrainRegionComponent::LoadVoxelDataByZoneIndex(FVector Index) {
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
 
-		UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %f %f %f -> %f ms"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z, Time);
+		//UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %f %f %f -> %f ms"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z, Time);
 		return Vd;
 	}
 
@@ -628,7 +632,7 @@ void UTerrainRegionComponent::LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArra
 			FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 			BinaryData.Seek(0);
 
-			TVoxelData* Vd = new TVoxelData(65, 100 * 10);
+			TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 			Vd->setOrigin(VoxelDataOrigin);
 
 			deserializeVoxelData(*Vd, BinaryData);
@@ -640,7 +644,7 @@ void UTerrainRegionComponent::LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArra
 			GetTerrainController()->RegisterTerrainVoxelData(VdInfo, GetTerrainController()->GetZoneIndex(VoxelDataOrigin));
 			LoadedVdArray.Add(Vd);
 
-			UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
+			//UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %f %f %f"), VoxelDataOrigin.X, VoxelDataOrigin.Y, VoxelDataOrigin.Z);
 			BodyPos.bIsLoaded = true;
 		}
 	}
