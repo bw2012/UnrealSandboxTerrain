@@ -218,10 +218,12 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	Save();
 
-	// clean region mesh data cache
+	// clean region mesh data cache and close vd file
 	for (auto& Elem : TerrainRegionMap) {
 		UTerrainRegionComponent* Region = Elem.Value;
+
 		Region->CleanMeshDataCache();
+		Region->CloseRegionVdFile();
 	}
 
 	TerrainZoneMap.Empty();
@@ -341,11 +343,6 @@ void ASandboxTerrainController::Save() {
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
-
-	for (auto& Elem : TerrainRegionMap) {
-		UTerrainRegionComponent* Region = Elem.Value;
-		Region->CloseRegionVdFile();
-	}
 }
 
 
