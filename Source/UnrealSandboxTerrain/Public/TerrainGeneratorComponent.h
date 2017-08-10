@@ -93,11 +93,11 @@ private:
 	
 	float ClcDensityByGroundLevel(const FVector& v, const float gl) const;
 
-	float ClcDensityByGroundLevel(FVector v);
+	//float ClcDensityByGroundLevel(FVector v);
 
 	float DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos);
 
-	unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos);
+	unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, const float GroundLevel);
 
 	void GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData);
 };
