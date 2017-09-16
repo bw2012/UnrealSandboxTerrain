@@ -218,10 +218,12 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	Save();
 
-	// clean region mesh data cache
+	// clean region mesh data cache and close vd file
 	for (auto& Elem : TerrainRegionMap) {
 		UTerrainRegionComponent* Region = Elem.Value;
+
 		Region->CleanMeshDataCache();
+		Region->CloseRegionVdFile();
 	}
 
 	TerrainZoneMap.Empty();
@@ -316,8 +318,6 @@ void ASandboxTerrainController::Save() {
 		TSaveBuffer& SaveBuffer = Elem.Value;
 		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-		// region can not exist in case of uninitialized voxeldata
-		// TODO refactor it
 		if (Region != nullptr && Region->IsChanged()){
 			Region->SaveFile(SaveBuffer.ZoneArray);
 		}
@@ -328,29 +328,21 @@ void ASandboxTerrainController::Save() {
 		TSaveVdBuffer& SaveVdBuffer = Elem.Value;
 		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
-		UE_LOG(LogTemp, Warning, TEXT("try to save region ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+		//UE_LOG(LogTemp, Warning, TEXT("try to save region ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 
-		// region can not exist in case of uninitialized voxeldata
-		// TODO refactor it
 		if (Region != nullptr) {
-			if (Region->IsChanged())
-			{
+			if (Region->IsChanged()) {
 				Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
 				Region->CloseRegionVdFile();
 				Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
 			}
 		} else {
-			UE_LOG(LogTemp, Warning, TEXT("region not found ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+			UE_LOG(LogTemp, Warning, TEXT("ERROR: region not found ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 		}
 	}
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
-
-	for (auto& Elem : TerrainRegionMap) {
-		UTerrainRegionComponent* Region = Elem.Value;
-		Region->CloseRegionVdFile();
-	}
 }
 
 
@@ -511,7 +503,7 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 		for (auto x = -s; x <= s; x++) {
 			for (auto y = -s; y <= s; y++) {
 				for (auto z = -s; z <= s; z++) {
-					FVector Pos = FVector((float)(x * 1000), (float)(y * 1000), (float)(z * 1000));
+					FVector Pos = FVector((float)(x * USBT_ZONE_SIZE), (float)(y * USBT_ZONE_SIZE), (float)(z * USBT_ZONE_SIZE));
 					SpawnZone(Pos);
 					InitialZoneSet.Add(Pos);
 				}
@@ -531,11 +523,11 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 }
 
 FVector ASandboxTerrainController::GetRegionIndex(FVector v) {
-	return sandboxGridIndex(v, 9000);
+	return sandboxGridIndex(v, USBT_REGION_SIZE);
 }
 
 FVector ASandboxTerrainController::GetRegionPos(FVector Index) {
-	return FVector(Index.X * 9000, Index.Y * 9000, Index.Z * 9000);
+	return FVector(Index.X * USBT_REGION_SIZE, Index.Y * USBT_REGION_SIZE, Index.Z * USBT_REGION_SIZE);
 }
 
 UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVector index) {
@@ -547,11 +539,11 @@ UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVect
 }
 
 FVector ASandboxTerrainController::GetZoneIndex(FVector v) {
-	return sandboxGridIndex(v, 1000);
+	return sandboxGridIndex(v, USBT_ZONE_SIZE);
 }
 
 FVector ASandboxTerrainController::GetZonePos(FVector Index) {
-	return FVector(Index.X * 1000, Index.Y * 1000, Index.Z * 1000);
+	return FVector(Index.X * USBT_ZONE_SIZE, Index.Y * USBT_ZONE_SIZE, Index.Z * USBT_ZONE_SIZE);
 }
 
 UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(FVector index) {
@@ -576,7 +568,7 @@ UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector po
 		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
 
 		//if (bShowZoneBounds) 
-			DrawDebugBox(GetWorld(), GetRegionPos(RegionIndex), FVector(4500), FColor(255, 0, 255, 100), true);
+			DrawDebugBox(GetWorld(), GetRegionPos(RegionIndex), FVector(USBT_REGION_SIZE / 2), FColor(255, 0, 255, 100), true);
 	}
 
 	return RegionComponent;
@@ -614,7 +606,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 
 	TerrainZoneMap.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
 
-	if(bShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(500), FColor(255, 0, 0, 100), true);
+	if(bShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
 
 	return ZoneComponent;
 }
@@ -816,7 +808,7 @@ template<class H>
 void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) {
 	double Start = FPlatformTime::Seconds();
 
-	static float ZoneVolumeSize = 100 * 10 / 2;
+	static float ZoneVolumeSize = USBT_ZONE_SIZE / 2;
 
 	FVector BaseZoneIndex = GetZoneIndex(v);
 
@@ -902,7 +894,7 @@ void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone,
 void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 	TerrainControllerTask Task;
 
-	FVector Pos = FVector((float)(ZoneIndex.X * 1000), (float)(ZoneIndex.Y * 1000), (float)(ZoneIndex.Z * 1000));
+	FVector Pos = GetZonePos(ZoneIndex);
 	TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
 
 	if (VoxelData == nullptr) {
@@ -946,8 +938,7 @@ TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loca
 		ReturnVdInfo = VdInfo;
 	} else {
 		// not found - generate new
-		static const int Dim = 65;
-		Vd = new TVoxelData(Dim, 100 * 10);
+		Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 		Vd->setOrigin(Location);
 
 		TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
@@ -1046,8 +1037,8 @@ void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) 
 	rnd.Initialize(Hash);
 	rnd.Reset();
 
-	static const float s = 500;
-	static const float step = 25;
+	static const float s = USBT_ZONE_SIZE / 2;
+	static const float step = 25.f;
 
 	for (auto x = -s; x <= s; x += step) {
 		for (auto y = -s; y <= s; y += step) {
@@ -1081,8 +1072,8 @@ void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliag
 		float oy = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) oy = -oy; v.Y += oy;
 	}
 
-	const FVector start_trace(v.X, v.Y, v.Z + 500);
-	const FVector end_trace(v.X, v.Y, v.Z - 500);
+	const FVector start_trace(v.X, v.Y, v.Z + USBT_ZONE_SIZE / 2);
+	const FVector end_trace(v.X, v.Y, v.Z - USBT_ZONE_SIZE / 2);
 
 	FHitResult hit(ForceInit);
 	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
