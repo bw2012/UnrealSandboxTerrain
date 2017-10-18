@@ -70,7 +70,7 @@ public:
 	/** Local bounding box of section */
 	FBox SectionLocalBox;
 
-	FProcMeshSection() : SectionLocalBox(0)	{ }
+	FProcMeshSection() : SectionLocalBox(EForceInit::ForceInitToZero)	{ }
 
 	/** Reset this section, clear all mesh info. */
 	void Reset() {

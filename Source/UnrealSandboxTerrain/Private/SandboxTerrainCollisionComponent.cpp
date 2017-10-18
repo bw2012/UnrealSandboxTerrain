@@ -124,7 +124,7 @@ void USandboxTerrainCollisionComponent::SetCollisionConvexMeshes(const TArray< T
 
 
 void USandboxTerrainCollisionComponent::UpdateLocalBounds() {
-	FBox LocalBox(0);
+	FBox LocalBox(EForceInit::ForceInitToZero);
 
 	if (!this->mesh_data_ptr) {
 		return;
