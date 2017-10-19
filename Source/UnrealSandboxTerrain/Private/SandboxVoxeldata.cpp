@@ -726,32 +726,29 @@ private:
 			}
 		}
 
-		FORCEINLINE void addTriangleGeneral(TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
-			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
-
-			addVertexGeneral(tmp1, n);
-			addVertexGeneral(tmp2, n);
-			addVertexGeneral(tmp3, n);
-
-			triangleCount++;
-		}
-
-		FORCEINLINE void addTriangleMat(unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
-			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
-
-			addVertexMat(matId, tmp1, n);
-			addVertexMat(matId, tmp2, n);
-			addVertexMat(matId, tmp3, n);
+		// general mesh without material. used for collision only
+		FORCEINLINE void addTriangleGeneral(const FVector& normal, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			addVertexGeneral(tmp1, normal);
+			addVertexGeneral(tmp2, normal);
+			addVertexGeneral(tmp3, normal);
 
 			triangleCount++;
 		}
 
-		FORCEINLINE void addTriangleMatTransition(std::set<unsigned short>& materialIdSet, unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
-			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+		// usual mesh with one material
+		FORCEINLINE void addTriangleMat(const FVector& normal, unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			addVertexMat(matId, tmp1, normal);
+			addVertexMat(matId, tmp2, normal);
+			addVertexMat(matId, tmp3, normal);
 
-			addVertexMatTransition(materialIdSet, matId, tmp1, n);
-			addVertexMatTransition(materialIdSet, matId, tmp2, n);
-			addVertexMatTransition(materialIdSet, matId, tmp3, n);
+			triangleCount++;
+		}
+
+		// transitional mesh between two or more meshes with different material
+		FORCEINLINE void addTriangleMatTransition(const FVector& normal, std::set<unsigned short>& materialIdSet, unsigned short matId, TmpPoint &tmp1, TmpPoint &tmp2, TmpPoint &tmp3) {
+			addVertexMatTransition(materialIdSet, matId, tmp1, normal);
+			addVertexMatTransition(materialIdSet, matId, tmp2, normal);
+			addVertexMatTransition(materialIdSet, matId, tmp3, normal);
 
 			triangleCount++;
 		}
@@ -965,17 +962,20 @@ private:
 			TmpPoint tmp2 = vertexList[cd.vertexIndex[i + 1]];
 			TmpPoint tmp3 = vertexList[cd.vertexIndex[i + 2]];
 
+			// calculate normal
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
 			// add to whole mesh
-			mainMeshHandler->addTriangleGeneral(tmp1, tmp2, tmp3);
+			mainMeshHandler->addTriangleGeneral(n, tmp1, tmp2, tmp3);
 
 			if (isTransitionMaterialSection) {
 				// add transition material section
-				mainMeshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
+				mainMeshHandler->addTriangleMatTransition(n, materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
 			} else {
 				// always one iteration
 				for (unsigned short matId : materialIdSet) {
 					// add regular material section
-					mainMeshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+					mainMeshHandler->addTriangleMat(n, matId, tmp1, tmp2, tmp3);
 				}
 			}
 		}
@@ -1063,21 +1063,24 @@ private:
 
 			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
 
+			// calculate normal
+			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
 			if (isTransitionMaterialSection) {
 				// add transition material section
 				if (inverse) {
-					meshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp3, tmp2, tmp1);
+					meshHandler->addTriangleMatTransition(n, materialIdSet, transitionMatId, tmp3, tmp2, tmp1);
 				} else {
-					meshHandler->addTriangleMatTransition(materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
+					meshHandler->addTriangleMatTransition(n, materialIdSet, transitionMatId, tmp1, tmp2, tmp3);
 				}
 			} else {
 				// always one iteration
 				for (unsigned short matId : materialIdSet) {
 					// add regular material section
 					if (inverse) {
-						meshHandler->addTriangleMat(matId, tmp3, tmp2, tmp1);
+						meshHandler->addTriangleMat(n, matId, tmp3, tmp2, tmp1);
 					} else {
-						meshHandler->addTriangleMat(matId, tmp1, tmp2, tmp3);
+						meshHandler->addTriangleMat(n, matId, tmp1, tmp2, tmp3);
 					}
 				}
 			}
