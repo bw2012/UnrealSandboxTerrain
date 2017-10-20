@@ -555,7 +555,7 @@ private:
 
 		int vertexGeneralIndex = 0;
 
-		//TMap<FVector, int> VertexMap;
+	public:
 
 		struct VertexInfo {
 			FVector normal;
@@ -568,12 +568,12 @@ private:
 
 		TMap<FVector, VertexInfo> vertexInfoMap;
 
-	public:
 		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMeshContainer* mc) :
 			extractor(e), generalMeshSection(s), meshMatContainer(mc) {
 			materialSectionMapPtr = &meshMatContainer->MaterialSectionMap;
 			materialTransitionSectionMapPtr = &meshMatContainer->MaterialTransitionSectionMap;
 		}
+
 
 	private:
 
@@ -636,6 +636,7 @@ private:
 				Vertex.UV0 = FVector2D(0.f, 0.f);
 				Vertex.Color = FColor(0, 0, 0, 0);
 				Vertex.Tangent = FProcMeshTangent();
+				Vertex.Tangent.TangentX = FVector(-1, 0, 0); // i dunno how it works but ugly seams between zones are gone. may be someone someday explain me it. lol
 
 				matSectionRef.MaterialMesh.AddVertex(Vertex);
 
@@ -676,6 +677,7 @@ private:
 				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
 				Vertex.Tangent = FProcMeshTangent();
+				Vertex.Tangent.TangentX = FVector(-1, 0, 0); // i dunno how it works but ugly seams between zones are gone. may be someone someday explain me it. kek
 
 				int i = 0;
 				int test = -1;
@@ -1064,7 +1066,18 @@ private:
 			MeshHandler* meshHandler = transitionHandlerArray[sectionNumber];
 
 			// calculate normal
-			const FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+			FVector n = -clcNormal(tmp1.v, tmp2.v, tmp3.v);
+
+			if(mainMeshHandler->vertexInfoMap.Contains(tmp1.v)) {
+				MeshHandler::VertexInfo& vertexInfo = mainMeshHandler->vertexInfoMap.FindOrAdd(tmp1.v);
+				n = vertexInfo.normal;
+			} else if (mainMeshHandler->vertexInfoMap.Contains(tmp2.v)) {
+				MeshHandler::VertexInfo& vertexInfo = mainMeshHandler->vertexInfoMap.FindOrAdd(tmp2.v);
+				n = vertexInfo.normal;
+			} else if (mainMeshHandler->vertexInfoMap.Contains(tmp3.v)) {
+				MeshHandler::VertexInfo& vertexInfo = mainMeshHandler->vertexInfoMap.FindOrAdd(tmp3.v);
+				n = vertexInfo.normal;
+			}
 
 			if (isTransitionMaterialSection) {
 				// add transition material section
