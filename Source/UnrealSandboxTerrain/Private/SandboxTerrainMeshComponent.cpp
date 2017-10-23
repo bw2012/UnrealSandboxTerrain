@@ -304,35 +304,18 @@ public:
 			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
 				[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 
-			//if (SectionIdx > 0) 
-			{
-				for (auto i = 0; i < 6; i++) {
-					// copy regular material mesh
-					TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
-					CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->NormalPatchPtrArray[i],
-						[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); });
+			for (auto i = 0; i < 6; i++) {
+				// copy regular material mesh
+				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
+				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->NormalPatchPtrArray[i],
+					[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); });
 
-					// copy transition material mesh
-					TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
-					CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
-						[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
-				}
-
-				// copy transition lod section
-				/*
-				FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[0];
-				for (auto i = 0; i < 6; i++) {
-					FProcMeshSection& SrcTransitionSection = Component->MeshSectionLodArray[SectionIdx].transitionMeshArray[i];
-
-					if (SrcTransitionSection.ProcIndexBuffer.Num() > 0 && SrcTransitionSection.ProcVertexBuffer.Num() > 0) {
-						NewLodSection->transitionMesh[i] = new FProcMeshProxySection();
-						CopySection(SrcTransitionSection, NewLodSection->transitionMesh[i], Component);
-					}
-				}
-				*/
-
+				// copy transition material mesh
+				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
+				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
+					[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 			}
-
+			
 			// Save ref to new section
 			LodSectionArray[SectionIdx] = NewLodSection;
 		}
@@ -458,46 +441,20 @@ public:
 					
 					if (LodIndex > 0) {
 						// draw transition patches
-						/*
 						for (auto i = 0; i < 6; i++) {
-							const FProcMeshProxySection* TransitionSection = LodSectionArray[LodIndex]->transitionMesh[i];
+							const FVector  NeighborZoneOrigin = ZoneOrigin + V[i];
+							const int NeighborLodIndex = GetLodIndex(NeighborZoneOrigin, View->ViewMatrices.GetViewOrigin());
 
-							if (TransitionSection != nullptr) {
-								FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : TransitionSection->Material->GetRenderProxy(IsSelected());
-								DrawSection(TransitionSection, Collector, MaterialProxy, bWireframe, ViewIndex);
-							}
-						}
-						*/
-
-						// draw transition patches
-						for (auto i = 0; i < 6; i++) {
-							FVector ooo = ZoneOrigin;
-
-							if(!(ooo.X == 0 && ooo.Y == 0 && ooo.Z == 0)) {
-								//break;
-							}
-
-							FVector test = ZoneOrigin + V[i];
-							const int NeighborLodIndex = GetLodIndex(test, View->ViewMatrices.GetViewOrigin());
-
-							/*
-							UE_LOG(LogTemp, Warning, TEXT("test -> %f %f %f -> %d -> %f %f %f -> %d %d"), ZoneOrigin.X, ZoneOrigin.Y, ZoneOrigin.Z, i,
-								test.X, test.Y, test.Z, LodIndex, NeighborLodIndex);
-								*/
-
-							//if (NeighborLodIndex == LodIndex) {
+							if (NeighborLodIndex != LodIndex) {
 								for (FProcMeshProxySection* MatSection : LodSectionProxy->NormalPatchPtrArray[i]) {
 									if (MatSection != nullptr &&  MatSection->Material != nullptr) {
 										FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
 										DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 									}
 								}
-							//}
+							}
 						}
-
-
 					}
-
 				}
 			}
 		}
@@ -665,10 +622,7 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 			}
 
 			if (bLodFlag) {
-
 				for (auto i = 0; i < 6; i++) {
-					//UE_LOG(LogTemp, Warning, TEXT("test -> %d -> %d -> %d"), i, sectionLOD.TransitionPatchArray[i].MaterialSectionMap.Num(), sectionLOD.TransitionPatchArray[i].MaterialTransitionSectionMap.Num());
-
 					MeshSectionLodArray[lodIndex].TransitionPatchArray[i].MaterialSectionMap = sectionLOD.TransitionPatchArray[i].MaterialSectionMap;
 					MeshSectionLodArray[lodIndex].TransitionPatchArray[i].MaterialTransitionSectionMap = sectionLOD.TransitionPatchArray[i].MaterialTransitionSectionMap;
 				}
