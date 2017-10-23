@@ -668,8 +668,7 @@ private:
 				// just get vertex index and put to index buffer
 				int32 vertexIndex = vertexInfo.indexInMaterialTransitionSectionMap[matId];
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(vertexIndex);
-			}
-			else { // vertex not exist in mat section
+			} else { // vertex not exist in mat section
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
 
 				FProcMeshVertex Vertex;
