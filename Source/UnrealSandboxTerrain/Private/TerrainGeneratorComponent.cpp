@@ -79,9 +79,10 @@ void UTerrainGeneratorComponent::BeginDestroy() {
 }
 
 void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData) {
-
 	TSet<unsigned char> material_list;
 	int zc = 0; int fc = 0;
+
+	bool bIsBounds = !MaxTerrainBounds.IsZero();
 
 	for (int x = 0; x < VoxelData.num(); x++) {
 		for (int y = 0; y < VoxelData.num(); y++) {
@@ -91,19 +92,25 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const
 
 				float GroundLevel = ZoneHeightMapData->GetHeightLevel(TVoxelIndex(x, y, 0));
 
-				float den = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+				float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
 				//float den = DensityFunc(ZoneIndex, LocalPos, WorldPos);
 
-				unsigned char mat = MaterialFunc(LocalPos, WorldPos, GroundLevel);
+				unsigned char MaterialId = MaterialFunc(LocalPos, WorldPos, GroundLevel);
 
-				VoxelData.setDensity(x, y, z, den);
-				VoxelData.setMaterial(x, y, z, mat);
+				if (bIsBounds){
+					if (WorldPos.X > MaxTerrainBounds.X || WorldPos.X < -MaxTerrainBounds.X){
+						Density = 0;
+					}
+				}
+
+				VoxelData.setDensity(x, y, z, Density);
+				VoxelData.setMaterial(x, y, z, MaterialId);
 
 				VoxelData.performSubstanceCacheLOD(x, y, z);
 
-				if (den == 0) zc++;
-				if (den == 1) fc++;
-				material_list.Add(mat);
+				if (Density == 0) zc++;
+				if (Density == 1) fc++;
+				material_list.Add(MaterialId);
 			}
 		}
 	}

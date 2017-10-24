@@ -168,6 +168,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
+	UPROPERTY(EditAnywhere)
+	UTerrainGeneratorComponent* TerrainGeneratorComponent;
+
 	//========================================================================================
 	// 
 	//========================================================================================

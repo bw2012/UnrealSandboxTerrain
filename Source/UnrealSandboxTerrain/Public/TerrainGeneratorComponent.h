@@ -70,6 +70,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Generator")
 	TArray<FTerrainUndergroundLayer> UndergroundLayers;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	FVector MaxTerrainBounds;
+
 	void GenerateVoxelTerrain (TVoxelData &VoxelData);
 
 	float GroundLevelFunc(FVector v);
