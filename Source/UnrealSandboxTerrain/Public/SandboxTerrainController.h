@@ -7,6 +7,9 @@
 #include <mutex>
 #include <set>
 #include <list>
+#include <unordered_map>
+#include "VoxelIndex.h"
+#include "kvdb.h"
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
@@ -290,6 +293,10 @@ private:
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
+	//===============================================================================
+	// async tasks
+	//===============================================================================
+
 	void InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 
 	void InvokeLazyZoneAsync(FVector index);
@@ -304,9 +311,23 @@ private:
 
 	std::queue<TerrainControllerTask> AsyncTaskList;
 
+	std::mutex ThreadListMutex;
+
+	std::list<FAsyncThread*> ThreadList;
+
+	void RunThread(std::function<void(FAsyncThread&)> Function);
+
+	//===============================================================================
+	// voxel data storage
+	//===============================================================================
+
+	kvdb::KvFile<TVoxelIndex, TValueData> VdFile;
+
 	std::mutex VoxelDataMapMutex;
 
 	TMap<FVector, TVoxelDataInfo> VoxelDataMap;
+
+	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
 
 	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index);
 
@@ -314,11 +335,13 @@ private:
 
 	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
 
-	std::mutex ThreadListMutex;
+	bool HasVoxelData(const FVector& Index) const;
 
-	std::list<FAsyncThread*> ThreadList;
+	TVoxelDataInfo& GetVoxelDataInfo(const FVector& Index);
 
-	void RunThread(std::function<void(FAsyncThread&)> Function);
+	void ClearVoxelData();
+
+	std::shared_ptr<TVoxelData> LoadVoxelDataByIndex(TVoxelIndex Index);
 
 	//===============================================================================
 	// foliage
