@@ -323,11 +323,12 @@ void ASandboxTerrainController::Save() {
 
 		FVector VecIndex = GetZoneIndex(VdInfo.Vd->getOrigin());
 		TVoxelIndex Index(VecIndex.X, VecIndex.Y, VecIndex.Z);
-		VdFile.put(Index, buffer);
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("save voxel data ----> %d %d %d"), Index.X, Index.Y, Index.Z);
 
-		//test.insert({TVoxelIndex(Index.X, Index.Y, Index.Z), buffer });
-		//============================================
+		if (VdInfo.Vd->isChanged()) {
+			VdFile.put(Index, buffer);
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("save voxel data ----> %d %d %d"), Index.X, Index.Y, Index.Z);
+		}
+
 
 		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
@@ -341,14 +342,6 @@ void ASandboxTerrainController::Save() {
 	}
 
 	this->VdFile.close();
-
-	//FString FileName = TEXT("terrain.dat");
-	//FString SavePath = FPaths::GameSavedDir();
-	//FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
-	//std::string FilePath = std::string(TCHAR_TO_UTF8(*FullPath));
-
-	//kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePath, test);
-
 
 	ClearVoxelData();
 
@@ -385,9 +378,9 @@ void ASandboxTerrainController::Save() {
 
 		if (Region != nullptr) {
 			if (Region->IsChanged()) {
-				Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
+				//Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
 				Region->CloseRegionVdFile();
-				Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
+				//Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
 			}
 		} else {
 			UE_LOG(LogTemp, Warning, TEXT("ERROR: region not found ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
@@ -901,9 +894,8 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 					if (VoxelData == NULL) {
 						//try to load lazy voxel data
 						UTerrainRegionComponent* Region = Zone->GetRegion();
-						VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
-
-						LoadVoxelDataByIndex(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
+						//VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
+						VoxelData = LoadVoxelDataByIndex(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 
 
 						if (VoxelData == nullptr) {
@@ -974,7 +966,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 //======================================================================================================================================================================
 
 
-std::shared_ptr<TVoxelData> ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
+TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
 	std::shared_ptr<TValueData> DataPtr = VdFile.get(Index);
 
 	if (DataPtr == nullptr || DataPtr->size() == 0) {
@@ -1007,14 +999,14 @@ std::shared_ptr<TVoxelData> ASandboxTerrainController::LoadVoxelDataByIndex(TVox
 	VdInfo.DataState = TVoxelDataState::LOADED;
 	VdInfo.Vd = Vd;
 
-	//RegisterTerrainVoxelData(VdInfo, FVector(Index.X, Index.Y, Index.Z));
+	RegisterTerrainVoxelData(VdInfo, FVector(Index.X, Index.Y, Index.Z));
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
 	UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 
-	return nullptr;
+	return Vd;
 }
 
 TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {

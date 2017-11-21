@@ -341,7 +341,7 @@ private:
 
 	void ClearVoxelData();
 
-	std::shared_ptr<TVoxelData> LoadVoxelDataByIndex(TVoxelIndex Index);
+	TVoxelData* LoadVoxelDataByIndex(TVoxelIndex Index);
 
 	//===============================================================================
 	// foliage
