@@ -152,7 +152,6 @@ void ASandboxTerrainController::BeginPlay() {
 	// load initial region
 	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
 	Region1->LoadFile();
-	Region1->OpenRegionVdFile();
 
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
@@ -174,7 +173,6 @@ void ASandboxTerrainController::BeginPlay() {
 
 			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
 			Region2->LoadFile();
-			Region2->OpenRegionVdFile();
 			if (ThisThread.IsNotValid()) return;
 
 			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
@@ -242,7 +240,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		UTerrainRegionComponent* Region = Elem.Value;
 
 		Region->CleanMeshDataCache();
-		Region->CloseRegionVdFile();
 	}
 
 	TerrainZoneMap.Empty();
@@ -262,7 +259,6 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 	while (It != ThreadList.end()) {
 		FAsyncThread* ThreadPtr = *It;
 		if (ThreadPtr->IsFinished()) {
-			//UE_LOG(LogTemp, Warning, TEXT("thread finished"));
 			ThreadListMutex.lock();
 			delete ThreadPtr;
 			It = ThreadList.erase(It);
@@ -366,24 +362,6 @@ void ASandboxTerrainController::Save() {
 
 		if (Region != nullptr && Region->IsChanged()){
 			Region->SaveFile(SaveBuffer.ZoneArray);
-		}
-	}
-
-	for (auto& Elem : SaveVdBufferByRegion) {
-		FVector RegionIndex = Elem.Key;
-		TSaveVdBuffer& SaveVdBuffer = Elem.Value;
-		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
-
-		//UE_LOG(LogTemp, Warning, TEXT("try to save region ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
-
-		if (Region != nullptr) {
-			if (Region->IsChanged()) {
-				//Region->LoadAllVoxelData(SaveVdBuffer.VoxelDataArray);
-				Region->CloseRegionVdFile();
-				//Region->SaveVoxelData2(SaveVdBuffer.VoxelDataArray);
-			}
-		} else {
-			UE_LOG(LogTemp, Warning, TEXT("ERROR: region not found ----> %f %f %f "), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
 		}
 	}
 
