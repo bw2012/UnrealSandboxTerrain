@@ -43,6 +43,7 @@ enum TVoxelDataState {
 };
 
 struct TVoxelDataInfo {
+	//TODO replace with share pointer
 	TVoxelData* Vd = nullptr;
 
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
@@ -165,7 +166,7 @@ public:
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
 	//========================================================================================
-	// debug only
+	// 
 	//========================================================================================
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
@@ -176,6 +177,13 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
 	void OnProgressBuildTerrain(float Progress);
+
+	//========================================================================================
+	// save/load
+	//========================================================================================
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
+	void SaveMapAsync();
 
 	//========================================================================================
 	// materials
@@ -269,11 +277,17 @@ private:
 
 	volatile float GeneratingProgress;
 
+	//===============================================================================
+	// save/load
+	//===============================================================================
+
 	void Save();
 
 	void SaveJson(const TSet<FVector>& RegionPosSet);
 
 	void LoadJson(TSet<FVector>& RegionIndexSet);
+
+	bool OpenVdfile();
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 

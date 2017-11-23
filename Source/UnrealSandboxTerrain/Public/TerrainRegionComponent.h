@@ -83,6 +83,8 @@ public:
 
 	void SetChanged() {	bIsChanged = true; }
 
+	void ResetChanged() { bIsChanged = false; }
+
 	bool IsChanged() { return bIsChanged; }
 	
 	void SerializeRegionMeshData(FBufferArchive& BinaryData);

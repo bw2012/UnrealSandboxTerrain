@@ -122,22 +122,7 @@ void ASandboxTerrainController::BeginPlay() {
 		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
 	}
 
-	// open vd file 	
-	FString FileName = TEXT("terrain.dat");
-	FString SavePath = FPaths::GameSavedDir();
-	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
-	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
-
-	// check terrain db file 
-	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
-		// create new empty file
-		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());
-	}
-
-	if (!VdFile.open(FilePathString)) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain file: %s"), *FullPath);
-		return;
-	}
+	if (!OpenVdfile()) return;
 
 	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd file ----> %d zones"), VdFile.size());
 
@@ -152,7 +137,6 @@ void ASandboxTerrainController::BeginPlay() {
 	// load initial region
 	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
 	Region1->LoadFile();
-
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
 
@@ -200,7 +184,6 @@ void ASandboxTerrainController::BeginPlay() {
 						}
 
 						Progress++;
-
 						GeneratingProgress = (float)Progress / (float)Total;
 						// must invoke in main thread
 						//OnProgressBuildTerrain(PercentProgress);
@@ -234,11 +217,12 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	}
 
 	Save();
+	VdFile.close();
+	ClearVoxelData();
 
 	// clean region mesh data cache and close vd file
 	for (auto& Elem : TerrainRegionMap) {
 		UTerrainRegionComponent* Region = Elem.Value;
-
 		Region->CleanMeshDataCache();
 	}
 
@@ -291,7 +275,6 @@ typedef struct TSaveVdBuffer {
 
 
 void ASandboxTerrainController::Save() {
-
 	TSet<FVector> RegionIndexSetLocal;
 
 	std::unordered_map<TVoxelIndex, TValueData> test;
@@ -322,24 +305,16 @@ void ASandboxTerrainController::Save() {
 
 		if (VdInfo.Vd->isChanged()) {
 			VdFile.put(Index, buffer);
+			VdInfo.Vd->resetLastSave();
 			UE_LOG(LogSandboxTerrain, Warning, TEXT("save voxel data ----> %d %d %d"), Index.X, Index.Y, Index.Z);
 		}
-
 
 		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.VoxelDataArray.Add(VdInfo.Vd);
 		RegionIndexSetLocal.Add(RegionIndex);
-
-		//TODO replace with share pointer
-		//DeleteVoxelData(Elem.Key);
-		//delete VoxelData;
 	}
-
-	this->VdFile.close();
-
-	ClearVoxelData();
 
 	// put zones to save buffer
 	TMap<FVector, TSaveBuffer> SaveBufferByRegion;
@@ -362,11 +337,23 @@ void ASandboxTerrainController::Save() {
 
 		if (Region != nullptr && Region->IsChanged()){
 			Region->SaveFile(SaveBuffer.ZoneArray);
+			Region->ResetChanged();
 		}
 	}
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
+}
+
+void ASandboxTerrainController::SaveMapAsync() {
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("Start save terrain async"));
+	RunThread([&](FAsyncThread& ThisThread) {
+		double Start = FPlatformTime::Seconds();
+		Save();
+		double End = FPlatformTime::Seconds();
+		double Time = (End - Start) * 1000;
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain saved -> %f ms"), Time);
+	});
 }
 
 
@@ -408,7 +395,6 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 		JsonWriter->WriteObjectEnd();
 		JsonWriter->WriteObjectEnd();
 		//========================================================
-
 	}
 
 	JsonWriter->WriteArrayEnd();
@@ -416,6 +402,27 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	JsonWriter->Close();
 
 	FFileHelper::SaveStringToFile(*JsonStr, *FullPath);
+}
+
+bool ASandboxTerrainController::OpenVdfile() {
+	// open vd file 	
+	FString FileName = TEXT("terrain.dat");
+	FString SavePath = FPaths::GameSavedDir();
+	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
+	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
+
+	// check terrain db file 
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
+		// create new empty file
+		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());
+	}
+
+	if (!VdFile.open(FilePathString)) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain file: %s"), *FullPath);
+		return false;
+	}
+
+	return true;
 }
 
 void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
@@ -902,7 +909,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, time);
 }
 
 

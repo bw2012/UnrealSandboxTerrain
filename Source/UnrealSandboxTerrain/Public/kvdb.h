@@ -14,6 +14,7 @@
 #include <list>
 #include <set>
 #include <mutex>
+#include <shared_mutex>
 #include <cassert>
 #include <cstring> 
 
@@ -174,7 +175,7 @@ namespace kvdb {
 		std::list<TKeyEntryInfo> reservedKeyList;
 		std::set<TKeyEntryInfo, TKeyInfoComparatorByInitialLength> deletedKeyList;
 		std::list<TTableHeaderInfo> tableList;
-		std::mutex fileMutex;
+		mutable std::shared_mutex fileSharedMutex;
 
 	private:
 
@@ -397,8 +398,6 @@ namespace kvdb {
 
 			if (!filePtr->is_open()) return false;
 
-			fileMutex.lock();
-
 			TFileHeader fileHeader;
 			filePtr >> fileHeader;
 
@@ -407,8 +406,7 @@ namespace kvdb {
 				filePtr->seekg(nextTablePos);
 				nextTablePos = readTable();
 			}
-
-			fileMutex.unlock();
+            
 			return true;
 		}
 
@@ -420,22 +418,18 @@ namespace kvdb {
 			}
 		}
 
-		TValueDataPtr get(const K& k) {
-			TKeyData keyData = toKeyData(k);
+		TValueDataPtr get(const K& k) const {
+			const TKeyData keyData = toKeyData(k);
 
 			if (!filePtr->is_open()) return nullptr;
+            std::shared_lock<std::shared_mutex> lock(fileSharedMutex);
 
-			fileMutex.lock();
-
-			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
-			if (got == dataMap.end()) {
-				fileMutex.unlock();
+			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator itr = dataMap.find(keyData);
+			if (itr == dataMap.end()) {
 				return nullptr;
 			}
 
-			TKeyEntryInfo& i = dataMap[keyData];
-			const TKeyEntry& e = i();
-
+			const TKeyEntry& e = ((const TKeyEntryInfo&)(itr->second))();
 			filePtr->seekg(e.dataPos);
 
 			TValueDataPtr dataPtr = TValueDataPtr(new TValueData);
@@ -445,7 +439,6 @@ namespace kvdb {
 				dataPtr->push_back(tmp);
 			}
 
-			fileMutex.unlock();
 			return dataPtr;
 		}
 
@@ -457,15 +450,13 @@ namespace kvdb {
 			TKeyData keyData = toKeyData(k);
 
 			if (!filePtr->is_open()) return;
+            std::unique_lock<std::shared_mutex> lock(fileSharedMutex);
 
-			fileMutex.lock();
-			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
-			if (got != dataMap.end()) {
-				TKeyEntryInfo keyInfo = dataMap[keyData];
+			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator itr = dataMap.find(keyData);
+			if (itr != dataMap.end()) {
+				TKeyEntryInfo& keyInfo = dataMap[keyData];
 				earsePair(keyInfo);
 			}
-
-			fileMutex.unlock();
 		}
 
 
@@ -481,20 +472,16 @@ namespace kvdb {
 			}
 
 			if (!filePtr->is_open()) return;
+            std::unique_lock<std::shared_mutex> lock(fileSharedMutex);
 
-			fileMutex.lock();
-
-			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
-			if (got == dataMap.end()) {
+			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator itr = dataMap.find(keyData);
+			if (itr == dataMap.end()) {
 				// pair not found  
 				addNew(keyData, valueData);
-			}
-			else {
+			} else {
 				// pair found  
 				change(keyData, valueData);
 			}
-
-			fileMutex.unlock();
 		}
 
 		static bool create(std::string& file, const std::unordered_map<K, V>& test) {
@@ -529,7 +516,7 @@ namespace kvdb {
 
 				// TODO fixme
 				if (typeid(e.second) == typeid(TValueData)) {
-					const TValueData& valueData = e.second;
+					const TValueData& valueData = (const TValueData&)e.second;
 					entry.dataLength = valueData.size();
 					entry.initialDataLength = valueData.size();
 					dataBody.insert(std::end(dataBody), std::begin(valueData), std::end(valueData));
