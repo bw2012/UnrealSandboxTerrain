@@ -851,7 +851,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				ZoneIndex += BaseZoneIndex;
 
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
-				TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
+				TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
 
 				// check zone bounds
 				FVector ZoneOrigin = GetZonePos(ZoneIndex);
@@ -928,7 +928,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 	TerrainControllerTask Task;
 
 	FVector Pos = GetZonePos(ZoneIndex);
-	TVoxelData* VoxelData = GetTerrainVoxelDataByIndex(ZoneIndex);
+	TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
 
 	if (VoxelData == nullptr) {
 		return;
@@ -998,7 +998,7 @@ TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loca
 	double Start = FPlatformTime::Seconds();
 
 	FVector Index = GetZoneIndex(Location);
-	TVoxelData* Vd = GetTerrainVoxelDataByIndex(Index);
+	TVoxelData* Vd = GetVoxelDataByIndex(Index);
 
 	TVoxelDataInfo ReturnVdInfo;
 
@@ -1083,12 +1083,12 @@ void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Fun
 	ThreadListMutex.unlock();
 }
 
-TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByPos(FVector point) {
+TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(FVector point) {
 	FVector Index = GetZoneIndex(point);
-	return GetTerrainVoxelDataByIndex(Index);
+	return GetVoxelDataByIndex(Index);
 }
 
-TVoxelData* ASandboxTerrainController::GetTerrainVoxelDataByIndex(FVector index) {
+TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(FVector index) {
 	VoxelDataMapMutex.lock();
 	if (VoxelDataMap.Contains(index)) {
 		TVoxelDataInfo VdInfo = VoxelDataMap[index];

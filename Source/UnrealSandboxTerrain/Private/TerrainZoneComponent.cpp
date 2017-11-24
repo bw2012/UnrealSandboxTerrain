@@ -15,7 +15,7 @@ UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectIni
 
 void UTerrainZoneComponent::MakeTerrain() {
 	if (voxel_data == NULL) {
-		voxel_data = GetTerrainController()->GetTerrainVoxelDataByPos(GetComponentLocation());
+		voxel_data = GetTerrainController()->GetVoxelDataByPos(GetComponentLocation());
 	}
 
 	if (voxel_data == NULL) {

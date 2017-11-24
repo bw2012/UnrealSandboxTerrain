@@ -345,9 +345,9 @@ private:
 
 	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index);
 
-	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
+	TVoxelData* GetVoxelDataByPos(FVector point);
 
-	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
+	TVoxelData* GetVoxelDataByIndex(FVector index);
 
 	bool HasVoxelData(const FVector& Index) const;
 
