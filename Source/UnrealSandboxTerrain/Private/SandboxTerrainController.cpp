@@ -995,26 +995,18 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
 }
 
 TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
-	double Start = FPlatformTime::Seconds();
-
 	FVector Index = GetZoneIndex(Location);
 	TVoxelData* Vd = GetVoxelDataByIndex(Index);
 
-	TVoxelDataInfo ReturnVdInfo;
-
 	if (HasVoxelData(Index)) {
 		TVoxelDataInfo& VdInfo = GetVoxelDataInfo(Index);
-
-		VdInfo.DataState = TVoxelDataState::LOADED;
-		VdInfo.Vd = Vd;
-
-		Vd->setChanged();
-		Vd->resetLastSave();
-		Vd->setCacheToValid();
-
-		ReturnVdInfo = VdInfo;
+		return VdInfo;
 	} else {
-		// not found - generate new
+		// TODO check vd file
+
+
+		TVoxelDataInfo ReturnVdInfo;
+
 		Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 		Vd->setOrigin(Location);
 
@@ -1027,12 +1019,9 @@ TVoxelDataInfo ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loca
 		Vd->setCacheToValid();
 
 		RegisterTerrainVoxelData(ReturnVdInfo, Index);
+
+		return ReturnVdInfo;
 	}
-
-	double End = FPlatformTime::Seconds();
-	double Time = (End - Start) * 1000;
-
-	return ReturnVdInfo;
 }
 
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
