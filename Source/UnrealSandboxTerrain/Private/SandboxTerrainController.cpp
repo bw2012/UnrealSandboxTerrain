@@ -433,7 +433,7 @@ void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
 	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
 
 	FString jsonRaw;
-	if (!FFileHelper::LoadFileToString(jsonRaw, *FullPath, 0)) {
+	if (!FFileHelper::LoadFileToString(jsonRaw, *FullPath, FFileHelper::EHashOptions::None)) {
 		UE_LOG(LogTemp, Error, TEXT("Error loading json file"));
 	}
 
@@ -812,7 +812,7 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 	EditThread->instance = this;
 
 	FString ThreadName = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
-	FRunnableThread* Thread = FRunnableThread::Create(EditThread, *ThreadName, true, true);
+	FRunnableThread* Thread = FRunnableThread::Create(EditThread, *ThreadName);
 	//FIXME delete thread after finish
 
 	FVector TestPoint(Origin);
