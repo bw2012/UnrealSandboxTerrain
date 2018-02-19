@@ -292,7 +292,7 @@ void ASandboxTerrainController::Save() {
 	// put voxel data to save buffer
 	TMap<FVector, TSaveVdBuffer> SaveVdBufferByRegion;
 	for (auto& Elem : VoxelDataMap) {
-		TVoxelDataInfo VdInfo = Elem.Value;
+		TVoxelDataInfo& VdInfo = Elem.Value;
 
 		if (VdInfo.Vd == nullptr) {
 			continue;
@@ -320,6 +320,8 @@ void ASandboxTerrainController::Save() {
 		}
 
 		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
+		VdInfo.Unload();
+
 		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
 
 		SaveBuffer.VoxelDataArray.Add(VdInfo.Vd);
