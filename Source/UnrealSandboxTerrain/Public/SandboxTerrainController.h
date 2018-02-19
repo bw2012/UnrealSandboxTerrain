@@ -42,21 +42,24 @@ enum TVoxelDataState {
 	READY_TO_LOAD
 };
 
-struct TVoxelDataInfo {
+class TVoxelDataInfo {
+
+public:
 	//TODO replace with share pointer
 	TVoxelData* Vd = nullptr;
 
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
 
 	// mesh is generated
-	bool isNewGenerated() const {
+	bool IsNewGenerated() const {
 		return DataState == TVoxelDataState::GENERATED;
 	}
 
-	bool isNewLoaded() const {
+	bool IsNewLoaded() const {
 		return DataState == TVoxelDataState::LOADED;
 	}
 
+	void Unload();
 };
 
 USTRUCT()

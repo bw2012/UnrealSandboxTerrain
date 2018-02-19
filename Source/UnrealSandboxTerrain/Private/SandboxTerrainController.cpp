@@ -75,6 +75,16 @@ public:
 };
 
 
+void TVoxelDataInfo::Unload() {
+	if (Vd != nullptr) {
+		delete Vd;
+		Vd = nullptr;
+	}
+
+	DataState = TVoxelDataState::READY_TO_LOAD;
+}
+
+
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
@@ -500,17 +510,17 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 			Zone->SetVoxelData(VoxelDataInfo->Vd);
 			Zone->MakeTerrain();
 
-			if (VoxelDataInfo->isNewGenerated()) {
+			if (VoxelDataInfo->IsNewGenerated()) {
 				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
-			if (VoxelDataInfo->isNewLoaded()) {
+			if (VoxelDataInfo->IsNewLoaded()) {
 				OnLoadZone(Zone);
 			}
 		});
 	} else {
-		if (VoxelDataInfo->isNewGenerated()) {
+		if (VoxelDataInfo->IsNewGenerated()) {
 			InvokeSafe([=]() {
 				// just create region
 				UTerrainRegionComponent* Region = GetOrCreateRegion(Pos);
