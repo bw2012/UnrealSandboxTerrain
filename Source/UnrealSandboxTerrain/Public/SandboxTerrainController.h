@@ -303,7 +303,7 @@ private:
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelDataInfo FindOrCreateZoneVoxeldata(FVector location);
+	TVoxelDataInfo* FindOrCreateZoneVoxeldata(FVector location);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
@@ -351,7 +351,7 @@ private:
 
 	bool HasVoxelData(const FVector& Index) const;
 
-	TVoxelDataInfo& GetVoxelDataInfo(const FVector& Index);
+	TVoxelDataInfo* GetVoxelDataInfo(const FVector& Index);
 
 	void ClearVoxelData();
 
