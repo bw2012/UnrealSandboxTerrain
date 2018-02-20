@@ -299,8 +299,7 @@ void ASandboxTerrainController::Save() {
 			buffer.push_back(b);
 		}
 
-		FVector VecIndex = GetZoneIndex(VdInfo.Vd->getOrigin());
-		TVoxelIndex Index(VecIndex.X, VecIndex.Y, VecIndex.Z);
+		TVoxelIndex Index = GetZoneIndex2(VdInfo.Vd->getOrigin());
 
 		if (VdInfo.Vd->isChanged()) {
 			VdFile.put(Index, buffer);
@@ -474,15 +473,16 @@ void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 }
 
 void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
-	FVector ZoneIndex = GetZoneIndex(Pos);
+	TVoxelIndex ZoneIndex = GetZoneIndex2(Pos);
+	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
-	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
+	if (GetZoneByVectorIndex(ZoneIndexTmp) != nullptr) return;
 
 	FVector RegionIndex = GetRegionIndex(Pos);
 	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
 	if (Region != nullptr) {
-		TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndex);
+		TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndexTmp);
 		if (MeshDataPtr != nullptr) {
 			InvokeSafe([=]() {
 				UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -493,7 +493,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		}
 	} 
 
-	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(GetZoneIndex2(Pos));
+	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(ZoneIndex);
 	if (VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -565,12 +565,14 @@ UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVect
 	return NULL;
 }
 
+/*
 FVector ASandboxTerrainController::GetZoneIndex(FVector v) {
 	return sandboxGridIndex(v, USBT_ZONE_SIZE);
 }
+*/
 
 TVoxelIndex ASandboxTerrainController::GetZoneIndex2(FVector v) {
-	FVector Tmp = GetZoneIndex(v);
+	FVector Tmp = sandboxGridIndex(v, USBT_ZONE_SIZE);
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
 }
 
@@ -609,8 +611,10 @@ UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector po
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 	UTerrainRegionComponent* RegionComponent = GetOrCreateRegion(pos);
 
-	FVector index = GetZoneIndex(pos);
-	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
+	TVoxelIndex Index = GetZoneIndex2(pos);
+	FVector IndexTmp(Index.X, Index.Y,Index.Z);
+
+	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
 	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*zone_name));
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
@@ -618,13 +622,13 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		ZoneComponent->AttachTo(RegionComponent);
 		ZoneComponent->SetWorldLocation(pos);
 
-		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
+		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
 		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
 		TerrainMeshComp->RegisterComponent();
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
 		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh -> [%.0f, %.0f, %.0f]"), index.X, index.Y, index.Z);
+		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
 		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
 		CollisionMeshComp->RegisterComponent();
 		CollisionMeshComp->SetMobility(EComponentMobility::Stationary);
@@ -636,10 +640,8 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		ZoneComponent->CollisionMesh = CollisionMeshComp;
 	}
 
-	TerrainZoneMap.Add(FVector(index.X, index.Y, index.Z), ZoneComponent);
-
+	TerrainZoneMap.Add(IndexTmp, ZoneComponent);
 	if(bShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
-
 	return ZoneComponent;
 }
 
@@ -842,14 +844,15 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 	static float ZoneVolumeSize = USBT_ZONE_SIZE / 2;
 
-	FVector BaseZoneIndex = GetZoneIndex(v);
+	TVoxelIndex BaseZoneIndex = GetZoneIndex2(v);
+	FVector BaseZoneIndexTmp(BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z);
 
 	static const float V[3] = { -1, 0, 1 };
 	for (float x : V) {
 		for (float y : V) {
 			for (float z : V) {
 				FVector ZoneIndex(x, y, z);
-				ZoneIndex += BaseZoneIndex;
+				ZoneIndex += BaseZoneIndexTmp;
 
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
@@ -1069,8 +1072,9 @@ void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Fun
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(FVector point) {
-	FVector Index = GetZoneIndex(point);
-	return GetVoxelDataByIndex(Index);
+	TVoxelIndex Index = GetZoneIndex2(point);
+	FVector IndexTmp(Index.X, Index.Y, Index.Z);
+	return GetVoxelDataByIndex(IndexTmp);
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(FVector index) {

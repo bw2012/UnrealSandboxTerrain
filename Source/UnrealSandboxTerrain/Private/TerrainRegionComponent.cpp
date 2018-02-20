@@ -246,9 +246,10 @@ void UTerrainRegionComponent::DeserializeZoneInstancedMeshes(FMemoryReader& Bina
 }
 
 void UTerrainRegionComponent::SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone) {
-	FVector ZoneIndex = GetTerrainController()->GetZoneIndex(Zone->GetComponentLocation());
-	if (InstancedMeshLoadCache.Contains(ZoneIndex)) {
-		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache[ZoneIndex];
+	TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex2(Zone->GetComponentLocation());
+	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+	if (InstancedMeshLoadCache.Contains(ZoneIndexTmp)) {
+		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache[ZoneIndexTmp];
 
 		for (auto& Elem : ZoneInstMeshMap) {
 			TInstMeshTransArray& InstMeshTransArray = Elem.Value;
@@ -259,7 +260,7 @@ void UTerrainRegionComponent::SpawnInstMeshFromLoadCache(UTerrainZoneComponent* 
 
 		}
 
-		InstancedMeshLoadCache.Remove(ZoneIndex);
+		InstancedMeshLoadCache.Remove(ZoneIndexTmp);
 	}
 
 }
@@ -275,9 +276,10 @@ void UTerrainRegionComponent::DeserializeRegionInstancedMeshes(FMemoryReader& Bi
 		BinaryData << ZoneLocation.Y;
 		BinaryData << ZoneLocation.Z;
 
-		FVector ZoneIndex = GetTerrainController()->GetZoneIndex(ZoneLocation);
+		TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex2(ZoneLocation);
+		FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
-		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache.FindOrAdd(ZoneIndex);
+		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache.FindOrAdd(ZoneIndexTmp);
 
 		DeserializeZoneInstancedMeshes(BinaryData, ZoneInstMeshMap);
 	}

@@ -251,7 +251,7 @@ public:
 
 	void FillTerrainRound(const FVector origin, const float r, const int matId);
 
-	FVector GetZoneIndex(FVector v);
+	//FVector GetZoneIndex(FVector v);
 
 	TVoxelIndex GetZoneIndex2(FVector v);
 

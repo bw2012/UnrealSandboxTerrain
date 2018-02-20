@@ -116,11 +116,12 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const
 void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 	double start = FPlatformTime::Seconds();
 
-	FVector ZoneIndex = GetTerrainController()->GetZoneIndex(VoxelData.getOrigin());
+	TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex2(VoxelData.getOrigin());
+	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 	// get heightmap data
 	//======================================
-	TVoxelIndex Index2((int)ZoneIndex.X, (int)ZoneIndex.Y, 0);
+	TVoxelIndex Index2((int)ZoneIndexTmp.X, (int)ZoneIndexTmp.Y, 0);
 	TZoneHeightMapData* ZoneHeightMapData = nullptr;
 
 	if (ZoneHeightMapCollection.find(Index2) == ZoneHeightMapCollection.end()) {
