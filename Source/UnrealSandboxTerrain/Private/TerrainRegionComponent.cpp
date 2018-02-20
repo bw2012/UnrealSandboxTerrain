@@ -246,7 +246,7 @@ void UTerrainRegionComponent::DeserializeZoneInstancedMeshes(FMemoryReader& Bina
 }
 
 void UTerrainRegionComponent::SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone) {
-	TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex2(Zone->GetComponentLocation());
+	TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex(Zone->GetComponentLocation());
 	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 	if (InstancedMeshLoadCache.Contains(ZoneIndexTmp)) {
 		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache[ZoneIndexTmp];
@@ -276,7 +276,7 @@ void UTerrainRegionComponent::DeserializeRegionInstancedMeshes(FMemoryReader& Bi
 		BinaryData << ZoneLocation.Y;
 		BinaryData << ZoneLocation.Z;
 
-		TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex2(ZoneLocation);
+		TVoxelIndex ZoneIndex = GetTerrainController()->GetZoneIndex(ZoneLocation);
 		FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 		TInstMeshTypeMap& ZoneInstMeshMap = InstancedMeshLoadCache.FindOrAdd(ZoneIndexTmp);

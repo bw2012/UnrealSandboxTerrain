@@ -299,7 +299,7 @@ void ASandboxTerrainController::Save() {
 			buffer.push_back(b);
 		}
 
-		TVoxelIndex Index = GetZoneIndex2(VdInfo.Vd->getOrigin());
+		TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
 
 		if (VdInfo.Vd->isChanged()) {
 			VdFile.put(Index, buffer);
@@ -473,7 +473,7 @@ void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 }
 
 void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
-	TVoxelIndex ZoneIndex = GetZoneIndex2(Pos);
+	TVoxelIndex ZoneIndex = GetZoneIndex(Pos);
 	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 	if (GetZoneByVectorIndex(ZoneIndexTmp) != nullptr) return;
@@ -565,13 +565,7 @@ UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVect
 	return NULL;
 }
 
-/*
-FVector ASandboxTerrainController::GetZoneIndex(FVector v) {
-	return sandboxGridIndex(v, USBT_ZONE_SIZE);
-}
-*/
-
-TVoxelIndex ASandboxTerrainController::GetZoneIndex2(FVector v) {
+TVoxelIndex ASandboxTerrainController::GetZoneIndex(FVector v) {
 	FVector Tmp = sandboxGridIndex(v, USBT_ZONE_SIZE);
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
 }
@@ -611,7 +605,7 @@ UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector po
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 	UTerrainRegionComponent* RegionComponent = GetOrCreateRegion(pos);
 
-	TVoxelIndex Index = GetZoneIndex2(pos);
+	TVoxelIndex Index = GetZoneIndex(pos);
 	FVector IndexTmp(Index.X, Index.Y,Index.Z);
 
 	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
@@ -844,7 +838,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 	static float ZoneVolumeSize = USBT_ZONE_SIZE / 2;
 
-	TVoxelIndex BaseZoneIndex = GetZoneIndex2(v);
+	TVoxelIndex BaseZoneIndex = GetZoneIndex(v);
 	FVector BaseZoneIndexTmp(BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z);
 
 	static const float V[3] = { -1, 0, 1 };
@@ -999,8 +993,6 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
 TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(TVoxelIndex Index) {
 	FVector TmpIndex(Index.X, Index.Y, Index.Z);
 
-	UE_LOG(LogTemp, Log, TEXT("FindOrCreateZoneVoxeldata -> %d %d %d"), Index.X, Index.Y, Index.Z);
-
 	if (HasVoxelData(Index)) {
 		return GetVoxelDataInfo(Index);
 	} else {
@@ -1072,7 +1064,7 @@ void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Fun
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(FVector point) {
-	TVoxelIndex Index = GetZoneIndex2(point);
+	TVoxelIndex Index = GetZoneIndex(point);
 	FVector IndexTmp(Index.X, Index.Y, Index.Z);
 	return GetVoxelDataByIndex(IndexTmp);
 }

@@ -80,7 +80,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	}
 
 	if (bPutToCache) {
-		TVoxelIndex Index = GetTerrainController()->GetZoneIndex2(GetComponentLocation());
+		TVoxelIndex Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
 		FVector ZoneIndexTmp(Index.X, Index.Y, Index.Z);
 		Region->PutMeshDataToCache(ZoneIndexTmp, MeshDataPtr);
 	}
