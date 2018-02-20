@@ -270,27 +270,16 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 // Unreal Sandbox 
 //======================================================================================================================================================================
-
 typedef struct TSaveBuffer {
 
 	TArray<UTerrainZoneComponent*> ZoneArray;
 
 } TSaveBuffer;
 
-typedef struct TSaveVdBuffer {
-
-	TArray<TVoxelData*> VoxelDataArray;
-
-} TSaveVdBuffer;
-
 
 void ASandboxTerrainController::Save() {
 	TSet<FVector> RegionIndexSetLocal;
 
-	std::unordered_map<TVoxelIndex, TValueData> test;
-
-	// put voxel data to save buffer
-	TMap<FVector, TSaveVdBuffer> SaveVdBufferByRegion;
 	for (auto& Elem : VoxelDataMap) {
 		TVoxelDataInfo& VdInfo = Elem.Value;
 
@@ -321,10 +310,6 @@ void ASandboxTerrainController::Save() {
 
 		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		VdInfo.Unload();
-
-		TSaveVdBuffer& SaveBuffer = SaveVdBufferByRegion.FindOrAdd(RegionIndex);
-
-		SaveBuffer.VoxelDataArray.Add(VdInfo.Vd);
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
 
@@ -367,7 +352,6 @@ void ASandboxTerrainController::SaveMapAsync() {
 		UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain saved -> %f ms"), Time);
 	});
 }
-
 
 void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	UE_LOG(LogTemp, Warning, TEXT("----------- save json -----------"));
@@ -420,8 +404,17 @@ bool ASandboxTerrainController::OpenVdfile() {
 	// open vd file 	
 	FString FileName = TEXT("terrain.dat");
 	FString SavePath = FPaths::GameSavedDir();
-	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
+	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
+	FString FullPath = SaveDir + FileName;
 	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
+
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	if (!PlatformFile.DirectoryExists(*SaveDir)) {
+		PlatformFile.CreateDirectory(*SaveDir);
+		if (!PlatformFile.DirectoryExists(*SaveDir)) {
+			return false;
+		}
+	}
 
 	// check terrain db file 
 	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
@@ -457,11 +450,6 @@ void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
 		for (int i = 0; i < array.Num(); i++) {
 			TSharedPtr<FJsonObject> obj_ptr = array[i]->AsObject();
 			TSharedPtr<FJsonObject> RegionObj = obj_ptr->GetObjectField(TEXT("Region"));
-
-			//TArray <TSharedPtr<FJsonValue>> position_array = RegionObj->GetArrayField("Pos");
-			//float x = position_array[0]->AsNumber();
-			//float y = position_array[1]->AsNumber();
-			//float z = position_array[2]->AsNumber();
 
 			TArray <TSharedPtr<FJsonValue>> IndexValArray = RegionObj->GetArrayField("Index");
 			double x = IndexValArray[0]->AsNumber();
@@ -537,10 +525,7 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 	double start = FPlatformTime::Seconds();
 
 	const int s = static_cast<int>(TerrainInitialArea);
-
 	TSet<FVector> InitialZoneSet;
-
-	UE_LOG(LogTemp, Warning, TEXT("TerrainInitialArea = %d"), s);
 
 	if (s > 0) {
 		for (auto x = -s; x <= s; x++) {
@@ -560,7 +545,6 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("initial zones was generated -> %f ms"), time);
 
 	return InitialZoneSet;
 }
@@ -891,9 +875,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 					if (VoxelData == NULL) {
 						//try to load lazy voxel data
 						UTerrainRegionComponent* Region = Zone->GetRegion();
-						//VoxelData = Region->LoadVoxelDataByZoneIndex(ZoneIndex);
 						VoxelData = LoadVoxelDataByIndex(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
-
 
 						if (VoxelData == nullptr) {
 							continue;
@@ -1008,15 +990,14 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
 
 TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
 	FVector Index = GetZoneIndex(Location);
-	TVoxelData* Vd = GetVoxelDataByIndex(Index);
 
 	if (HasVoxelData(Index)) {
-		TVoxelDataInfo* VdInfo = GetVoxelDataInfo(Index);
-		return VdInfo;
+		return GetVoxelDataInfo(Index);
 	} else {
 		// TODO check vd file
 		TVoxelDataInfo ReturnVdInfo;
 
+		TVoxelData* Vd = GetVoxelDataByIndex(Index);
 		Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 		Vd->setOrigin(Location);
 
