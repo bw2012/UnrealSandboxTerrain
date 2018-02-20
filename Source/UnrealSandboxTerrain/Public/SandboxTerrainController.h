@@ -253,6 +253,8 @@ public:
 
 	FVector GetZoneIndex(FVector v);
 
+	TVoxelIndex GetZoneIndex2(FVector v);
+
 	FVector GetZonePos(FVector Index);
 
 	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
@@ -306,7 +308,7 @@ private:
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelDataInfo* FindOrCreateZoneVoxeldata(FVector location);
+	TVoxelDataInfo* FindOrCreateZoneVoxeldata(TVoxelIndex Index);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
@@ -346,15 +348,15 @@ private:
 
 	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
 
-	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index);
+	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index);
 
 	TVoxelData* GetVoxelDataByPos(FVector point);
 
 	TVoxelData* GetVoxelDataByIndex(FVector index);
 
-	bool HasVoxelData(const FVector& Index) const;
+	bool HasVoxelData(const TVoxelIndex& Index) const;
 
-	TVoxelDataInfo* GetVoxelDataInfo(const FVector& Index);
+	TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index);
 
 	void ClearVoxelData();
 

@@ -189,7 +189,7 @@ void ASandboxTerrainController::BeginPlay() {
 						FVector Pos = GetZonePos(Index);
 						if (ThisThread.IsNotValid()) return;
 
-						if (!HasVoxelData(Index)) {
+						if (!HasVoxelData(TVoxelIndex(Index.X, Index.Y, Index.Z))) {
 							SpawnZone(Pos);
 						}
 
@@ -493,7 +493,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		}
 	} 
 
-	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(Pos);
+	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(GetZoneIndex2(Pos));
 	if (VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -567,6 +567,11 @@ UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVect
 
 FVector ASandboxTerrainController::GetZoneIndex(FVector v) {
 	return sandboxGridIndex(v, USBT_ZONE_SIZE);
+}
+
+TVoxelIndex ASandboxTerrainController::GetZoneIndex2(FVector v) {
+	FVector Tmp = GetZoneIndex(v);
+	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
 }
 
 FVector ASandboxTerrainController::GetZonePos(FVector Index) {
@@ -978,7 +983,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
 	VdInfo.DataState = TVoxelDataState::LOADED;
 	VdInfo.Vd = Vd;
 
-	RegisterTerrainVoxelData(VdInfo, FVector(Index.X, Index.Y, Index.Z));
+	RegisterTerrainVoxelData(VdInfo, Index);
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
@@ -988,8 +993,10 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(TVoxelIndex Index) {
 	return Vd;
 }
 
-TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Location) {
-	FVector Index = GetZoneIndex(Location);
+TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(TVoxelIndex Index) {
+	FVector TmpIndex(Index.X, Index.Y, Index.Z);
+
+	UE_LOG(LogTemp, Log, TEXT("FindOrCreateZoneVoxeldata -> %d %d %d"), Index.X, Index.Y, Index.Z);
 
 	if (HasVoxelData(Index)) {
 		return GetVoxelDataInfo(Index);
@@ -997,9 +1004,9 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loc
 		// TODO check vd file
 		TVoxelDataInfo ReturnVdInfo;
 
-		TVoxelData* Vd = GetVoxelDataByIndex(Index);
+		TVoxelData* Vd = GetVoxelDataByIndex(TmpIndex);
 		Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
-		Vd->setOrigin(Location);
+		Vd->setOrigin(GetZonePos(TmpIndex));
 
 		TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
 
@@ -1011,7 +1018,7 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(FVector Loc
 
 		RegisterTerrainVoxelData(ReturnVdInfo, Index);
 
-		return VoxelDataMap.Find(Index);
+		return VoxelDataMap.Find(TmpIndex);
 	}
 }
 
@@ -1046,12 +1053,10 @@ bool ASandboxTerrainController::HasNextAsyncTask() {
 	return AsyncTaskList.size() > 0;
 }
 
-void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index) {
+void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index) {
 	VoxelDataMapMutex.lock();
-	VoxelDataMap.Add(Index, VdInfo);
-
-	VoxelDataIndexMap.insert({ TVoxelIndex(Index.X, Index.Y, Index.Z), VdInfo });
-
+	VoxelDataMap.Add(FVector(Index.X, Index.Y, Index.Z), VdInfo); // TODO: replace with VoxelDataIndexMap
+	VoxelDataIndexMap.insert({ Index, VdInfo });
 	VoxelDataMapMutex.unlock();
 }
 
@@ -1080,13 +1085,21 @@ TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(FVector index) {
 	return NULL;
 }
 
-bool ASandboxTerrainController::HasVoxelData(const FVector& Index) const {
-	return VoxelDataMap.Contains(Index);
+bool ASandboxTerrainController::HasVoxelData(const TVoxelIndex& Index) const {
+		return VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end();
 }
 
-TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const FVector& Index) {
-	return VoxelDataMap.Find(Index);
+TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& Index) {
+	if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
+		return &VoxelDataIndexMap[Index];
+	}
+
+	return nullptr;
 }
+
+//TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const FVector& Index) {
+//	return VoxelDataMap.Find(Index);
+//}
 
 void ASandboxTerrainController::ClearVoxelData() {
 	VoxelDataMap.Empty();
