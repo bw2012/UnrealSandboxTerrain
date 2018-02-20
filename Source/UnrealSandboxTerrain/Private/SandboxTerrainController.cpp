@@ -280,8 +280,8 @@ typedef struct TSaveBuffer {
 void ASandboxTerrainController::Save() {
 	TSet<FVector> RegionIndexSetLocal;
 
-	for (auto& Elem : VoxelDataMap) {
-		TVoxelDataInfo& VdInfo = Elem.Value;
+	for (auto& It : VoxelDataIndexMap) {
+		TVoxelDataInfo& VdInfo = VoxelDataIndexMap[It.first];
 
 		if (VdInfo.Vd == nullptr) {
 			continue;
@@ -1013,7 +1013,7 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(TVoxelIndex
 
 		RegisterTerrainVoxelData(ReturnVdInfo, Index);
 
-		return VoxelDataMap.Find(TmpIndex);
+		return &VoxelDataIndexMap[Index];
 	}
 }
 
@@ -1050,7 +1050,10 @@ bool ASandboxTerrainController::HasNextAsyncTask() {
 
 void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index) {
 	VoxelDataMapMutex.lock();
-	VoxelDataMap.Add(FVector(Index.X, Index.Y, Index.Z), VdInfo); // TODO: replace with VoxelDataIndexMap
+	auto It = VoxelDataIndexMap.find(Index);
+	if (It != VoxelDataIndexMap.end()) {
+		VoxelDataIndexMap.erase(It);
+	}
 	VoxelDataIndexMap.insert({ Index, VdInfo });
 	VoxelDataMapMutex.unlock();
 }
@@ -1070,9 +1073,10 @@ TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(FVector point) {
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(FVector index) {
+	TVoxelIndex Index(index.X, index.Y, index.Z);
 	VoxelDataMapMutex.lock();
-	if (VoxelDataMap.Contains(index)) {
-		TVoxelDataInfo VdInfo = VoxelDataMap[index];
+	if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
+		TVoxelDataInfo VdInfo = VoxelDataIndexMap[Index];
 		VoxelDataMapMutex.unlock();
 		return VdInfo.Vd;
 	}
@@ -1093,12 +1097,8 @@ TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& I
 	return nullptr;
 }
 
-//TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const FVector& Index) {
-//	return VoxelDataMap.Find(Index);
-//}
-
 void ASandboxTerrainController::ClearVoxelData() {
-	VoxelDataMap.Empty();
+	VoxelDataIndexMap.clear();
 }
 
 //======================================================================================================================================================================

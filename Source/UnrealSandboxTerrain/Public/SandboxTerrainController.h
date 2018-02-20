@@ -342,8 +342,6 @@ private:
 
 	std::mutex VoxelDataMapMutex;
 
-	TMap<FVector, TVoxelDataInfo> VoxelDataMap;
-
 	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
 
 	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index);
