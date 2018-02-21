@@ -476,7 +476,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	TVoxelIndex ZoneIndex = GetZoneIndex(Pos);
 	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
-	if (GetZoneByVectorIndex(ZoneIndexTmp) != nullptr) return;
+	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
 
 	FVector RegionIndex = GetRegionIndex(Pos);
 	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
@@ -565,8 +565,8 @@ UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVect
 	return NULL;
 }
 
-TVoxelIndex ASandboxTerrainController::GetZoneIndex(FVector v) {
-	FVector Tmp = sandboxGridIndex(v, USBT_ZONE_SIZE);
+TVoxelIndex ASandboxTerrainController::GetZoneIndex(const FVector& Pos) {
+	FVector Tmp = sandboxGridIndex(Pos, USBT_ZONE_SIZE);
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
 }
 
@@ -574,9 +574,10 @@ FVector ASandboxTerrainController::GetZonePos(const TVoxelIndex& Index) {
 	return FVector((float)Index.X * USBT_ZONE_SIZE, (float)Index.Y * USBT_ZONE_SIZE, (float)Index.Z * USBT_ZONE_SIZE);
 }
 
-UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(FVector index) {
-	if (TerrainZoneMap.Contains(index)) {
-		return TerrainZoneMap[index];
+UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(const TVoxelIndex& Index) {
+	FVector TmpIndex(Index.X, Index.Y, Index.Z);
+	if (TerrainZoneMap.Contains(TmpIndex)) {
+		return TerrainZoneMap[TmpIndex];
 	}
 
 	return NULL;
@@ -844,7 +845,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 		for (float y : V) {
 			for (float z : V) {
 				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);;
-				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(FVector(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
+				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
 
 				// check zone bounds

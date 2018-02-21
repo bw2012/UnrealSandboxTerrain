@@ -251,11 +251,11 @@ public:
 
 	void FillTerrainRound(const FVector origin, const float r, const int matId);
 
-	TVoxelIndex GetZoneIndex(FVector v);
+	TVoxelIndex GetZoneIndex(const FVector& Pos);
 
 	FVector GetZonePos(const TVoxelIndex& Index);
 
-	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
+	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
 	FVector GetRegionIndex(FVector v);
 
