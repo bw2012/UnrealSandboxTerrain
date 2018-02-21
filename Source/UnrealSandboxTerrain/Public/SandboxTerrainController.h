@@ -306,7 +306,7 @@ private:
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelDataInfo* FindOrCreateZoneVoxeldata(TVoxelIndex Index);
+	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
@@ -346,9 +346,9 @@ private:
 
 	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index);
 
-	TVoxelData* GetVoxelDataByPos(FVector point);
+	TVoxelData* GetVoxelDataByPos(const FVector& Pos);
 
-	TVoxelData* GetVoxelDataByIndex(FVector index);
+	TVoxelData* GetVoxelDataByIndex(const TVoxelIndex& Index);
 
 	bool HasVoxelData(const TVoxelIndex& Index) const;
 
@@ -356,7 +356,7 @@ private:
 
 	void ClearVoxelData();
 
-	TVoxelData* LoadVoxelDataByIndex(TVoxelIndex Index);
+	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
 	//===============================================================================
 	// foliage
