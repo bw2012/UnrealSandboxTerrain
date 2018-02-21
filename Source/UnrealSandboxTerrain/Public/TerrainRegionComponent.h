@@ -75,9 +75,10 @@ public:
 		MeshDataCache.Empty();
 	}
 
-	void ForEachMeshData(std::function<void(FVector&, TMeshDataPtr&)> Function) {
+	void ForEachMeshData(std::function<void(const TVoxelIndex&, TMeshDataPtr&)> Function) {
 		for (auto& Elem : MeshDataCache) {
-			Function(Elem.Key, Elem.Value);
+			TVoxelIndex Index(Elem.Key.X, Elem.Key.Y, Elem.Key.Z);
+			Function(Index, Elem.Value);
 		}
 	}
 

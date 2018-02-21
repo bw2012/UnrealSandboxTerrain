@@ -152,7 +152,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
-		Region1->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+		Region1->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
 			if (ThisThread.IsNotValid()) return;
 			FVector Pos = GetZonePos(Index);
 			SpawnZone(Pos);
@@ -169,7 +169,7 @@ void ASandboxTerrainController::BeginPlay() {
 			Region2->LoadFile();
 			if (ThisThread.IsNotValid()) return;
 
-			Region2->ForEachMeshData([&](FVector& Index, TMeshDataPtr& MeshDataPtr) {
+			Region2->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
 				if (ThisThread.IsNotValid()) return;
 				FVector Pos = GetZonePos(Index);
 				SpawnZone(Pos);
@@ -185,11 +185,11 @@ void ASandboxTerrainController::BeginPlay() {
 			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
 				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
 					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
-						FVector Index = FVector(x, y, z);
-						FVector Pos = GetZonePos(Index);
+						TVoxelIndex Index2(x, y, z);
+						FVector Pos = GetZonePos(Index2);
 						if (ThisThread.IsNotValid()) return;
 
-						if (!HasVoxelData(TVoxelIndex(Index.X, Index.Y, Index.Z))) {
+						if (!HasVoxelData(Index2)) {
 							SpawnZone(Pos);
 						}
 
@@ -570,8 +570,8 @@ TVoxelIndex ASandboxTerrainController::GetZoneIndex(FVector v) {
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
 }
 
-FVector ASandboxTerrainController::GetZonePos(FVector Index) {
-	return FVector(Index.X * USBT_ZONE_SIZE, Index.Y * USBT_ZONE_SIZE, Index.Z * USBT_ZONE_SIZE);
+FVector ASandboxTerrainController::GetZonePos(const TVoxelIndex& Index) {
+	return FVector((float)Index.X * USBT_ZONE_SIZE, (float)Index.Y * USBT_ZONE_SIZE, (float)Index.Z * USBT_ZONE_SIZE);
 }
 
 UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(FVector index) {
@@ -848,7 +848,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
 
 				// check zone bounds
-				FVector ZoneOrigin = GetZonePos(FVector(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
+				FVector ZoneOrigin = GetZonePos(ZoneIndex);
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
@@ -919,7 +919,7 @@ void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone,
 void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 	TerrainControllerTask Task;
 
-	FVector Pos = GetZonePos(ZoneIndex);
+	FVector Pos = GetZonePos(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 	TVoxelData* VoxelData = GetVoxelDataByIndex(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 
 	if (VoxelData == nullptr) {
@@ -962,7 +962,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 		BinaryArray.Add(Byte);
 	}
 
-	FVector VoxelDataOrigin = GetZonePos(FVector(Index.X, Index.Y, Index.Z));
+	FVector VoxelDataOrigin = GetZonePos(Index);
 
 	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 	BinaryData.Seek(0);
@@ -987,17 +987,15 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 }
 
 TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxelIndex& Index) {
-	FVector TmpIndex(Index.X, Index.Y, Index.Z);
-
 	if (HasVoxelData(Index)) {
 		return GetVoxelDataInfo(Index);
 	} else {
 		// TODO check vd file
 		TVoxelDataInfo ReturnVdInfo;
 
-		TVoxelData* Vd = GetVoxelDataByIndex(TVoxelIndex(TmpIndex.X, TmpIndex.Y, TmpIndex.Z));
+		TVoxelData* Vd = GetVoxelDataByIndex(Index);
 		Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
-		Vd->setOrigin(GetZonePos(TmpIndex));
+		Vd->setOrigin(GetZonePos(Index));
 
 		TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
 

@@ -253,7 +253,7 @@ public:
 
 	TVoxelIndex GetZoneIndex(FVector v);
 
-	FVector GetZonePos(FVector Index);
+	FVector GetZonePos(const TVoxelIndex& Index);
 
 	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
 
