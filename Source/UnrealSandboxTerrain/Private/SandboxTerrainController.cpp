@@ -279,6 +279,7 @@ typedef struct TSaveBuffer {
 
 void ASandboxTerrainController::Save() {
 	TSet<FVector> RegionIndexSetLocal;
+	uint32 SavedVd = 0;
 
 	for (auto& It : VoxelDataIndexMap) {
 		TVoxelDataInfo& VdInfo = VoxelDataIndexMap[It.first];
@@ -304,7 +305,7 @@ void ASandboxTerrainController::Save() {
 		if (VdInfo.Vd->isChanged()) {
 			VdFile.put(Index, buffer);
 			VdInfo.Vd->resetLastSave();
-			UE_LOG(LogSandboxTerrain, Warning, TEXT("save voxel data ----> %d %d %d"), Index.X, Index.Y, Index.Z);
+			SavedVd++;
 		}
 
 		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
@@ -339,21 +340,22 @@ void ASandboxTerrainController::Save() {
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("Start save terrain async"));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Start save terrain async"));
 	RunThread([&](FAsyncThread& ThisThread) {
 		double Start = FPlatformTime::Seconds();
 		Save();
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain saved -> %f ms"), Time);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Terrain saved -> %f ms"), Time);
 	});
 }
 
 void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
-	UE_LOG(LogTemp, Warning, TEXT("----------- save json -----------"));
+	UE_LOG(LogTemp, Log, TEXT("----------- save json -----------"));
 
 	FString JsonStr;
 	FString FileName = TEXT("terrain.json");
