@@ -7,6 +7,9 @@
 #include <mutex>
 #include <set>
 #include <list>
+#include <unordered_map>
+#include "VoxelIndex.h"
+#include "kvdb.h"
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
@@ -39,20 +42,24 @@ enum TVoxelDataState {
 	READY_TO_LOAD
 };
 
-struct TVoxelDataInfo {
+class TVoxelDataInfo {
+
+public:
+	//TODO replace with share pointer
 	TVoxelData* Vd = nullptr;
 
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
 
 	// mesh is generated
-	bool isNewGenerated() const {
+	bool IsNewGenerated() const {
 		return DataState == TVoxelDataState::GENERATED;
 	}
 
-	bool isNewLoaded() const {
+	bool IsNewLoaded() const {
 		return DataState == TVoxelDataState::LOADED;
 	}
 
+	void Unload();
 };
 
 USTRUCT()
@@ -162,7 +169,7 @@ public:
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
 	//========================================================================================
-	// debug only
+	// 
 	//========================================================================================
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
@@ -173,6 +180,13 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
 	void OnProgressBuildTerrain(float Progress);
+
+	//========================================================================================
+	// save/load
+	//========================================================================================
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
+	void SaveMapAsync();
 
 	//========================================================================================
 	// materials
@@ -237,11 +251,11 @@ public:
 
 	void FillTerrainRound(const FVector origin, const float r, const int matId);
 
-	FVector GetZoneIndex(FVector v);
+	TVoxelIndex GetZoneIndex(const FVector& Pos);
 
-	FVector GetZonePos(FVector Index);
+	FVector GetZonePos(const TVoxelIndex& Index);
 
-	UTerrainZoneComponent* GetZoneByVectorIndex(FVector v);
+	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
 	FVector GetRegionIndex(FVector v);
 
@@ -266,11 +280,17 @@ private:
 
 	volatile float GeneratingProgress;
 
+	//===============================================================================
+	// save/load
+	//===============================================================================
+
 	void Save();
 
 	void SaveJson(const TSet<FVector>& RegionPosSet);
 
 	void LoadJson(TSet<FVector>& RegionIndexSet);
+
+	bool OpenVdfile();
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
@@ -286,9 +306,13 @@ private:
 
 	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
-	TVoxelDataInfo FindOrCreateZoneVoxeldata(FVector location);
+	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
+
+	//===============================================================================
+	// async tasks
+	//===============================================================================
 
 	void InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
 
@@ -304,21 +328,35 @@ private:
 
 	std::queue<TerrainControllerTask> AsyncTaskList;
 
-	std::mutex VoxelDataMapMutex;
-
-	TMap<FVector, TVoxelDataInfo> VoxelDataMap;
-
-	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, FVector Index);
-
-	TVoxelData* GetTerrainVoxelDataByPos(FVector point);
-
-	TVoxelData* GetTerrainVoxelDataByIndex(FVector index);
-
 	std::mutex ThreadListMutex;
 
 	std::list<FAsyncThread*> ThreadList;
 
 	void RunThread(std::function<void(FAsyncThread&)> Function);
+
+	//===============================================================================
+	// voxel data storage
+	//===============================================================================
+
+	kvdb::KvFile<TVoxelIndex, TValueData> VdFile;
+
+	std::mutex VoxelDataMapMutex;
+
+	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
+
+	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index);
+
+	TVoxelData* GetVoxelDataByPos(const FVector& Pos);
+
+	TVoxelData* GetVoxelDataByIndex(const TVoxelIndex& Index);
+
+	bool HasVoxelData(const TVoxelIndex& Index) const;
+
+	TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index);
+
+	void ClearVoxelData();
+
+	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
 	//===============================================================================
 	// foliage

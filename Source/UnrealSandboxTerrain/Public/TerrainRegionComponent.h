@@ -75,24 +75,22 @@ public:
 		MeshDataCache.Empty();
 	}
 
-	void ForEachMeshData(std::function<void(FVector&, TMeshDataPtr&)> Function) {
+	void ForEachMeshData(std::function<void(const TVoxelIndex&, TMeshDataPtr&)> Function) {
 		for (auto& Elem : MeshDataCache) {
-			Function(Elem.Key, Elem.Value);
+			TVoxelIndex Index(Elem.Key.X, Elem.Key.Y, Elem.Key.Z);
+			Function(Index, Elem.Value);
 		}
 	}
 
 	void SetChanged() {	bIsChanged = true; }
 
+	void ResetChanged() { bIsChanged = false; }
+
 	bool IsChanged() { return bIsChanged; }
 	
 	void SerializeRegionMeshData(FBufferArchive& BinaryData);
 
-	void SerializeRegionVoxelData(FBufferArchive& BinaryData, TArray<TVoxelData*>& VoxalDataArray);
-
 	void DeserializeRegionMeshData(FMemoryReader& BinaryData);
-
-	void DeserializeRegionVoxelData(FMemoryReader& BinaryData);
-
 
 	void SerializeInstancedMeshes(FBufferArchive& BinaryData, TArray<UTerrainZoneComponent*>& ZoneArray);
 
@@ -100,28 +98,13 @@ public:
 
 	void DeserializeRegionInstancedMeshes(FMemoryReader& BinaryData);
 
-
 	void SaveFile(TArray<UTerrainZoneComponent*>& ZoneArray);
 
 	void LoadFile();
 
-	void SaveVoxelData(TArray<TVoxelData*>& VoxalDataArray);
-
-	void SaveVoxelData2(TArray<TVoxelData*>& VoxalDataArray);
-
-	void OpenRegionVdFile();
-
-	void CloseRegionVdFile();
-
-	TVoxelData* LoadVoxelDataByZoneIndex(FVector Index);
-
 	void SpawnInstMeshFromLoadCache(UTerrainZoneComponent* Zone);
 
-	void LoadAllVoxelData(TArray<TVoxelData*>& LoadedVdArray);
-
 private:
-
-	void LoadVoxelByInnerPos(TVoxelDataFileBodyPos& BodyPos, TArray<uint8>& BinaryArray);
 
 	void Save(std::function<void(FBufferArchive& BinaryData)> SaveFunction, FString& FileExt);
 
@@ -137,11 +120,5 @@ private:
 	// lazy voxel data loading
 	//========================================================================================
 
-	std::ifstream* VdInFilePtr = nullptr;
-
 	int64 VdBinaryDataStart;
-
-	TMap<FVector, TVoxelDataFileBodyPos> VdFileBodyMap;
-
-	std::mutex VdFileMutex;
 };

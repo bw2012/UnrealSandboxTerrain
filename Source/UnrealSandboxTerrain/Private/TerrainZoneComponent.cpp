@@ -5,6 +5,7 @@
 #include "TerrainRegionComponent.h"
 #include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
+#include "VoxelIndex.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -15,7 +16,7 @@ UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectIni
 
 void UTerrainZoneComponent::MakeTerrain() {
 	if (voxel_data == NULL) {
-		voxel_data = GetTerrainController()->GetTerrainVoxelDataByPos(GetComponentLocation());
+		voxel_data = GetTerrainController()->GetVoxelDataByPos(GetComponentLocation());
 	}
 
 	if (voxel_data == NULL) {
@@ -79,8 +80,9 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	}
 
 	if (bPutToCache) {
-		FVector Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
-		Region->PutMeshDataToCache(Index, MeshDataPtr);
+		TVoxelIndex Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
+		FVector ZoneIndexTmp(Index.X, Index.Y, Index.Z);
+		Region->PutMeshDataToCache(ZoneIndexTmp, MeshDataPtr);
 	}
 
 	//##########################################
