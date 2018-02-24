@@ -98,4 +98,8 @@ private:
 	FTerrainUndergroundLayer* GetUndergroundMaterialLayer(float Z, float GroundLevel);
 
 	int GetAllUndergroundMaterialLayers(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList);
+
+	bool IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin);
+
+	bool IsZoneOverGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin);
 };

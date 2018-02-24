@@ -173,12 +173,12 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 	//======================================
 
 	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
-
-	if (!(ZoneHeightMapData->GetMaxHeightLevel() < VoxelData.getOrigin().Z - ZoneHalfSize)) {
-		const FVector Origin = VoxelData.getOrigin();
+	const FVector Origin = VoxelData.getOrigin();
+	if (!IsZoneOverGroundLevel(ZoneHeightMapData, Origin)) {
 		TArray<FTerrainUndergroundLayer> LayerList;
 		int LayersCount = GetAllUndergroundMaterialLayers(ZoneHeightMapData, Origin, &LayerList);
-		if (LayersCount == 1) {
+		bool bIsZoneOnGround = IsZoneOnGroundLevel(ZoneHeightMapData, Origin);
+		if (LayersCount == 1 && !bIsZoneOnGround) {
 			// only one material
 			VoxelData.deinitializeDensity(TVoxelDataFillState::ALL);
 			VoxelData.deinitializeMaterial(LayerList[0].MatId);
@@ -195,9 +195,23 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), VoxelData.getOrigin().X, VoxelData.getOrigin().Y, VoxelData.getOrigin().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), VoxelData.getOrigin().X, VoxelData.getOrigin().Y, VoxelData.getOrigin().Z, time);
 }
 
+bool UTerrainGeneratorComponent::IsZoneOverGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin) {
+	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
+	return ZoneHeightMapData->GetMaxHeightLevel() < ZoneOrigin.Z - ZoneHalfSize;
+}
+
+bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin) {
+	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
+	float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize;
+	float ZoneLow = ZoneOrigin.Z - ZoneHalfSize;
+	float TerrainHigh = ZoneHeightMapData->GetMaxHeightLevel();
+	float TerrainLow = ZoneHeightMapData->GetMinHeightLevel();
+
+	return std::max(ZoneLow, TerrainLow) < std::min(ZoneHigh, TerrainHigh);
+}
 
 float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 	//float scale1 = 0.0035f; // small
