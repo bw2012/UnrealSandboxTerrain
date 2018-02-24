@@ -101,6 +101,10 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const
 					if (WorldPos.X > MaxTerrainBounds.X || WorldPos.X < -MaxTerrainBounds.X){
 						Density = 0;
 					}
+
+					if (WorldPos.Y > MaxTerrainBounds.Y || WorldPos.Y < -MaxTerrainBounds.Y) {
+						Density = 0;
+					}
 				}
 
 				VoxelData.setDensity(x, y, z, Density);
