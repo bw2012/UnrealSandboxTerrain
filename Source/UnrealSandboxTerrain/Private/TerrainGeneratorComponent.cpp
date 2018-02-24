@@ -5,6 +5,7 @@
 #include "SandboxVoxeldata.h"
 #include "SandboxPerlinNoise.h"
 #include "SandboxTerrainController.h"
+#include <algorithm>
 
 #define USBT_VGEN_GRADIENT_THRESHOLD	400
 #define USBT_VD_MIN_DENSITY				0.003	// minimal density = 1f/255
@@ -174,7 +175,16 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
 	if (!(ZoneHeightMapData->GetMaxHeightLevel() < VoxelData.getOrigin().Z - ZoneHalfSize)) {
-		GenerateZoneVolume(VoxelData, ZoneHeightMapData);
+		const FVector Origin = VoxelData.getOrigin();
+		TArray<FTerrainUndergroundLayer> LayerList;
+		int LayersCount = GetAllUndergroundMaterialLayers(ZoneHeightMapData, Origin, &LayerList);
+		if (LayersCount == 1) {
+			// only one material
+			VoxelData.deinitializeDensity(TVoxelDataFillState::ALL);
+			VoxelData.deinitializeMaterial(LayerList[0].MatId);
+		} else {
+			GenerateZoneVolume(VoxelData, ZoneHeightMapData);
+		}
 	} else {
 		// air only
 		VoxelData.deinitializeDensity(TVoxelDataFillState::ZERO);
@@ -199,23 +209,17 @@ float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 	float noise_medium = Pn.noise(v.X * scale2, v.Y * scale2, 0) * 5;
 	float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 15;
 	float gl = noise_medium + noise_small + noise_big;
-
-	gl = gl * 100;
-
-	return gl;
+	return (gl * 100) + USBT_VGEN_GROUND_LEVEL_OFFSET;
 }
 
-FORCEINLINE float UTerrainGeneratorComponent::GetRealGroundLevel(float GrounLevel) {
-	return GrounLevel + USBT_VGEN_GROUND_LEVEL_OFFSET;
-}
-
-float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVector& v, const float gl) const {
+float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const {
 	float val = 1;
+	float gl = GroundLevel - USBT_VGEN_GROUND_LEVEL_OFFSET;
 
-	if (v.Z > gl + USBT_VGEN_GRADIENT_THRESHOLD) {
+	if (V.Z > gl + USBT_VGEN_GRADIENT_THRESHOLD) {
 		return 0;
-	} else if (v.Z > gl) {
-		float d = (1 / (v.Z - gl)) * 100;
+	} else if (V.Z > gl) {
+		float d = (1 / (V.Z - gl)) * 100;
 		val = d;
 	}
 
@@ -244,14 +248,40 @@ float UTerrainGeneratorComponent::DensityFunc(const FVector& ZoneIndex, const FV
 	return 0;
 }
 
-FTerrainUndergroundLayer* UTerrainGeneratorComponent::GetUndergroundMaterialLayer(const float Z, float GroundLevel) {
+FTerrainUndergroundLayer* UTerrainGeneratorComponent::GetUndergroundMaterialLayer(const float Z, float RealGroundLevel) {
 	for (int Idx = 0; Idx < UndergroundLayersTmp.Num() - 1; Idx++) {
 		FTerrainUndergroundLayer& Layer = UndergroundLayersTmp[Idx];
-		if (Z <= GroundLevel - Layer.StartDepth && Z > GroundLevel - UndergroundLayersTmp[Idx + 1].StartDepth) {
+		if (Z <= RealGroundLevel - Layer.StartDepth && Z > RealGroundLevel - UndergroundLayersTmp[Idx + 1].StartDepth) {
 			return &Layer;
 		}
 	}
 	return nullptr;
+}
+
+int UTerrainGeneratorComponent::GetAllUndergroundMaterialLayers(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) {
+	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
+	float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize;
+	float ZoneLow = ZoneOrigin.Z - ZoneHalfSize;
+	float TerrainHigh = ZoneHeightMapData->GetMaxHeightLevel();
+	float TerrainLow = ZoneHeightMapData->GetMinHeightLevel();
+
+	int Cnt = 0;
+	for (int Idx = 0; Idx < UndergroundLayersTmp.Num() - 1; Idx++) {
+		FTerrainUndergroundLayer& Layer1 = UndergroundLayersTmp[Idx];
+		FTerrainUndergroundLayer& Layer2 = UndergroundLayersTmp[Idx + 1];
+
+		float LayerHigh = TerrainHigh - Layer1.StartDepth;
+		float LayerLow = TerrainLow - Layer2.StartDepth;
+
+		if (std::max(ZoneLow, LayerLow) < std::min(ZoneHigh, LayerHigh)) {
+			Cnt++;
+			if (LayerList) {
+				LayerList->Add(Layer1);
+			}
+		}
+	}
+
+	return Cnt;
 }
 
 unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) {
@@ -265,7 +295,7 @@ unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, 
 	if (densityUpper < 0.5) {
 		mat = 2; // grass
 	} else {
-		FTerrainUndergroundLayer* Layer = GetUndergroundMaterialLayer(WorldPos.Z, GetRealGroundLevel(GroundLevel));
+		FTerrainUndergroundLayer* Layer = GetUndergroundMaterialLayer(WorldPos.Z, GroundLevel);
 		if (Layer != nullptr) {
 			mat = Layer->MatId;
 		}

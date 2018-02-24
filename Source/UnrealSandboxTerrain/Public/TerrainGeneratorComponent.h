@@ -18,9 +18,9 @@ private:
     
     float* HeightLevelArray;
     
-    float MaxHeightLevel;
+    float MaxHeightLevel = -999999.f;
     
-    float MinHeightLevel;
+    float MinHeightLevel = 999999.f;
     
 public:
     
@@ -30,7 +30,7 @@ public:
     
     FORCEINLINE void SetHeightLevel(TVoxelIndex VoxelIndex, float HeightLevel);
     
-    FORCEINLINE float GetHeightLevel(TVoxelIndex VoxelIndex) const ;
+    FORCEINLINE float GetHeightLevel(TVoxelIndex VoxelIndex) const;
     
     FORCEINLINE float GetMaxHeightLevel() const { return this->MaxHeightLevel; };
     
@@ -77,8 +77,6 @@ public:
 
 	float GroundLevelFunc(FVector v);
 
-	float GetRealGroundLevel(float GrounLevel);
-
 private:
     
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
@@ -91,8 +89,6 @@ private:
 	
 	float ClcDensityByGroundLevel(const FVector& v, const float gl) const;
 
-	//float ClcDensityByGroundLevel(FVector v);
-
 	float DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos);
 
 	unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel);
@@ -100,4 +96,6 @@ private:
 	void GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData);
 
 	FTerrainUndergroundLayer* GetUndergroundMaterialLayer(float Z, float GroundLevel);
+
+	int GetAllUndergroundMaterialLayers(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList);
 };

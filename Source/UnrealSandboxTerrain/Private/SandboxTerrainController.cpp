@@ -1244,5 +1244,5 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 }
 
 float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
-	return TerrainGeneratorComponent->GetRealGroundLevel(TerrainGeneratorComponent->GroundLevelFunc(FVector(X, Y, 0))); ;
+	return TerrainGeneratorComponent->GroundLevelFunc(FVector(X, Y, 0)); ;
 }
