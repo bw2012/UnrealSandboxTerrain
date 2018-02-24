@@ -8,6 +8,7 @@
 
 #define USBT_VGEN_GRADIENT_THRESHOLD	400
 #define USBT_VD_MIN_DENSITY				0.003	// minimal density = 1f/255
+#define USBT_VGEN_GROUND_LEVEL_OFFSET	205.f	
 
 
 
@@ -49,7 +50,22 @@ FORCEINLINE float TZoneHeightMapData::GetHeightLevel(TVoxelIndex VoxelIndex) con
 usand::PerlinNoise Pn;
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+	FTerrainUndergroundLayer DefaultLayer;
+	DefaultLayer.MatId = 1;
+	DefaultLayer.StartDepth = 0;
+	DefaultLayer.Name = TEXT("Dirt");
 
+	UndergroundLayers.Add(DefaultLayer);
+}
+
+void UTerrainGeneratorComponent::BeginPlay() {
+	FTerrainUndergroundLayer LastLayer;
+	LastLayer.MatId = 0;
+	LastLayer.StartDepth = 9999999.f;
+	LastLayer.Name = TEXT("");
+
+	this->UndergroundLayersTmp = this->UndergroundLayers;
+	UndergroundLayersTmp.Add(LastLayer);
 }
 
 void UTerrainGeneratorComponent::BeginDestroy() {
@@ -149,6 +165,7 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 	if (!(ZoneHeightMapData->GetMaxHeightLevel() < VoxelData.getOrigin().Z - ZoneHalfSize)) {
 		GenerateZoneVolume(VoxelData, ZoneHeightMapData);
 	} else {
+		// air only
 		VoxelData.deinitializeDensity(TVoxelDataFillState::ZERO);
 		VoxelData.deinitializeMaterial(0);
 	}
@@ -177,6 +194,10 @@ float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 	return gl;
 }
 
+FORCEINLINE float UTerrainGeneratorComponent::GetRealGroundLevel(float GrounLevel) {
+	return GrounLevel + USBT_VGEN_GROUND_LEVEL_OFFSET;
+}
+
 float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVector& v, const float gl) const {
 	float val = 1;
 
@@ -198,30 +219,6 @@ float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVector& v, cons
 	return val;
 }
 
-/*
-float UTerrainGeneratorComponent::ClcDensityByGroundLevel(FVector v) {
-	float gl = GroundLevelFunc(v);
-	float val = 1;
-
-	if (v.Z > gl + USBT_VGEN_GRADIENT_THRESHOLD) {
-		return 0;
-	} else if (v.Z > gl) {
-		float d = (1 / (v.Z - gl)) * 100;
-		val = d;
-	}
-
-	if (val > 1) {
-		return 1;
-	}
-
-	if (val < USBT_VD_MIN_DENSITY) { // minimal density = 1f/255
-		return 0;
-	}
-
-	return val;
-}
-*/
-
 float UTerrainGeneratorComponent::DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos) {
 	//float den = ClcDensityByGroundLevel(WorldPos);
 
@@ -236,7 +233,17 @@ float UTerrainGeneratorComponent::DensityFunc(const FVector& ZoneIndex, const FV
 	return 0;
 }
 
-unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, const float GroundLevel) {
+FTerrainUndergroundLayer* UTerrainGeneratorComponent::GetUndergroundMaterialLayer(const float Z, float GroundLevel) {
+	for (int Idx = 0; Idx < UndergroundLayersTmp.Num() - 1; Idx++) {
+		FTerrainUndergroundLayer& Layer = UndergroundLayersTmp[Idx];
+		if (Z <= GroundLevel - Layer.StartDepth && Z > GroundLevel - UndergroundLayersTmp[Idx + 1].StartDepth) {
+			return &Layer;
+		}
+	}
+	return nullptr;
+}
+
+unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) {
 	FVector test = FVector(WorldPos);
 	test.Z += 30;
 
@@ -247,17 +254,11 @@ unsigned char UTerrainGeneratorComponent::MaterialFunc(const FVector& LocalPos, 
 	if (densityUpper < 0.5) {
 		mat = 2; // grass
 	} else {
-		if (WorldPos.Z < -1100) {
-			mat = 99; // obsidian
-		} else {
-			if (WorldPos.Z < -350) {
-				mat = 4; // basalt
-			} else {
-				mat = 1; // dirt
-			}
+		FTerrainUndergroundLayer* Layer = GetUndergroundMaterialLayer(WorldPos.Z, GetRealGroundLevel(GroundLevel));
+		if (Layer != nullptr) {
+			mat = Layer->MatId;
 		}
 	}
-
 
 	return mat;
 }

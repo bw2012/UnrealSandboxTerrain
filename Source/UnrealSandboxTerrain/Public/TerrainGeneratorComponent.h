@@ -37,7 +37,19 @@ public:
     FORCEINLINE float GetMinHeightLevel() const { return this->MinHeightLevel; };
 };
 
+USTRUCT()
+struct FTerrainUndergroundLayer {
+	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere)
+	int32 MatId;
+
+	UPROPERTY(EditAnywhere)
+	float StartDepth;
+
+	UPROPERTY(EditAnywhere)
+	FString Name;
+};
 
 /**
 *
@@ -48,15 +60,26 @@ class UNREALSANDBOXTERRAIN_API UTerrainGeneratorComponent : public USceneCompone
 	GENERATED_UCLASS_BODY()
 
 public:
+
 	virtual void BeginDestroy();
 
+	virtual void BeginPlay();
+
 public:
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Generator")
+	TArray<FTerrainUndergroundLayer> UndergroundLayers;
+
 	void GenerateVoxelTerrain (TVoxelData &VoxelData);
 
 	float GroundLevelFunc(FVector v);
 
+	float GetRealGroundLevel(float GrounLevel);
+
 private:
     
+	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
+
     std::unordered_map<TVoxelIndex, TZoneHeightMapData*> ZoneHeightMapCollection;
 
 	ASandboxTerrainController* GetTerrainController() {
@@ -69,7 +92,9 @@ private:
 
 	float DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos);
 
-	unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, const float GroundLevel);
+	unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel);
 
 	void GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData);
+
+	FTerrainUndergroundLayer* GetUndergroundMaterialLayer(float Z, float GroundLevel);
 };

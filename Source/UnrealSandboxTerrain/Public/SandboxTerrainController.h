@@ -237,11 +237,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	TMap<uint32, FSandboxFoliage> FoliageMap;
 
+	UPROPERTY(EditAnywhere)
+	UTerrainGeneratorComponent* TerrainGeneratorComponent;
+
 	//========================================================================================
 	
 	//static bool CheckZoneBounds(FVector Origin, float Size);
 
 	//========================================================================================
+
+	float GetRealGroungLevel(float X, float Y);
 
 	void DigTerrainRoundHole(FVector v, float radius, float s);
 
@@ -391,9 +396,6 @@ private:
 	}
 
 protected:
-
-	UPROPERTY()
-	UTerrainGeneratorComponent* TerrainGeneratorComponent;
 	
 	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
 
