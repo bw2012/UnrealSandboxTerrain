@@ -496,7 +496,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	} 
 
 	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(ZoneIndex);
-	if (VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
+	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			Zone->SetVoxelData(VoxelDataInfo->Vd);
@@ -993,24 +993,29 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxe
 	if (HasVoxelData(Index)) {
 		return GetVoxelDataInfo(Index);
 	} else {
-		// TODO check vd file
-		TVoxelDataInfo ReturnVdInfo;
+		if (VdFile.get(Index) != nullptr) {
+			TVoxelDataInfo VdInfo;
+			VdInfo.DataState = TVoxelDataState::READY_TO_LOAD;
 
-		TVoxelData* Vd = GetVoxelDataByIndex(Index);
-		Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
-		Vd->setOrigin(GetZonePos(Index));
+			RegisterTerrainVoxelData(VdInfo, Index);
+			return &VoxelDataIndexMap[Index];
+		} else {
+			TVoxelDataInfo VdInfo;
+			TVoxelData* Vd = GetVoxelDataByIndex(Index);
+			Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
+			Vd->setOrigin(GetZonePos(Index));
 
-		TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
+			TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
 
-		ReturnVdInfo.DataState = TVoxelDataState::GENERATED;
-		ReturnVdInfo.Vd = Vd;
+			VdInfo.DataState = TVoxelDataState::GENERATED;
+			VdInfo.Vd = Vd;
 
-		Vd->setChanged();
-		Vd->setCacheToValid();
+			Vd->setChanged();
+			Vd->setCacheToValid();
 
-		RegisterTerrainVoxelData(ReturnVdInfo, Index);
-
-		return &VoxelDataIndexMap[Index];
+			RegisterTerrainVoxelData(VdInfo, Index);
+			return &VoxelDataIndexMap[Index];
+		}
 	}
 }
 
@@ -1241,4 +1246,8 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 	}
 
 	return TransitionMaterialCache[TransitionName];
+}
+
+float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
+	return TerrainGeneratorComponent->GroundLevelFunc(FVector(X, Y, 0)); ;
 }

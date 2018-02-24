@@ -168,6 +168,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
+	UPROPERTY(EditAnywhere)
+	UTerrainGeneratorComponent* TerrainGeneratorComponent;
+
 	//========================================================================================
 	// 
 	//========================================================================================
@@ -242,6 +245,8 @@ public:
 	//static bool CheckZoneBounds(FVector Origin, float Size);
 
 	//========================================================================================
+
+	float GetRealGroungLevel(float X, float Y);
 
 	void DigTerrainRoundHole(FVector v, float radius, float s);
 
@@ -391,9 +396,6 @@ private:
 	}
 
 protected:
-
-	UPROPERTY()
-	UTerrainGeneratorComponent* TerrainGeneratorComponent;
 	
 	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
 
