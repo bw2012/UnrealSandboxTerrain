@@ -240,9 +240,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	TMap<uint32, FSandboxFoliage> FoliageMap;
 
-	UPROPERTY(EditAnywhere)
-	UTerrainGeneratorComponent* TerrainGeneratorComponent;
-
 	//========================================================================================
 	
 	//static bool CheckZoneBounds(FVector Origin, float Size);
