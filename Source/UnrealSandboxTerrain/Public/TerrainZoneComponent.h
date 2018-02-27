@@ -58,6 +58,12 @@ public:
 		return Cast<UTerrainRegionComponent>(GetAttachParent());
 	}
 
+	TMeshData const * GetCachedMeshData();
+
+	void ClearCachedMeshData();
+
 private:
 	TVoxelData* voxel_data;
+
+	TMeshDataPtr CachedMeshDataPtr;
 };

@@ -13,12 +13,13 @@
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
-class TVoxelData;
 class FLoadInitialZonesThread;
 class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
 class UTerrainRegionComponent;
+
+typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
 #define TH_STATE_NEW		0
 #define TH_STATE_RUNNING	1
@@ -295,7 +296,7 @@ private:
 
 	void LoadJson(TSet<FVector>& RegionIndexSet);
 
-	bool OpenVdfile();
+	bool OpenFile();
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
@@ -319,7 +320,7 @@ private:
 	// async tasks
 	//===============================================================================
 
-	void InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr);
+	void InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
 
 	void InvokeLazyZoneAsync(FVector index);
 
@@ -344,6 +345,8 @@ private:
 	//===============================================================================
 
 	kvdb::KvFile<TVoxelIndex, TValueData> VdFile;
+
+	kvdb::KvFile<TVoxelIndex, TValueData> MdFile;
 
 	std::mutex VoxelDataMapMutex;
 

@@ -8,8 +8,10 @@
 #include "DrawDebugHelpers.h"
 #include "Async.h"
 #include "Json.h"
-
 #include "SandboxTerrainMeshComponent.h"
+
+
+void SerializeMeshData(TMeshData const * MeshDataPtr, FBufferArchive& BinaryData);
 
 
 class FAsyncThread : public FRunnable {
@@ -132,7 +134,7 @@ void ASandboxTerrainController::BeginPlay() {
 		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
 	}
 
-	if (!OpenVdfile()) return;
+	if (!OpenFile()) return;
 
 	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd file ----> %d zones"), VdFile.size());
 
@@ -228,6 +230,7 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	Save();
 	VdFile.close();
+	MdFile.close();
 	ClearVoxelData();
 
 	// clean region mesh data cache and close vd file
@@ -291,17 +294,17 @@ void ASandboxTerrainController::Save() {
 		//============================================
 		// TODO remove
 		// test
-		FBufferArchive TempBuffer;
+		FBufferArchive TempBufferVd;
 		TValueData buffer;
-		serializeVoxelData(*VdInfo.Vd, TempBuffer);
-		buffer.reserve(TempBuffer.Num());
 
-		for (uint8 b : TempBuffer) {
+		serializeVoxelData(*VdInfo.Vd, TempBufferVd);
+		buffer.reserve(TempBufferVd.Num());
+
+		for (uint8 b : TempBufferVd) {
 			buffer.push_back(b);
 		}
 
 		TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
-
 		if (VdInfo.Vd->isChanged()) {
 			VdFile.put(Index, buffer);
 			VdInfo.Vd->resetLastSave();
@@ -318,10 +321,15 @@ void ASandboxTerrainController::Save() {
 	for (auto& Elem : TerrainZoneMap) {
 		FVector ZoneIndex = Elem.Key;
 		UTerrainZoneComponent* Zone = Elem.Value;
+
+		TMeshData const * MeshDataPtr = Zone->GetCachedMeshData();
+		if (MeshDataPtr) {
+			FBufferArchive TempBufferMd;
+			SerializeMeshData(MeshDataPtr, TempBufferMd);
+		}
+
 		FVector RegionIndex = GetRegionIndex(Zone->GetComponentLocation());
-
 		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
-
 		SaveBuffer.ZoneArray.Add(Zone);
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
@@ -401,13 +409,13 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	FFileHelper::SaveStringToFile(*JsonStr, *FullPath);
 }
 
-bool ASandboxTerrainController::OpenVdfile() {
+bool ASandboxTerrainController::OpenFile() {
 	// open vd file 	
-	FString FileName = TEXT("terrain.dat");
+	FString FileNameVd = TEXT("terrain_voxeldata.dat");
+	FString FileNameMd = TEXT("terrain_mesh.dat");
+
 	FString SavePath = FPaths::GameSavedDir();
 	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
-	FString FullPath = SaveDir + FileName;
-	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*SaveDir)) {
@@ -417,14 +425,27 @@ bool ASandboxTerrainController::OpenVdfile() {
 		}
 	}
 
+	FString FullPathVd = SaveDir + FileNameVd;
+	FString FullPathMd = SaveDir + FileNameMd;
+	std::string FilePathVdString = std::string(TCHAR_TO_UTF8(*FullPathVd));
+	std::string FilePathMdString = std::string(TCHAR_TO_UTF8(*FullPathMd));
+
 	// check terrain db file 
-	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
-		// create new empty file
-		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPathVd)) {
+		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathVdString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
 	}
 
-	if (!VdFile.open(FilePathString)) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain file: %s"), *FullPath);
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPathMd)) {
+		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathMdString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
+	}
+
+	if (!VdFile.open(FilePathVdString)) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain vd file: %s"), *FullPathVd);
+		return false;
+	}
+
+	if (!MdFile.open(FilePathMdString)) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain mesh file: %s"), *FullPathMd);
 		return false;
 	}
 
@@ -889,11 +910,11 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 						VoxelData->setChanged();
 						VoxelData->setCacheToValid();
 						Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
-						std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
+						TMeshDataPtr MeshDataPtr = Zone->GenerateMesh();
 						VoxelData->resetLastMeshRegenerationTime();
 						VoxelData->vd_edit_mutex.unlock();
 						Zone->GetRegion()->SetChanged();
-						InvokeZoneMeshAsync(Zone, md_ptr);
+						InvokeZoneMeshAsync(Zone, MeshDataPtr);
 					} else {
 						VoxelData->vd_edit_mutex.unlock();
 					}
@@ -908,11 +929,11 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 }
 
 
-void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr) {
+void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr) {
 	TerrainControllerTask task;
 	task.Function = [=]() {
-		if (mesh_data_ptr) {
-			zone->ApplyTerrainMesh(mesh_data_ptr);
+		if (MeshDataPtr) {
+			Zone->ApplyTerrainMesh(MeshDataPtr);
 		}
 	};
 
@@ -1250,4 +1271,71 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 
 float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
 	return TerrainGeneratorComponent->GroundLevelFunc(FVector(X, Y, 0)); ;
+}
+
+//======================================================================================================================================================================
+// mesh data de/serealization
+//======================================================================================================================================================================
+
+void SerializeMeshContainer(const TMeshContainer& MeshContainer, FBufferArchive& BinaryData) {
+	// save regular materials
+	int32 LodSectionRegularMatNum = MeshContainer.MaterialSectionMap.Num();
+	BinaryData << LodSectionRegularMatNum;
+	for (auto& Elem : MeshContainer.MaterialSectionMap) {
+		unsigned short MatId = Elem.Key;
+		const TMeshMaterialSection& MaterialSection = Elem.Value;
+
+		BinaryData << MatId;
+
+		const FProcMeshSection& Mesh = MaterialSection.MaterialMesh;
+		Mesh.SerializeMesh(BinaryData);
+	}
+
+	// save transition materials
+	int32 LodSectionTransitionMatNum = MeshContainer.MaterialTransitionSectionMap.Num();
+	BinaryData << LodSectionTransitionMatNum;
+	for (auto& Elem : MeshContainer.MaterialTransitionSectionMap) {
+		unsigned short MatId = Elem.Key;
+		const TMeshMaterialTransitionSection& TransitionMaterialSection = Elem.Value;
+
+		BinaryData << MatId;
+
+		int MatSetSize = TransitionMaterialSection.MaterialIdSet.size();
+		BinaryData << MatSetSize;
+
+		for (unsigned short MatSetElement : TransitionMaterialSection.MaterialIdSet) {
+			BinaryData << MatSetElement;
+		}
+
+		const FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
+		Mesh.SerializeMesh(BinaryData);
+	}
+}
+
+void SerializeMeshData(TMeshData const * MeshDataPtr, FBufferArchive& BinaryData) {
+	int32 LodArraySize = MeshDataPtr->MeshSectionLodArray.Num();
+	BinaryData << LodArraySize;
+
+	for (int32 LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
+		const TMeshLodSection& LodSection = MeshDataPtr->MeshSectionLodArray[LodIdx];
+		BinaryData << LodIdx;
+
+		// save whole mesh
+		LodSection.WholeMesh.SerializeMesh(BinaryData);
+
+		SerializeMeshContainer(LodSection.RegularMeshContainer, BinaryData);
+
+		if (LodIdx > 0) {
+			for (auto i = 0; i < 6; i++) {
+				SerializeMeshContainer(LodSection.TransitionPatchArray[i], BinaryData);
+			}
+		}
+	}
+
+	TArray<uint8> CompressedData;
+	FArchiveSaveCompressedProxy Compressor = FArchiveSaveCompressedProxy(CompressedData, ECompressionFlags::COMPRESS_ZLIB);
+	Compressor << BinaryData;
+	Compressor.Flush();
+
+	UE_LOG(LogTemp, Warning, TEXT("TEST ---> %d -> %d"), BinaryData.TotalSize(), CompressedData.Num());
 }

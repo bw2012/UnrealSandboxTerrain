@@ -23,15 +23,15 @@ void UTerrainZoneComponent::MakeTerrain() {
 		return;
 	}
 
-	std::shared_ptr<TMeshData> md_ptr = GenerateMesh();
+	std::shared_ptr<TMeshData> MeshDataPtr = GenerateMesh();
 
 	if (IsInGameThread()) {
-		ApplyTerrainMesh(md_ptr);
+		ApplyTerrainMesh(MeshDataPtr);
 		voxel_data->resetLastMeshRegenerationTime();
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
 		if (GetTerrainController() != NULL) {
-			GetTerrainController()->InvokeZoneMeshAsync(this, md_ptr);
+			GetTerrainController()->InvokeZoneMeshAsync(this, MeshDataPtr);
 		}
 	}
 }
@@ -55,14 +55,22 @@ std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
 		vdp.collisionLOD = 0;
 	}
 
-	TMeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
+	TMeshDataPtr MeshDataPtr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
 
 	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 
-	return md_ptr;
+	return MeshDataPtr;
+}
+
+TMeshData const * UTerrainZoneComponent::GetCachedMeshData() {
+	return (TMeshData const *) CachedMeshDataPtr.get();
+}
+
+void UTerrainZoneComponent::ClearCachedMeshData() {
+	CachedMeshDataPtr = nullptr;
 }
 
 void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
@@ -83,6 +91,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		TVoxelIndex Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
 		FVector ZoneIndexTmp(Index.X, Index.Y, Index.Z);
 		Region->PutMeshDataToCache(ZoneIndexTmp, MeshDataPtr);
+		CachedMeshDataPtr = MeshDataPtr;
 	}
 
 	//##########################################
