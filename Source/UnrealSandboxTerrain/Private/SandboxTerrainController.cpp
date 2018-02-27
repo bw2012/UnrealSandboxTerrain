@@ -519,21 +519,15 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 
 	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
 
-	FVector RegionIndex = GetRegionIndex(Pos);
-	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
-
-	if (Region != nullptr) {
-		//TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndexTmp);
-		TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(ZoneIndex);
-		if (MeshDataPtr != nullptr) {
-			InvokeSafe([=]() {
-				UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-				Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
-				OnLoadZone(Zone);
-			});
-			return;
-		}
-	} 
+	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(ZoneIndex);
+	if (MeshDataPtr != nullptr) {
+		InvokeSafe([=]() {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			OnLoadZone(Zone);
+		});
+		return;
+	}
 
 	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(ZoneIndex);
 	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
@@ -543,7 +537,6 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 			Zone->MakeTerrain();
 
 			if (VoxelDataInfo->IsNewGenerated()) {
-				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
@@ -556,7 +549,6 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 			InvokeSafe([=]() {
 				// just create region
 				UTerrainRegionComponent* Region = GetOrCreateRegion(Pos);
-				Region->SetChanged();
 			});
 		}
 	}
@@ -866,9 +858,6 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(OverlapItem.GetComponent());
 				if (InstancedMesh != nullptr) {
 					InstancedMesh->RemoveInstance(OverlapItem.Item);
-
-					UTerrainRegionComponent* Region = GetRegionByVectorIndex(GetRegionIndex(OverlapItem.ImpactPoint));
-					Region->SetChanged();
 				}
 			}
 		}
@@ -915,7 +904,6 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 					if (VoxelData == NULL) {
 						//try to load lazy voxel data
-						UTerrainRegionComponent* Region = Zone->GetRegion();
 						VoxelData = LoadVoxelDataByIndex(ZoneIndex);
 
 						if (VoxelData == nullptr) {
@@ -932,7 +920,6 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 						TMeshDataPtr MeshDataPtr = Zone->GenerateMesh();
 						VoxelData->resetLastMeshRegenerationTime();
 						VoxelData->vd_edit_mutex.unlock();
-						Zone->GetRegion()->SetChanged();
 						InvokeZoneMeshAsync(Zone, MeshDataPtr);
 					} else {
 						VoxelData->vd_edit_mutex.unlock();
@@ -975,7 +962,6 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 			Zone->SetVoxelData(VoxelData);
 			TMeshDataPtr NewMeshDataPtr = Zone->GenerateMesh();
 			VoxelData->resetLastMeshRegenerationTime();
-			Zone->GetRegion()->SetChanged();
 			Zone->ApplyTerrainMesh(NewMeshDataPtr);
 		}
 	};
@@ -1219,7 +1205,7 @@ void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliag
 }
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
-	Zone->GetRegion()->SpawnInstMeshFromLoadCache(Zone);
+	//Zone->GetRegion()->SpawnInstMeshFromLoadCache(Zone);
 }
 
 //======================================================================================================================================================================
@@ -1403,7 +1389,7 @@ void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& Bina
 	}
 }
 
-TMeshDataPtr DeserializeRegionMeshData(FMemoryReader& BinaryData, uint32 CollisionMeshSectionLodIndex) {
+TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMeshSectionLodIndex) {
 	TMeshDataPtr MeshDataPtr(new TMeshData);
 
 	int32 LodArraySize;
@@ -1460,7 +1446,7 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
 	BinaryData.Seek(0);
 
-	TMeshDataPtr MeshDataPtr = DeserializeRegionMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
+	TMeshDataPtr MeshDataPtr = DeserializeMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
 
 	CompressedData.Empty();
 	Decompressor.FlushCache();
