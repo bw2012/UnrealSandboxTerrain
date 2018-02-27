@@ -147,7 +147,6 @@ void ASandboxTerrainController::BeginPlay() {
 	LoadJson(RegionIndexSet);
 
 	// load initial region
-	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
 	//Region1->LoadFile();
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
@@ -369,7 +368,8 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 		float y = Index.Y;
 		float z = Index.Z;
 
-		FVector RegionPos = GetRegionPos(Index);
+		//FVector RegionPos = GetRegionPos(Index);
+		FVector RegionPos;
 
 		//========================================================
 		JsonWriter->WriteObjectStart();
@@ -519,8 +519,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	} else {
 		if (VoxelDataInfo->IsNewGenerated()) {
 			InvokeSafe([=]() {
-				// just create region
-				UTerrainRegionComponent* Region = GetOrCreateRegion(Pos);
+
 			});
 		}
 	}
@@ -555,22 +554,6 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 	return InitialZoneSet;
 }
 
-FVector ASandboxTerrainController::GetRegionIndex(FVector v) {
-	return sandboxGridIndex(v, USBT_REGION_SIZE);
-}
-
-FVector ASandboxTerrainController::GetRegionPos(FVector Index) {
-	return FVector(Index.X * USBT_REGION_SIZE, Index.Y * USBT_REGION_SIZE, Index.Z * USBT_REGION_SIZE);
-}
-
-UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVector index) {
-	if (TerrainRegionMap.Contains(index)) {
-		return TerrainRegionMap[index];
-	}
-
-	return NULL;
-}
-
 TVoxelIndex ASandboxTerrainController::GetZoneIndex(const FVector& Pos) {
 	FVector Tmp = sandboxGridIndex(Pos, USBT_ZONE_SIZE);
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
@@ -589,29 +572,8 @@ UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(const TVo
 	return NULL;
 }
 
-UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector pos) {
-	FVector RegionIndex = GetRegionIndex(pos);
-	UTerrainRegionComponent* RegionComponent = GetRegionByVectorIndex(RegionIndex);
-	if (RegionComponent == NULL) {
-		FString RegionName = FString::Printf(TEXT("Region -> [%.0f, %.0f, %.0f]"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
-		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
-		RegionComponent->RegisterComponent();
-		RegionComponent->AttachTo(RootComponent);
-		//RegionComponent->SetRelativeLocation(pos);
-		RegionComponent->SetWorldLocation(GetRegionPos(RegionIndex));
-
-		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
-
-		//if (bShowZoneBounds) 
-			DrawDebugBox(GetWorld(), GetRegionPos(RegionIndex), FVector(USBT_REGION_SIZE / 2), FColor(255, 0, 255, 100), true);
-	}
-
-	return RegionComponent;
-}
 
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
-	UTerrainRegionComponent* RegionComponent = GetOrCreateRegion(pos);
-
 	TVoxelIndex Index = GetZoneIndex(pos);
 	FVector IndexTmp(Index.X, Index.Y,Index.Z);
 

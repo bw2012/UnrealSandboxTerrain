@@ -263,12 +263,6 @@ public:
 
 	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
-	FVector GetRegionIndex(FVector v);
-
-	FVector GetRegionPos(FVector Index);
-
-	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
-
 	template<class H>
 	void EditTerrain(FVector v, float radius, H handler);
 
@@ -300,8 +294,6 @@ private:
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
-	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
-
 	TSet<FVector> RegionIndexSet;
 
 	TSet<FVector> SpawnInitialZone();
@@ -310,7 +302,6 @@ private:
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
-	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
 	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 
