@@ -11,7 +11,7 @@
 #include "SandboxTerrainMeshComponent.h"
 
 
-void SerializeMeshData(TMeshData const * MeshDataPtr, FBufferArchive& BinaryData);
+void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData);
 
 
 class FAsyncThread : public FRunnable {
@@ -324,8 +324,19 @@ void ASandboxTerrainController::Save() {
 
 		TMeshData const * MeshDataPtr = Zone->GetCachedMeshData();
 		if (MeshDataPtr) {
-			FBufferArchive TempBufferMd;
+			TArray<uint8> TempBufferMd;
 			SerializeMeshData(MeshDataPtr, TempBufferMd);
+
+			TVoxelIndex Index2(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
+			TValueData buffer;
+			buffer.reserve(TempBufferMd.Num());
+			for (uint8 b : TempBufferMd) {
+				buffer.push_back(b);
+			}
+
+			MdFile.put(Index2, buffer);
+			Zone->ClearCachedMeshData();
 		}
 
 		FVector RegionIndex = GetRegionIndex(Zone->GetComponentLocation());
@@ -1312,7 +1323,8 @@ void SerializeMeshContainer(const TMeshContainer& MeshContainer, FBufferArchive&
 	}
 }
 
-void SerializeMeshData(TMeshData const * MeshDataPtr, FBufferArchive& BinaryData) {
+void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData) {
+	FBufferArchive BinaryData;
 	int32 LodArraySize = MeshDataPtr->MeshSectionLodArray.Num();
 	BinaryData << LodArraySize;
 
@@ -1332,7 +1344,6 @@ void SerializeMeshData(TMeshData const * MeshDataPtr, FBufferArchive& BinaryData
 		}
 	}
 
-	TArray<uint8> CompressedData;
 	FArchiveSaveCompressedProxy Compressor = FArchiveSaveCompressedProxy(CompressedData, ECompressionFlags::COMPRESS_ZLIB);
 	Compressor << BinaryData;
 	Compressor.Flush();
