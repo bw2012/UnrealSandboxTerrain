@@ -142,17 +142,18 @@ void ASandboxTerrainController::BeginPlay() {
 	// load existing
 	//===========================
 	RegionIndexSet.Empty();
-	OnStartBuildTerrain();
+	//OnStartBuildTerrain();
 	bIsGeneratingTerrain = true;
 	LoadJson(RegionIndexSet);
 
 	// load initial region
 	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
-	Region1->LoadFile();
+	//Region1->LoadFile();
 	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
 
 	// async loading other zones
+	/*
 	RunThread([&](FAsyncThread& ThisThread) {
 		Region1->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
 			if (ThisThread.IsNotValid()) return;
@@ -212,6 +213,7 @@ void ASandboxTerrainController::BeginPlay() {
 		});
 
 	});
+	*/
 }
 
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -316,6 +318,8 @@ void ASandboxTerrainController::Save() {
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
 
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
+
 	// put zones to save buffer
 	TMap<FVector, TSaveBuffer> SaveBufferByRegion;
 	for (auto& Elem : TerrainZoneMap) {
@@ -359,7 +363,6 @@ void ASandboxTerrainController::Save() {
 
 	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
@@ -516,7 +519,8 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
 
 	if (Region != nullptr) {
-		TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndexTmp);
+		//TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndexTmp);
+		TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(ZoneIndex);
 		if (MeshDataPtr != nullptr) {
 			InvokeSafe([=]() {
 				UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -1325,6 +1329,7 @@ void SerializeMeshContainer(const TMeshContainer& MeshContainer, FBufferArchive&
 
 void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData) {
 	FBufferArchive BinaryData;
+
 	int32 LodArraySize = MeshDataPtr->MeshSectionLodArray.Num();
 	BinaryData << LodArraySize;
 
@@ -1349,4 +1354,120 @@ void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedD
 	Compressor.Flush();
 
 	UE_LOG(LogTemp, Warning, TEXT("TEST ---> %d -> %d"), BinaryData.TotalSize(), CompressedData.Num());
+}
+
+void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& BinaryData) {
+	// regular materials
+	int32 LodSectionRegularMatNum;
+	BinaryData << LodSectionRegularMatNum;
+
+	for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
+		unsigned short MatId;
+		BinaryData << MatId;
+
+		TMeshMaterialSection& MatSection = MeshContainer.MaterialSectionMap.FindOrAdd(MatId);
+		MatSection.MaterialId = MatId;
+
+		MatSection.MaterialMesh.DeserializeMesh(BinaryData);
+	}
+
+	// transition materials
+	int32 LodSectionTransitionMatNum;
+	BinaryData << LodSectionTransitionMatNum;
+
+	for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
+		unsigned short MatId;
+		BinaryData << MatId;
+
+		int MatSetSize;
+		BinaryData << MatSetSize;
+
+		std::set<unsigned short> MatSet;
+		for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
+			unsigned short MatSetElement;
+			BinaryData << MatSetElement;
+
+			MatSet.insert(MatSetElement);
+		}
+
+		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
+		MatTransSection.MaterialId = MatId;
+		MatTransSection.MaterialIdSet = MatSet;
+		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
+
+		MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
+	}
+}
+
+TMeshDataPtr DeserializeRegionMeshData(FMemoryReader& BinaryData, uint32 CollisionMeshSectionLodIndex) {
+	TMeshDataPtr MeshDataPtr(new TMeshData);
+
+	int32 LodArraySize;
+	BinaryData << LodArraySize;
+
+	for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
+		int32 LodIndex;
+		BinaryData << LodIndex;
+
+		// whole mesh
+		MeshDataPtr.get()->MeshSectionLodArray[LodIndex].WholeMesh.DeserializeMesh(BinaryData);
+		DeserializeMeshContainer(MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer, BinaryData);
+
+		if (LodIdx > 0) {
+			for (auto i = 0; i < 6; i++) {
+				DeserializeMeshContainer(MeshDataPtr.get()->MeshSectionLodArray[LodIndex].TransitionPatchArray[i], BinaryData);
+			}
+		}
+	}
+
+	MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[CollisionMeshSectionLodIndex].WholeMesh;//GetTerrainController()->GetCollisionMeshSectionLodIndex()
+	return MeshDataPtr;
+}
+
+TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& Index) {
+	std::shared_ptr<TValueData> DataPtr = MdFile.get(Index);
+
+	if (DataPtr == nullptr || DataPtr->size() == 0) {
+		return nullptr;
+	}
+
+	double Start = FPlatformTime::Seconds();
+
+	//TODO optimize all
+	TArray<uint8> CompressedData;
+	CompressedData.Reserve(DataPtr->size());
+
+	TValueData& Data = *DataPtr.get();
+
+	for (auto Byte : Data) {
+		CompressedData.Add(Byte);
+	}
+
+	FArchiveLoadCompressedProxy Decompressor = FArchiveLoadCompressedProxy(CompressedData, ECompressionFlags::COMPRESS_ZLIB);
+
+	if (Decompressor.GetError()){
+		UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
+		return nullptr;
+	}
+
+	FBufferArchive DecompressedBinaryArray;
+	Decompressor << DecompressedBinaryArray;
+
+	FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
+	BinaryData.Seek(0);
+
+	TMeshDataPtr MeshDataPtr = DeserializeRegionMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
+
+	CompressedData.Empty();
+	Decompressor.FlushCache();
+	BinaryData.FlushCache();
+	DecompressedBinaryArray.Empty();
+	DecompressedBinaryArray.Close();
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+
+	UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+
+	return MeshDataPtr;
 }
