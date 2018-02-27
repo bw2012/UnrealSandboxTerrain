@@ -166,7 +166,7 @@ void UTerrainRegionComponent::DeserializeRegionMeshData(FMemoryReader& BinaryDat
 			}
 		}
 
-		MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].WholeMesh;
+		//MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[GetTerrainController()->GetCollisionMeshSectionLodIndex()].WholeMesh;
 	}
 }
 
@@ -289,7 +289,8 @@ void UTerrainRegionComponent::Save(std::function<void(FBufferArchive& BinaryData
 	double Start = FPlatformTime::Seconds();
 
 	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
+	//FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
+	FVector Index;
 
 	int tx = Index.X;
 	int ty = Index.Y;
@@ -326,7 +327,8 @@ void UTerrainRegionComponent::Load(std::function<void(FMemoryReader& BinaryData)
 	double Start = FPlatformTime::Seconds();
 
 	FString SavePath = FPaths::GameSavedDir();
-	FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
+	//FVector Index = GetTerrainController()->GetRegionIndex(GetComponentLocation());
+	FVector Index;
 
 	int tx = Index.X;
 	int ty = Index.Y;

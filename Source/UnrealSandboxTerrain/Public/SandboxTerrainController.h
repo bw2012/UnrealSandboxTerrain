@@ -17,7 +17,6 @@ class FLoadInitialZonesThread;
 class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
-class UTerrainRegionComponent;
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
@@ -143,7 +142,6 @@ public:
 	friend FLoadInitialZonesThread;
 	friend FAsyncThread;
 	friend UTerrainZoneComponent;
-	friend UTerrainRegionComponent;
 
 	virtual void BeginPlay() override;
 
@@ -263,12 +261,6 @@ public:
 
 	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
-	FVector GetRegionIndex(FVector v);
-
-	FVector GetRegionPos(FVector Index);
-
-	UTerrainRegionComponent* GetRegionByVectorIndex(FVector v);
-
 	template<class H>
 	void EditTerrain(FVector v, float radius, H handler);
 
@@ -292,17 +284,13 @@ private:
 
 	void Save();
 
-	void SaveJson(const TSet<FVector>& RegionPosSet);
+	void SaveJson();
 
-	void LoadJson(TSet<FVector>& RegionIndexSet);
+	void LoadJson();
 
 	bool OpenFile();
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
-
-	TMap<FVector, UTerrainRegionComponent*> TerrainRegionMap;
-
-	TSet<FVector> RegionIndexSet;
 
 	TSet<FVector> SpawnInitialZone();
 
@@ -310,7 +298,6 @@ private:
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
-	UTerrainRegionComponent* GetOrCreateRegion(FVector pos);
 
 	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 

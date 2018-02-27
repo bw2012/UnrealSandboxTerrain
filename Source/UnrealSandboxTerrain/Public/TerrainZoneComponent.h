@@ -54,10 +54,6 @@ public:
 
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
-	UTerrainRegionComponent* GetRegion() {
-		return Cast<UTerrainRegionComponent>(GetAttachParent());
-	}
-
 	TMeshData const * GetCachedMeshData();
 
 	void ClearCachedMeshData();
