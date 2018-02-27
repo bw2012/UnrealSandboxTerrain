@@ -285,6 +285,7 @@ typedef struct TSaveBuffer {
 void ASandboxTerrainController::Save() {
 	TSet<FVector> RegionIndexSetLocal;
 	uint32 SavedVd = 0;
+	uint32 SavedMd = 0;
 
 	for (auto& It : VoxelDataIndexMap) {
 		TVoxelDataInfo& VdInfo = VoxelDataIndexMap[It.first];
@@ -341,6 +342,7 @@ void ASandboxTerrainController::Save() {
 
 			MdFile.put(Index2, buffer);
 			Zone->ClearCachedMeshData();
+			SavedMd++;
 		}
 
 		FVector RegionIndex = GetRegionIndex(Zone->GetComponentLocation());
@@ -348,6 +350,8 @@ void ASandboxTerrainController::Save() {
 		SaveBuffer.ZoneArray.Add(Zone);
 		RegionIndexSetLocal.Add(RegionIndex);
 	}
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save mesh data ----> %d"), SavedMd);
 
 	// save regions accordind data from save buffer
 	for (auto& Elem : SaveBufferByRegion) {
