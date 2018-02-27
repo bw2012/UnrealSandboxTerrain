@@ -235,12 +235,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	MdFile.close();
 	ClearVoxelData();
 
-	// clean region mesh data cache and close vd file
-	for (auto& Elem : TerrainRegionMap) {
-		UTerrainRegionComponent* Region = Elem.Value;
-		Region->CleanMeshDataCache();
-	}
-
 	TerrainZoneMap.Empty();
 }
 
@@ -314,9 +308,7 @@ void ASandboxTerrainController::Save() {
 			SavedVd++;
 		}
 
-		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		VdInfo.Unload();
-		RegionIndexSetLocal.Add(RegionIndex);
 	}
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
@@ -344,28 +336,8 @@ void ASandboxTerrainController::Save() {
 			Zone->ClearCachedMeshData();
 			SavedMd++;
 		}
-
-		FVector RegionIndex = GetRegionIndex(Zone->GetComponentLocation());
-		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
-		SaveBuffer.ZoneArray.Add(Zone);
-		RegionIndexSetLocal.Add(RegionIndex);
 	}
-
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save mesh data ----> %d"), SavedMd);
-
-	// save regions accordind data from save buffer
-	for (auto& Elem : SaveBufferByRegion) {
-		FVector RegionIndex = Elem.Key;
-		TSaveBuffer& SaveBuffer = Elem.Value;
-		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
-
-		if (Region != nullptr && Region->IsChanged()){
-			Region->SaveFile(SaveBuffer.ZoneArray);
-			Region->ResetChanged();
-		}
-	}
-
-	RegionIndexSetLocal.Append(RegionIndexSet);
 	SaveJson(RegionIndexSetLocal);
 }
 
