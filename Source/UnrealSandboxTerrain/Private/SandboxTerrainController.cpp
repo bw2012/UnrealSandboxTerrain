@@ -141,10 +141,9 @@ void ASandboxTerrainController::BeginPlay() {
 	//===========================
 	// load existing
 	//===========================
-	RegionIndexSet.Empty();
 	//OnStartBuildTerrain();
 	bIsGeneratingTerrain = true;
-	LoadJson(RegionIndexSet);
+	LoadJson();
 
 	// load initial region
 	//Region1->LoadFile();
@@ -276,7 +275,6 @@ typedef struct TSaveBuffer {
 
 
 void ASandboxTerrainController::Save() {
-	TSet<FVector> RegionIndexSetLocal;
 	uint32 SavedVd = 0;
 	uint32 SavedMd = 0;
 
@@ -312,8 +310,6 @@ void ASandboxTerrainController::Save() {
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
 
-	// put zones to save buffer
-	TMap<FVector, TSaveBuffer> SaveBufferByRegion;
 	for (auto& Elem : TerrainZoneMap) {
 		FVector ZoneIndex = Elem.Key;
 		UTerrainZoneComponent* Zone = Elem.Value;
@@ -337,7 +333,8 @@ void ASandboxTerrainController::Save() {
 		}
 	}
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save mesh data ----> %d"), SavedMd);
-	SaveJson(RegionIndexSetLocal);
+
+	SaveJson();
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
@@ -351,7 +348,7 @@ void ASandboxTerrainController::SaveMapAsync() {
 	});
 }
 
-void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
+void ASandboxTerrainController::SaveJson() {
 	UE_LOG(LogTemp, Log, TEXT("----------- save json -----------"));
 
 	FString JsonStr;
@@ -363,6 +360,7 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	JsonWriter->WriteObjectStart();
 	JsonWriter->WriteArrayStart("Regions");
 
+	/*
 	for (const FVector& Index : RegionIndexSet) {
 		float x = Index.X;
 		float y = Index.Y;
@@ -391,6 +389,7 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 		JsonWriter->WriteObjectEnd();
 		//========================================================
 	}
+	*/
 
 	JsonWriter->WriteArrayEnd();
 	JsonWriter->WriteObjectEnd();
@@ -442,7 +441,7 @@ bool ASandboxTerrainController::OpenFile() {
 	return true;
 }
 
-void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
+void ASandboxTerrainController::LoadJson() {
 	UE_LOG(LogTemp, Warning, TEXT("----------- load json -----------"));
 
 	FString FileName = TEXT("terrain.json");
@@ -467,10 +466,6 @@ void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
 			double x = IndexValArray[0]->AsNumber();
 			double y = IndexValArray[1]->AsNumber();
 			double z = IndexValArray[2]->AsNumber();
-
-			RegionIndexSet.Add(FVector(x, y, z));
-
-			UE_LOG(LogTemp, Warning, TEXT("index: %f %f %f"), x, y, z);
 		}
 	}
 }

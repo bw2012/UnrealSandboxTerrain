@@ -17,7 +17,6 @@ class FLoadInitialZonesThread;
 class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
-class UTerrainRegionComponent;
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
@@ -143,7 +142,6 @@ public:
 	friend FLoadInitialZonesThread;
 	friend FAsyncThread;
 	friend UTerrainZoneComponent;
-	friend UTerrainRegionComponent;
 
 	virtual void BeginPlay() override;
 
@@ -286,15 +284,13 @@ private:
 
 	void Save();
 
-	void SaveJson(const TSet<FVector>& RegionPosSet);
+	void SaveJson();
 
-	void LoadJson(TSet<FVector>& RegionIndexSet);
+	void LoadJson();
 
 	bool OpenFile();
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
-
-	TSet<FVector> RegionIndexSet;
 
 	TSet<FVector> SpawnInitialZone();
 
