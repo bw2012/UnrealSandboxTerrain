@@ -141,44 +141,13 @@ void ASandboxTerrainController::BeginPlay() {
 	//===========================
 	// load existing
 	//===========================
-	//OnStartBuildTerrain();
+	OnStartBuildTerrain();
 	bIsGeneratingTerrain = true;
 	LoadJson();
 
-	// load initial region
-	//Region1->LoadFile();
-	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
-
 	// async loading other zones
-	/*
 	RunThread([&](FAsyncThread& ThisThread) {
-		Region1->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
-			if (ThisThread.IsNotValid()) return;
-			FVector Pos = GetZonePos(Index);
-			SpawnZone(Pos);
-		});
-
-		if (ThisThread.IsNotValid()) return;
-
-		for (FVector RegionIndex : RegionIndexSet) {
-			if (RegionIndex.Equals(FVector::ZeroVector)) {
-				continue;
-			}
-
-			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
-			Region2->LoadFile();
-			if (ThisThread.IsNotValid()) return;
-
-			Region2->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
-				if (ThisThread.IsNotValid()) return;
-				FVector Pos = GetZonePos(Index);
-				SpawnZone(Pos);
-			});
-
-			if (ThisThread.IsNotValid()) return;
-		}
-
 		if (!bGenerateOnlySmallSpawnPoint) {
 			int Total = (TerrainSizeX * 2 + 1) * (TerrainSizeY * 2 + 1) * (TerrainSizeZ * 2 + 1);
 			int Progress = 0;
@@ -209,9 +178,7 @@ void ASandboxTerrainController::BeginPlay() {
 			bIsGeneratingTerrain = false;
 			OnFinishBuildTerrain();
 		});
-
 	});
-	*/
 }
 
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -566,7 +533,6 @@ UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(const TVo
 
 	return NULL;
 }
-
 
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 	TVoxelIndex Index = GetZoneIndex(pos);
