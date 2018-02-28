@@ -11,6 +11,16 @@
 
 class ASandboxTerrainController;
 
+typedef struct TInstMeshTransArray {
+
+	TArray<FTransform> TransformArray;
+
+	FTerrainInstancedMeshType MeshType;
+
+} TInstMeshTransArray;
+
+typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
+
 /**
 *
 */
@@ -52,14 +62,30 @@ public:
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
+	void DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap);
+
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
 	TMeshData const * GetCachedMeshData();
 
 	void ClearCachedMeshData();
 
+	void SetNeedSave() {
+		bIsObjectsNeedSave = true;
+	}
+
+	void ResetNeedSave() {
+		bIsObjectsNeedSave = false;
+	}
+
+	bool IsNeedSave() {
+		return bIsObjectsNeedSave;
+	}
+
 private:
 	TVoxelData* voxel_data;
 
 	TMeshDataPtr CachedMeshDataPtr;
+
+	bool bIsObjectsNeedSave = false;
 };

@@ -2,7 +2,6 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
-#include "TerrainRegionComponent.h"
 #include "SandboxVoxeldata.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
@@ -176,7 +175,7 @@ void ASandboxTerrainController::BeginPlay() {
 
 		RunThread([&](FAsyncThread& ThisThread) {
 			bIsGeneratingTerrain = false;
-			OnFinishBuildTerrain();
+			OnFinishBuildTerrain(); // FIXME: thread-safe
 		});
 	});
 }
@@ -234,12 +233,6 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 // Unreal Sandbox 
 //======================================================================================================================================================================
-typedef struct TSaveBuffer {
-
-	TArray<UTerrainZoneComponent*> ZoneArray;
-
-} TSaveBuffer;
-
 
 void ASandboxTerrainController::Save() {
 	uint32 SavedVd = 0;
@@ -295,7 +288,9 @@ void ASandboxTerrainController::Save() {
 			}
 
 			MdFile.put(Index2, buffer);
+
 			Zone->ClearCachedMeshData();
+			Zone->ResetNeedSave();
 			SavedMd++;
 		}
 	}
@@ -753,6 +748,15 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(OverlapItem.GetComponent());
 				if (InstancedMesh != nullptr) {
 					InstancedMesh->RemoveInstance(OverlapItem.Item);
+
+					TArray<USceneComponent*> Parents;
+					InstancedMesh->GetParentComponents(Parents);
+					if (Parents.Num() > 0) {
+						UTerrainZoneComponent* Zone = Cast<UTerrainZoneComponent>(Parents[0]);
+						if (Zone) {
+							Zone->SetNeedSave();
+						}
+					}
 				}
 			}
 		}
@@ -1237,8 +1241,6 @@ void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedD
 	FArchiveSaveCompressedProxy Compressor = FArchiveSaveCompressedProxy(CompressedData, ECompressionFlags::COMPRESS_ZLIB);
 	Compressor << BinaryData;
 	Compressor.Flush();
-
-	UE_LOG(LogTemp, Warning, TEXT("TEST ---> %d -> %d"), BinaryData.TotalSize(), CompressedData.Num());
 }
 
 void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& BinaryData) {
@@ -1356,3 +1358,4 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 
 	return MeshDataPtr;
 }
+

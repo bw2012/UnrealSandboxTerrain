@@ -2,7 +2,6 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "TerrainZoneComponent.h"
-#include "TerrainRegionComponent.h"
 #include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
 #include "VoxelIndex.h"
@@ -192,6 +191,65 @@ void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData)
 			BinaryData << ScaleX;
 			BinaryData << ScaleY;
 			BinaryData << ScaleZ;
+		}
+	}
+}
+
+void UTerrainZoneComponent::DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap) {
+	int32 MeshCount;
+	BinaryData << MeshCount;
+
+	for (int Idx = 0; Idx < MeshCount; Idx++) {
+		int32 MeshTypeId;
+		int32 MeshInstanceCount;
+
+		BinaryData << MeshTypeId;
+		BinaryData << MeshInstanceCount;
+
+		FTerrainInstancedMeshType MeshType;
+		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
+			FSandboxFoliage FoliageType = GetTerrainController()->FoliageMap[MeshTypeId];
+
+			MeshType.Mesh = FoliageType.Mesh;
+			MeshType.MeshTypeId = MeshTypeId;
+			MeshType.StartCullDistance = FoliageType.StartCullDistance;
+			MeshType.EndCullDistance = FoliageType.EndCullDistance;
+		}
+
+		TInstMeshTransArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
+		InstMeshArray.MeshType = MeshType;
+		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
+
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			float X;
+			float Y;
+			float Z;
+
+			float Roll;
+			float Pitch;
+			float Yaw;
+
+			float ScaleX;
+			float ScaleY;
+			float ScaleZ;
+
+			BinaryData << X;
+			BinaryData << Y;
+			BinaryData << Z;
+
+			BinaryData << Roll;
+			BinaryData << Pitch;
+			BinaryData << Yaw;
+
+			BinaryData << ScaleX;
+			BinaryData << ScaleY;
+			BinaryData << ScaleZ;
+
+			FTransform Transform(FRotator(Pitch, Yaw, Roll), FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+
+			if (MeshType.Mesh != nullptr) {
+				InstMeshArray.TransformArray.Add(Transform);
+			}
 		}
 	}
 }
