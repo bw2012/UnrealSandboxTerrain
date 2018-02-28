@@ -298,7 +298,6 @@ private:
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
-
 	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
@@ -334,6 +333,8 @@ private:
 	kvdb::KvFile<TVoxelIndex, TValueData> VdFile;
 
 	kvdb::KvFile<TVoxelIndex, TValueData> MdFile;
+
+	kvdb::KvFile<TVoxelIndex, TValueData> ObjFile;
 
 	std::mutex VoxelDataMapMutex;
 

@@ -195,10 +195,12 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	}
 
 	Save();
+
 	VdFile.close();
 	MdFile.close();
-	ClearVoxelData();
+	ObjFile.close();
 
+	ClearVoxelData();
 	TerrainZoneMap.Empty();
 }
 
@@ -237,6 +239,7 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 void ASandboxTerrainController::Save() {
 	uint32 SavedVd = 0;
 	uint32 SavedMd = 0;
+	uint32 SavedObj = 0;
 
 	for (auto& It : VoxelDataIndexMap) {
 		TVoxelDataInfo& VdInfo = VoxelDataIndexMap[It.first];
@@ -267,7 +270,6 @@ void ASandboxTerrainController::Save() {
 
 		VdInfo.Unload();
 	}
-
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
 
 	for (auto& Elem : TerrainZoneMap) {
@@ -290,11 +292,29 @@ void ASandboxTerrainController::Save() {
 			MdFile.put(Index2, buffer);
 
 			Zone->ClearCachedMeshData();
-			Zone->ResetNeedSave();
 			SavedMd++;
+		}
+
+		if (Zone->IsNeedSave()) {
+			FBufferArchive BinaryData;
+			Zone->SerializeInstancedMeshes(BinaryData);
+
+			TVoxelIndex Index2(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
+			TValueData buffer;
+			buffer.reserve(BinaryData.Num());
+			for (uint8 b : BinaryData) {
+				buffer.push_back(b);
+			}
+
+			ObjFile.put(Index2, buffer);
+
+			Zone->ResetNeedSave();
+			SavedObj++;
 		}
 	}
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save mesh data ----> %d"), SavedMd);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save objects data ----> %d"), SavedObj);
 
 	SaveJson();
 }
@@ -360,10 +380,27 @@ void ASandboxTerrainController::SaveJson() {
 	FFileHelper::SaveStringToFile(*JsonStr, *FullPath);
 }
 
+bool OpenKvFile(kvdb::KvFile<TVoxelIndex, TValueData>& KvFile, const FString& FileName, const FString& SaveDir) {
+	FString FullPath = SaveDir + FileName;
+	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
+
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
+		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
+	}
+
+	if (!KvFile.open(FilePathString)) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open file: %s"), *FullPath);
+		return false;
+	}
+
+	return true;
+}
+
 bool ASandboxTerrainController::OpenFile() {
 	// open vd file 	
 	FString FileNameVd = TEXT("terrain_voxeldata.dat");
 	FString FileNameMd = TEXT("terrain_mesh.dat");
+	FString FileNameObj = TEXT("terrain_objects.dat");
 
 	FString SavePath = FPaths::GameSavedDir();
 	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
@@ -376,27 +413,15 @@ bool ASandboxTerrainController::OpenFile() {
 		}
 	}
 
-	FString FullPathVd = SaveDir + FileNameVd;
-	FString FullPathMd = SaveDir + FileNameMd;
-	std::string FilePathVdString = std::string(TCHAR_TO_UTF8(*FullPathVd));
-	std::string FilePathMdString = std::string(TCHAR_TO_UTF8(*FullPathMd));
-
-	// check terrain db file 
-	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPathVd)) {
-		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathVdString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
-	}
-
-	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPathMd)) {
-		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathMdString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
-	}
-
-	if (!VdFile.open(FilePathVdString)) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain vd file: %s"), *FullPathVd);
+	if (!OpenKvFile(VdFile, FileNameVd, SaveDir)) {
 		return false;
 	}
 
-	if (!MdFile.open(FilePathMdString)) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain mesh file: %s"), *FullPathMd);
+	if (!OpenKvFile(MdFile, FileNameMd, SaveDir)) {
+		return false;
+	}
+
+	if (!OpenKvFile(ObjFile, FileNameObj, SaveDir)) {
 		return false;
 	}
 
@@ -464,6 +489,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			Zone->SetVoxelData(VoxelDataInfo->Vd);
 			Zone->MakeTerrain();
+			Zone->SetNeedSave();
 
 			if (VoxelDataInfo->IsNewGenerated()) {
 				OnGenerateNewZone(Zone);

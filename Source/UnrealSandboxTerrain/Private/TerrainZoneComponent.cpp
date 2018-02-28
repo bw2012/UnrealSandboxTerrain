@@ -193,6 +193,8 @@ void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData)
 			BinaryData << ScaleZ;
 		}
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("TEST -> %d "), BinaryData.Num());
 }
 
 void UTerrainZoneComponent::DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap) {
