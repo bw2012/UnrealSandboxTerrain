@@ -17,6 +17,9 @@ class FLoadInitialZonesThread;
 class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
+struct TInstMeshTransArray;
+
+typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
@@ -359,6 +362,8 @@ private:
 	//===============================================================================
 
 	TMeshDataPtr LoadMeshDataByIndex(const TVoxelIndex& Index);
+
+	void LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap);
 
 	//===============================================================================
 	// foliage

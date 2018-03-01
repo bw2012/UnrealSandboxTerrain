@@ -1130,7 +1130,16 @@ void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliag
 }
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
-	//Zone->GetRegion()->SpawnInstMeshFromLoadCache(Zone);
+	TInstMeshTypeMap ZoneInstMeshMap;
+	LoadObjectDataByIndex(Zone, ZoneInstMeshMap);
+
+	for (auto& Elem : ZoneInstMeshMap) {
+		TInstMeshTransArray& InstMeshTransArray = Elem.Value;
+
+		for (FTransform& Transform : InstMeshTransArray.TransformArray) {
+			Zone->SpawnInstancedMesh(InstMeshTransArray.MeshType, Transform);
+		}
+	}
 }
 
 //======================================================================================================================================================================
@@ -1383,5 +1392,40 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 
 	return MeshDataPtr;
+}
+
+void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap) {
+	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
+
+	std::shared_ptr<TValueData> DataPtr = ObjFile.get(Index);
+	ZoneInstMeshMap.Empty();
+
+	if (DataPtr == nullptr || DataPtr->size() == 0) {
+		return;
+	}
+
+	double Start = FPlatformTime::Seconds();
+
+	//TODO optimize all
+	TArray<uint8> BinaryArray;
+	BinaryArray.Reserve(DataPtr->size());
+
+	TValueData& Data = *DataPtr.get();
+
+	for (auto Byte : Data) {
+		BinaryArray.Add(Byte);
+	}
+
+	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
+	BinaryData.Seek(0);
+
+	Zone->DeserializeInstancedMeshes(BinaryData, ZoneInstMeshMap);
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+
+	UE_LOG(LogTemp, Log, TEXT("loading instobjects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+
+	return;
 }
 
