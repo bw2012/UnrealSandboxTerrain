@@ -10,6 +10,8 @@
 #include "SandboxTerrainMeshComponent.h"
 
 
+void LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
+
 void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData);
 
 
@@ -916,15 +918,20 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 		BinaryArray.Add(Byte);
 	}
 
-	FVector VoxelDataOrigin = GetZonePos(Index);
+	TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
+	Vd->setOrigin(GetZonePos(Index));
+
+	LoadDataFromKvFile(VdFile, Index, [&](TArray<uint8>& Data) { 
+		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
+		BinaryData.Seek(0);
+		deserializeVoxelData(*Vd, BinaryData);
+	});
+
 
 	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
 	BinaryData.Seek(0);
 
-	TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
-	Vd->setOrigin(VoxelDataOrigin);
 
-	deserializeVoxelData(*Vd, BinaryData);
 
 	TVoxelDataInfo VdInfo;
 	VdInfo.DataState = TVoxelDataState::LOADED;
@@ -1346,65 +1353,12 @@ TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMesh
 	return MeshDataPtr;
 }
 
-TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& Index) {
-	std::shared_ptr<TValueData> DataPtr = MdFile.get(Index);
-
-	if (DataPtr == nullptr || DataPtr->size() == 0) {
-		return nullptr;
-	}
-
-	double Start = FPlatformTime::Seconds();
-
-	//TODO optimize all
-	TArray<uint8> CompressedData;
-	CompressedData.Reserve(DataPtr->size());
-
-	TValueData& Data = *DataPtr.get();
-
-	for (auto Byte : Data) {
-		CompressedData.Add(Byte);
-	}
-
-	FArchiveLoadCompressedProxy Decompressor = FArchiveLoadCompressedProxy(CompressedData, ECompressionFlags::COMPRESS_ZLIB);
-
-	if (Decompressor.GetError()){
-		UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
-		return nullptr;
-	}
-
-	FBufferArchive DecompressedBinaryArray;
-	Decompressor << DecompressedBinaryArray;
-
-	FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
-	BinaryData.Seek(0);
-
-	TMeshDataPtr MeshDataPtr = DeserializeMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
-
-	CompressedData.Empty();
-	Decompressor.FlushCache();
-	BinaryData.FlushCache();
-	DecompressedBinaryArray.Empty();
-	DecompressedBinaryArray.Close();
-
-	double End = FPlatformTime::Seconds();
-	double Time = (End - Start) * 1000;
-
-	UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
-
-	return MeshDataPtr;
-}
-
-void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap) {
-	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
-
-	std::shared_ptr<TValueData> DataPtr = ObjFile.get(Index);
-	ZoneInstMeshMap.Empty();
+void LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
+	std::shared_ptr<TValueData> DataPtr = KvFile.get(Index);
 
 	if (DataPtr == nullptr || DataPtr->size() == 0) {
 		return;
 	}
-
-	double Start = FPlatformTime::Seconds();
 
 	//TODO optimize all
 	TArray<uint8> BinaryArray;
@@ -1416,16 +1370,59 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 		BinaryArray.Add(Byte);
 	}
 
-	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
-	BinaryData.Seek(0);
+	Function(BinaryArray);
+	return;
+}
 
-	Zone->DeserializeInstancedMeshes(BinaryData, ZoneInstMeshMap);
+
+TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& Index) {
+	double Start = FPlatformTime::Seconds();
+	TMeshDataPtr MeshDataPtr = nullptr;
+
+	LoadDataFromKvFile(MdFile, Index, [&](TArray<uint8>& Data) {
+		FArchiveLoadCompressedProxy Decompressor = FArchiveLoadCompressedProxy(Data, ECompressionFlags::COMPRESS_ZLIB);
+		if (Decompressor.GetError()) {
+			UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
+			return;
+		}
+
+		FBufferArchive DecompressedBinaryArray;
+		Decompressor << DecompressedBinaryArray;
+
+		FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
+		BinaryData.Seek(0);
+
+		MeshDataPtr = DeserializeMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
+
+		Data.Empty();
+		Decompressor.FlushCache();
+		BinaryData.FlushCache();
+		DecompressedBinaryArray.Empty();
+		DecompressedBinaryArray.Close();
+	});
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	UE_LOG(LogTemp, Log, TEXT("loading instobjects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 
-	return;
+	return MeshDataPtr;
+}
+
+void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap) {
+	double Start = FPlatformTime::Seconds();
+	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
+
+	LoadDataFromKvFile(ObjFile, Index, [&](TArray<uint8>& Data) {
+		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
+		BinaryData.Seek(0);
+
+		Zone->DeserializeInstancedMeshes(BinaryData, ZoneInstMeshMap);
+	});
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+
+	UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 }
 

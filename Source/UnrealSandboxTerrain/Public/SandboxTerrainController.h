@@ -20,8 +20,8 @@ class UTerrainZoneComponent;
 struct TInstMeshTransArray;
 
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
-
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
+typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 
 #define TH_STATE_NEW		0
 #define TH_STATE_RUNNING	1
@@ -333,11 +333,11 @@ private:
 	// voxel data storage
 	//===============================================================================
 
-	kvdb::KvFile<TVoxelIndex, TValueData> VdFile;
+	TKvFile VdFile;
 
-	kvdb::KvFile<TVoxelIndex, TValueData> MdFile;
+	TKvFile MdFile;
 
-	kvdb::KvFile<TVoxelIndex, TValueData> ObjFile;
+	TKvFile ObjFile;
 
 	std::mutex VoxelDataMapMutex;
 
