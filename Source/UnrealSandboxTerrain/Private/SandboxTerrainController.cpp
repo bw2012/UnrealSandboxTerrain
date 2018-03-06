@@ -490,7 +490,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			MakeTerrain(Zone, VoxelDataInfo->Vd);
-			Zone->SetNeedSave();
+			Zone->SetNeedSave(); //TODO: move to generator
 
 			if (VoxelDataInfo->IsNewGenerated()) {
 				OnGenerateNewZone(Zone);
@@ -1112,6 +1112,8 @@ void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliag
 }
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
+	if (bDisableFoliage) return;
+
 	TInstMeshTypeMap ZoneInstMeshMap;
 	LoadObjectDataByIndex(Zone, ZoneInstMeshMap);
 
