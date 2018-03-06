@@ -9,60 +9,9 @@
 #include "DrawDebugHelpers.h"
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	voxel_data = nullptr;
+
 }
 
-
-void UTerrainZoneComponent::MakeTerrain() {
-	if (voxel_data == NULL) {
-		voxel_data = GetTerrainController()->GetVoxelDataByPos(GetComponentLocation());
-	}
-
-	if (voxel_data == NULL) {
-		return;
-	}
-
-	std::shared_ptr<TMeshData> MeshDataPtr = GenerateMesh();
-
-	if (IsInGameThread()) {
-		ApplyTerrainMesh(MeshDataPtr);
-		voxel_data->resetLastMeshRegenerationTime();
-	} else {
-		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
-		if (GetTerrainController() != NULL) {
-			GetTerrainController()->InvokeZoneMeshAsync(this, MeshDataPtr);
-		}
-	}
-}
-
-std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
-	double start = FPlatformTime::Seconds();
-
-	if (voxel_data == NULL || 
-		voxel_data->getDensityFillState() == TVoxelDataFillState::ZERO || 
-		voxel_data->getDensityFillState() == TVoxelDataFillState::ALL) {
-		return NULL;
-	}
-
-	TVoxelDataParam vdp;
-
-	if (GetTerrainController()->bEnableLOD) {
-		vdp.bGenerateLOD = true;
-		vdp.collisionLOD = GetTerrainController()->GetCollisionMeshSectionLodIndex();
-	} else {
-		vdp.bGenerateLOD = false;
-		vdp.collisionLOD = 0;
-	}
-
-	TMeshDataPtr MeshDataPtr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
-
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
-
-	return MeshDataPtr;
-}
 
 TMeshData const * UTerrainZoneComponent::GetCachedMeshData() {
 	return (TMeshData const *) CachedMeshDataPtr.get();

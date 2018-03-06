@@ -46,19 +46,7 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	void MakeTerrain();
-
-	TVoxelData* getVoxelData() { 
-		return voxel_data; 
-	};
-
-	void SetVoxelData(TVoxelData* vd) {
-		this->voxel_data = vd; 
-	};
-
 	void ApplyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr, bool bPutToCache = true);
-
-	std::shared_ptr<TMeshData> GenerateMesh();
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
@@ -83,7 +71,6 @@ public:
 	}
 
 private:
-	TVoxelData* voxel_data;
 
 	TMeshDataPtr CachedMeshDataPtr;
 

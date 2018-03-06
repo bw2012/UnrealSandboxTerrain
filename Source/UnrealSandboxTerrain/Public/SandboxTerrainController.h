@@ -357,6 +357,10 @@ private:
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
+	std::shared_ptr<TMeshData> GenerateMesh(UTerrainZoneComponent* Zone, TVoxelData* Vd);
+
+	void MakeTerrain(UTerrainZoneComponent* Zone, TVoxelData* Vd);
+
 	//===============================================================================
 	// mesh data storage
 	//===============================================================================
