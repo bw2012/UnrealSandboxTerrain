@@ -226,9 +226,6 @@ typedef struct TVoxelDataParam {
 
 std::shared_ptr<TMeshData> sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp);
 
-void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
-bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
-
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range);
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec);
 

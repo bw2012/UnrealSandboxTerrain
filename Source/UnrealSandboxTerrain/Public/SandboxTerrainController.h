@@ -145,6 +145,7 @@ public:
 	friend FLoadInitialZonesThread;
 	friend FAsyncThread;
 	friend UTerrainZoneComponent;
+	friend UTerrainGeneratorComponent;
 
 	virtual void BeginPlay() override;
 
@@ -280,6 +281,8 @@ private:
 	volatile bool bIsGeneratingTerrain = false;
 
 	volatile float GeneratingProgress;
+
+	volatile int  GeneratedVdConter;
 
 	//===============================================================================
 	// save/load

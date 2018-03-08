@@ -9,6 +9,8 @@
 
 class ASandboxTerrainController;
 class TVoxelData;
+class UTerrainZoneComponent;
+struct FSandboxFoliage;
 
 class TZoneHeightMapData {
     
@@ -76,6 +78,10 @@ public:
 	void GenerateVoxelTerrain (TVoxelData &VoxelData);
 
 	float GroundLevelFunc(FVector v);
+
+	void GenerateNewFoliage(UTerrainZoneComponent* Zone);
+
+	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
 
 private:
     

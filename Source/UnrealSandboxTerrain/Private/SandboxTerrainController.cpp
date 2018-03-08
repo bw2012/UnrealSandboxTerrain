@@ -490,7 +490,6 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			MakeTerrain(Zone, VoxelDataInfo->Vd);
-			Zone->SetNeedSave(); //TODO: move to generator
 
 			if (VoxelDataInfo->IsNewGenerated()) {
 				OnGenerateNewZone(Zone);
@@ -939,6 +938,7 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxe
 			Vd->setOrigin(GetZonePos(Index));
 
 			TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
+			GeneratedVdConter++;
 
 			VdInfo.DataState = TVoxelDataState::GENERATED;
 			VdInfo.Vd = Vd;
@@ -954,7 +954,7 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxe
 
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
 	if (!bDisableFoliage) {
-		GenerateNewFoliage(Zone);
+		TerrainGeneratorComponent->GenerateNewFoliage(Zone);
 	}
 }
 
@@ -1036,80 +1036,6 @@ void ASandboxTerrainController::ClearVoxelData() {
 //======================================================================================================================================================================
 // Sandbox Foliage
 //======================================================================================================================================================================
-
-void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) {
-	if (FoliageMap.Num() == 0) return;
-	if (TerrainGeneratorComponent->GroundLevelFunc(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
-
-	int32 Hash = 7;
-	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().X;
-	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Y;
-	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Z;
-
-	FRandomStream rnd = FRandomStream();
-	rnd.Initialize(Hash);
-	rnd.Reset();
-
-	static const float s = USBT_ZONE_SIZE / 2;
-	static const float step = 25.f;
-
-	for (auto x = -s; x <= s; x += step) {
-		for (auto y = -s; y <= s; y += step) {
-
-			FVector v(Zone->GetComponentLocation());
-			v += FVector(x, y, 0);
-
-			for (auto& Elem : FoliageMap) {
-				FSandboxFoliage FoliageType = Elem.Value;
-				int32 FoliageTypeId = Elem.Key;
-
-				if ((int)x % (int)FoliageType.SpawnStep == 0 && (int)y % (int)FoliageType.SpawnStep == 0) {
-					//UE_LOG(LogTemp, Warning, TEXT("%d - %d"), (int)x, (int)y);
-					float Chance = rnd.FRandRange(0.f, 1.f);
-					if (Chance <= FoliageType.Probability) {
-						float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-						SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
-					}
-				}
-			}
-
-
-		}
-	}
-}
-
-void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone) {
-
-	if (FoliageType.OffsetRange > 0) {
-		float ox = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) ox = -ox; v.X += ox;
-		float oy = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) oy = -oy; v.Y += oy;
-	}
-
-	const FVector start_trace(v.X, v.Y, v.Z + USBT_ZONE_SIZE / 2);
-	const FVector end_trace(v.X, v.Y, v.Z - USBT_ZONE_SIZE / 2);
-
-	FHitResult hit(ForceInit);
-	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
-
-	if (hit.bBlockingHit) {
-		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {
-			if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
-
-				float angle = rnd.FRandRange(0.f, 360.f);
-				float ScaleZ = rnd.FRandRange(FoliageType.ScaleMinZ, FoliageType.ScaleMaxZ);
-				FTransform Transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, ScaleZ));
-
-				FTerrainInstancedMeshType MeshType;
-				MeshType.MeshTypeId = FoliageTypeId;
-				MeshType.Mesh = FoliageType.Mesh;
-				MeshType.StartCullDistance = FoliageType.StartCullDistance;
-				MeshType.EndCullDistance = FoliageType.EndCullDistance;
-
-				Zone->SpawnInstancedMesh(MeshType, Transform);
-			}
-		}
-	}
-}
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
 	if (bDisableFoliage) return;
