@@ -170,8 +170,10 @@ void ASandboxTerrainController::BeginPlay() {
 						//OnProgressBuildTerrain(PercentProgress);
 
 						if(GeneratedVdConter > 10){
-							//Save();
+							TControllerTaskTaskPtr TaskPtr = InvokeSafe([=]() { Save(); });
+							TControllerTask::WaitForFinish(TaskPtr.get());
 							GeneratedVdConter = 0;
+							UE_LOG(LogSandboxTerrain, Warning, TEXT("WaitForFinish  -> finished"));
 						}
 
 						if (ThisThread.IsNotValid()) return;
@@ -215,9 +217,10 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	if (HasNextAsyncTask()) {
-		TerrainControllerTask task = GetAsyncTask();
-		if (task.Function) {
-			task.Function();
+		TControllerTaskTaskPtr Task = GetAsyncTask();
+		if (Task->Function) {
+			Task->Function();
+			Task->bIsFinished = true;
 		}
 	}	
 
@@ -466,13 +469,15 @@ void ASandboxTerrainController::LoadJson() {
 	}
 }
 
-void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
+TControllerTaskTaskPtr ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 	if (IsInGameThread()) {
 		Function();
+		return nullptr;
 	} else {
-		TerrainControllerTask AsyncTask;
-		AsyncTask.Function = Function;
-		AddAsyncTask(AsyncTask);
+		TControllerTaskTaskPtr TaskPtr(new TControllerTask);
+		TaskPtr->Function = Function;
+		AddAsyncTask(TaskPtr);
+		return TaskPtr;
 	}
 }
 
@@ -867,18 +872,18 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 
 void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr) {
-	TerrainControllerTask task;
-	task.Function = [=]() {
+	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
+	TaskPtr->Function = [=]() {
 		if (MeshDataPtr) {
 			Zone->ApplyTerrainMesh(MeshDataPtr);
 		}
 	};
 
-	AddAsyncTask(task);
+	AddAsyncTask(TaskPtr);
 }
 
 void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
-	TerrainControllerTask Task;
+	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
 
 	FVector Pos = GetZonePos(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 	TVoxelData* VoxelData = GetVoxelDataByIndex(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
@@ -887,7 +892,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 		return;
 	}
 
-	Task.Function = [=]() {	
+	TaskPtr->Function = [=]() {
 		if(VoxelData != nullptr) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			TMeshDataPtr NewMeshDataPtr = GenerateMesh(Zone, VoxelData);
@@ -896,7 +901,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 		}
 	};
 
-	AddAsyncTask(Task);
+	AddAsyncTask(TaskPtr);
 }
 
 //======================================================================================================================================================================
@@ -973,19 +978,19 @@ void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
 	}
 }
 
-void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
+void ASandboxTerrainController::AddAsyncTask(TControllerTaskTaskPtr TaskPtr) {
 	AsyncTaskListMutex.lock();
-	AsyncTaskList.push(zone_make_task);
+	AsyncTaskList.push(TaskPtr);
 	AsyncTaskListMutex.unlock();
 }
 
-TerrainControllerTask ASandboxTerrainController::GetAsyncTask() {
+TControllerTaskTaskPtr ASandboxTerrainController::GetAsyncTask() {
+	//TODO: read/write lock
 	AsyncTaskListMutex.lock();
-	TerrainControllerTask NewTask = AsyncTaskList.front();
+	TControllerTaskTaskPtr Task = AsyncTaskList.front();
 	AsyncTaskList.pop();
 	AsyncTaskListMutex.unlock();
-
-	return NewTask;
+	return Task;
 }
 
 bool ASandboxTerrainController::HasNextAsyncTask() {

@@ -28,18 +28,19 @@ typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 #define TH_STATE_STOP		2
 #define TH_STATE_FINISHED	3
 
-typedef struct TerrainControllerTask {
+typedef struct TControllerTask {
 
-	//bool bIsFinished = false;
+	volatile bool bIsFinished = false;
 
 	std::function<void()> Function;
 	
-	/*	static void WaitForFinish(TerrainControllerTask& TerrainControllerTask) {
-		while (!TerrainControllerTask.bIsFinished) {};
+	static void WaitForFinish(TControllerTask* Task) {
+		while (!Task->bIsFinished) {};
 	}
-	*/
+	
+} TControllerTask;
 
-} TerrainControllerTask;
+typedef std::shared_ptr<TControllerTask> TControllerTaskTaskPtr;
 
 UENUM(BlueprintType)
 enum class ETerrainInitialArea : uint8 {
@@ -284,7 +285,7 @@ public:
 
 	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
-	void InvokeSafe(std::function<void()> Function);
+	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
 
 private:
 	volatile bool bIsGeneratingTerrain = false;
@@ -325,15 +326,15 @@ private:
 
 	void InvokeLazyZoneAsync(FVector index);
 
-	void AddAsyncTask(TerrainControllerTask zone_make_task);
+	void AddAsyncTask(TControllerTaskTaskPtr TaskPtr);
 
-	TerrainControllerTask GetAsyncTask();
+	TControllerTaskTaskPtr GetAsyncTask();
 
 	bool HasNextAsyncTask();
 
 	std::mutex AsyncTaskListMutex;
 
-	std::queue<TerrainControllerTask> AsyncTaskList;
+	std::queue<TControllerTaskTaskPtr> AsyncTaskList;
 
 	std::mutex ThreadListMutex;
 
