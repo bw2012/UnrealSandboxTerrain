@@ -10,7 +10,7 @@
 #include "SandboxTerrainMeshComponent.h"
 
 
-void LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
+bool LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
 
 void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData);
 
@@ -169,6 +169,11 @@ void ASandboxTerrainController::BeginPlay() {
 						// must invoke in main thread
 						//OnProgressBuildTerrain(PercentProgress);
 
+						if(GeneratedVdConter > 10){
+							//Save();
+							GeneratedVdConter = 0;
+						}
+
 						if (ThisThread.IsNotValid()) return;
 					}
 				}
@@ -239,6 +244,7 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::Save() {
+	double Start = FPlatformTime::Seconds();
 	uint32 SavedVd = 0;
 	uint32 SavedMd = 0;
 	uint32 SavedObj = 0;
@@ -319,6 +325,10 @@ void ASandboxTerrainController::Save() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save objects data ----> %d"), SavedObj);
 
 	SaveJson();
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Terrain saved -> %f ms"), Time);
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
@@ -326,9 +336,6 @@ void ASandboxTerrainController::SaveMapAsync() {
 	RunThread([&](FAsyncThread& ThisThread) {
 		double Start = FPlatformTime::Seconds();
 		Save();
-		double End = FPlatformTime::Seconds();
-		double Time = (End - Start) * 1000;
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Terrain saved -> %f ms"), Time);
 	});
 }
 
@@ -901,7 +908,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 	Vd->setOrigin(GetZonePos(Index));
 
-	LoadDataFromKvFile(VdFile, Index, [&](TArray<uint8>& Data) { 
+	bool bIsLoaded = LoadDataFromKvFile(VdFile, Index, [&](TArray<uint8>& Data) { 
 		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
 		BinaryData.Seek(0);
 		deserializeVoxelData(*Vd, BinaryData);
@@ -916,7 +923,9 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	if (bIsLoaded) {
+		UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	}
 
 	return Vd;
 }
@@ -1299,11 +1308,11 @@ TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMesh
 	return MeshDataPtr;
 }
 
-void LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
+bool LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
 	std::shared_ptr<TValueData> DataPtr = KvFile.get(Index);
 
 	if (DataPtr == nullptr || DataPtr->size() == 0) {
-		return;
+		return false;
 	}
 
 	//TODO optimize all
@@ -1317,7 +1326,7 @@ void LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::fu
 	}
 
 	Function(BinaryArray);
-	return;
+	return true;
 }
 
 
@@ -1325,7 +1334,7 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	double Start = FPlatformTime::Seconds();
 	TMeshDataPtr MeshDataPtr = nullptr;
 
-	LoadDataFromKvFile(MdFile, Index, [&](TArray<uint8>& Data) {
+	bool bIsLoaded = LoadDataFromKvFile(MdFile, Index, [&](TArray<uint8>& Data) {
 		FArchiveLoadCompressedProxy Decompressor = FArchiveLoadCompressedProxy(Data, ECompressionFlags::COMPRESS_ZLIB);
 		if (Decompressor.GetError()) {
 			UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
@@ -1350,7 +1359,9 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	if (bIsLoaded) {
+		UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	}
 
 	return MeshDataPtr;
 }
@@ -1359,7 +1370,7 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 	double Start = FPlatformTime::Seconds();
 	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
 
-	LoadDataFromKvFile(ObjFile, Index, [&](TArray<uint8>& Data) {
+	bool bIsLoaded = LoadDataFromKvFile(ObjFile, Index, [&](TArray<uint8>& Data) {
 		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
 		BinaryData.Seek(0);
 
@@ -1369,6 +1380,8 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	if (bIsLoaded) {
+		UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	}
 }
 

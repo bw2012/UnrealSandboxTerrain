@@ -29,7 +29,16 @@ typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 #define TH_STATE_FINISHED	3
 
 typedef struct TerrainControllerTask {
+
+	//bool bIsFinished = false;
+
 	std::function<void()> Function;
+	
+	/*	static void WaitForFinish(TerrainControllerTask& TerrainControllerTask) {
+		while (!TerrainControllerTask.bIsFinished) {};
+	}
+	*/
+
 } TerrainControllerTask;
 
 UENUM(BlueprintType)
