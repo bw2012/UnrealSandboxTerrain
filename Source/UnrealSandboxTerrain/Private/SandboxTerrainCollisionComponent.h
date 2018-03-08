@@ -37,12 +37,6 @@ class UNREALSANDBOXTERRAIN_API USandboxTerrainCollisionComponent : public UMeshC
 
 public:
 
-	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
-
-	void ClearCollisionConvexMeshes();
-
-	void SetCollisionConvexMeshes(const TArray<TArray<FVector>>& ConvexMeshes);
-
 	//~ Begin Interface_CollisionDataProvider Interface
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
@@ -72,11 +66,11 @@ public:
 	//~ End UObject Interface.
 
 
-	void SetMeshData(TMeshDataPtr mesh_data_ptr);
+	void SetMeshData(TMeshDataPtr MeshDataPtr);
 
 private:
 
-	std::shared_ptr<TMeshData> mesh_data_ptr;
+	FProcMeshSection TriMeshData;
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

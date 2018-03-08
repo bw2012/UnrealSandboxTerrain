@@ -31,8 +31,6 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	}
 
 	if (bPutToCache) {
-		TVoxelIndex Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
-		FVector ZoneIndexTmp(Index.X, Index.Y, Index.Z);
 		CachedMeshDataPtr = MeshDataPtr;
 	}
 
@@ -142,8 +140,6 @@ void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData)
 			BinaryData << ScaleZ;
 		}
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("TEST -> %d "), BinaryData.Num());
 }
 
 void UTerrainZoneComponent::DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap) {

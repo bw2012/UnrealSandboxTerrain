@@ -203,7 +203,6 @@ typedef struct TMeshData {
 
 	~TMeshData() {
 		// for memory leaks checking
-		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } TMeshData;
