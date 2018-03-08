@@ -95,6 +95,7 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	TerrainSizeY = 5;
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
+	SaveGeneratedZones = 1000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -107,6 +108,7 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	TerrainSizeY = 5;
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
+	SaveGeneratedZones = 1000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -169,11 +171,10 @@ void ASandboxTerrainController::BeginPlay() {
 						// must invoke in main thread
 						//OnProgressBuildTerrain(PercentProgress);
 
-						if(GeneratedVdConter > 10){
+						if(GeneratedVdConter > SaveGeneratedZones){
 							TControllerTaskTaskPtr TaskPtr = InvokeSafe([=]() { Save(); });
 							TControllerTask::WaitForFinish(TaskPtr.get());
 							GeneratedVdConter = 0;
-							UE_LOG(LogSandboxTerrain, Warning, TEXT("WaitForFinish  -> finished"));
 						}
 
 						if (ThisThread.IsNotValid()) return;
@@ -181,6 +182,8 @@ void ASandboxTerrainController::BeginPlay() {
 				}
 			}
 		}
+
+		TControllerTask::WaitForFinish(InvokeSafe([=]() { Save(); }).get());
 
 		RunThread([&](FAsyncThread& ThisThread) {
 			bIsGeneratingTerrain = false;
@@ -1365,7 +1368,7 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	double Time = (End - Start) * 1000;
 
 	if (bIsLoaded) {
-		UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		//UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 	}
 
 	return MeshDataPtr;
@@ -1386,7 +1389,7 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 	double Time = (End - Start) * 1000;
 
 	if (bIsLoaded) {
-		UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		//UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 	}
 }
 

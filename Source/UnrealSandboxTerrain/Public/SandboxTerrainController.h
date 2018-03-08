@@ -204,6 +204,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
 	void SaveMapAsync();
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 SaveGeneratedZones;
+
 	//========================================================================================
 	// materials
 	//========================================================================================
