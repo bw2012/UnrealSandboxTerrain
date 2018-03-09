@@ -21,7 +21,7 @@ void UTerrainZoneComponent::ClearCachedMeshData() {
 	CachedMeshDataPtr = nullptr;
 }
 
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 	double start = FPlatformTime::Seconds();
 
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -30,9 +30,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		return;
 	}
 
-	if (bPutToCache) {
-		CachedMeshDataPtr = MeshDataPtr;
-	}
+	CachedMeshDataPtr = MeshDataPtr;
 
 	//##########################################
 	// draw debug points

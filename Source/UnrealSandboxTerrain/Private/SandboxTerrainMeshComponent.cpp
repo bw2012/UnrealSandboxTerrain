@@ -444,11 +444,6 @@ public:
 	}
 
 
-	virtual int32 GetLOD(const FSceneView* View) const {
-		int LodIndex = GetLodIndex(ZoneOrigin, View->ViewMatrices.GetViewOrigin());
-		return LodIndex;
-	}
-
 	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, FMaterialRenderProxy* Material, FTerrainMeshBatchInfo* TerrainMeshBatchInfo) {
 		FMeshBatch MeshBatch;
 		MeshBatch.Elements.Empty(1);
@@ -518,16 +513,15 @@ public:
 				// draw section according lod index
 				FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
 				if (LodSectionProxy != nullptr) {
-					if (LodIndex > 0) {
-						// draw each material section
-						/*
-						for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
-							if (MatSection != nullptr &&  MatSection->Material != nullptr) {
-								FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
-								DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
-							}
-						}*/
+					// draw each material section
+					for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
+						if (MatSection != nullptr &&  MatSection->Material != nullptr) {
+							FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
+							DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+						}
+					}
 
+					if (LodIndex > 0) {
 						// draw transition patches
 						for (auto i = 0; i < 6; i++) {
 							const FVector  NeighborZoneOrigin = ZoneOrigin + V[i];
@@ -583,7 +577,7 @@ public:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
 		Result.bDynamicRelevance = true;
-		Result.bStaticRelevance = true;
+		Result.bStaticRelevance = false;
 		Result.bRenderInMainPass = ShouldRenderInMainPass();
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();

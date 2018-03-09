@@ -494,7 +494,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	if (MeshDataPtr != nullptr) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			Zone->ApplyTerrainMesh(MeshDataPtr); // already in cache
 			OnLoadZone(Zone);
 		});
 		return;
@@ -1317,7 +1317,7 @@ TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMesh
 }
 
 bool LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
-	std::shared_ptr<TValueData> DataPtr = KvFile.get(Index);
+	TValueDataPtr DataPtr = KvFile.get(Index);
 
 	if (DataPtr == nullptr || DataPtr->size() == 0) {
 		return false;
