@@ -140,8 +140,11 @@ public:
 		const struct FMeshBatchElement* BatchElement = &Batch->Elements[0];
 		if (BatchElement->UserData != nullptr) {
 			const struct FTerrainMeshBatchInfo* TerrainMeshBatchInfo = (FTerrainMeshBatchInfo*)BatchElement->UserData;
-			int Lod = CalculateLodIndex(*TerrainMeshBatchInfo->ZoneOriginPtr, View.ViewMatrices.GetViewOrigin());
 
+			//bool test = View.ViewFrustum.IntersectBox(*TerrainMeshBatchInfo->ZoneOriginPtr, FVector(100, 100, 100));
+			//if (!test) return 0;
+
+			int Lod = CalculateLodIndex(*TerrainMeshBatchInfo->ZoneOriginPtr, View.ViewMatrices.GetViewOrigin());
 			return (Lod == TerrainMeshBatchInfo->ZoneLodIndex) ? 1 : 0;
 		}
 
@@ -503,13 +506,9 @@ public:
 			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 		}
 
-		///////
-		return;
-
 		// For each view..
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
 			if (VisibilityMap & (1 << ViewIndex)) {
-
 				// calculate lod index
 				const FSceneView* View = Views[ViewIndex];
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
@@ -519,16 +518,16 @@ public:
 				// draw section according lod index
 				FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
 				if (LodSectionProxy != nullptr) {
-
-					// draw each material section
-					for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
-						if (MatSection != nullptr &&  MatSection->Material != nullptr) {
-							FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
-							DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
-						}
-					}
-
 					if (LodIndex > 0) {
+						// draw each material section
+						/*
+						for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
+							if (MatSection != nullptr &&  MatSection->Material != nullptr) {
+								FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
+								DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+							}
+						}*/
+
 						// draw transition patches
 						for (auto i = 0; i < 6; i++) {
 							const FVector  NeighborZoneOrigin = ZoneOrigin + V[i];
