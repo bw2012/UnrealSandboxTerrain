@@ -819,10 +819,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);;
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
-
-				if (VoxelDataInfo == nullptr) {
-					continue;
-				}
+				TVoxelData* Vd = nullptr;
 
 				// check zone bounds
 				FVector ZoneOrigin = GetZonePos(ZoneIndex);
@@ -830,12 +827,14 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
-					TVoxelData* Vd = nullptr;
-
-					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+					if (VoxelDataInfo == nullptr || VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
 						Vd = LoadVoxelDataByIndex(ZoneIndex);
 					} else {
 						Vd = VoxelDataInfo->Vd;
+					}
+
+					if (Vd == nullptr) {
+						continue;
 					}
 
 					if (Zone == NULL) {
@@ -851,10 +850,6 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 							}
 						}
 
-						continue;
-					}
-
-					if (Vd == nullptr) {
 						continue;
 					}
 
@@ -885,7 +880,7 @@ void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* Zone,
 	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
 	TaskPtr->Function = [=]() {
 		if (MeshDataPtr) {
-			Zone->meTerrainMesh(MeshDataPtr);
+			Zone->ApplyTerrainMesh(MeshDataPtr);
 		}
 	};
 
