@@ -877,7 +877,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, Time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, Time);
 }
 
 
@@ -885,7 +885,7 @@ void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* Zone,
 	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
 	TaskPtr->Function = [=]() {
 		if (MeshDataPtr) {
-			Zone->ApplyTerrainMesh(MeshDataPtr);
+			Zone->meTerrainMesh(MeshDataPtr);
 		}
 	};
 
