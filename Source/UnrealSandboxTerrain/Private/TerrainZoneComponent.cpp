@@ -9,7 +9,7 @@
 #include "DrawDebugHelpers.h"
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 

@@ -250,6 +250,8 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::Save() {
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Start save terrain data..."));
+
 	double Start = FPlatformTime::Seconds();
 	uint32 SavedVd = 0;
 	uint32 SavedMd = 0;

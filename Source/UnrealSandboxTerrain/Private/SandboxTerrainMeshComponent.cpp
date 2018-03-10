@@ -75,23 +75,21 @@ struct FTerrainMeshBatchInfo {
 	int ZoneLodIndex = 0;
 };
 
+
+const float LOD[LOD_ARRAY_SIZE] = { 0, 1500, 3000, 6000, 12000, 24000, 48000 };
+//const float LOD[LOD_ARRAY_SIZE] = { 0, 1500, 3000, 6000, 9000, 12000, 15000 };
+
 int CalculateLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) {
 	float Distance = FVector::Dist(ViewOrigin, ZoneOrigin);
-	const static float LodThreshold = 1500.0f;
 
-	if (Distance <= LodThreshold) {
+	if (Distance <= LOD[1]) {
 		return 0;
 	}
 
-	float LodThresholdMin = LodThreshold;
-	for (int Idx = 1; Idx < LOD_ARRAY_SIZE; Idx++) {
-		float LodThresholdMax = 2.0f * LodThresholdMin;
-
-		if (Distance > LodThresholdMin && Distance <= LodThresholdMax) {
+	for (int Idx = 1; Idx < LOD_ARRAY_SIZE - 1; Idx++) {
+		if (Distance > LOD[Idx] && Distance <= LOD[Idx + 1]) {
 			return Idx;
 		}
-
-		LodThresholdMin *= 2;
 	}
 
 	return LOD_ARRAY_SIZE - 1;
@@ -507,7 +505,7 @@ public:
 				// calculate lod index
 				const FSceneView* View = Views[ViewIndex];
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
-				const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
+				//const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 				const int LodIndex = GetLodIndex(ZoneOrigin, View->ViewMatrices.GetViewOrigin());
 
 				// draw section according lod index
