@@ -21,7 +21,7 @@ void UTerrainZoneComponent::ClearCachedMeshData() {
 	CachedMeshDataPtr = nullptr;
 }
 
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
 	double start = FPlatformTime::Seconds();
 
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -30,7 +30,9 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 		return;
 	}
 
-	CachedMeshDataPtr = MeshDataPtr;
+	if (bPutToCache) {
+		CachedMeshDataPtr = MeshDataPtr;
+	}
 
 	//##########################################
 	// draw debug points
@@ -93,7 +95,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr) {
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {

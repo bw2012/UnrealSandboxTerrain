@@ -10,7 +10,7 @@
 #include "SandboxTerrainMeshComponent.h"
 
 
-bool LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
+bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
 
 void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData);
 
@@ -297,6 +297,8 @@ void ASandboxTerrainController::Save() {
 
 			TVoxelIndex Index2(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
+			UE_LOG(LogSandboxTerrain, Log, TEXT("TEST %d - %d - %d"), Index2.X, Index2.Y, Index2.Z);
+
 			TValueData buffer;
 			buffer.reserve(TempBufferMd.Num());
 			for (uint8 b : TempBufferMd) {
@@ -432,6 +434,7 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("Open mesh data"));
 	if (!OpenKvFile(MdFile, FileNameMd, SaveDir)) {
 		return false;
 	}
@@ -494,7 +497,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	if (MeshDataPtr != nullptr) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->ApplyTerrainMesh(MeshDataPtr); // already in cache
+			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
 			OnLoadZone(Zone);
 		});
 		return;
@@ -1316,7 +1319,7 @@ TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMesh
 	return MeshDataPtr;
 }
 
-bool LoadDataFromKvFile(const TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
+bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
 	TValueDataPtr DataPtr = KvFile.get(Index);
 
 	if (DataPtr == nullptr || DataPtr->size() == 0) {

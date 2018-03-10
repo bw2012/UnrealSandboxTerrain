@@ -1,11 +1,11 @@
 #pragma once
 
 struct TVoxelIndex {
-	int X = 0;
-	int Y = 0;
-	int Z = 0;
+	int32 X = 0;
+	int32 Y = 0;
+	int32 Z = 0;
 
-	TVoxelIndex(int XIndex, int YIndex, int ZIndex) : X(XIndex), Y(YIndex), Z(ZIndex) { }
+	TVoxelIndex(int32 XIndex, int32 YIndex, int32 ZIndex) : X(XIndex), Y(YIndex), Z(ZIndex) { }
 
 	bool operator==(const TVoxelIndex &other) const {
 		return (X == other.X && Y == other.Y && Z == other.Z);

@@ -46,7 +46,7 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	void ApplyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr);
+	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, bool bPutToCache = true);
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
