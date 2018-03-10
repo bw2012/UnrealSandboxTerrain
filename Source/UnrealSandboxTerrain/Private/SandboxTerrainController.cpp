@@ -297,8 +297,6 @@ void ASandboxTerrainController::Save() {
 
 			TVoxelIndex Index2(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
-			UE_LOG(LogSandboxTerrain, Log, TEXT("TEST %d - %d - %d"), Index2.X, Index2.Y, Index2.Z);
-
 			TValueData buffer;
 			buffer.reserve(TempBufferMd.Num());
 			for (uint8 b : TempBufferMd) {
@@ -820,7 +818,11 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 			for (float z : V) {
 				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);;
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
-				TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
+				TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
+
+				if (VoxelDataInfo == nullptr) {
+					continue;
+				}
 
 				// check zone bounds
 				FVector ZoneOrigin = GetZonePos(ZoneIndex);
@@ -828,43 +830,45 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
+					TVoxelData* Vd = nullptr;
+
+					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+						Vd = LoadVoxelDataByIndex(ZoneIndex);
+					} else {
+						Vd = VoxelDataInfo->Vd;
+					}
+
 					if (Zone == NULL) {
-						if (VoxelData != NULL) {
-							VoxelData->vd_edit_mutex.lock();
-							bool bIsChanged = handler(VoxelData, v, radius);
+						if (Vd != NULL) {
+							Vd->vd_edit_mutex.lock();
+							bool bIsChanged = handler(Vd, v, radius);
 							if (bIsChanged) {
-								VoxelData->setChanged();
-								VoxelData->vd_edit_mutex.unlock();
+								Vd->setChanged();
+								Vd->vd_edit_mutex.unlock();
 								InvokeLazyZoneAsync(FVector(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 							} else {
-								VoxelData->vd_edit_mutex.unlock();
+								Vd->vd_edit_mutex.unlock();
 							}
-							continue;
-						} else {
-							continue;
 						}
+
+						continue;
 					}
 
-					if (VoxelData == NULL) {
-						//try to load lazy voxel data
-						VoxelData = LoadVoxelDataByIndex(ZoneIndex);
-
-						if (VoxelData == nullptr) {
-							continue;
-						}
+					if (Vd == nullptr) {
+						continue;
 					}
 
-					VoxelData->vd_edit_mutex.lock();
-					bool bIsChanged = handler(VoxelData, v, radius);
+					Vd->vd_edit_mutex.lock();
+					bool bIsChanged = handler(Vd, v, radius);
 					if (bIsChanged) {
-						VoxelData->setChanged();
-						VoxelData->setCacheToValid();
-						TMeshDataPtr MeshDataPtr = GenerateMesh(Zone, VoxelData);
-						VoxelData->resetLastMeshRegenerationTime();
-						VoxelData->vd_edit_mutex.unlock();
+						Vd->setChanged();
+						Vd->setCacheToValid();
+						TMeshDataPtr MeshDataPtr = GenerateMesh(Zone, Vd);
+						Vd->resetLastMeshRegenerationTime();
+						Vd->vd_edit_mutex.unlock();
 						InvokeZoneMeshAsync(Zone, MeshDataPtr);
 					} else {
-						VoxelData->vd_edit_mutex.unlock();
+						Vd->vd_edit_mutex.unlock();
 					}
 				}
 			}
