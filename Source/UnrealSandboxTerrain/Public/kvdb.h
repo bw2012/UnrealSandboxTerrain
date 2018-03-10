@@ -1,7 +1,6 @@
 #ifndef __H_KVDB__
 #define __H_KVDB__
 
-
 #include <iostream>
 #include <stdio.h>
 #include <fstream>
@@ -19,8 +18,8 @@
 #include <cstring> 
 
 
-#define KVDB_KEY_SIZE 64
-#define KVDB_RESERVED_TABLE_SIZE 5
+#define KVDB_KEY_SIZE 12 // 3 x int32 (X, Y, Z)
+#define KVDB_RESERVED_TABLE_SIZE 1000
 
 typedef uint32_t uint32;
 typedef unsigned long long ulong64;
@@ -176,6 +175,9 @@ namespace kvdb {
 		std::set<TKeyEntryInfo, TKeyInfoComparatorByInitialLength> deletedKeyList;
 		std::list<TTableHeaderInfo> tableList;
 		mutable std::shared_mutex fileSharedMutex;
+		
+		uint32 reservedKeys = KVDB_RESERVED_TABLE_SIZE;
+		uint32 reservedValueSize = 0;
 
 	private:
 
@@ -200,13 +202,9 @@ namespace kvdb {
 			return arrayOfByte;
 		}
 
-		static TValueData toValueData(V value) {
-			std::vector<byte> temp;
-
-			if (temp.size() < sizeof(value)) temp.resize(sizeof(value));
-			std::memcpy(temp.data(), &value, sizeof(value));
-
-			return temp;
+		static void toValueData(V value, TValueData& valueData) {
+			if (valueData.size() < sizeof(value)) valueData.resize(sizeof(value));
+			std::memcpy(valueData.data(), &value, sizeof(value));
 		}
 
 		void rewritePair(TKeyEntryInfo& keyInfo, const TValueData& valueData) {
@@ -230,17 +228,35 @@ namespace kvdb {
 			dataMap.erase(keyInfo().freeKeyData);
 		}
 
+		void expandValueData(const TValueData& valueDataSrc, TValueData& valueDataNew) {
+			valueDataNew.resize(reservedValueSize);
+			for (uint32 i = 0; i < reservedValueSize; i++){
+				if(i < valueDataSrc.size()){
+					valueDataNew[i] = valueDataSrc[i];	
+				} else {
+					valueDataNew[i] = 0;	
+				}
+			}
+		}
+
 		void newPairFromReserved(const TKeyData& keyData, const TValueData& valueData) {
 			// has reserved key slots
 			TKeyEntryInfo& keyInfo = reservedKeyList.front();
+			TValueData valueDataExp;
+			
+			if(valueData.size() < reservedValueSize){
+				expandValueData(valueData, valueDataExp);
+			} else {
+				valueDataExp = std::move(valueData);
+			}
 
 			filePtr->seekg(0, std::ios::end); // to end-of-file
 			ulong64 endFile = (ulong64)(filePtr->tellp());
-			filePtr->write((char*)valueData.data(), valueData.size());
+			filePtr->write((char*)valueDataExp.data(), valueDataExp.size());
 
 			// fill key data
 			keyInfo().dataLength = valueData.size(); // length
-			keyInfo().initialDataLength = valueData.size(); // length
+			keyInfo().initialDataLength = valueDataExp.size(); // length
 			keyInfo().dataPos = endFile;
 			keyInfo().freeKeyData = keyData;
 
@@ -258,7 +274,7 @@ namespace kvdb {
 			TTableHeader tableHeader;
 			filePtr >> tableHeader;
 
-			for (int i = 0; i < tableHeader.recordCount; i++) {
+			for (unsigned int i = 0; i < tableHeader.recordCount; i++) {
 				ulong64 pos = (ulong64)filePtr->tellp();
 
 				TKeyEntry keyEntry;
@@ -268,13 +284,11 @@ namespace kvdb {
 
 				if (keyInfo().dataLength > 0) {
 					dataMap.insert({ keyEntry.freeKeyData, keyInfo });
-				}
-				else {
+				} else {
 					if (keyInfo().initialDataLength == 0) {
 						// reserved key slot
 						reservedKeyList.push_back(keyInfo);
-					}
-					else {
+					} else {
 						// marked as deleted pair
 						deletedKeyList.insert(keyInfo);
 					}
@@ -291,13 +305,13 @@ namespace kvdb {
 
 			// write new table
 			TTableHeader newTable;
-			newTable.recordCount = KVDB_RESERVED_TABLE_SIZE;
+			newTable.recordCount = reservedKeys;
 			newTable.nextTable = 0;
 			filePtr << newTable;
 
 			// write reserved keys
-			for (int i = 0; i < KVDB_RESERVED_TABLE_SIZE; i++) {
-				int newReservedKeyPos = (int)filePtr->tellp();
+			for (uint32 i = 0; i < reservedKeys; i++) {
+				uint32 newReservedKeyPos = (uint32)filePtr->tellp();
 
 				TKeyEntry newReservedKey;
 				filePtr << newReservedKey;
@@ -329,13 +343,13 @@ namespace kvdb {
 				TKeyEntryInfo keyInfo = *itr;
 				if (keyInfo().initialDataLength >= valueData.size()) {
 					TKeyEntryInfo keyInfo = *itr;
+					keyInfo().freeKeyData = keyData;
 					rewritePair(keyInfo, valueData);
 					dataMap.insert({ keyInfo().freeKeyData, keyInfo });
 					itr = deletedKeyList.erase(itr);
 
 					return true;
-				}
-				else {
+				} else {
 					++itr;
 				}
 			}
@@ -351,8 +365,7 @@ namespace kvdb {
 			if (!tryWriteToSuitableDeletedPair(keyData, valueData)) {
 				if (hasReserved()) {
 					newPairFromReserved(keyData, valueData);
-				}
-				else {
+				} else {
 					createNewTable();
 					newPairFromReserved(keyData, valueData);
 				}
@@ -362,16 +375,14 @@ namespace kvdb {
 		void change(const TKeyData& keyData, const TValueData& valueData) {
 			TKeyEntryInfo keyInfo = dataMap[keyData];
 			if (valueData.size() > 0) {
-				if (keyInfo().dataLength >= valueData.size()) {
+				if (keyInfo().initialDataLength >= valueData.size()) {
 					rewritePair(keyInfo, valueData);
-				}
-				else {
+				} else {
 					//remove old and create new
 					earsePair(keyInfo);
 					addNew(keyData, valueData);
 				}
-			}
-			else {
+			} else {
 				// erase
 				earsePair(keyInfo);
 			}
@@ -381,6 +392,10 @@ namespace kvdb {
 
 		KvFile() {
 			assert(sizeof(K) <= KVDB_KEY_SIZE);
+		}
+		
+		void setReservedValueSaize(uint32 val){
+			reservedValueSize = val;
 		}
 
 		void close() {
@@ -418,22 +433,24 @@ namespace kvdb {
 			}
 		}
 
-		TValueDataPtr get(const K& k) const {
-			const TKeyData keyData = toKeyData(k);
+		TValueDataPtr get(const K& k) {
+			TKeyData keyData = toKeyData(k);
 
 			if (!filePtr->is_open()) return nullptr;
             std::shared_lock<std::shared_mutex> lock(fileSharedMutex);
 
-			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator itr = dataMap.find(keyData);
-			if (itr == dataMap.end()) {
+			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
+			if (got == dataMap.end()) {
 				return nullptr;
 			}
 
-			const TKeyEntry& e = ((const TKeyEntryInfo&)(itr->second))();
+			TKeyEntryInfo& i = dataMap[keyData];
+			const TKeyEntry& e = i();
+
 			filePtr->seekg(e.dataPos);
 
 			TValueDataPtr dataPtr = TValueDataPtr(new TValueData);
-			for (int i = 0; i < e.dataLength; i++) {
+			for (unsigned int i = 0; i < e.dataLength; i++) {
 				byte tmp;
 				read(filePtr, tmp);
 				dataPtr->push_back(tmp);
@@ -452,9 +469,9 @@ namespace kvdb {
 			if (!filePtr->is_open()) return;
             std::unique_lock<std::shared_mutex> lock(fileSharedMutex);
 
-			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator itr = dataMap.find(keyData);
-			if (itr != dataMap.end()) {
-				TKeyEntryInfo& keyInfo = dataMap[keyData];
+			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
+			if (got != dataMap.end()) {
+				TKeyEntryInfo keyInfo = dataMap[keyData];
 				earsePair(keyInfo);
 			}
 		}
@@ -464,18 +481,17 @@ namespace kvdb {
 			TKeyData keyData = toKeyData(k);
 			TValueData valueData;
 
-			// TODO fixme
 			if (typeid(v) == typeid(TValueData)) {
-				valueData = (TValueData)v;
+				valueData = std::move((TValueData)v);
 			} else {
-				valueData = toValueData(v);
+				toValueData(v, valueData);
 			}
 
 			if (!filePtr->is_open()) return;
             std::unique_lock<std::shared_mutex> lock(fileSharedMutex);
 
-			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator itr = dataMap.find(keyData);
-			if (itr == dataMap.end()) {
+			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
+			if (got == dataMap.end()) {
 				// pair not found  
 				addNew(keyData, valueData);
 			} else {
@@ -514,18 +530,16 @@ namespace kvdb {
 				entry.freeKeyData = toKeyData(e.first);
 				entry.dataPos = dataBody.size() + bodyDataOffset;
 
-				// TODO fixme
+				TValueData valueData;
 				if (typeid(e.second) == typeid(TValueData)) {
-					const TValueData& valueData = (const TValueData&)e.second;
-					entry.dataLength = valueData.size();
-					entry.initialDataLength = valueData.size();
-					dataBody.insert(std::end(dataBody), std::begin(valueData), std::end(valueData));
+					valueData = std::move((TValueData)e.second);
 				} else {
-					TValueData valueData = toValueData(e.second);
-					entry.dataLength = valueData.size();
-					entry.initialDataLength = valueData.size();
-					dataBody.insert(std::end(dataBody), std::begin(valueData), std::end(valueData));
+					toValueData(e.second, valueData);
 				}
+
+				entry.dataLength = valueData.size();
+				entry.initialDataLength = valueData.size();
+				dataBody.insert(std::end(dataBody), std::begin(valueData), std::end(valueData));
 
 				outFilePtr << entry;
 			}

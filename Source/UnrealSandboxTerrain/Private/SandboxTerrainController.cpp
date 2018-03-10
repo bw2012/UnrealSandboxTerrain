@@ -2,14 +2,17 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
-#include "TerrainRegionComponent.h"
 #include "SandboxVoxeldata.h"
 #include <cmath>
 #include "DrawDebugHelpers.h"
 #include "Async.h"
 #include "Json.h"
-
 #include "SandboxTerrainMeshComponent.h"
+
+
+bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
+
+void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData);
 
 
 class FAsyncThread : public FRunnable {
@@ -92,6 +95,7 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	TerrainSizeY = 5;
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
+	SaveGeneratedZones = 1000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -104,6 +108,7 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	TerrainSizeY = 5;
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
+	SaveGeneratedZones = 1000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -132,52 +137,20 @@ void ASandboxTerrainController::BeginPlay() {
 		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
 	}
 
-	if (!OpenVdfile()) return;
+	if (!OpenFile()) return;
 
 	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd file ----> %d zones"), VdFile.size());
 
 	//===========================
 	// load existing
 	//===========================
-	RegionIndexSet.Empty();
 	OnStartBuildTerrain();
 	bIsGeneratingTerrain = true;
-	LoadJson(RegionIndexSet);
+	LoadJson();
 
-	// load initial region
-	UTerrainRegionComponent* Region1 = GetOrCreateRegion(FVector(0, 0, 0));
-	Region1->LoadFile();
-	// spawn initial zone
 	TSet<FVector> InitialZoneSet = SpawnInitialZone();
-
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
-		Region1->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
-			if (ThisThread.IsNotValid()) return;
-			FVector Pos = GetZonePos(Index);
-			SpawnZone(Pos);
-		});
-
-		if (ThisThread.IsNotValid()) return;
-
-		for (FVector RegionIndex : RegionIndexSet) {
-			if (RegionIndex.Equals(FVector::ZeroVector)) {
-				continue;
-			}
-
-			UTerrainRegionComponent* Region2 = GetOrCreateRegion(GetRegionPos(RegionIndex));
-			Region2->LoadFile();
-			if (ThisThread.IsNotValid()) return;
-
-			Region2->ForEachMeshData([&](const TVoxelIndex& Index, TMeshDataPtr& MeshDataPtr) {
-				if (ThisThread.IsNotValid()) return;
-				FVector Pos = GetZonePos(Index);
-				SpawnZone(Pos);
-			});
-
-			if (ThisThread.IsNotValid()) return;
-		}
-
 		if (!bGenerateOnlySmallSpawnPoint) {
 			int Total = (TerrainSizeX * 2 + 1) * (TerrainSizeY * 2 + 1) * (TerrainSizeZ * 2 + 1);
 			int Progress = 0;
@@ -198,17 +171,24 @@ void ASandboxTerrainController::BeginPlay() {
 						// must invoke in main thread
 						//OnProgressBuildTerrain(PercentProgress);
 
+						if(GeneratedVdConter > SaveGeneratedZones){
+							TControllerTaskTaskPtr TaskPtr = InvokeSafe([=]() { Save(); });
+							TControllerTask::WaitForFinish(TaskPtr.get());
+							GeneratedVdConter = 0;
+						}
+
 						if (ThisThread.IsNotValid()) return;
 					}
 				}
 			}
 		}
 
+		TControllerTask::WaitForFinish(InvokeSafe([=]() { Save(); }).get());
+
 		RunThread([&](FAsyncThread& ThisThread) {
 			bIsGeneratingTerrain = false;
-			OnFinishBuildTerrain();
+			OnFinishBuildTerrain(); // FIXME: thread-safe
 		});
-
 	});
 }
 
@@ -227,15 +207,12 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	}
 
 	Save();
+
 	VdFile.close();
+	MdFile.close();
+	ObjFile.close();
+
 	ClearVoxelData();
-
-	// clean region mesh data cache and close vd file
-	for (auto& Elem : TerrainRegionMap) {
-		UTerrainRegionComponent* Region = Elem.Value;
-		Region->CleanMeshDataCache();
-	}
-
 	TerrainZoneMap.Empty();
 }
 
@@ -243,9 +220,10 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	if (HasNextAsyncTask()) {
-		TerrainControllerTask task = GetAsyncTask();
-		if (task.Function) {
-			task.Function();
+		TControllerTaskTaskPtr Task = GetAsyncTask();
+		if (Task->Function) {
+			Task->Function();
+			Task->bIsFinished = true;
 		}
 	}	
 
@@ -270,16 +248,12 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 // Unreal Sandbox 
 //======================================================================================================================================================================
-typedef struct TSaveBuffer {
-
-	TArray<UTerrainZoneComponent*> ZoneArray;
-
-} TSaveBuffer;
-
 
 void ASandboxTerrainController::Save() {
-	TSet<FVector> RegionIndexSetLocal;
+	double Start = FPlatformTime::Seconds();
 	uint32 SavedVd = 0;
+	uint32 SavedMd = 0;
+	uint32 SavedObj = 0;
 
 	for (auto& It : VoxelDataIndexMap) {
 		TVoxelDataInfo& VdInfo = VoxelDataIndexMap[It.first];
@@ -291,56 +265,76 @@ void ASandboxTerrainController::Save() {
 		//============================================
 		// TODO remove
 		// test
-		FBufferArchive TempBuffer;
+		FBufferArchive TempBufferVd;
 		TValueData buffer;
-		serializeVoxelData(*VdInfo.Vd, TempBuffer);
-		buffer.reserve(TempBuffer.Num());
 
-		for (uint8 b : TempBuffer) {
+		serializeVoxelData(*VdInfo.Vd, TempBufferVd);
+		buffer.reserve(TempBufferVd.Num());
+
+		for (uint8 b : TempBufferVd) {
 			buffer.push_back(b);
 		}
 
 		TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
-
 		if (VdInfo.Vd->isChanged()) {
 			VdFile.put(Index, buffer);
 			VdInfo.Vd->resetLastSave();
 			SavedVd++;
 		}
 
-		FVector RegionIndex = GetRegionIndex(VdInfo.Vd->getOrigin());
 		VdInfo.Unload();
-		RegionIndexSetLocal.Add(RegionIndex);
 	}
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
 
-	// put zones to save buffer
-	TMap<FVector, TSaveBuffer> SaveBufferByRegion;
 	for (auto& Elem : TerrainZoneMap) {
 		FVector ZoneIndex = Elem.Key;
 		UTerrainZoneComponent* Zone = Elem.Value;
-		FVector RegionIndex = GetRegionIndex(Zone->GetComponentLocation());
 
-		TSaveBuffer& SaveBuffer = SaveBufferByRegion.FindOrAdd(RegionIndex);
+		TMeshData const * MeshDataPtr = Zone->GetCachedMeshData();
+		if (MeshDataPtr) {
+			TArray<uint8> TempBufferMd;
+			SerializeMeshData(MeshDataPtr, TempBufferMd);
 
-		SaveBuffer.ZoneArray.Add(Zone);
-		RegionIndexSetLocal.Add(RegionIndex);
-	}
+			TVoxelIndex Index2(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
-	// save regions accordind data from save buffer
-	for (auto& Elem : SaveBufferByRegion) {
-		FVector RegionIndex = Elem.Key;
-		TSaveBuffer& SaveBuffer = Elem.Value;
-		UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
+			TValueData buffer;
+			buffer.reserve(TempBufferMd.Num());
+			for (uint8 b : TempBufferMd) {
+				buffer.push_back(b);
+			}
 
-		if (Region != nullptr && Region->IsChanged()){
-			Region->SaveFile(SaveBuffer.ZoneArray);
-			Region->ResetChanged();
+			MdFile.put(Index2, buffer);
+
+			Zone->ClearCachedMeshData();
+			SavedMd++;
+		}
+
+		if (Zone->IsNeedSave()) {
+			FBufferArchive BinaryData;
+			Zone->SerializeInstancedMeshes(BinaryData);
+
+			TVoxelIndex Index2(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
+			TValueData buffer;
+			buffer.reserve(BinaryData.Num());
+			for (uint8 b : BinaryData) {
+				buffer.push_back(b);
+			}
+
+			ObjFile.put(Index2, buffer);
+
+			Zone->ResetNeedSave();
+			SavedObj++;
 		}
 	}
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save mesh data ----> %d"), SavedMd);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save objects data ----> %d"), SavedObj);
 
-	RegionIndexSetLocal.Append(RegionIndexSet);
-	SaveJson(RegionIndexSetLocal);
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Save voxel data ----> %d"), SavedVd);
+	SaveJson();
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Terrain saved -> %f ms"), Time);
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
@@ -348,13 +342,10 @@ void ASandboxTerrainController::SaveMapAsync() {
 	RunThread([&](FAsyncThread& ThisThread) {
 		double Start = FPlatformTime::Seconds();
 		Save();
-		double End = FPlatformTime::Seconds();
-		double Time = (End - Start) * 1000;
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Terrain saved -> %f ms"), Time);
 	});
 }
 
-void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
+void ASandboxTerrainController::SaveJson() {
 	UE_LOG(LogTemp, Log, TEXT("----------- save json -----------"));
 
 	FString JsonStr;
@@ -366,12 +357,14 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	JsonWriter->WriteObjectStart();
 	JsonWriter->WriteArrayStart("Regions");
 
+	/*
 	for (const FVector& Index : RegionIndexSet) {
 		float x = Index.X;
 		float y = Index.Y;
 		float z = Index.Z;
 
-		FVector RegionPos = GetRegionPos(Index);
+		//FVector RegionPos = GetRegionPos(Index);
+		FVector RegionPos;
 
 		//========================================================
 		JsonWriter->WriteObjectStart();
@@ -393,6 +386,7 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 		JsonWriter->WriteObjectEnd();
 		//========================================================
 	}
+	*/
 
 	JsonWriter->WriteArrayEnd();
 	JsonWriter->WriteObjectEnd();
@@ -401,13 +395,30 @@ void ASandboxTerrainController::SaveJson(const TSet<FVector>& RegionIndexSet) {
 	FFileHelper::SaveStringToFile(*JsonStr, *FullPath);
 }
 
-bool ASandboxTerrainController::OpenVdfile() {
-	// open vd file 	
-	FString FileName = TEXT("terrain.dat");
-	FString SavePath = FPaths::GameSavedDir();
-	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
+bool OpenKvFile(kvdb::KvFile<TVoxelIndex, TValueData>& KvFile, const FString& FileName, const FString& SaveDir) {
 	FString FullPath = SaveDir + FileName;
 	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
+
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
+		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
+	}
+
+	if (!KvFile.open(FilePathString)) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open file: %s"), *FullPath);
+		return false;
+	}
+
+	return true;
+}
+
+bool ASandboxTerrainController::OpenFile() {
+	// open vd file 	
+	FString FileNameVd = TEXT("terrain_voxeldata.dat");
+	FString FileNameMd = TEXT("terrain_mesh.dat");
+	FString FileNameObj = TEXT("terrain_objects.dat");
+
+	FString SavePath = FPaths::GameSavedDir();
+	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*SaveDir)) {
@@ -417,21 +428,23 @@ bool ASandboxTerrainController::OpenVdfile() {
 		}
 	}
 
-	// check terrain db file 
-	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
-		// create new empty file
-		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());
+	if (!OpenKvFile(VdFile, FileNameVd, SaveDir)) {
+		return false;
 	}
 
-	if (!VdFile.open(FilePathString)) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Unable to open terrain file: %s"), *FullPath);
+	UE_LOG(LogTemp, Warning, TEXT("Open mesh data"));
+	if (!OpenKvFile(MdFile, FileNameMd, SaveDir)) {
+		return false;
+	}
+
+	if (!OpenKvFile(ObjFile, FileNameObj, SaveDir)) {
 		return false;
 	}
 
 	return true;
 }
 
-void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
+void ASandboxTerrainController::LoadJson() {
 	UE_LOG(LogTemp, Warning, TEXT("----------- load json -----------"));
 
 	FString FileName = TEXT("terrain.json");
@@ -456,21 +469,19 @@ void ASandboxTerrainController::LoadJson(TSet<FVector>& RegionIndexSet) {
 			double x = IndexValArray[0]->AsNumber();
 			double y = IndexValArray[1]->AsNumber();
 			double z = IndexValArray[2]->AsNumber();
-
-			RegionIndexSet.Add(FVector(x, y, z));
-
-			UE_LOG(LogTemp, Warning, TEXT("index: %f %f %f"), x, y, z);
 		}
 	}
 }
 
-void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
+TControllerTaskTaskPtr ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 	if (IsInGameThread()) {
 		Function();
+		return nullptr;
 	} else {
-		TerrainControllerTask AsyncTask;
-		AsyncTask.Function = Function;
-		AddAsyncTask(AsyncTask);
+		TControllerTaskTaskPtr TaskPtr(new TControllerTask);
+		TaskPtr->Function = Function;
+		AddAsyncTask(TaskPtr);
+		return TaskPtr;
 	}
 }
 
@@ -480,30 +491,23 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 
 	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
 
-	FVector RegionIndex = GetRegionIndex(Pos);
-	UTerrainRegionComponent* Region = GetRegionByVectorIndex(RegionIndex);
-
-	if (Region != nullptr) {
-		TMeshDataPtr MeshDataPtr = Region->GetMeshData(ZoneIndexTmp);
-		if (MeshDataPtr != nullptr) {
-			InvokeSafe([=]() {
-				UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-				Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
-				OnLoadZone(Zone);
-			});
-			return;
-		}
-	} 
+	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(ZoneIndex);
+	if (MeshDataPtr != nullptr) {
+		InvokeSafe([=]() {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+			Zone->ApplyTerrainMesh(MeshDataPtr, false); // already in cache
+			OnLoadZone(Zone);
+		});
+		return;
+	}
 
 	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(ZoneIndex);
 	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->SetVoxelData(VoxelDataInfo->Vd);
-			Zone->MakeTerrain();
+			MakeTerrain(Zone, VoxelDataInfo->Vd);
 
 			if (VoxelDataInfo->IsNewGenerated()) {
-				Zone->GetRegion()->SetChanged();
 				OnGenerateNewZone(Zone);
 			}
 
@@ -514,9 +518,7 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 	} else {
 		if (VoxelDataInfo->IsNewGenerated()) {
 			InvokeSafe([=]() {
-				// just create region
-				UTerrainRegionComponent* Region = GetOrCreateRegion(Pos);
-				Region->SetChanged();
+
 			});
 		}
 	}
@@ -551,22 +553,6 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 	return InitialZoneSet;
 }
 
-FVector ASandboxTerrainController::GetRegionIndex(FVector v) {
-	return sandboxGridIndex(v, USBT_REGION_SIZE);
-}
-
-FVector ASandboxTerrainController::GetRegionPos(FVector Index) {
-	return FVector(Index.X * USBT_REGION_SIZE, Index.Y * USBT_REGION_SIZE, Index.Z * USBT_REGION_SIZE);
-}
-
-UTerrainRegionComponent* ASandboxTerrainController::GetRegionByVectorIndex(FVector index) {
-	if (TerrainRegionMap.Contains(index)) {
-		return TerrainRegionMap[index];
-	}
-
-	return NULL;
-}
-
 TVoxelIndex ASandboxTerrainController::GetZoneIndex(const FVector& Pos) {
 	FVector Tmp = sandboxGridIndex(Pos, USBT_ZONE_SIZE);
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
@@ -585,38 +571,16 @@ UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(const TVo
 	return NULL;
 }
 
-UTerrainRegionComponent* ASandboxTerrainController::GetOrCreateRegion(FVector pos) {
-	FVector RegionIndex = GetRegionIndex(pos);
-	UTerrainRegionComponent* RegionComponent = GetRegionByVectorIndex(RegionIndex);
-	if (RegionComponent == NULL) {
-		FString RegionName = FString::Printf(TEXT("Region -> [%.0f, %.0f, %.0f]"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
-		RegionComponent = NewObject<UTerrainRegionComponent>(this, FName(*RegionName));
-		RegionComponent->RegisterComponent();
-		RegionComponent->AttachTo(RootComponent);
-		//RegionComponent->SetRelativeLocation(pos);
-		RegionComponent->SetWorldLocation(GetRegionPos(RegionIndex));
-
-		TerrainRegionMap.Add(FVector(RegionIndex.X, RegionIndex.Y, RegionIndex.Z), RegionComponent);
-
-		//if (bShowZoneBounds) 
-			DrawDebugBox(GetWorld(), GetRegionPos(RegionIndex), FVector(USBT_REGION_SIZE / 2), FColor(255, 0, 255, 100), true);
-	}
-
-	return RegionComponent;
-}
-
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
-	UTerrainRegionComponent* RegionComponent = GetOrCreateRegion(pos);
-
 	TVoxelIndex Index = GetZoneIndex(pos);
 	FVector IndexTmp(Index.X, Index.Y,Index.Z);
 
-	FString zone_name = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
-	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*zone_name));
+	FString ZoneName = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
+	UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*ZoneName));
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
 		//ZoneComponent->SetRelativeLocation(pos);
-		ZoneComponent->AttachTo(RegionComponent);
+		ZoneComponent->AttachTo(RootComponent);
 		ZoneComponent->SetWorldLocation(pos);
 
 		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
@@ -827,8 +791,14 @@ void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radiu
 				if (InstancedMesh != nullptr) {
 					InstancedMesh->RemoveInstance(OverlapItem.Item);
 
-					UTerrainRegionComponent* Region = GetRegionByVectorIndex(GetRegionIndex(OverlapItem.ImpactPoint));
-					Region->SetChanged();
+					TArray<USceneComponent*> Parents;
+					InstancedMesh->GetParentComponents(Parents);
+					if (Parents.Num() > 0) {
+						UTerrainZoneComponent* Zone = Cast<UTerrainZoneComponent>(Parents[0]);
+						if (Zone) {
+							Zone->SetNeedSave();
+						}
+					}
 				}
 			}
 		}
@@ -848,7 +818,8 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 			for (float z : V) {
 				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);;
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
-				TVoxelData* VoxelData = GetVoxelDataByIndex(ZoneIndex);
+				TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
+				TVoxelData* Vd = nullptr;
 
 				// check zone bounds
 				FVector ZoneOrigin = GetZonePos(ZoneIndex);
@@ -856,46 +827,43 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
+					if (VoxelDataInfo == nullptr || VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+						Vd = LoadVoxelDataByIndex(ZoneIndex);
+					} else {
+						Vd = VoxelDataInfo->Vd;
+					}
+
+					if (Vd == nullptr) {
+						continue;
+					}
+
 					if (Zone == NULL) {
-						if (VoxelData != NULL) {
-							VoxelData->vd_edit_mutex.lock();
-							bool bIsChanged = handler(VoxelData, v, radius);
+						if (Vd != NULL) {
+							Vd->vd_edit_mutex.lock();
+							bool bIsChanged = handler(Vd, v, radius);
 							if (bIsChanged) {
-								VoxelData->setChanged();
-								VoxelData->vd_edit_mutex.unlock();
+								Vd->setChanged();
+								Vd->vd_edit_mutex.unlock();
 								InvokeLazyZoneAsync(FVector(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 							} else {
-								VoxelData->vd_edit_mutex.unlock();
+								Vd->vd_edit_mutex.unlock();
 							}
-							continue;
-						} else {
-							continue;
 						}
+
+						continue;
 					}
 
-					if (VoxelData == NULL) {
-						//try to load lazy voxel data
-						UTerrainRegionComponent* Region = Zone->GetRegion();
-						VoxelData = LoadVoxelDataByIndex(ZoneIndex);
-
-						if (VoxelData == nullptr) {
-							continue;
-						}
-					}
-
-					VoxelData->vd_edit_mutex.lock();
-					bool bIsChanged = handler(VoxelData, v, radius);
+					Vd->vd_edit_mutex.lock();
+					bool bIsChanged = handler(Vd, v, radius);
 					if (bIsChanged) {
-						VoxelData->setChanged();
-						VoxelData->setCacheToValid();
-						Zone->SetVoxelData(VoxelData); // if zone was loaded from mesh cache
-						std::shared_ptr<TMeshData> md_ptr = Zone->GenerateMesh();
-						VoxelData->resetLastMeshRegenerationTime();
-						VoxelData->vd_edit_mutex.unlock();
-						Zone->GetRegion()->SetChanged();
-						InvokeZoneMeshAsync(Zone, md_ptr);
+						Vd->setChanged();
+						Vd->setCacheToValid();
+						TMeshDataPtr MeshDataPtr = GenerateMesh(Zone, Vd);
+						Vd->resetLastMeshRegenerationTime();
+						Vd->vd_edit_mutex.unlock();
+						InvokeZoneMeshAsync(Zone, MeshDataPtr);
 					} else {
-						VoxelData->vd_edit_mutex.unlock();
+						Vd->vd_edit_mutex.unlock();
 					}
 				}
 			}
@@ -904,23 +872,23 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain-------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, Time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f %f %f --> %f ms"), v.X, v.Y, v.Z, Time);
 }
 
 
-void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* zone, std::shared_ptr<TMeshData> mesh_data_ptr) {
-	TerrainControllerTask task;
-	task.Function = [=]() {
-		if (mesh_data_ptr) {
-			zone->ApplyTerrainMesh(mesh_data_ptr);
+void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr) {
+	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
+	TaskPtr->Function = [=]() {
+		if (MeshDataPtr) {
+			Zone->ApplyTerrainMesh(MeshDataPtr);
 		}
 	};
 
-	AddAsyncTask(task);
+	AddAsyncTask(TaskPtr);
 }
 
 void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
-	TerrainControllerTask Task;
+	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
 
 	FVector Pos = GetZonePos(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
 	TVoxelData* VoxelData = GetVoxelDataByIndex(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z));
@@ -929,51 +897,32 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 		return;
 	}
 
-	Task.Function = [=]() {	
+	TaskPtr->Function = [=]() {
 		if(VoxelData != nullptr) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			Zone->SetVoxelData(VoxelData);
-			TMeshDataPtr NewMeshDataPtr = Zone->GenerateMesh();
+			TMeshDataPtr NewMeshDataPtr = GenerateMesh(Zone, VoxelData);
 			VoxelData->resetLastMeshRegenerationTime();
-			Zone->GetRegion()->SetChanged();
 			Zone->ApplyTerrainMesh(NewMeshDataPtr);
 		}
 	};
 
-	AddAsyncTask(Task);
+	AddAsyncTask(TaskPtr);
 }
 
 //======================================================================================================================================================================
 
 
 TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& Index) {
-	std::shared_ptr<TValueData> DataPtr = VdFile.get(Index);
-
-	if (DataPtr == nullptr || DataPtr->size() == 0) {
-		return nullptr;
-	}
-
 	double Start = FPlatformTime::Seconds();
 
-	//TODO optimize all
-	TArray<uint8> BinaryArray;
-	BinaryArray.Reserve(DataPtr->size());
-
-	TValueData& Data = *DataPtr.get();
-
-	for (auto Byte : Data){
-		BinaryArray.Add(Byte);
-	}
-
-	FVector VoxelDataOrigin = GetZonePos(Index);
-
-	FMemoryReader BinaryData = FMemoryReader(BinaryArray, true); //true, free data after done
-	BinaryData.Seek(0);
-
 	TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
-	Vd->setOrigin(VoxelDataOrigin);
+	Vd->setOrigin(GetZonePos(Index));
 
-	deserializeVoxelData(*Vd, BinaryData);
+	bool bIsLoaded = LoadDataFromKvFile(VdFile, Index, [&](TArray<uint8>& Data) { 
+		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
+		BinaryData.Seek(0);
+		deserializeVoxelData(*Vd, BinaryData);
+	});
 
 	TVoxelDataInfo VdInfo;
 	VdInfo.DataState = TVoxelDataState::LOADED;
@@ -984,7 +933,9 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	if (bIsLoaded) {
+		UE_LOG(LogTemp, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	}
 
 	return Vd;
 }
@@ -1006,6 +957,7 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxe
 			Vd->setOrigin(GetZonePos(Index));
 
 			TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
+			GeneratedVdConter++;
 
 			VdInfo.DataState = TVoxelDataState::GENERATED;
 			VdInfo.Vd = Vd;
@@ -1021,7 +973,7 @@ TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxe
 
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
 	if (!bDisableFoliage) {
-		GenerateNewFoliage(Zone);
+		TerrainGeneratorComponent->GenerateNewFoliage(Zone);
 	}
 }
 
@@ -1031,19 +983,19 @@ void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
 	}
 }
 
-void ASandboxTerrainController::AddAsyncTask(TerrainControllerTask zone_make_task) {
+void ASandboxTerrainController::AddAsyncTask(TControllerTaskTaskPtr TaskPtr) {
 	AsyncTaskListMutex.lock();
-	AsyncTaskList.push(zone_make_task);
+	AsyncTaskList.push(TaskPtr);
 	AsyncTaskListMutex.unlock();
 }
 
-TerrainControllerTask ASandboxTerrainController::GetAsyncTask() {
+TControllerTaskTaskPtr ASandboxTerrainController::GetAsyncTask() {
+	//TODO: read/write lock
 	AsyncTaskListMutex.lock();
-	TerrainControllerTask NewTask = AsyncTaskList.front();
+	TControllerTaskTaskPtr Task = AsyncTaskList.front();
 	AsyncTaskList.pop();
 	AsyncTaskListMutex.unlock();
-
-	return NewTask;
+	return Task;
 }
 
 bool ASandboxTerrainController::HasNextAsyncTask() {
@@ -1104,82 +1056,19 @@ void ASandboxTerrainController::ClearVoxelData() {
 // Sandbox Foliage
 //======================================================================================================================================================================
 
-void ASandboxTerrainController::GenerateNewFoliage(UTerrainZoneComponent* Zone) {
-	if (FoliageMap.Num() == 0) return;
-	if (TerrainGeneratorComponent->GroundLevelFunc(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
-
-	int32 Hash = 7;
-	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().X;
-	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Y;
-	Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Z;
-
-	FRandomStream rnd = FRandomStream();
-	rnd.Initialize(Hash);
-	rnd.Reset();
-
-	static const float s = USBT_ZONE_SIZE / 2;
-	static const float step = 25.f;
-
-	for (auto x = -s; x <= s; x += step) {
-		for (auto y = -s; y <= s; y += step) {
-
-			FVector v(Zone->getVoxelData()->getOrigin());
-			v += FVector(x, y, 0);
-
-			for (auto& Elem : FoliageMap) {
-				FSandboxFoliage FoliageType = Elem.Value;
-				int32 FoliageTypeId = Elem.Key;
-
-				if ((int)x % (int)FoliageType.SpawnStep == 0 && (int)y % (int)FoliageType.SpawnStep == 0) {
-					//UE_LOG(LogTemp, Warning, TEXT("%d - %d"), (int)x, (int)y);
-					float Chance = rnd.FRandRange(0.f, 1.f);
-					if (Chance <= FoliageType.Probability) {
-						float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-						SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Zone);
-					}
-				}
-			}
-
-
-		}
-	}
-}
-
-void ASandboxTerrainController::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone) {
-
-	if (FoliageType.OffsetRange > 0) {
-		float ox = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) ox = -ox; v.X += ox;
-		float oy = rnd.FRandRange(0.f, FoliageType.OffsetRange); if (rnd.GetFraction() > 0.5) oy = -oy; v.Y += oy;
-	}
-
-	const FVector start_trace(v.X, v.Y, v.Z + USBT_ZONE_SIZE / 2);
-	const FVector end_trace(v.X, v.Y, v.Z - USBT_ZONE_SIZE / 2);
-
-	FHitResult hit(ForceInit);
-	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
-
-	if (hit.bBlockingHit) {
-		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {
-			if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
-
-				float angle = rnd.FRandRange(0.f, 360.f);
-				float ScaleZ = rnd.FRandRange(FoliageType.ScaleMinZ, FoliageType.ScaleMaxZ);
-				FTransform Transform(FRotator(0, angle, 0), hit.ImpactPoint, FVector(1, 1, ScaleZ));
-
-				FTerrainInstancedMeshType MeshType;
-				MeshType.MeshTypeId = FoliageTypeId;
-				MeshType.Mesh = FoliageType.Mesh;
-				MeshType.StartCullDistance = FoliageType.StartCullDistance;
-				MeshType.EndCullDistance = FoliageType.EndCullDistance;
-
-				Zone->SpawnInstancedMesh(MeshType, Transform);
-			}
-		}
-	}
-}
-
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
-	Zone->GetRegion()->SpawnInstMeshFromLoadCache(Zone);
+	if (bDisableFoliage) return;
+
+	TInstMeshTypeMap ZoneInstMeshMap;
+	LoadObjectDataByIndex(Zone, ZoneInstMeshMap);
+
+	for (auto& Elem : ZoneInstMeshMap) {
+		TInstMeshTransArray& InstMeshTransArray = Elem.Value;
+
+		for (FTransform& Transform : InstMeshTransArray.TransformArray) {
+			Zone->SpawnInstancedMesh(InstMeshTransArray.MeshType, Transform);
+		}
+	}
 }
 
 //======================================================================================================================================================================
@@ -1251,3 +1140,258 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
 	return TerrainGeneratorComponent->GroundLevelFunc(FVector(X, Y, 0)); ;
 }
+
+//======================================================================================================================================================================
+// mesh data de/serealization
+//======================================================================================================================================================================
+
+void ASandboxTerrainController::MakeTerrain(UTerrainZoneComponent* Zone, TVoxelData* Vd) {
+	std::shared_ptr<TMeshData> MeshDataPtr = GenerateMesh(Zone, Vd);
+
+	if (IsInGameThread()) {
+		Zone->ApplyTerrainMesh(MeshDataPtr);
+		Vd->resetLastMeshRegenerationTime();
+	} else {
+		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
+		InvokeZoneMeshAsync(Zone, MeshDataPtr);
+	}
+}
+
+std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(UTerrainZoneComponent* Zone, TVoxelData* Vd) {
+	double start = FPlatformTime::Seconds();
+
+	if (Vd == NULL || Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::ALL) {
+		return NULL;
+	}
+
+	TVoxelDataParam Vdp;
+
+	if (bEnableLOD) {
+		Vdp.bGenerateLOD = true;
+		Vdp.collisionLOD = GetCollisionMeshSectionLodIndex();
+	} else {
+		Vdp.bGenerateLOD = false;
+		Vdp.collisionLOD = 0;
+	}
+
+	TMeshDataPtr MeshDataPtr = sandboxVoxelGenerateMesh(*Vd, Vdp);
+
+	double end = FPlatformTime::Seconds();
+	double time = (end - start) * 1000;
+
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+
+	return MeshDataPtr;
+}
+
+//======================================================================================================================================================================
+// mesh data de/serealization
+//======================================================================================================================================================================
+
+void SerializeMeshContainer(const TMeshContainer& MeshContainer, FBufferArchive& BinaryData) {
+	// save regular materials
+	int32 LodSectionRegularMatNum = MeshContainer.MaterialSectionMap.Num();
+	BinaryData << LodSectionRegularMatNum;
+	for (auto& Elem : MeshContainer.MaterialSectionMap) {
+		unsigned short MatId = Elem.Key;
+		const TMeshMaterialSection& MaterialSection = Elem.Value;
+
+		BinaryData << MatId;
+
+		const FProcMeshSection& Mesh = MaterialSection.MaterialMesh;
+		Mesh.SerializeMesh(BinaryData);
+	}
+
+	// save transition materials
+	int32 LodSectionTransitionMatNum = MeshContainer.MaterialTransitionSectionMap.Num();
+	BinaryData << LodSectionTransitionMatNum;
+	for (auto& Elem : MeshContainer.MaterialTransitionSectionMap) {
+		unsigned short MatId = Elem.Key;
+		const TMeshMaterialTransitionSection& TransitionMaterialSection = Elem.Value;
+
+		BinaryData << MatId;
+
+		int MatSetSize = TransitionMaterialSection.MaterialIdSet.size();
+		BinaryData << MatSetSize;
+
+		for (unsigned short MatSetElement : TransitionMaterialSection.MaterialIdSet) {
+			BinaryData << MatSetElement;
+		}
+
+		const FProcMeshSection& Mesh = TransitionMaterialSection.MaterialMesh;
+		Mesh.SerializeMesh(BinaryData);
+	}
+}
+
+void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData) {
+	FBufferArchive BinaryData;
+
+	int32 LodArraySize = MeshDataPtr->MeshSectionLodArray.Num();
+	BinaryData << LodArraySize;
+
+	for (int32 LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
+		const TMeshLodSection& LodSection = MeshDataPtr->MeshSectionLodArray[LodIdx];
+		BinaryData << LodIdx;
+
+		// save whole mesh
+		LodSection.WholeMesh.SerializeMesh(BinaryData);
+
+		SerializeMeshContainer(LodSection.RegularMeshContainer, BinaryData);
+
+		if (LodIdx > 0) {
+			for (auto i = 0; i < 6; i++) {
+				SerializeMeshContainer(LodSection.TransitionPatchArray[i], BinaryData);
+			}
+		}
+	}
+
+	FArchiveSaveCompressedProxy Compressor = FArchiveSaveCompressedProxy(CompressedData, ECompressionFlags::COMPRESS_ZLIB);
+	Compressor << BinaryData;
+	Compressor.Flush();
+}
+
+void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& BinaryData) {
+	// regular materials
+	int32 LodSectionRegularMatNum;
+	BinaryData << LodSectionRegularMatNum;
+
+	for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
+		unsigned short MatId;
+		BinaryData << MatId;
+
+		TMeshMaterialSection& MatSection = MeshContainer.MaterialSectionMap.FindOrAdd(MatId);
+		MatSection.MaterialId = MatId;
+
+		MatSection.MaterialMesh.DeserializeMesh(BinaryData);
+	}
+
+	// transition materials
+	int32 LodSectionTransitionMatNum;
+	BinaryData << LodSectionTransitionMatNum;
+
+	for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
+		unsigned short MatId;
+		BinaryData << MatId;
+
+		int MatSetSize;
+		BinaryData << MatSetSize;
+
+		std::set<unsigned short> MatSet;
+		for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
+			unsigned short MatSetElement;
+			BinaryData << MatSetElement;
+
+			MatSet.insert(MatSetElement);
+		}
+
+		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
+		MatTransSection.MaterialId = MatId;
+		MatTransSection.MaterialIdSet = MatSet;
+		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
+
+		MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
+	}
+}
+
+TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMeshSectionLodIndex) {
+	TMeshDataPtr MeshDataPtr(new TMeshData);
+
+	int32 LodArraySize;
+	BinaryData << LodArraySize;
+
+	for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
+		int32 LodIndex;
+		BinaryData << LodIndex;
+
+		// whole mesh
+		MeshDataPtr.get()->MeshSectionLodArray[LodIndex].WholeMesh.DeserializeMesh(BinaryData);
+		DeserializeMeshContainer(MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer, BinaryData);
+
+		if (LodIdx > 0) {
+			for (auto i = 0; i < 6; i++) {
+				DeserializeMeshContainer(MeshDataPtr.get()->MeshSectionLodArray[LodIndex].TransitionPatchArray[i], BinaryData);
+			}
+		}
+	}
+
+	MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[CollisionMeshSectionLodIndex].WholeMesh;//GetTerrainController()->GetCollisionMeshSectionLodIndex()
+	return MeshDataPtr;
+}
+
+bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
+	TValueDataPtr DataPtr = KvFile.get(Index);
+
+	if (DataPtr == nullptr || DataPtr->size() == 0) {
+		return false;
+	}
+
+	//TODO optimize all
+	TArray<uint8> BinaryArray;
+	BinaryArray.Reserve(DataPtr->size());
+
+	TValueData& Data = *DataPtr.get();
+
+	for (auto Byte : Data) {
+		BinaryArray.Add(Byte);
+	}
+
+	Function(BinaryArray);
+	return true;
+}
+
+
+TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& Index) {
+	double Start = FPlatformTime::Seconds();
+	TMeshDataPtr MeshDataPtr = nullptr;
+
+	bool bIsLoaded = LoadDataFromKvFile(MdFile, Index, [&](TArray<uint8>& Data) {
+		FArchiveLoadCompressedProxy Decompressor = FArchiveLoadCompressedProxy(Data, ECompressionFlags::COMPRESS_ZLIB);
+		if (Decompressor.GetError()) {
+			UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
+			return;
+		}
+
+		FBufferArchive DecompressedBinaryArray;
+		Decompressor << DecompressedBinaryArray;
+
+		FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
+		BinaryData.Seek(0);
+
+		MeshDataPtr = DeserializeMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
+
+		Data.Empty();
+		Decompressor.FlushCache();
+		BinaryData.FlushCache();
+		DecompressedBinaryArray.Empty();
+		DecompressedBinaryArray.Close();
+	});
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+
+	if (bIsLoaded) {
+		//UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	}
+
+	return MeshDataPtr;
+}
+
+void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap) {
+	double Start = FPlatformTime::Seconds();
+	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
+
+	bool bIsLoaded = LoadDataFromKvFile(ObjFile, Index, [&](TArray<uint8>& Data) {
+		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
+		BinaryData.Seek(0);
+
+		Zone->DeserializeInstancedMeshes(BinaryData, ZoneInstMeshMap);
+	});
+
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+
+	if (bIsLoaded) {
+		//UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+	}
+}
+

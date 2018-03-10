@@ -203,7 +203,6 @@ typedef struct TMeshData {
 
 	~TMeshData() {
 		// for memory leaks checking
-		//UE_LOG(LogTemp, Warning, TEXT("MeshData destructor"));
 	}
 
 } TMeshData;
@@ -226,9 +225,6 @@ typedef struct TVoxelDataParam {
 } TVoxelDataParam;
 
 std::shared_ptr<TMeshData> sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp);
-
-void sandboxSaveVoxelData(const TVoxelData &vd, FString &fileName);
-bool sandboxLoadVoxelData(TVoxelData &vd, FString &fileName);
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range);
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec);

@@ -68,17 +68,43 @@ public:
 	}
 };
 
+struct FTerrainMeshBatchInfo {
+
+	FVector* ZoneOriginPtr = nullptr;
+
+	int ZoneLodIndex = 0;
+};
+
+int CalculateLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) {
+	float Distance = FVector::Dist(ViewOrigin, ZoneOrigin);
+	const static float LodThreshold = 1500.0f;
+
+	if (Distance <= LodThreshold) {
+		return 0;
+	}
+
+	float LodThresholdMin = LodThreshold;
+	for (int Idx = 1; Idx < LOD_ARRAY_SIZE; Idx++) {
+		float LodThresholdMax = 2.0f * LodThresholdMin;
+
+		if (Distance > LodThresholdMin && Distance <= LodThresholdMax) {
+			return Idx;
+		}
+
+		LodThresholdMin *= 2;
+	}
+
+	return LOD_ARRAY_SIZE - 1;
+}
+
 /** Vertex Factory */
-class FProcMeshVertexFactory : public FLocalVertexFactory
-{
+class FProcMeshVertexFactory : public FLocalVertexFactory {
 public:
 
-	FProcMeshVertexFactory()
-	{}
-
+	FProcMeshVertexFactory() {}
+	
 	/** Init function that should only be called on render thread. */
-	void Init_RenderThread(const FProcMeshVertexBuffer* VertexBuffer)
-	{
+	void Init_RenderThread(const FProcMeshVertexBuffer* VertexBuffer) {
 		check(IsInRenderingThread());
 
 		// Initialize the vertex factory's stream components.
@@ -94,14 +120,10 @@ public:
 	}
 
 	/** Init function that can be called on any thread, and will do the right thing (enqueue command if called on main thread) */
-	void Init(const FProcMeshVertexBuffer* VertexBuffer)
-	{
-		if (IsInRenderingThread())
-		{
+	void Init(const FProcMeshVertexBuffer* VertexBuffer) {
+		if (IsInRenderingThread()) {
 			Init_RenderThread(VertexBuffer);
-		}
-		else
-		{
+		} else {
 			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
 				InitProcMeshVertexFactory,
 				FProcMeshVertexFactory*, VertexFactory, this,
@@ -111,8 +133,24 @@ public:
 				});
 		}
 	}
-};
 
+	virtual uint64 GetStaticBatchElementVisibility(const class FSceneView& View, const struct FMeshBatch* Batch) const override {
+		if (Batch->Elements.Num() == 0) return 0;
+
+		const struct FMeshBatchElement* BatchElement = &Batch->Elements[0];
+		if (BatchElement->UserData != nullptr) {
+			const struct FTerrainMeshBatchInfo* TerrainMeshBatchInfo = (FTerrainMeshBatchInfo*)BatchElement->UserData;
+
+			//bool test = View.ViewFrustum.IntersectBox(*TerrainMeshBatchInfo->ZoneOriginPtr, FVector(100, 100, 100));
+			//if (!test) return 0;
+
+			int Lod = CalculateLodIndex(*TerrainMeshBatchInfo->ZoneOriginPtr, View.ViewMatrices.GetViewOrigin());
+			return (Lod == TerrainMeshBatchInfo->ZoneLodIndex) ? 1 : 0;
+		}
+
+		return 0;
+	}
+};
 
 /** Class representing a single section of the proc mesh */
 class FProcMeshProxySection
@@ -143,8 +181,7 @@ public:
 
 typedef TArray<FProcMeshProxySection*> TMeshPtrArray;
 
-class FMeshProxyLodSection
-{
+class FMeshProxyLodSection {
 public:
 
 	/** Array of material sections */
@@ -155,6 +192,10 @@ public:
 
 	/** Array of transition sections (todo: should be changed to mat sections)*/
 	FProcMeshProxySection* transitionMesh[6];
+
+	// render info
+	FTerrainMeshBatchInfo TerrainMeshBatchInfo;
+
 
 	FMeshProxyLodSection() {
 		for (auto i = 0; i < 6; i++) {
@@ -219,7 +260,7 @@ private:
 
 	bool bLodFlag;
 
-	const FVector V[6] = { 
+	const FVector V[6] = {
 		FVector(-USBT_ZONE_SIZE, 0, 0), // -X
 		FVector(USBT_ZONE_SIZE, 0, 0),	// +X
 
@@ -296,8 +337,8 @@ public:
 
 			// copy regular material mesh
 			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
-			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray, 
-				[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId);} );
+			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray,
+				[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); });
 
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
@@ -315,7 +356,7 @@ public:
 				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
 					[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
 			}
-			
+
 			// Save ref to new section
 			LodSectionArray[SectionIdx] = NewLodSection;
 		}
@@ -349,7 +390,7 @@ public:
 
 			// Grab material
 			if (NewSection->Material == nullptr) {
-					NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
+				NewSection->Material = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
 
 			// Copy visibility info
@@ -398,7 +439,50 @@ public:
 		check(IsInRenderingThread());
 
 		if (SectionIndex < LodSectionArray.Num() && LodSectionArray[SectionIndex] != nullptr) {
-		//	Sections[SectionIndex]->bSectionVisible = bNewVisibility;
+			//	Sections[SectionIndex]->bSectionVisible = bNewVisibility;
+		}
+	}
+
+
+	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, FMaterialRenderProxy* Material, FTerrainMeshBatchInfo* TerrainMeshBatchInfo) {
+		FMeshBatch MeshBatch;
+		MeshBatch.Elements.Empty(1);
+
+		MeshBatch.bWireframe = false;
+		MeshBatch.VertexFactory = &Section->VertexFactory;
+		MeshBatch.MaterialRenderProxy = Material;
+		MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
+		MeshBatch.Type = PT_TriangleList;
+		MeshBatch.DepthPriorityGroup = SDPG_World;
+		MeshBatch.bCanApplyViewModeOverrides = false;
+		MeshBatch.bDitheredLODTransition = false;
+		MeshBatch.bRequiresPerElementVisibility = true;
+
+		FMeshBatchElement* BatchElement = new(MeshBatch.Elements) FMeshBatchElement;
+		BatchElement->IndexBuffer = &Section->IndexBuffer;
+		BatchElement->PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, UseEditorDepthTest());
+		BatchElement->FirstIndex = 0;
+		BatchElement->NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
+		BatchElement->MinVertexIndex = 0;
+		BatchElement->MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
+		BatchElement->UserData = TerrainMeshBatchInfo;
+
+		PDI->DrawMesh(MeshBatch, FLT_MAX);
+	}
+
+	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {
+		for (int LodSectionIdx = 0; LodSectionIdx < LodSectionArray.Num(); LodSectionIdx++) {
+			FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodSectionIdx];
+			if (LodSectionProxy != nullptr) {
+				LodSectionProxy->TerrainMeshBatchInfo.ZoneLodIndex = LodSectionIdx;
+				LodSectionProxy->TerrainMeshBatchInfo.ZoneOriginPtr = &ZoneOrigin;
+				for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
+					if (MatSection != nullptr) {
+						FMaterialRenderProxy* MaterialInstance = MatSection->Material->GetRenderProxy(IsSelected());
+						DrawStaticMeshSection(PDI, MatSection, MaterialInstance, &LodSectionProxy->TerrainMeshBatchInfo);
+					}
+				}
+			}
 		}
 	}
 
@@ -412,7 +496,7 @@ public:
 			WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 				GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy(IsSelected()) : NULL,
 				FLinearColor(0, 0.5f, 1.f)
-				);
+			);
 
 			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 		}
@@ -420,7 +504,6 @@ public:
 		// For each view..
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
 			if (VisibilityMap & (1 << ViewIndex)) {
-
 				// calculate lod index
 				const FSceneView* View = Views[ViewIndex];
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
@@ -430,15 +513,14 @@ public:
 				// draw section according lod index
 				FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
 				if (LodSectionProxy != nullptr) {
-
 					// draw each material section
 					for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
 						if (MatSection != nullptr &&  MatSection->Material != nullptr) {
 							FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
-							DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+							DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 						}
 					}
-					
+
 					if (LodIndex > 0) {
 						// draw transition patches
 						for (auto i = 0; i < 6; i++) {
@@ -449,7 +531,7 @@ public:
 								for (FProcMeshProxySection* MatSection : LodSectionProxy->NormalPatchPtrArray[i]) {
 									if (MatSection != nullptr &&  MatSection->Material != nullptr) {
 										FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(IsSelected());
-										DrawSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
+										DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 									}
 								}
 							}
@@ -460,7 +542,7 @@ public:
 		}
 	}
 
-	FORCEINLINE void DrawSection(const FProcMeshProxySection* Section, FMeshElementCollector& Collector, FMaterialRenderProxy* MaterialProxy, bool bWireframe, int32 ViewIndex) const {
+	FORCEINLINE void DrawDynamicMeshSection(const FProcMeshProxySection* Section, FMeshElementCollector& Collector, FMaterialRenderProxy* MaterialProxy, bool bWireframe, int32 ViewIndex) const {
 		if (Section->VertexBuffer.Vertices.Num() == 0) return;
 
 		// Draw the mesh.
@@ -484,26 +566,7 @@ public:
 
 	int GetLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) const {
 		if (bLodFlag) {
-			float Distance = FVector::Dist(ViewOrigin, ZoneOrigin);//GetBounds().Origin
-
-			const static float LodThreshold = 1500.0f;
-
-			if (Distance <= LodThreshold) {
-				return 0;
-			}
-
-			float LodThresholdMin = LodThreshold;
-			for (int Idx = 1; Idx < LOD_ARRAY_SIZE; Idx++) {
-				float LodThresholdMax = 2.0f * LodThresholdMin;
-
-				if (Distance > LodThresholdMin && Distance <= LodThresholdMax) {
-					return Idx;
-				}
-
-				LodThresholdMin *= 2;
-			}
-
-			return LOD_ARRAY_SIZE - 1;
+			return CalculateLodIndex(ZoneOrigin, ViewOrigin);
 		}
 
 		return 0;
@@ -514,6 +577,7 @@ public:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
 		Result.bDynamicRelevance = true;
+		Result.bStaticRelevance = false;
 		Result.bRenderInMainPass = ShouldRenderInMainPass();
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();

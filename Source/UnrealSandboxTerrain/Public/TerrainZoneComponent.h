@@ -11,6 +11,16 @@
 
 class ASandboxTerrainController;
 
+typedef struct TInstMeshTransArray {
+
+	TArray<FTransform> TransformArray;
+
+	FTerrainInstancedMeshType MeshType;
+
+} TInstMeshTransArray;
+
+typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
+
 /**
 *
 */
@@ -36,28 +46,33 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	void MakeTerrain();
-
-	TVoxelData* getVoxelData() { 
-		return voxel_data; 
-	};
-
-	void SetVoxelData(TVoxelData* vd) {
-		this->voxel_data = vd; 
-	};
-
-	void ApplyTerrainMesh(std::shared_ptr<TMeshData> mesh_data_ptr, bool bPutToCache = true);
-
-	std::shared_ptr<TMeshData> GenerateMesh();
+	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, bool bPutToCache = true);
 
 	void SerializeInstancedMeshes(FBufferArchive& binaryData);
 
+	void DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap);
+
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
-	UTerrainRegionComponent* GetRegion() {
-		return Cast<UTerrainRegionComponent>(GetAttachParent());
+	TMeshData const * GetCachedMeshData();
+
+	void ClearCachedMeshData();
+
+	void SetNeedSave() {
+		bIsObjectsNeedSave = true;
+	}
+
+	void ResetNeedSave() {
+		bIsObjectsNeedSave = false;
+	}
+
+	bool IsNeedSave() {
+		return bIsObjectsNeedSave;
 	}
 
 private:
-	TVoxelData* voxel_data;
+
+	TMeshDataPtr CachedMeshDataPtr;
+
+	bool bIsObjectsNeedSave = false;
 };

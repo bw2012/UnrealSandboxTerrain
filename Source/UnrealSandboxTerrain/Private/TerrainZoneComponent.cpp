@@ -2,7 +2,6 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "TerrainZoneComponent.h"
-#include "TerrainRegionComponent.h"
 #include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
 #include "VoxelIndex.h"
@@ -10,59 +9,16 @@
 #include "DrawDebugHelpers.h"
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	voxel_data = nullptr;
+
 }
 
 
-void UTerrainZoneComponent::MakeTerrain() {
-	if (voxel_data == NULL) {
-		voxel_data = GetTerrainController()->GetVoxelDataByPos(GetComponentLocation());
-	}
-
-	if (voxel_data == NULL) {
-		return;
-	}
-
-	std::shared_ptr<TMeshData> md_ptr = GenerateMesh();
-
-	if (IsInGameThread()) {
-		ApplyTerrainMesh(md_ptr);
-		voxel_data->resetLastMeshRegenerationTime();
-	} else {
-		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
-		if (GetTerrainController() != NULL) {
-			GetTerrainController()->InvokeZoneMeshAsync(this, md_ptr);
-		}
-	}
+TMeshData const * UTerrainZoneComponent::GetCachedMeshData() {
+	return (TMeshData const *) CachedMeshDataPtr.get();
 }
 
-std::shared_ptr<TMeshData> UTerrainZoneComponent::GenerateMesh() {
-	double start = FPlatformTime::Seconds();
-
-	if (voxel_data == NULL || 
-		voxel_data->getDensityFillState() == TVoxelDataFillState::ZERO || 
-		voxel_data->getDensityFillState() == TVoxelDataFillState::ALL) {
-		return NULL;
-	}
-
-	TVoxelDataParam vdp;
-
-	if (GetTerrainController()->bEnableLOD) {
-		vdp.bGenerateLOD = true;
-		vdp.collisionLOD = GetTerrainController()->GetCollisionMeshSectionLodIndex();
-	} else {
-		vdp.bGenerateLOD = false;
-		vdp.collisionLOD = 0;
-	}
-
-	TMeshDataPtr md_ptr = sandboxVoxelGenerateMesh(*voxel_data, vdp);
-
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::generateMesh -------------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
-
-	return md_ptr;
+void UTerrainZoneComponent::ClearCachedMeshData() {
+	CachedMeshDataPtr = nullptr;
 }
 
 void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
@@ -74,15 +30,8 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		return;
 	}
 
-	UTerrainRegionComponent* Region = GetRegion();
-	if (Region == nullptr) {
-		return;
-	}
-
 	if (bPutToCache) {
-		TVoxelIndex Index = GetTerrainController()->GetZoneIndex(GetComponentLocation());
-		FVector ZoneIndexTmp(Index.X, Index.Y, Index.Z);
-		Region->PutMeshDataToCache(ZoneIndexTmp, MeshDataPtr);
+		CachedMeshDataPtr = MeshDataPtr;
 	}
 
 	//##########################################
@@ -146,7 +95,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {
@@ -189,6 +138,65 @@ void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData)
 			BinaryData << ScaleX;
 			BinaryData << ScaleY;
 			BinaryData << ScaleZ;
+		}
+	}
+}
+
+void UTerrainZoneComponent::DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap) {
+	int32 MeshCount;
+	BinaryData << MeshCount;
+
+	for (int Idx = 0; Idx < MeshCount; Idx++) {
+		int32 MeshTypeId;
+		int32 MeshInstanceCount;
+
+		BinaryData << MeshTypeId;
+		BinaryData << MeshInstanceCount;
+
+		FTerrainInstancedMeshType MeshType;
+		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
+			FSandboxFoliage FoliageType = GetTerrainController()->FoliageMap[MeshTypeId];
+
+			MeshType.Mesh = FoliageType.Mesh;
+			MeshType.MeshTypeId = MeshTypeId;
+			MeshType.StartCullDistance = FoliageType.StartCullDistance;
+			MeshType.EndCullDistance = FoliageType.EndCullDistance;
+		}
+
+		TInstMeshTransArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
+		InstMeshArray.MeshType = MeshType;
+		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
+
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			float X;
+			float Y;
+			float Z;
+
+			float Roll;
+			float Pitch;
+			float Yaw;
+
+			float ScaleX;
+			float ScaleY;
+			float ScaleZ;
+
+			BinaryData << X;
+			BinaryData << Y;
+			BinaryData << Z;
+
+			BinaryData << Roll;
+			BinaryData << Pitch;
+			BinaryData << Yaw;
+
+			BinaryData << ScaleX;
+			BinaryData << ScaleY;
+			BinaryData << ScaleZ;
+
+			FTransform Transform(FRotator(Pitch, Yaw, Roll), FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+
+			if (MeshType.Mesh != nullptr) {
+				InstMeshArray.TransformArray.Add(Transform);
+			}
 		}
 	}
 }
