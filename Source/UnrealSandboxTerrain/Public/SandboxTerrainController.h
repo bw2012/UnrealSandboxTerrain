@@ -63,6 +63,8 @@ public:
 
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
 
+	//std::mutex VdLoadMutex;
+
 	// mesh is generated
 	bool IsNewGenerated() const {
 		return DataState == TVoxelDataState::GENERATED;
@@ -311,13 +313,11 @@ private:
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
-	TSet<FVector> SpawnInitialZone();
+	void SpawnInitialZone();
 
-	void SpawnZone(const FVector& pos);
+	void SpawnZone(const TVoxelIndex& pos);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
-
-	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
@@ -373,9 +373,7 @@ private:
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
-	std::shared_ptr<TMeshData> GenerateMesh(UTerrainZoneComponent* Zone, TVoxelData* Vd);
-
-	void MakeTerrain(UTerrainZoneComponent* Zone, TVoxelData* Vd);
+	std::shared_ptr<TMeshData> GenerateMesh(TVoxelData* Vd);
 
 	//===============================================================================
 	// mesh data storage

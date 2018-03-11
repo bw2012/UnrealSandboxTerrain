@@ -148,7 +148,7 @@ void ASandboxTerrainController::BeginPlay() {
 	bIsGeneratingTerrain = true;
 	LoadJson();
 
-	TSet<FVector> InitialZoneSet = SpawnInitialZone();
+	SpawnInitialZone();
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
 		if (!bGenerateOnlySmallSpawnPoint) {
@@ -158,12 +158,11 @@ void ASandboxTerrainController::BeginPlay() {
 			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
 				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
 					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
-						TVoxelIndex Index2(x, y, z);
-						FVector Pos = GetZonePos(Index2);
+						TVoxelIndex Index(x, y, z);
 						if (ThisThread.IsNotValid()) return;
 
-						if (!HasVoxelData(Index2)) {
-							SpawnZone(Pos);
+						if (!HasVoxelData(Index)) {
+							SpawnZone(Index);
 						}
 
 						Progress++;
@@ -487,13 +486,43 @@ TControllerTaskTaskPtr ASandboxTerrainController::InvokeSafe(std::function<void(
 	}
 }
 
-void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
-	TVoxelIndex ZoneIndex = GetZoneIndex(Pos);
-	FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+// load or generate new zone voxel data and mesh
+void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
+	FVector Pos = GetZonePos(Index);
 
-	if (GetZoneByVectorIndex(ZoneIndex) != nullptr) return;
+	// cancel if zone already exist
+	if (GetZoneByVectorIndex(Index) != nullptr) return; 
 
-	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(ZoneIndex);
+	//if no voxel data in memory
+	if (!HasVoxelData(Index)) {
+		// if voxel data exist in file
+		if (VdFile.get(Index) != nullptr) {
+			TVoxelDataInfo VdInfo;
+			VdInfo.DataState = TVoxelDataState::READY_TO_LOAD;
+
+			RegisterTerrainVoxelData(VdInfo, Index);
+		} else {
+			// generate new voxel data
+			TVoxelDataInfo VdInfo;
+			VdInfo.Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
+			VdInfo.Vd->setOrigin(Pos);
+
+			TerrainGeneratorComponent->GenerateVoxelTerrain(*VdInfo.Vd);
+			GeneratedVdConter++;
+
+			VdInfo.DataState = TVoxelDataState::GENERATED;
+			VdInfo.Vd->setChanged();
+			VdInfo.Vd->setCacheToValid();
+
+			RegisterTerrainVoxelData(VdInfo, Index);
+		}
+	}
+
+	// voxel data must exist in this point
+	TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(Index);
+
+	// if mesh data exist in file - load, apply and return
+	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(Index);
 	if (MeshDataPtr != nullptr) {
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -503,11 +532,12 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 		return;
 	}
 
-	TVoxelDataInfo* VoxelDataInfo = FindOrCreateZoneVoxeldata(ZoneIndex);
+	// if no mesh data in file - generate mesh from voxel data
 	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
+		TMeshDataPtr MeshDataPtr = GenerateMesh(VoxelDataInfo->Vd);
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			MakeTerrain(Zone, VoxelDataInfo->Vd);
+			Zone->ApplyTerrainMesh(MeshDataPtr);
 
 			if (VoxelDataInfo->IsNewGenerated()) {
 				OnGenerateNewZone(Zone);
@@ -517,19 +547,11 @@ void ASandboxTerrainController::SpawnZone(const FVector& Pos) {
 				OnLoadZone(Zone);
 			}
 		});
-	} else {
-		if (VoxelDataInfo->IsNewGenerated()) {
-			InvokeSafe([=]() {
-
-			});
-		}
 	}
 }
 
 
-TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
-	double start = FPlatformTime::Seconds();
-
+void ASandboxTerrainController::SpawnInitialZone() {
 	const int s = static_cast<int>(TerrainInitialArea);
 	TSet<FVector> InitialZoneSet;
 
@@ -537,22 +559,15 @@ TSet<FVector> ASandboxTerrainController::SpawnInitialZone() {
 		for (auto x = -s; x <= s; x++) {
 			for (auto y = -s; y <= s; y++) {
 				for (auto z = -s; z <= s; z++) {
-					FVector Pos = FVector((float)(x * USBT_ZONE_SIZE), (float)(y * USBT_ZONE_SIZE), (float)(z * USBT_ZONE_SIZE));
-					SpawnZone(Pos);
-					InitialZoneSet.Add(Pos);
+					SpawnZone(TVoxelIndex(x, y, z));
 				}
 			}
 		}
 	} else {
 		FVector Pos = FVector(0);
-		SpawnZone(Pos);
+		SpawnZone(TVoxelIndex(0, 0, 0));
 		InitialZoneSet.Add(Pos);
 	}	
-
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-
-	return InitialZoneSet;
 }
 
 TVoxelIndex ASandboxTerrainController::GetZoneIndex(const FVector& Pos) {
@@ -829,8 +844,14 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
-					if (VoxelDataInfo == nullptr || VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+					if (VoxelDataInfo == nullptr) {
+						continue;
+					}
+
+					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+						//VoxelDataInfo->VdLoadMutex.lock();
 						Vd = LoadVoxelDataByIndex(ZoneIndex);
+						//VoxelDataInfo->VdLoadMutex.unlock();
 					} else {
 						Vd = VoxelDataInfo->Vd;
 					}
@@ -860,7 +881,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 					if (bIsChanged) {
 						Vd->setChanged();
 						Vd->setCacheToValid();
-						TMeshDataPtr MeshDataPtr = GenerateMesh(Zone, Vd);
+						TMeshDataPtr MeshDataPtr = GenerateMesh(Vd);
 						Vd->resetLastMeshRegenerationTime();
 						Vd->vd_edit_mutex.unlock();
 						InvokeZoneMeshAsync(Zone, MeshDataPtr);
@@ -902,7 +923,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(FVector ZoneIndex) {
 	TaskPtr->Function = [=]() {
 		if(VoxelData != nullptr) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			TMeshDataPtr NewMeshDataPtr = GenerateMesh(Zone, VoxelData);
+			TMeshDataPtr NewMeshDataPtr = GenerateMesh(VoxelData);
 			VoxelData->resetLastMeshRegenerationTime();
 			Zone->ApplyTerrainMesh(NewMeshDataPtr);
 		}
@@ -940,37 +961,6 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	}
 
 	return Vd;
-}
-
-TVoxelDataInfo* ASandboxTerrainController::FindOrCreateZoneVoxeldata(const TVoxelIndex& Index) {
-	if (HasVoxelData(Index)) {
-		return GetVoxelDataInfo(Index);
-	} else {
-		if (VdFile.get(Index) != nullptr) {
-			TVoxelDataInfo VdInfo;
-			VdInfo.DataState = TVoxelDataState::READY_TO_LOAD;
-
-			RegisterTerrainVoxelData(VdInfo, Index);
-			return &VoxelDataIndexMap[Index];
-		} else {
-			TVoxelDataInfo VdInfo;
-			TVoxelData* Vd = GetVoxelDataByIndex(Index);
-			Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
-			Vd->setOrigin(GetZonePos(Index));
-
-			TerrainGeneratorComponent->GenerateVoxelTerrain(*Vd);
-			GeneratedVdConter++;
-
-			VdInfo.DataState = TVoxelDataState::GENERATED;
-			VdInfo.Vd = Vd;
-
-			Vd->setChanged();
-			Vd->setCacheToValid();
-
-			RegisterTerrainVoxelData(VdInfo, Index);
-			return &VoxelDataIndexMap[Index];
-		}
-	}
 }
 
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
@@ -1147,19 +1137,7 @@ float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
 // mesh data de/serealization
 //======================================================================================================================================================================
 
-void ASandboxTerrainController::MakeTerrain(UTerrainZoneComponent* Zone, TVoxelData* Vd) {
-	std::shared_ptr<TMeshData> MeshDataPtr = GenerateMesh(Zone, Vd);
-
-	if (IsInGameThread()) {
-		Zone->ApplyTerrainMesh(MeshDataPtr);
-		Vd->resetLastMeshRegenerationTime();
-	} else {
-		UE_LOG(LogTemp, Warning, TEXT("non-game thread -> invoke async task"));
-		InvokeZoneMeshAsync(Zone, MeshDataPtr);
-	}
-}
-
-std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(UTerrainZoneComponent* Zone, TVoxelData* Vd) {
+std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* Vd) {
 	double start = FPlatformTime::Seconds();
 
 	if (Vd == NULL || Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::ALL) {
