@@ -849,9 +849,14 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 					}
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
-						//VoxelDataInfo->VdLoadMutex.lock();
-						Vd = LoadVoxelDataByIndex(ZoneIndex);
-						//VoxelDataInfo->VdLoadMutex.unlock();
+						// double-check locking
+						VoxelDataInfo->LoadVdMutexPtr->lock();
+						if ((VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD)) {
+							Vd = LoadVoxelDataByIndex(ZoneIndex);
+							VoxelDataInfo->DataState = TVoxelDataState::LOADED;
+							VoxelDataInfo->Vd = Vd;
+						}
+						VoxelDataInfo->LoadVdMutexPtr->unlock();
 					} else {
 						Vd = VoxelDataInfo->Vd;
 					}
@@ -947,11 +952,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 		deserializeVoxelData(*Vd, BinaryData);
 	});
 
-	TVoxelDataInfo VdInfo;
-	VdInfo.DataState = TVoxelDataState::LOADED;
-	VdInfo.Vd = Vd;
-
-	RegisterTerrainVoxelData(VdInfo, Index);
+	//VdInfo.DataState = TVoxelDataState::LOADED;
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;

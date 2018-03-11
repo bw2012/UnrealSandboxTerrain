@@ -58,14 +58,18 @@ enum TVoxelDataState {
 class TVoxelDataInfo {
 
 public:
-	//TODO replace with share pointer
+	TVoxelDataInfo() {
+		LoadVdMutexPtr = std::make_shared<std::mutex>();
+	}
+
+	~TVoxelDataInfo() {	}
+
 	TVoxelData* Vd = nullptr;
 
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
 
-	//std::mutex VdLoadMutex;
+	std::shared_ptr<std::mutex> LoadVdMutexPtr;
 
-	// mesh is generated
 	bool IsNewGenerated() const {
 		return DataState == TVoxelDataState::GENERATED;
 	}
