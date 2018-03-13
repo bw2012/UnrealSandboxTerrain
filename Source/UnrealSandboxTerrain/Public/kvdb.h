@@ -437,7 +437,7 @@ namespace kvdb {
 			TKeyData keyData = toKeyData(k);
 
 			if (!filePtr->is_open()) return nullptr;
-            std::shared_lock<std::shared_mutex> lock(fileSharedMutex);
+            std::unique_lock<std::shared_mutex> lock(fileSharedMutex);
 
 			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
 			if (got == dataMap.end()) {

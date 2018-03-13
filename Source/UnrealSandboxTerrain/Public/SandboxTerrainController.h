@@ -58,12 +58,18 @@ enum TVoxelDataState {
 class TVoxelDataInfo {
 
 public:
-	//TODO replace with share pointer
+	TVoxelDataInfo() {
+		LoadVdMutexPtr = std::make_shared<std::mutex>();
+	}
+
+	~TVoxelDataInfo() {	}
+
 	TVoxelData* Vd = nullptr;
 
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
 
-	// mesh is generated
+	std::shared_ptr<std::mutex> LoadVdMutexPtr;
+
 	bool IsNewGenerated() const {
 		return DataState == TVoxelDataState::GENERATED;
 	}
@@ -279,10 +285,10 @@ public:
 	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
 	template<class H>
-	void EditTerrain(FVector v, float radius, H handler);
+	void PerformTerrainChange(FVector v, float radius, H handler);
 
 	template<class H>
-	void PerformTerrainChange(FVector v, float radius, H handler);
+	void EditTerrain(FVector v, float radius, H handler);
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
@@ -291,6 +297,11 @@ public:
 	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
 
 private:
+
+	template<class H>
+	FORCEINLINE void PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+
+
 	volatile bool bIsGeneratingTerrain = false;
 
 	volatile float GeneratingProgress;
@@ -311,13 +322,11 @@ private:
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
-	TSet<FVector> SpawnInitialZone();
+	void SpawnInitialZone();
 
-	void SpawnZone(const FVector& pos);
+	void SpawnZone(const TVoxelIndex& pos);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
-
-	TVoxelDataInfo* FindOrCreateZoneVoxeldata(const TVoxelIndex& Index);
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
@@ -327,7 +336,7 @@ private:
 
 	void InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
 
-	void InvokeLazyZoneAsync(FVector index);
+	void InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDataPtr MeshDataPtr);
 
 	void AddAsyncTask(TControllerTaskTaskPtr TaskPtr);
 
@@ -373,9 +382,7 @@ private:
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
-	std::shared_ptr<TMeshData> GenerateMesh(UTerrainZoneComponent* Zone, TVoxelData* Vd);
-
-	void MakeTerrain(UTerrainZoneComponent* Zone, TVoxelData* Vd);
+	std::shared_ptr<TMeshData> GenerateMesh(TVoxelData* Vd);
 
 	//===============================================================================
 	// mesh data storage
