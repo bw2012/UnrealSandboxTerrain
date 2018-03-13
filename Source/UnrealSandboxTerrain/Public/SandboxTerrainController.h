@@ -285,10 +285,10 @@ public:
 	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
 	template<class H>
-	void EditTerrain(FVector v, float radius, H handler);
+	void PerformTerrainChange(FVector v, float radius, H handler);
 
 	template<class H>
-	void PerformTerrainChange(FVector v, float radius, H handler);
+	void EditTerrain(FVector v, float radius, H handler);
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
@@ -297,6 +297,11 @@ public:
 	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
 
 private:
+
+	template<class H>
+	FORCEINLINE void PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+
+
 	volatile bool bIsGeneratingTerrain = false;
 
 	volatile float GeneratingProgress;
@@ -331,7 +336,7 @@ private:
 
 	void InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
 
-	void InvokeLazyZoneAsync(FVector index);
+	void InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDataPtr MeshDataPtr);
 
 	void AddAsyncTask(TControllerTaskTaskPtr TaskPtr);
 
