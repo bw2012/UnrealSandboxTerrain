@@ -194,7 +194,10 @@ typedef struct TMeshLodSection {
 
 typedef struct TMeshData {
 	TArray<TMeshLodSection> MeshSectionLodArray;
+
 	FProcMeshSection* CollisionMeshPtr;
+
+	double TimeStamp = 0;
 
 	TMeshData() {
 		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64

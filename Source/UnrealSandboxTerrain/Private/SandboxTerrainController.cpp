@@ -848,6 +848,7 @@ void ASandboxTerrainController::PerformZoneEditHandler(TVoxelData* Vd, H handler
 		Vd->setCacheToValid();
 		MeshDataPtr = GenerateMesh(Vd);
 		Vd->resetLastMeshRegenerationTime();
+		MeshDataPtr->TimeStamp = FPlatformTime::Seconds();
 	}
 	Vd->vd_edit_mutex.unlock();
 
@@ -889,6 +890,8 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 							Vd = LoadVoxelDataByIndex(ZoneIndex);
 							VoxelDataInfo->DataState = TVoxelDataState::LOADED;
 							VoxelDataInfo->Vd = Vd;
+						} else {
+							Vd = VoxelDataInfo->Vd;
 						}
 						VoxelDataInfo->LoadVdMutexPtr->unlock();
 					} else {
@@ -952,8 +955,6 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 		BinaryData.Seek(0);
 		deserializeVoxelData(*Vd, BinaryData);
 	});
-
-	//VdInfo.DataState = TVoxelDataState::LOADED;
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
