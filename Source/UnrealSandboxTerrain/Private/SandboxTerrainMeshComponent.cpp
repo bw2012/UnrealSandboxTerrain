@@ -277,10 +277,7 @@ public:
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
 		bLodFlag = Component->bLodFlag;
-
 		ZoneOrigin = Component->GetComponentLocation();
-
-		//UE_LOG(LogTemp, Warning, TEXT("ZoneOrigin -> %f %f %f "), ZoneOrigin.X, ZoneOrigin.Y, ZoneOrigin.Z);
 
 		// Copy each section
 		CopyAll(Component);
