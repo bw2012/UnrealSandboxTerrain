@@ -494,11 +494,11 @@ private:
 	const TVoxelDataParam voxel_data_param;
 
 	typedef struct PointAddr {
-		uint8 x = 0;
-		uint8 y = 0;
-		uint8 z = 0;
+		int x = 0;
+		int y = 0;
+		int z = 0;
 
-		PointAddr(const uint8 x0, const uint8 y0, const uint8 z0) : x(x0), y(y0), z(z0) { }
+		PointAddr(const int x0, const int y0, const int z0) : x(x0), y(y0), z(z0) { }
 		PointAddr() { }
 
 
@@ -513,11 +513,16 @@ private:
 		FORCEINLINE const PointAddr operator/(int val) const {
 			return PointAddr(x / val, y / val, z / val);
 		}
+		FORCEINLINE const PointAddr operator*(float val) const {
+			return PointAddr(x * val, y * val, z * val);
+		}
 
 		FORCEINLINE void operator = (const PointAddr &a) {
-			x = a.x;
-			y = a.y;
-			z = a.z;
+			x = a.x; y = a.y; z = a.z;
+		}
+
+		FORCEINLINE bool operator==(const PointAddr& in) const {
+			return (this->x == in.x) && (this->y == in.y) && (this->z == in.z);
 		}
 
 	} PointAddr;
@@ -533,7 +538,6 @@ private:
 	struct TmpPoint {
 		FVector v;
 		unsigned short matId;
-		float matWeight = 0;
 	};
 
 	class MeshHandler {
@@ -828,63 +832,61 @@ private:
 		}
 
 		float mu = (isolevel - valp1) / (valp2 - valp1);
-
-		FVector tmp;
-		tmp.X = p1.X + mu * (p2.X - p1.X);
-		tmp.Y = p1.Y + mu * (p2.Y - p1.Y);
-		tmp.Z = p1.Z + mu * (p2.Z - p1.Z);
-
-		return tmp;
+		return p1 + (p2 - p1) *mu;
 	}
 
-	FORCEINLINE void materialCalculation(struct TmpPoint& tp, Point& point1, Point& point2) {
-		static const unsigned short base_mat = 1; // dirt is base material
-
-		FVector p1 = point1.pos;
-		FVector p2 = point2.pos;
-		const unsigned short mat1 = point1.material_id;
-		const unsigned short mat2 = point2.material_id;
-		
-		if (mat1 == mat2) {
-			//tp.mat_weight = 1; //grass
-			tp.matId = mat1;
+	// fast material select for LOD0
+	FORCEINLINE void selectMaterialLOD0(struct TmpPoint& tp, Point& point1, Point& point2) {
+		if (point1.material_id == point2.material_id) {
+			tp.matId = point1.material_id;
 			return;
 		}
 
-		FVector tmp(p1);
-		tmp -= p2;
-		float s = tmp.Size();
+		FVector p1 = point1.pos - tp.v;
+		FVector p2 = point2.pos - tp.v;
 
-		p1 -= tp.v;
-		p2 -= tp.v;
-
-		float s1 = p1.Size();
-		float s2 = p2.Size();
-
-		if (s1 > s2) {
-			tp.matId = mat2;
+		if (p1.Size() > p2.Size()) {
+			tp.matId = point2.material_id;
 		} else {
-			tp.matId = mat1;
+			tp.matId = point1.material_id;
 		}
 	}
 
-	FORCEINLINE void materialCalculation2(struct TmpPoint& tp, Point& point1, Point& point2) {
-		static const int base_mat = 1; // dirt
-
+	// calculate material for LOD1-4
+	FORCEINLINE void selectMaterialLODMedium(struct TmpPoint& tp, Point& point1, Point& point2) {
 		float mu = (isolevel - point1.density) / (point2.density - point1.density);
+		PointAddr tmp = point1.adr + (point2.adr - point1.adr) * mu;
+		tp.matId = getMaterial(tmp.x, tmp.y, tmp.z);
+	}
 
-		PointAddr tmp;
-		tmp.x = point1.adr.x + mu * (point2.adr.x - point1.adr.x);
-		tmp.y = point1.adr.y + mu * (point2.adr.y - point1.adr.y);
-		tmp.z = point1.adr.z + mu * (point2.adr.z - point1.adr.z);
+	// calculate material for LOD5-6
+	FORCEINLINE void selectMaterialLODBig(struct TmpPoint& tp, Point& point1, Point& point2) {
+		PointAddr A;
+		PointAddr B;
+
+		if (point1.density < isolevel) {
+			// point1 - air, point2 - solid
+			A = point1.adr;
+			B = point2.adr;
+		} else {
+			// point1 - solid, point2 - air
+			A = point2.adr;
+			B = point1.adr;
+		}
+
+		PointAddr S = B - A;
+		if (S.x != 0) S.x = S.x / abs(S.x);
+		if (S.y != 0) S.y = S.y / abs(S.y);
+		if (S.z != 0) S.z = S.z / abs(S.z);
+
+		// start from air point and find first solid point
+		PointAddr tmp = A; 
+		while (getDensity(tmp.x, tmp.y, tmp.z) < isolevel) {
+			if (tmp == B) break;
+			tmp = tmp + S;
+		}
 
 		tp.matId = getMaterial(tmp.x, tmp.y, tmp.z);
-
-		if (base_mat == tp.matId) {
-			tp.matWeight = 0;
-		} else {
-			tp.matWeight = 1;
-		}
 	}
 
 	FORCEINLINE TmpPoint vertexClc(Point& point1, Point& point2) {
@@ -893,10 +895,13 @@ private:
 		ret.v = vertexInterpolation(point1.pos, point2.pos, point1.density, point2.density);
 
 		if (voxel_data_param.lod == 0) {
-			materialCalculation(ret, point1, point2);
+			selectMaterialLOD0(ret, point1, point2);
+		} else if (voxel_data_param.lod > 0 && voxel_data_param.lod < 5) {
+			selectMaterialLODMedium(ret, point1, point2);
 		} else {
-			materialCalculation2(ret, point1, point2);
+			selectMaterialLODBig(ret, point1, point2);
 		}
+
 		return ret;
 	}
 
@@ -907,11 +912,7 @@ private:
 	}
 
 	FORCEINLINE PointAddr clcMediumAddr(const PointAddr& adr1, const PointAddr& adr2) {
-		uint8 x = (adr2.x - adr1.x) / 2 + adr1.x;
-		uint8 y = (adr2.y - adr1.y) / 2 + adr1.y;
-		uint8 z = (adr2.z - adr1.z) / 2 + adr1.z;
-
-		return PointAddr(x, y, z);
+		return (adr2 - adr1) / 2 + adr1;
 	}
 
 	FORCEINLINE void extractRegularCell(Point (&d)[8]) {
