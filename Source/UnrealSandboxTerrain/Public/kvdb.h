@@ -508,7 +508,7 @@ namespace kvdb {
 			std::ofstream* outFilePtr = &outFile;
 
 			static const int max_key_records = KVDB_RESERVED_TABLE_SIZE;
-			const int keyRecords = (test.size() > max_key_records) ? test.size() : max_key_records;
+			const ulong64 keyRecords = (test.size() > max_key_records) ? test.size() : max_key_records;
 
 			// save file header
 			TFileHeader fileHeader;
@@ -521,7 +521,7 @@ namespace kvdb {
 			tableHeader.recordCount = keyRecords;
 			outFilePtr << tableHeader;
 
-			int bodyDataOffset = (int)(outFile.tellp()) + sizeof(TKeyEntry) * keyRecords;
+			const ulong64 bodyDataOffset = (int)(outFile.tellp()) + sizeof(TKeyEntry) * keyRecords;
 
 			std::vector<byte> dataBody;
 
@@ -546,7 +546,7 @@ namespace kvdb {
 
 			if (test.size() < max_key_records) {
 				// add empty records
-				const int emptyRecords = max_key_records - test.size();
+				const ulong64 emptyRecords = max_key_records - test.size();
 				for (int i = 0; i < emptyRecords; i++) {
 					TKeyEntry entry;
 					outFilePtr << entry;
