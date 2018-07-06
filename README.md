@@ -15,7 +15,7 @@ Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI
 * Level of details (experimental, still in progress)
 * Up to 65535 terrain material (dirt, grass, sand, clay etc)
 * Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
-* Tested with Unreal Engine 4.18.3
+* Tested with Unreal Engine 4.19.2
 
 # License
 MIT license
