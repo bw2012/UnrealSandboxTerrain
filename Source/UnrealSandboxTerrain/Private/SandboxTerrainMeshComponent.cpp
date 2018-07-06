@@ -95,61 +95,6 @@ int CalculateLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) {
 	return LOD_ARRAY_SIZE - 1;
 }
 
-/** Vertex Factory */
-class FProcMeshVertexFactory : public FLocalVertexFactory {
-public:
-
-	FProcMeshVertexFactory() {}
-	
-	/** Init function that should only be called on render thread. */
-	void Init_RenderThread(const FProcMeshVertexBuffer* VertexBuffer) {
-		check(IsInRenderingThread());
-
-		// Initialize the vertex factory's stream components.
-		FDataType NewData;
-		NewData.PositionComponent = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(VertexBuffer, FDynamicMeshVertex, Position, VET_Float3);
-		NewData.TextureCoordinates.Add(
-			FVertexStreamComponent(VertexBuffer, STRUCT_OFFSET(FDynamicMeshVertex, TextureCoordinate), sizeof(FDynamicMeshVertex), VET_Float2)
-			);
-		NewData.TangentBasisComponents[0] = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(VertexBuffer, FDynamicMeshVertex, TangentX, VET_PackedNormal);
-		NewData.TangentBasisComponents[1] = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(VertexBuffer, FDynamicMeshVertex, TangentZ, VET_PackedNormal);
-		NewData.ColorComponent = STRUCTMEMBER_VERTEXSTREAMCOMPONENT(VertexBuffer, FDynamicMeshVertex, Color, VET_Color);
-		SetData(NewData);
-	}
-
-	/** Init function that can be called on any thread, and will do the right thing (enqueue command if called on main thread) */
-	void Init(const FProcMeshVertexBuffer* VertexBuffer) {
-		if (IsInRenderingThread()) {
-			Init_RenderThread(VertexBuffer);
-		} else {
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-				InitProcMeshVertexFactory,
-				FProcMeshVertexFactory*, VertexFactory, this,
-				const FProcMeshVertexBuffer*, VertexBuffer, VertexBuffer,
-				{
-					VertexFactory->Init_RenderThread(VertexBuffer);
-				});
-		}
-	}
-
-	virtual uint64 GetStaticBatchElementVisibility(const class FSceneView& View, const struct FMeshBatch* Batch) const override {
-		if (Batch->Elements.Num() == 0) return 0;
-
-		const struct FMeshBatchElement* BatchElement = &Batch->Elements[0];
-		if (BatchElement->UserData != nullptr) {
-			const struct FTerrainMeshBatchInfo* TerrainMeshBatchInfo = (FTerrainMeshBatchInfo*)BatchElement->UserData;
-
-			//bool test = View.ViewFrustum.IntersectBox(*TerrainMeshBatchInfo->ZoneOriginPtr, FVector(100, 100, 100));
-			//if (!test) return 0;
-
-			int Lod = CalculateLodIndex(*TerrainMeshBatchInfo->ZoneOriginPtr, View.ViewMatrices.GetViewOrigin());
-			return (Lod == TerrainMeshBatchInfo->ZoneLodIndex) ? 1 : 0;
-		}
-
-		return 0;
-	}
-};
-
 /** Class representing a single section of the proc mesh */
 class FProcMeshProxySection
 {
@@ -157,21 +102,24 @@ public:
 	/** Material applied to this section */
 	UMaterialInterface* Material;
 	/** Vertex buffer for this section */
-	FProcMeshVertexBuffer VertexBuffer;
+	FStaticMeshVertexBuffers VertexBuffers;
 	/** Index buffer for this section */
 	FProcMeshIndexBuffer IndexBuffer;
 	/** Vertex factory for this section */
-	FProcMeshVertexFactory VertexFactory;
+	FLocalVertexFactory VertexFactory;
 	/** Whether this section is currently visible */
 	bool bSectionVisible;
 
-	FProcMeshProxySection()
+	FProcMeshProxySection(ERHIFeatureLevel::Type InFeatureLevel)
 		: Material(NULL)
+		, VertexFactory(InFeatureLevel, "FProcMeshProxySection")
 		, bSectionVisible(true)
 	{}
 
 	~FProcMeshProxySection() {
-		this->VertexBuffer.ReleaseResource();
+		this->VertexBuffers.PositionVertexBuffer.ReleaseResource();
+		this->VertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
+		this->VertexBuffers.ColorVertexBuffer.ReleaseResource();
 		this->IndexBuffer.ReleaseResource();
 		this->VertexFactory.ReleaseResource();
 	}
@@ -238,13 +186,13 @@ public:
 static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProcMeshVertex& ProcVert) {
 	Vert.Position = ProcVert.Position;
 	Vert.Color = ProcVert.Color;
-	Vert.TextureCoordinate = ProcVert.UV0;
+	Vert.TextureCoordinate[0] = ProcVert.UV0;
 	Vert.TangentX = ProcVert.Tangent.TangentX;
 	Vert.TangentZ = ProcVert.Normal;
 	Vert.TangentZ.Vector.W = ProcVert.Tangent.bFlipTangentY ? 0 : 255;
 }
 
-class FProceduralMeshSceneProxy : public FPrimitiveSceneProxy {
+class FProceduralMeshSceneProxy final : public FPrimitiveSceneProxy {
 
 private:
 	/** Array of lod sections */
@@ -270,6 +218,11 @@ private:
 	};
 
 public:
+
+	SIZE_T GetTypeHash() const override {
+		static size_t UniquePointer;
+		return reinterpret_cast<size_t>(&UniquePointer);
+	}
 
 	FProceduralMeshSceneProxy(USandboxTerrainMeshComponent* Component)
 		: FPrimitiveSceneProxy(Component)
@@ -306,7 +259,7 @@ public:
 			UMaterialInterface* Material = GetMaterial(Section);
 			if (Material == nullptr) { Material = DefaultMaterial; }
 
-			FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection();
+			FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection(GetScene().GetFeatureLevel());
 			NewMaterialProxySection->Material = Material;
 
 			CopySection(SourceMaterialSection, NewMaterialProxySection, Component);
@@ -364,11 +317,12 @@ public:
 			const int32 NumVerts = SrcSection.ProcVertexBuffer.Num();
 
 			// Allocate verts
-			NewSection->VertexBuffer.Vertices.SetNumUninitialized(NumVerts);
+			TArray<FDynamicMeshVertex> Vertices;
+			Vertices.SetNumUninitialized(NumVerts);
 			// Copy verts
 			for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
 				const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
-				FDynamicMeshVertex& Vert = NewSection->VertexBuffer.Vertices[VertIdx];
+				FDynamicMeshVertex& Vert = Vertices[VertIdx];
 				ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
 			}
 
@@ -376,10 +330,13 @@ public:
 			NewSection->IndexBuffer.Indices = SrcSection.ProcIndexBuffer;
 
 			// Init vertex factory
-			NewSection->VertexFactory.Init(&NewSection->VertexBuffer);
+			//NewSection->VertexFactory.Init(&NewSection->VertexBuffer);
+			NewSection->VertexBuffers.InitFromDynamicVertex(&NewSection->VertexFactory, Vertices);
 
 			// Enqueue initialization of render resource
-			BeginInitResource(&NewSection->VertexBuffer);
+			BeginInitResource(&NewSection->VertexBuffers.PositionVertexBuffer);
+			BeginInitResource(&NewSection->VertexBuffers.StaticMeshVertexBuffer);
+			BeginInitResource(&NewSection->VertexBuffers.ColorVertexBuffer);
 			BeginInitResource(&NewSection->IndexBuffer);
 			BeginInitResource(&NewSection->VertexFactory);
 
@@ -392,43 +349,6 @@ public:
 			NewSection->bSectionVisible = true;
 		}
 	}
-
-	/** Called on render thread to assign new dynamic data */
-	/*
-	void UpdateSection_RenderThread(FProcMeshSectionUpdateData* SectionData)
-	{
-		check(IsInRenderingThread());
-
-		// Check we have data
-		if (SectionData != nullptr)
-		{
-			// Check it references a valid section
-			if (SectionData->TargetSection < Sections.Num() &&
-				Sections[SectionData->TargetSection] != nullptr)
-			{
-				FProcMeshProxySection* Section = Sections[SectionData->TargetSection];
-
-				// Lock vertex buffer
-				const int32 NumVerts = SectionData->NewVertexBuffer.Num();
-				FDynamicMeshVertex* VertexBufferData = (FDynamicMeshVertex*)RHILockVertexBuffer(Section->VertexBuffer.VertexBufferRHI, 0, NumVerts * sizeof(FDynamicMeshVertex), RLM_WriteOnly);
-
-				// Iterate through vertex data, copying in new info
-				for (int32 VertIdx = 0; VertIdx<NumVerts; VertIdx++)
-				{
-					const FProcMeshVertex& ProcVert = SectionData->NewVertexBuffer[VertIdx];
-					FDynamicMeshVertex& Vert = VertexBufferData[VertIdx];
-					ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
-				}
-
-				// Unlock vertex buffer
-				RHIUnlockVertexBuffer(Section->VertexBuffer.VertexBufferRHI);
-			}
-
-			// Free data sent from game thread
-			delete SectionData;
-		}
-	}
-	*/
 
 	void SetSectionVisibility_RenderThread(int32 SectionIndex, bool bNewVisibility) {
 		check(IsInRenderingThread());
@@ -459,7 +379,7 @@ public:
 		BatchElement->FirstIndex = 0;
 		BatchElement->NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
 		BatchElement->MinVertexIndex = 0;
-		BatchElement->MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
+		BatchElement->MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
 		BatchElement->UserData = TerrainMeshBatchInfo;
 
 		PDI->DrawMesh(MeshBatch, FLT_MAX);
@@ -538,7 +458,7 @@ public:
 	}
 
 	FORCEINLINE void DrawDynamicMeshSection(const FProcMeshProxySection* Section, FMeshElementCollector& Collector, FMaterialRenderProxy* MaterialProxy, bool bWireframe, int32 ViewIndex) const {
-		if (Section->VertexBuffer.Vertices.Num() == 0) return;
+		if (Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() == 0) return;
 
 		// Draw the mesh.
 		FMeshBatch& Mesh = Collector.AllocateMesh();
@@ -551,7 +471,7 @@ public:
 		BatchElement.FirstIndex = 0;
 		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
 		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = Section->VertexBuffer.Vertices.Num() - 1;
+		BatchElement.MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
 		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 		Mesh.Type = PT_TriangleList;
 		Mesh.DepthPriorityGroup = SDPG_World;
@@ -603,8 +523,7 @@ USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitiali
 }
 
 FPrimitiveSceneProxy* USandboxTerrainMeshComponent::CreateSceneProxy() {
-	FProceduralMeshSceneProxy* proxy = new FProceduralMeshSceneProxy(this);
-	return proxy;
+	return new FProceduralMeshSceneProxy(this);
 }
 
 void USandboxTerrainMeshComponent::PostLoad() {
