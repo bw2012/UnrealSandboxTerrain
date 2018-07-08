@@ -270,13 +270,13 @@ public:
 
 	float GetRealGroungLevel(float X, float Y);
 
-	void DigTerrainRoundHole(FVector v, float radius, float s);
+	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
-	void DigTerrainCubeHole(FVector origin, float r, float strength);
+	void DigTerrainCubeHole(const FVector& Origin, float Extend);
 
-	void FillTerrainCube(FVector origin, const float r, const int matId);
+	void FillTerrainCube(const FVector& Origin, float Extend, int MatId);
 
-	void FillTerrainRound(const FVector origin, const float r, const int matId);
+	void FillTerrainRound(const FVector& Origin, float Extend, int MatId);
 
 	TVoxelIndex GetZoneIndex(const FVector& Pos);
 
@@ -285,10 +285,10 @@ public:
 	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
 	template<class H>
-	void PerformTerrainChange(FVector v, float radius, H handler);
+	void PerformTerrainChange(H handler);
 
 	template<class H>
-	void EditTerrain(FVector v, float radius, H handler);
+	void EditTerrain(const H& ZoneHandler);
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 

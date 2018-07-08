@@ -65,7 +65,8 @@ public:
 
 	void Start() {
 		State = TH_STATE_RUNNING;
-		Thread = FRunnableThread::Create(this, TEXT("THREAD_TEST"));
+		FString ThreadName = FString::Printf(TEXT("voxel-controller-thread-%d"), FPlatformTime::Seconds());
+		Thread = FRunnableThread::Create(this, *ThreadName);
 
 	}
 
@@ -630,13 +631,11 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 template<class H>
 class FTerrainEditThread : public FRunnable {
 public:
-	H zone_handler;
-	FVector origin;
-	float radius;
-	ASandboxTerrainController* instance;
+	H ZoneHandler;
+	ASandboxTerrainController* ControllerInstance;
 
 	virtual uint32 Run() {
-		instance->EditTerrain(origin, radius, zone_handler);
+		ControllerInstance->EditTerrain(ZoneHandler);
 		return 0;
 	}
 };
@@ -653,7 +652,7 @@ struct TZoneEditHandler {
 	float Extend;
 };
 
-void ASandboxTerrainController::FillTerrainRound(const FVector origin, const float r, const int matId) {
+void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Extend, int MatId) {
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
 		bool operator()(TVoxelData* vd) {
@@ -682,17 +681,16 @@ void ASandboxTerrainController::FillTerrainRound(const FVector origin, const flo
 		}
 	} Zh;
 
-	Zh.newMaterialId = matId;
+	Zh.newMaterialId = MatId;
 	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = 5;
-	Zh.Pos = origin;
-	Zh.Extend = r;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, Zh);
+	Zh.Pos = Origin;
+	Zh.Extend = Extend;
+	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
 
-void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, float strength) {
-
+void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength) {
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
@@ -726,14 +724,13 @@ void ASandboxTerrainController::DigTerrainRoundHole(FVector origin, float r, flo
 
 	Zh.MaterialMapPtr = &MaterialMap;
 	Zh.enableLOD = bEnableLOD;
-	Zh.Strength = strength;
-	Zh.Pos = origin;
-	Zh.Extend = r;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, Zh);
+	Zh.Strength = Strength;
+	Zh.Pos = Origin;
+	Zh.Extend = Radius;
+	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
-void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, float strength) {
-
+void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend) {
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
@@ -760,13 +757,12 @@ void ASandboxTerrainController::DigTerrainCubeHole(FVector origin, float r, floa
 
 	Zh.enableLOD = bEnableLOD;
 	Zh.MaterialMapPtr = &MaterialMap;
-	Zh.Pos = origin;
-	Zh.Extend = r;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, Zh);
+	Zh.Pos = Origin;
+	Zh.Extend = Extend;
+	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
-void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, const int matId) {
-
+void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Extend, int MatId) {
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
 		bool operator()(TVoxelData* vd) {
@@ -791,29 +787,27 @@ void ASandboxTerrainController::FillTerrainCube(FVector origin, const float r, c
 		}
 	} Zh;
 
-	Zh.newMaterialId = matId;
+	Zh.newMaterialId = MatId;
 	Zh.enableLOD = bEnableLOD;
-	Zh.Pos = origin;
-	Zh.Extend = r;
-	ASandboxTerrainController::PerformTerrainChange(origin, r, Zh);
+	Zh.Pos = Origin;
+	Zh.Extend = Extend;
+	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
 template<class H>
-void ASandboxTerrainController::PerformTerrainChange(FVector Origin, float Radius, H Handler) {
+void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	FTerrainEditThread<H>* EditThread = new FTerrainEditThread<H>();
-	EditThread->zone_handler = Handler;
-	EditThread->origin = Origin;
-	EditThread->radius = Radius;
-	EditThread->instance = this;
+	EditThread->ZoneHandler = Handler;
+	EditThread->ControllerInstance = this;
 
 	FString ThreadName = FString::Printf(TEXT("terrain_change-thread-%d"), FPlatformTime::Seconds());
 	FRunnableThread* Thread = FRunnableThread::Create(EditThread, *ThreadName);
 	//FIXME delete thread after finish
 
-	FVector TestPoint(Origin);
+	FVector TestPoint(Handler.Pos);
 	TestPoint.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Origin, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Radius)); // ECC_Visibility
+	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Handler.Pos, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Handler.Extend)); // ECC_Visibility
 	if (bIsOverlap) {
 		for (auto OverlapItem : OutHits) {
 			AActor* Actor = OverlapItem.GetActor();
@@ -858,11 +852,11 @@ void ASandboxTerrainController::PerformZoneEditHandler(TVoxelData* Vd, H handler
 }
 
 template<class H>
-void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) {
+void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 	double Start = FPlatformTime::Seconds();
-
+	
 	static float ZoneVolumeSize = USBT_ZONE_SIZE / 2;
-	TVoxelIndex BaseZoneIndex = GetZoneIndex(v);
+	TVoxelIndex BaseZoneIndex = GetZoneIndex(ZoneHandler.Pos);
 
 	static const float V[3] = { -1, 0, 1 };
 	for (float x : V) {
@@ -878,7 +872,7 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
-				if (FMath::SphereAABBIntersection(FSphere(v, radius), FBox(Lower, Upper))) {
+				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend), FBox(Lower, Upper))) {
 					if (VoxelDataInfo == nullptr) {
 						continue;
 					}
@@ -903,9 +897,9 @@ void ASandboxTerrainController::EditTerrain(FVector v, float radius, H handler) 
 					}
 
 					if (Zone == nullptr) {
-						PerformZoneEditHandler(Vd, handler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
+						PerformZoneEditHandler(Vd, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
 					} else {
-						PerformZoneEditHandler(Vd, handler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
+						PerformZoneEditHandler(Vd, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
 					}
 				}
 			}
