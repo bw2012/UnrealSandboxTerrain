@@ -231,10 +231,10 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 	while (It != ThreadList.end()) {
 		FAsyncThread* ThreadPtr = *It;
 		if (ThreadPtr->IsFinished()) {
-			ThreadListMutex.lock();
+			std::unique_lock<std::shared_mutex> Lock(ThreadListMutex);
 			delete ThreadPtr;
 			It = ThreadList.erase(It);
-			ThreadListMutex.unlock();
+			Lock.unlock();
 		} else {
 			It++;
 		}
@@ -973,17 +973,14 @@ void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
 }
 
 void ASandboxTerrainController::AddAsyncTask(TControllerTaskTaskPtr TaskPtr) {
-	AsyncTaskListMutex.lock();
+	std::unique_lock<std::shared_mutex> Lock(AsyncTaskListMutex);
 	AsyncTaskList.push(TaskPtr);
-	AsyncTaskListMutex.unlock();
 }
 
 TControllerTaskTaskPtr ASandboxTerrainController::GetAsyncTask() {
-	//TODO: read/write lock
-	AsyncTaskListMutex.lock();
+	std::shared_lock<std::shared_mutex> Lock(AsyncTaskListMutex);
 	TControllerTaskTaskPtr Task = AsyncTaskList.front();
 	AsyncTaskList.pop();
-	AsyncTaskListMutex.unlock();
 	return Task;
 }
 
@@ -992,21 +989,19 @@ bool ASandboxTerrainController::HasNextAsyncTask() {
 }
 
 void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index) {
-	VoxelDataMapMutex.lock();
+	std::unique_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
 	auto It = VoxelDataIndexMap.find(Index);
 	if (It != VoxelDataIndexMap.end()) {
 		VoxelDataIndexMap.erase(It);
 	}
 	VoxelDataIndexMap.insert({ Index, VdInfo });
-	VoxelDataMapMutex.unlock();
 }
 
 void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Function) {
 	FAsyncThread* ThreadTask = new FAsyncThread(Function);
-	ThreadListMutex.lock();
+	std::unique_lock<std::shared_mutex> Lock(ThreadListMutex);
 	ThreadList.push_back(ThreadTask);
 	ThreadTask->Start();
-	ThreadListMutex.unlock();
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(const FVector& Pos) {
@@ -1014,22 +1009,22 @@ TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(const FVector& Pos) {
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(const TVoxelIndex& Index) {
-	VoxelDataMapMutex.lock();
+	std::shared_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
 	if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
 		TVoxelDataInfo VdInfo = VoxelDataIndexMap[Index];
-		VoxelDataMapMutex.unlock();
 		return VdInfo.Vd;
 	}
 
-	VoxelDataMapMutex.unlock();
 	return NULL;
 }
 
-bool ASandboxTerrainController::HasVoxelData(const TVoxelIndex& Index) const {
-		return VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end();
+bool ASandboxTerrainController::HasVoxelData(const TVoxelIndex& Index) {
+	std::shared_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
+	return VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end();
 }
 
 TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& Index) {
+	std::shared_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
 	if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
 		return &VoxelDataIndexMap[Index];
 	}
@@ -1038,6 +1033,7 @@ TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& I
 }
 
 void ASandboxTerrainController::ClearVoxelData() {
+	std::unique_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
 	VoxelDataIndexMap.clear();
 }
 

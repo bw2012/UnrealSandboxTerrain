@@ -344,11 +344,11 @@ private:
 
 	bool HasNextAsyncTask();
 
-	std::mutex AsyncTaskListMutex;
+	std::shared_mutex AsyncTaskListMutex;
 
 	std::queue<TControllerTaskTaskPtr> AsyncTaskList;
 
-	std::mutex ThreadListMutex;
+	std::shared_mutex ThreadListMutex;
 
 	std::list<FAsyncThread*> ThreadList;
 
@@ -364,7 +364,7 @@ private:
 
 	TKvFile ObjFile;
 
-	std::mutex VoxelDataMapMutex;
+	std::shared_mutex VoxelDataMapMutex;
 
 	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
 
@@ -374,7 +374,7 @@ private:
 
 	TVoxelData* GetVoxelDataByIndex(const TVoxelIndex& Index);
 
-	bool HasVoxelData(const TVoxelIndex& Index) const;
+	bool HasVoxelData(const TVoxelIndex& Index);
 
 	TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index);
 
