@@ -294,7 +294,13 @@ public:
 
 	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
+	//===============================================================================
+	// async tasks
+	//===============================================================================
+
 	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
+
+	void RunThread(std::function<void(FAsyncThread&)> Function);
 
 private:
 
@@ -351,8 +357,6 @@ private:
 	std::shared_mutex ThreadListMutex;
 
 	std::list<FAsyncThread*> ThreadList;
-
-	void RunThread(std::function<void(FAsyncThread&)> Function);
 
 	//===============================================================================
 	// voxel data storage

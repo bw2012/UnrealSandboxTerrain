@@ -7,6 +7,8 @@
 #include "DrawDebugHelpers.h"
 #include "Async.h"
 #include "Json.h"
+#include "VdServerComponent.h"
+#include "VdClientComponent.h"
 #include "SandboxTerrainMeshComponent.h"
 
 
@@ -134,8 +136,18 @@ void ASandboxTerrainController::BeginPlay() {
 
 	if (GetWorld()->GetAuthGameMode() != NULL) {
 		UE_LOG(LogTemp, Warning, TEXT("SERVER"));
+
+		UVdServerComponent* VdServerComponent = NewObject<UVdServerComponent>(this, TEXT("VdServer"));
+		VdServerComponent->RegisterComponent();
+		VdServerComponent->AttachTo(RootComponent);
 	} else {
 		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
+
+		UVdClientComponent* VdClientComponent = NewObject<UVdClientComponent>(this, TEXT("VdClient"));
+		VdClientComponent->RegisterComponent();
+		VdClientComponent->AttachTo(RootComponent);
+
+		return;
 	}
 
 	if (!OpenFile()) return;
