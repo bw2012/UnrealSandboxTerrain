@@ -31,8 +31,14 @@ public:
 
 private:
 
+	FSocket* ClientSocketPtr = nullptr;
+
 	ASandboxTerrainController* GetTerrainController() {
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
+
+	void HandleServerResponse(FArrayReader& Data);
+
+	void HandleResponseVd(FArrayReader& Data);
 	
 };

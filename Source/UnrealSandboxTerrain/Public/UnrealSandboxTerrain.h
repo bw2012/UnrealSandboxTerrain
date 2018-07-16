@@ -13,6 +13,21 @@
 #define USBT_REGION_FILE_VERSION		1
 #define USBT_REGION_VOXELDATA_VERSION	1
 
+
+//======================================================================
+// voxel data network operation codes
+//======================================================================
+
+// client request 
+#define USBT_NET_OPCODE_ASK_HELLO			0x0001
+#define USBT_NET_OPCODE_ASK_ALL_VD			0x0002
+
+// server response 
+#define USBT_NET_OPCODE_RESPONSE_VERSION	0x0100
+#define USBT_NET_OPCODE_RESPONSE_VD			0x0200
+
+//======================================================================
+
 DECLARE_LOG_CATEGORY_EXTERN(LogSandboxTerrain, Log, All);
 
 class FUnrealSandboxTerrainModule : public IModuleInterface

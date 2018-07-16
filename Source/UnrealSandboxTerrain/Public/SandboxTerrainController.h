@@ -302,7 +302,19 @@ public:
 
 	void RunThread(std::function<void(FAsyncThread&)> Function);
 
+	//========================================================================================
+	// network
+	//========================================================================================
+
+	void NetworkSerializeVd(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex);
+
+	void NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData);
+
 private:
+
+	void BeginServer();
+
+	void BeginClient();
 
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete);

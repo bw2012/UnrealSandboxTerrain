@@ -30,6 +30,8 @@ public:
 
 	bool OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint);
 
+	bool SendVdByIndex(FSocket* SocketPtr, TVoxelIndex& VoxelIndex);
+
 private:
 
 	FTcpListener* TcpListenerPtr;
