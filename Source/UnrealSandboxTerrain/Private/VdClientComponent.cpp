@@ -90,12 +90,8 @@ void UVdClientComponent::BeginDestroy() {
 }
 
 void UVdClientComponent::HandleServerResponse(FArrayReader& Data) {
-	//FMemoryReader DataReader = FMemoryReader(Data, true);
-
 	uint32 OpCode;
 	Data << OpCode;
-
-	//UE_LOG(LogTemp, Warning, TEXT("OpCode -> %d"), OpCode);
 
 	switch (OpCode) {
 		case USBT_NET_OPCODE_RESPONSE_VERSION: ;
@@ -111,4 +107,18 @@ void UVdClientComponent::HandleResponseVd(FArrayReader& Data) {
 	Data << VoxelIndex.Z;
 
 	GetTerrainController()->NetworkSpawnClientZone(VoxelIndex, Data);
+}
+
+template <typename... Ts>
+void UVdClientComponent::SendToServer(uint32 OpCode, Ts... Args) {
+	FBufferArchive SendBuffer;
+
+	SendBuffer << OpCode;
+
+	for (auto& Arg : { Args... }) {
+		auto Tmp = Arg; // workaround - avoid 'const' 
+		SendBuffer << Tmp;
+	}
+
+	Super::NetworkSend(ClientSocketPtr, SendBuffer);
 }

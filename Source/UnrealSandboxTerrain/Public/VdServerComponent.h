@@ -4,6 +4,7 @@
 
 #include "EngineMinimal.h"
 #include "Networking.h"
+#include "VdNetCommon.h"
 #include "VdServerComponent.generated.h"
 
 
@@ -14,7 +15,7 @@ class ASandboxTerrainController;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UVdServerComponent : public USceneComponent
+class UNREALSANDBOXTERRAIN_API UVdServerComponent : public UVdNetworkComponent
 {
 	GENERATED_UCLASS_BODY()
 

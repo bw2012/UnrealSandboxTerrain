@@ -154,11 +154,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		ThreadTask->WaitForFinish();
 	}
 
-	// save only on server side
-	if (GetWorld()->IsServer()) {
-		return;
-	}
-
 	Save();
 
 	VdFile.close();
@@ -757,7 +752,11 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 
 
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength) {
-	if (!GetWorld()->IsServer()) return;
+	if (!GetWorld()->IsServer()) {
+		UVdClientComponent* VdClientComponent = Cast<UVdClientComponent>(GetComponentByClass(UVdClientComponent::StaticClass()));
+		VdClientComponent->SendToServer(USBT_NET_OPCODE_ASK_DIG_ROUND, Origin.X, Origin.Y, Origin.Z, Radius, Strength);
+		return;
+	}
 
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;

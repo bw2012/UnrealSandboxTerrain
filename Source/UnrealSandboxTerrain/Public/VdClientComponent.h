@@ -4,6 +4,7 @@
 
 #include "EngineMinimal.h"
 #include "Networking.h"
+#include "VdNetCommon.h"
 #include "VdClientComponent.generated.h"
 
 
@@ -14,7 +15,7 @@ class ASandboxTerrainController;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UVdClientComponent : public USceneComponent
+class UNREALSANDBOXTERRAIN_API UVdClientComponent : public UVdNetworkComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,14 +29,13 @@ public:
 
 public:
 
+	template <typename... Ts>
+	void SendToServer(uint32 OpCode, Ts... Args);
+
 
 private:
 
 	FSocket* ClientSocketPtr = nullptr;
-
-	ASandboxTerrainController* GetTerrainController() {
-		return (ASandboxTerrainController*)GetAttachmentRootActor();
-	};
 
 	void HandleServerResponse(FArrayReader& Data);
 

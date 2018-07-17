@@ -67,6 +67,7 @@ bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4End
 			if (SocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
 				FArrayReader Data;
 				FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket);
+				Super::HandleRcvData(Data);
 			}
 		}
 	});
