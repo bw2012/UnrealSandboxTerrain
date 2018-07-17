@@ -134,6 +134,8 @@ void ASandboxTerrainController::BeginPlay() {
 
 	if (!GetWorld()) return;
 
+	if (!OpenFile()) return;
+
 	if (GetWorld()->IsServer()) {
 		UE_LOG(LogTemp, Warning, TEXT("SERVER"));
 		BeginServer();
@@ -153,7 +155,7 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	}
 
 	// save only on server side
-	if (GetWorld()->GetAuthGameMode() == NULL) {
+	if (GetWorld()->IsServer()) {
 		return;
 	}
 
@@ -201,10 +203,6 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::BeginServer() {
-	if (!OpenFile()) return;
-
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd file ----> %d zones"), VdFile.size());
-
 	//===========================
 	// load existing
 	//===========================
@@ -455,10 +453,15 @@ bool ASandboxTerrainController::OpenFile() {
 	FString SavePath = FPaths::GameSavedDir();
 	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
 
+	if (!GetWorld()->IsServer()) {
+		SaveDir = SaveDir + TEXT("/ClientCache/");
+	}
+
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*SaveDir)) {
 		PlatformFile.CreateDirectory(*SaveDir);
 		if (!PlatformFile.DirectoryExists(*SaveDir)) {
+			UE_LOG(LogTemp, Warning, TEXT("Unable to create save directory -> %s"), *SaveDir);
 			return false;
 		}
 	}
@@ -467,7 +470,6 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Open mesh data"));
 	if (!OpenKvFile(MdFile, FileNameMd, SaveDir)) {
 		return false;
 	}
@@ -659,6 +661,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
 		//ZoneComponent->SetRelativeLocation(pos);
+
 		ZoneComponent->AttachTo(RootComponent);
 		ZoneComponent->SetWorldLocation(pos);
 
@@ -714,6 +717,8 @@ struct TZoneEditHandler {
 };
 
 void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Extend, int MatId) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
 		bool operator()(TVoxelData* vd) {
@@ -752,6 +757,8 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 
 
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
@@ -792,6 +799,8 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 }
 
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
@@ -824,6 +833,8 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 }
 
 void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Extend, int MatId) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
 		bool operator()(TVoxelData* vd) {
@@ -857,6 +868,8 @@ void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Ext
 
 template<class H>
 void ASandboxTerrainController::PerformTerrainChange(H Handler) {
+	if (!GetWorld()->IsServer()) return;
+
 	FTerrainEditThread<H>* EditThread = new FTerrainEditThread<H>();
 	EditThread->ZoneHandler = Handler;
 	EditThread->ControllerInstance = this;
