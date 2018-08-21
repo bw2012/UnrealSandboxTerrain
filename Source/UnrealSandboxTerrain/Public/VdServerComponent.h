@@ -31,9 +31,14 @@ public:
 
 	bool OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint);
 
-	bool SendVdByIndex(FSocket* SocketPtr, TVoxelIndex& VoxelIndex);
+	template <typename... Ts>
+	void SendToAllClients(uint32 OpCode, Ts... Args);
 
 private:
+
+	bool SendVdByIndex(FSocket* SocketPtr, TVoxelIndex& VoxelIndex);
+
+	TMap<FString, FSocket*> ConnectedClientsMap;
 
 	FTcpListener* TcpListenerPtr;
 

@@ -7,7 +7,18 @@
 
 
 UVdServerComponent::UVdServerComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+	OpcodeHandlerMap.Add(USBT_NET_OPCODE_DIG_ROUND, [&](FArrayReader& Data) { 
+		FVector Origin(0);
+		float Radius, Strength;
 
+		Data << Origin.X;
+		Data << Origin.Y;
+		Data << Origin.Z;
+		Data << Radius;
+		Data << Strength;
+
+		GetTerrainController()->DigTerrainRoundHole(Origin, Radius, Strength);
+	});
 }
 
 void UVdServerComponent::BeginPlay() {
@@ -46,7 +57,12 @@ void UVdServerComponent::BeginDestroy() {
 }
 
 bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint) {
-	UE_LOG(LogTemp, Warning, TEXT("UVdServerComponent::OnConnectionAccepted"));
+	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	SocketPtr->GetPeerAddress(*RemoteAddress);
+	FString RemoteAddressString = RemoteAddress->ToString(true);
+	ConnectedClientsMap.Add(RemoteAddressString, SocketPtr);
+
+	UE_LOG(LogTemp, Warning, TEXT("Vd Server: connection accepted -> %s"), *RemoteAddress->ToString(true));
 
 	// test
 	TVoxelIndex TestIndex(0, 0, 0);
@@ -60,7 +76,8 @@ bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4End
 			if (ThisThread.IsNotValid()) return;
 
 			if (SocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-				UE_LOG(LogTemp, Warning, TEXT("Server -> connection finished"));
+				UE_LOG(LogTemp, Warning, TEXT("Vd Server -> connection finished"));
+				// TODO remove from client list
 				return;
 			}
 
@@ -74,6 +91,22 @@ bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4End
 
 
 	return true;
+}
+
+template <typename... Ts>
+void UVdServerComponent::SendToAllClients(uint32 OpCode, Ts... Args) {
+	FBufferArchive SendBuffer;
+
+	SendBuffer << OpCode;
+
+	for (auto Arg : { Args... }) {
+		SendBuffer << Arg;
+	}
+
+	for (auto& Elem : ConnectedClientsMap) {
+		FSocket* SocketPtr = Elem.Value;
+		Super::NetworkSend(SocketPtr, SendBuffer);
+	}
 }
 
 

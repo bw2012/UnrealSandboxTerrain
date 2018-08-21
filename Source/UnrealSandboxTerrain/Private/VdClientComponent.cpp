@@ -7,7 +7,20 @@
 
 
 UVdClientComponent::UVdClientComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+	OpcodeHandlerMap.Add(USBT_NET_OPCODE_RESPONSE_VD, [&](FArrayReader& Data) { HandleResponseVd(Data); });
 
+	OpcodeHandlerMap.Add(USBT_NET_OPCODE_DIG_ROUND, [&](FArrayReader& Data) {
+		FVector Origin(0);
+		float Radius, Strength;
+
+		Data << Origin.X;
+		Data << Origin.Y;
+		Data << Origin.Z;
+		Data << Radius;
+		Data << Strength;
+
+		GetTerrainController()->DigTerrainRoundHole_Internal(Origin, Radius, Strength);
+	});
 }
 
 void UVdClientComponent::BeginPlay() {
@@ -66,7 +79,7 @@ void UVdClientComponent::BeginPlay() {
 								FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
 								FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket);
 
-								HandleServerResponse(Data);
+								Super::HandleRcvData(Data);
 							}
 						}
 					});
@@ -87,16 +100,6 @@ void UVdClientComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 
 void UVdClientComponent::BeginDestroy() {
 	Super::BeginDestroy();
-}
-
-void UVdClientComponent::HandleServerResponse(FArrayReader& Data) {
-	uint32 OpCode;
-	Data << OpCode;
-
-	switch (OpCode) {
-		case USBT_NET_OPCODE_RESPONSE_VERSION: ;
-		case USBT_NET_OPCODE_RESPONSE_VD: HandleResponseVd(Data);
-	}
 }
 
 void UVdClientComponent::HandleResponseVd(FArrayReader& Data) {

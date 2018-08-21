@@ -35,5 +35,4 @@ protected:
 
 	TMap<uint32, std::function<void(FArrayReader&)>> OpcodeHandlerMap;
 
-
 };

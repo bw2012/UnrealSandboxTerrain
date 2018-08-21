@@ -18,6 +18,7 @@ class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
 struct TInstMeshTransArray;
+class UVdClientComponent;
 
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -162,6 +163,7 @@ public:
 	friend FAsyncThread;
 	friend UTerrainZoneComponent;
 	friend UTerrainGeneratorComponent;
+	friend UVdClientComponent;
 
 	virtual void BeginPlay() override;
 
@@ -202,6 +204,13 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
 	void OnProgressBuildTerrain(float Progress);
+
+	//========================================================================================
+	// networking
+	//========================================================================================
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Network")
+	uint32 ServerPort;
 
 	//========================================================================================
 	// save/load
@@ -315,6 +324,8 @@ private:
 	void BeginServer();
 
 	void BeginClient();
+
+	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete);

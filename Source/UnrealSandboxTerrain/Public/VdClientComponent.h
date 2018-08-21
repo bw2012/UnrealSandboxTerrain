@@ -37,8 +37,6 @@ private:
 
 	FSocket* ClientSocketPtr = nullptr;
 
-	void HandleServerResponse(FArrayReader& Data);
-
 	void HandleResponseVd(FArrayReader& Data);
 	
 };

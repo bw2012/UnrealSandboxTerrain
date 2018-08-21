@@ -100,6 +100,8 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
 
+	uint32 ServerPort = 6000;
+
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
 }
@@ -112,6 +114,8 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
+
+	uint32 ServerPort = 6000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -752,18 +756,25 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 
 
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength) {
-	if (!GetWorld()->IsServer()) {
+	if (GetWorld()->IsServer()) {
+		UVdServerComponent* VdServerComponent = Cast<UVdServerComponent>(GetComponentByClass(UVdServerComponent::StaticClass()));
+		VdServerComponent->SendToAllClients(USBT_NET_OPCODE_DIG_ROUND, Origin.X, Origin.Y, Origin.Z, Radius, Strength);
+	} else {
 		UVdClientComponent* VdClientComponent = Cast<UVdClientComponent>(GetComponentByClass(UVdClientComponent::StaticClass()));
-		VdClientComponent->SendToServer(USBT_NET_OPCODE_ASK_DIG_ROUND, Origin.X, Origin.Y, Origin.Z, Radius, Strength);
+		VdClientComponent->SendToServer(USBT_NET_OPCODE_DIG_ROUND, Origin.X, Origin.Y, Origin.Z, Radius, Strength);
 		return;
 	}
 
+	DigTerrainRoundHole_Internal(Origin, Radius, Strength);
+}
+
+void ASandboxTerrainController::DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength) {
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
 		bool operator()(TVoxelData* vd) {
 			changed = false;
-			
+
 			vd->forEachWithCache([&](int x, int y, int z) {
 				float density = vd->getDensity(x, y, z);
 				FVector o = vd->voxelIndexToVector(x, y, z);
@@ -796,6 +807,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 	Zh.Extend = Radius;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
+
 
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend) {
 	if (!GetWorld()->IsServer()) return;
@@ -867,8 +879,6 @@ void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Ext
 
 template<class H>
 void ASandboxTerrainController::PerformTerrainChange(H Handler) {
-	if (!GetWorld()->IsServer()) return;
-
 	FTerrainEditThread<H>* EditThread = new FTerrainEditThread<H>();
 	EditThread->ZoneHandler = Handler;
 	EditThread->ControllerInstance = this;
