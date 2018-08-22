@@ -18,6 +18,7 @@ class FAsyncThread;
 class USandboxTerrainMeshComponent;
 class UTerrainZoneComponent;
 struct TInstMeshTransArray;
+class UVdClientComponent;
 
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -162,6 +163,7 @@ public:
 	friend FAsyncThread;
 	friend UTerrainZoneComponent;
 	friend UTerrainGeneratorComponent;
+	friend UVdClientComponent;
 
 	virtual void BeginPlay() override;
 
@@ -202,6 +204,13 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
 	void OnProgressBuildTerrain(float Progress);
+
+	//========================================================================================
+	// networking
+	//========================================================================================
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Network")
+	uint32 ServerPort;
 
 	//========================================================================================
 	// save/load
@@ -294,9 +303,29 @@ public:
 
 	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
 
+	//===============================================================================
+	// async tasks
+	//===============================================================================
+
 	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
 
+	void RunThread(std::function<void(FAsyncThread&)> Function);
+
+	//========================================================================================
+	// network
+	//========================================================================================
+
+	void NetworkSerializeVd(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex);
+
+	void NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData);
+
 private:
+
+	void BeginServer();
+
+	void BeginClient();
+
+	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete);
@@ -351,8 +380,6 @@ private:
 	std::shared_mutex ThreadListMutex;
 
 	std::list<FAsyncThread*> ThreadList;
-
-	void RunThread(std::function<void(FAsyncThread&)> Function);
 
 	//===============================================================================
 	// voxel data storage

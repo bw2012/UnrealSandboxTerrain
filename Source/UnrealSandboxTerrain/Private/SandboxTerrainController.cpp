@@ -7,6 +7,8 @@
 #include "DrawDebugHelpers.h"
 #include "Async.h"
 #include "Json.h"
+#include "VdServerComponent.h"
+#include "VdClientComponent.h"
 #include "SandboxTerrainMeshComponent.h"
 
 
@@ -98,6 +100,8 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
 
+	uint32 ServerPort = 6000;
+
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
 }
@@ -110,6 +114,8 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	TerrainSizeZ = 5;
 	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
+
+	uint32 ServerPort = 6000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -132,64 +138,15 @@ void ASandboxTerrainController::BeginPlay() {
 
 	if (!GetWorld()) return;
 
-	if (GetWorld()->GetAuthGameMode() != NULL) {
-		UE_LOG(LogTemp, Warning, TEXT("SERVER"));
-	} else {
-		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
-	}
-
 	if (!OpenFile()) return;
 
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd file ----> %d zones"), VdFile.size());
-
-	//===========================
-	// load existing
-	//===========================
-	OnStartBuildTerrain();
-	bIsGeneratingTerrain = true;
-	LoadJson();
-
-	SpawnInitialZone();
-	// async loading other zones
-	RunThread([&](FAsyncThread& ThisThread) {
-		if (!bGenerateOnlySmallSpawnPoint) {
-			int Total = (TerrainSizeX * 2 + 1) * (TerrainSizeY * 2 + 1) * (TerrainSizeZ * 2 + 1);
-			int Progress = 0;
-
-			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
-				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
-					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
-						TVoxelIndex Index(x, y, z);
-						if (ThisThread.IsNotValid()) return;
-
-						if (!HasVoxelData(Index)) {
-							SpawnZone(Index);
-						}
-
-						Progress++;
-						GeneratingProgress = (float)Progress / (float)Total;
-						// must invoke in main thread
-						//OnProgressBuildTerrain(PercentProgress);
-
-						if(GeneratedVdConter > SaveGeneratedZones){
-							TControllerTaskTaskPtr TaskPtr = InvokeSafe([=]() { Save(); });
-							TControllerTask::WaitForFinish(TaskPtr.get());
-							GeneratedVdConter = 0;
-						}
-
-						if (ThisThread.IsNotValid()) return;
-					}
-				}
-			}
-		}
-
-		TControllerTask::WaitForFinish(InvokeSafe([=]() { Save(); }).get());
-
-		RunThread([&](FAsyncThread& ThisThread) {
-			bIsGeneratingTerrain = false;
-			OnFinishBuildTerrain(); // FIXME: thread-safe
-		});
-	});
+	if (GetWorld()->IsServer()) {
+		UE_LOG(LogTemp, Warning, TEXT("SERVER"));
+		BeginServer();
+	} else {
+		UE_LOG(LogTemp, Warning, TEXT("CLIENT"));
+		BeginClient();
+	}
 }
 
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -199,11 +156,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	for (auto* ThreadTask : ThreadList) {
 		ThreadTask->Stop();
 		ThreadTask->WaitForFinish();
-	}
-
-	// save only on server side
-	if (GetWorld()->GetAuthGameMode() == NULL) {
-		return;
 	}
 
 	Save();
@@ -248,6 +200,84 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 //======================================================================================================================================================================
 // Unreal Sandbox 
 //======================================================================================================================================================================
+
+void ASandboxTerrainController::BeginServer() {
+	//===========================
+	// load existing
+	//===========================
+	OnStartBuildTerrain();
+	bIsGeneratingTerrain = true;
+	LoadJson();
+
+	SpawnInitialZone();
+	// async loading other zones
+	RunThread([&](FAsyncThread& ThisThread) {
+		if (!bGenerateOnlySmallSpawnPoint) {
+			int Total = (TerrainSizeX * 2 + 1) * (TerrainSizeY * 2 + 1) * (TerrainSizeZ * 2 + 1);
+			int Progress = 0;
+
+			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
+				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
+					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
+						TVoxelIndex Index(x, y, z);
+						if (ThisThread.IsNotValid()) return;
+
+						if (!HasVoxelData(Index)) {
+							SpawnZone(Index);
+						}
+
+						Progress++;
+						GeneratingProgress = (float)Progress / (float)Total;
+						// must invoke in main thread
+						//OnProgressBuildTerrain(PercentProgress);
+
+						if (GeneratedVdConter > SaveGeneratedZones) {
+							TControllerTaskTaskPtr TaskPtr = InvokeSafe([=]() { Save(); });
+							TControllerTask::WaitForFinish(TaskPtr.get());
+							GeneratedVdConter = 0;
+						}
+
+						if (ThisThread.IsNotValid()) return;
+					}
+				}
+			}
+		}
+
+		TControllerTask::WaitForFinish(InvokeSafe([=]() { Save(); }).get());
+
+		RunThread([&](FAsyncThread& ThisThread) {
+			bIsGeneratingTerrain = false;
+			OnFinishBuildTerrain(); // FIXME: thread-safe
+
+			InvokeSafe([&]() {
+				UVdServerComponent* VdServerComponent = NewObject<UVdServerComponent>(this, TEXT("VdServer"));
+				VdServerComponent->RegisterComponent();
+				VdServerComponent->AttachTo(RootComponent);
+			});
+		});
+	});
+}
+
+void ASandboxTerrainController::BeginClient() {
+	UVdClientComponent* VdClientComponent = NewObject<UVdClientComponent>(this, TEXT("VdClient"));
+	VdClientComponent->RegisterComponent();
+	VdClientComponent->AttachTo(RootComponent);
+}
+
+void ASandboxTerrainController::NetworkSerializeVd(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex) {
+	TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(VoxelIndex);
+	// TODO: shared lock Vd
+	if (VoxelDataInfo) {
+		if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+			TVoxelData* Vd = LoadVoxelDataByIndex(VoxelIndex);
+			serializeVoxelData(*Vd, Buffer);
+			delete Vd;
+		} else if (VoxelDataInfo->DataState == TVoxelDataState::LOADED)  {
+			serializeVoxelData(*VoxelDataInfo->Vd, Buffer);
+		}
+
+	}
+}
 
 void ASandboxTerrainController::Save() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Start save terrain data..."));
@@ -422,10 +452,15 @@ bool ASandboxTerrainController::OpenFile() {
 	FString SavePath = FPaths::GameSavedDir();
 	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
 
+	if (!GetWorld()->IsServer()) {
+		SaveDir = SaveDir + TEXT("/ClientCache/");
+	}
+
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*SaveDir)) {
 		PlatformFile.CreateDirectory(*SaveDir);
 		if (!PlatformFile.DirectoryExists(*SaveDir)) {
+			UE_LOG(LogTemp, Warning, TEXT("Unable to create save directory -> %s"), *SaveDir);
 			return false;
 		}
 	}
@@ -434,7 +469,6 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Open mesh data"));
 	if (!OpenKvFile(MdFile, FileNameMd, SaveDir)) {
 		return false;
 	}
@@ -486,6 +520,34 @@ TControllerTaskTaskPtr ASandboxTerrainController::InvokeSafe(std::function<void(
 		return TaskPtr;
 	}
 }
+
+// spawn received zone on client
+void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData) {
+	FVector Pos = GetZonePos(Index);
+
+	TVoxelDataInfo VdInfo;
+	VdInfo.Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
+	VdInfo.Vd->setOrigin(Pos);
+
+	FMemoryReader BinaryData = FMemoryReader(RawVdData, true); 
+	BinaryData.Seek(RawVdData.Tell());
+	deserializeVoxelData(*VdInfo.Vd, BinaryData);
+
+	VdInfo.DataState = TVoxelDataState::GENERATED;
+	VdInfo.Vd->setChanged();
+	VdInfo.Vd->setCacheToValid();
+
+	RegisterTerrainVoxelData(VdInfo, Index);
+
+	if (VdInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
+		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfo.Vd);
+		InvokeSafe([=]() {
+			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+			Zone->ApplyTerrainMesh(MeshDataPtr);
+		});
+	}
+}
+
 
 // load or generate new zone voxel data and mesh
 void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
@@ -598,6 +660,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 	if (ZoneComponent) {
 		ZoneComponent->RegisterComponent();
 		//ZoneComponent->SetRelativeLocation(pos);
+
 		ZoneComponent->AttachTo(RootComponent);
 		ZoneComponent->SetWorldLocation(pos);
 
@@ -653,6 +716,8 @@ struct TZoneEditHandler {
 };
 
 void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Extend, int MatId) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
 		bool operator()(TVoxelData* vd) {
@@ -691,12 +756,25 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 
 
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength) {
+	if (GetWorld()->IsServer()) {
+		UVdServerComponent* VdServerComponent = Cast<UVdServerComponent>(GetComponentByClass(UVdServerComponent::StaticClass()));
+		VdServerComponent->SendToAllClients(USBT_NET_OPCODE_DIG_ROUND, Origin.X, Origin.Y, Origin.Z, Radius, Strength);
+	} else {
+		UVdClientComponent* VdClientComponent = Cast<UVdClientComponent>(GetComponentByClass(UVdClientComponent::StaticClass()));
+		VdClientComponent->SendToServer(USBT_NET_OPCODE_DIG_ROUND, Origin.X, Origin.Y, Origin.Z, Radius, Strength);
+		return;
+	}
+
+	DigTerrainRoundHole_Internal(Origin, Radius, Strength);
+}
+
+void ASandboxTerrainController::DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength) {
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
 		bool operator()(TVoxelData* vd) {
 			changed = false;
-			
+
 			vd->forEachWithCache([&](int x, int y, int z) {
 				float density = vd->getDensity(x, y, z);
 				FVector o = vd->voxelIndexToVector(x, y, z);
@@ -730,7 +808,10 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
+
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
 
@@ -763,6 +844,8 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 }
 
 void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Extend, int MatId) {
+	if (!GetWorld()->IsServer()) return;
+
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
 		bool operator()(TVoxelData* vd) {
@@ -862,7 +945,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 	for (float x : V) {
 		for (float y : V) {
 			for (float z : V) {
-				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);;
+				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
 				TVoxelData* Vd = nullptr;
@@ -937,7 +1020,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDat
 
 //======================================================================================================================================================================
 
-
+// TODO: use shared_ptr
 TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& Index) {
 	double Start = FPlatformTime::Seconds();
 
