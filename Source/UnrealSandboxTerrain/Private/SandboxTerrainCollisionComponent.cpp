@@ -143,7 +143,7 @@ void USandboxTerrainCollisionComponent::UpdateCollision() {
 	// New GUID as collision has changed
 	ProcMeshBodySetup->BodySetupGuid = FGuid::NewGuid();
 
-#if WITH_RUNTIME_PHYSICS_COOKING || WITH_EDITOR
+#if WITH_EDITOR
 	// Clear current mesh data
 	ProcMeshBodySetup->InvalidatePhysicsData();
 	// Create new mesh data
