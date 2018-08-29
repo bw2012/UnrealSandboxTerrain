@@ -21,7 +21,7 @@ using EdgeInfoMap = std::unordered_map<uint32_t, EdgeInfo>;
 using VoxelIDSet = std::unordered_set<uint32_t>;
 using VoxelIndexMap = std::unordered_map<uint32_t, int>;
 
-#define VOXEL_GRID_SIZE			16
+#define VOXEL_GRID_SIZE			128
 #define VOXEL_GRID_OFFSET		(float)VOXEL_GRID_SIZE / 2.f 
 
 
@@ -69,13 +69,20 @@ const uint32_t ENCODED_EDGE_NODE_OFFSETS[12] = {
 
 
 float Density(const FVector4& p) {
-	const float Extend = 3.f;
+	//const float Extend = 3.f;
 
-	if (p.X < Extend && p.X > -Extend && p.Y < Extend && p.Y > -Extend && p.Z < Extend && p.Z > -Extend) {
-		return 1.f;
+	const float r = FMath::Sqrt(p.X * p.X + p.Y * p.Y + p.Z * p.Z);
+
+	if (r < 3) {
+		//return 1;
 	}
 
-	return -1.f;
+	
+	//if (p.X < Extend && p.X > -Extend && p.Y < Extend && p.Y > -Extend && p.Z < Extend && p.Z > -Extend) {
+		//return 1.f;
+	//}
+
+	return 3 - r;
 }
 
 // returns x * (1.0 - a) + y * a 
@@ -124,6 +131,7 @@ void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, Edg
 			for (int z = 0; z < VOXEL_GRID_SIZE; z++) {
 
 				const TVoxelIndex4 idxPos(x, y, z, 0);
+				const FVector4 p0 = voxelData->voxelIndexToVector(x, y, z);
 				const FVector4 p(x - VOXEL_GRID_OFFSET, y - VOXEL_GRID_OFFSET, z - VOXEL_GRID_OFFSET, 1.f);
 
 				for (int axis = 0; axis < 3; axis++) {
