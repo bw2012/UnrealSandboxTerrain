@@ -118,7 +118,7 @@ TVoxelIndex4 DecodeVoxelUniqueID(const uint32_t id) {
 	return TVoxelIndex4(id & 0x3ff, (id >> 10) & 0x3ff, (id >> 20) & 0x3ff, 0);
 }
 
-void FindActiveVoxels(const UWorld* world, VoxelIDSet& activeVoxels, EdgeInfoMap& activeEdges) {
+void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, EdgeInfoMap& activeEdges) {
 	for (int x = 0; x < VOXEL_GRID_SIZE; x++) {
 		for (int y = 0; y < VOXEL_GRID_SIZE; y++) {
 			for (int z = 0; z < VOXEL_GRID_SIZE; z++) {
@@ -156,8 +156,6 @@ void FindActiveVoxels(const UWorld* world, VoxelIDSet& activeVoxels, EdgeInfoMap
 					info.pos = pos;
 					info.normal = normal;
 					info.winding = pDensity >= 0.f;
-
-					//DrawDebugPoint(world, FVector(pos.X * 100, pos.Y * 100, pos.Z * 100), 5, FColor(255, 0, 0), true, 10000000);
 
 					const auto code = EncodeAxisUniqueID(axis, x, y, z);
 
@@ -277,15 +275,24 @@ UVoxelDcMeshComponent::UVoxelDcMeshComponent(const FObjectInitializer& ObjectIni
 void UVoxelDcMeshComponent::BeginPlay() {
 	Super::BeginPlay();
 
+	VoxelData = new TVoxelData(128, 100.f);
+	static const float Extend = 50.f;
+
+	VoxelData->forEach([&](int x, int y, int z) {
+		FVector Pos = VoxelData->voxelIndexToVector(x, y, z);
+		if (Pos.X < Extend && Pos.X > -Extend && Pos.Y < Extend && Pos.Y > -Extend && Pos.Z < Extend && Pos.Z > -Extend) {
+			VoxelData->setDensity(x, y, z, 1);
+		}
+	});
+
 	VoxelIDSet activeVoxels;
 	EdgeInfoMap activeEdges;
 
-	FindActiveVoxels(GetWorld(), activeVoxels, activeEdges);
+	FindActiveVoxels(VoxelData, activeVoxels, activeEdges);
 
 	UE_LOG(LogTemp, Warning, TEXT("activeVoxels --> %d"), activeVoxels.size());
 	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), activeEdges.size());
-
-
+	
 	TArray<FVector> varray;
 	TArray<FVector> narray;
 	TArray<int32> triarray;
@@ -305,11 +312,22 @@ void UVoxelDcMeshComponent::BeginPlay() {
 	TArray<FLinearColor> vertexColors;
 	TArray<FProcMeshTangent> tangents;
 
-	for (auto& v : varray) {
-		v.X *= 100;
-		v.Y *= 100;
-		v.Z *= 100;
+	TMeshDataPtr MeshDataPtr(new TMeshData());
+	TMeshMaterialSection& MatSection = MeshDataPtr->MeshSectionLodArray[0].RegularMeshContainer.MaterialSectionMap.FindOrAdd(0);
 
+	for (int i = 0; i < varray.Num(); i++) {
+		FProcMeshVertex vertex;
+		vertex.Position = varray[i] * 100;
+		vertex.Normal = narray[i];
+
+		MatSection.MaterialMesh.ProcVertexBuffer.Add(vertex);
 		//DrawDebugPoint(GetWorld(), FVector(pos.X * 100, pos.Y * 100, pos.Z * 100), 5, FColor(255, 0, 0), true, 10000000);
 	}
+
+	for (int i = 0; i < triarray.Num(); i++) {
+		MatSection.MaterialMesh.ProcIndexBuffer.Add(triarray[i]);
+	}
+
+	USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr);
+
 }

@@ -267,10 +267,9 @@ public:
 		}
 	}
 
-	FORCEINLINE void CopyAll(USandboxTerrainMeshComponent* Component) {
+	void CopyAll(USandboxTerrainMeshComponent* Component) {
 		ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
-
-		if (TerrainController == nullptr) return;
+		//if (TerrainController == nullptr) return;
 
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
@@ -286,23 +285,23 @@ public:
 			// copy regular material mesh
 			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
 			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); });
+				[&TerrainController](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : UMaterial::GetDefaultMaterial(MD_Surface); });
 
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
 			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
+				[&TerrainController](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : UMaterial::GetDefaultMaterial(MD_Surface); });
 
 			for (auto i = 0; i < 6; i++) {
 				// copy regular material mesh
 				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
 				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController](TMeshMaterialSection Ms) {return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); });
+					[&TerrainController](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : UMaterial::GetDefaultMaterial(MD_Surface); });
 
 				// copy transition material mesh
 				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
 				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController](TMeshMaterialTransitionSection Ms) {return TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet); });
+					[&TerrainController](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : UMaterial::GetDefaultMaterial(MD_Surface); });
 			}
 
 			// Save ref to new section
@@ -568,15 +567,12 @@ int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
 }
 
 void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
-	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
-	if (TerrainController == nullptr) return;
-
 	OutMaterials.Append(LocalMaterials);
 }
 
 void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
-	if (TerrainController == nullptr) return;
+	//if (TerrainController == nullptr) return;
 
 	LocalMaterials.Empty();
 	//LocalMaterials.Reserve(10);
@@ -593,12 +589,14 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialSectionMap = sectionLOD.RegularMeshContainer.MaterialSectionMap;
 			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialTransitionSectionMap = sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap;
 
-			for (auto& Element : sectionLOD.RegularMeshContainer.MaterialSectionMap) {
-				LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
-			}
+			if (TerrainController != nullptr) {
+				for (auto& Element : sectionLOD.RegularMeshContainer.MaterialSectionMap) {
+					LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
+				}
 
-			for (auto& Element : sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap) {
-				LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet));
+				for (auto& Element : sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap) {
+					LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet));
+				}
 			}
 
 			if (bLodFlag) {

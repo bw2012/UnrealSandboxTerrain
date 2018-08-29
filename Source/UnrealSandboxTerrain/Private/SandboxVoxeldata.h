@@ -68,6 +68,7 @@ public:
 		return x * voxel_num * voxel_num + y * voxel_num + z;
 	};
 
+	void forEach(std::function<void(int x, int y, int z)> func);
 	void forEachWithCache(std::function<void(int x, int y, int z)> func, bool enableLOD);
 
     void setDensity(int x, int y, int z, float density);
@@ -127,6 +128,7 @@ public:
 
 };
 
+// mesh per one material
 typedef struct TMeshMaterialSection {
 
 	unsigned short MaterialId = 0;

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "EngineMinimal.h"
+#include "Engine.h"
 #include "SandboxTerrainMeshComponent.h"
 #include "VoxelDcMeshComponent.generated.h"
 
@@ -12,8 +12,8 @@
 /**
 *
 */
-UCLASS()
-class UNREALSANDBOXTERRAIN_API UVoxelDcMeshComponent : public UMeshComponent {
+UCLASS( ClassGroup = (Custom), meta = (BlueprintSpawnableComponent) )
+class UNREALSANDBOXTERRAIN_API UVoxelDcMeshComponent : public USandboxTerrainMeshComponent {
 	GENERATED_UCLASS_BODY()
 
 
@@ -24,4 +24,8 @@ public:
 	virtual void BeginPlay() override;
 
 	//virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+
+protected:
+	TVoxelData* VoxelData;
+
 };

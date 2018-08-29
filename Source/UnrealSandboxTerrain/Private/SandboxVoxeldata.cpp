@@ -322,6 +322,13 @@
 		}
 	}
 
+	void TVoxelData::forEach(std::function<void(int x, int y, int z)> func) {
+		for (int x = 0; x < num(); x++) 
+			for (int y = 0; y < num(); y++) 
+				for (int z = 0; z < num(); z++) 
+					func(x, y, z);
+	}
+
 	void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func, bool LOD) {
 		clearSubstanceCache();
 
