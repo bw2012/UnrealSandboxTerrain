@@ -68,21 +68,29 @@ const uint32_t ENCODED_EDGE_NODE_OFFSETS[12] = {
 };
 
 
-float Density(const FVector4& p) {
-	//const float Extend = 3.f;
+float Density(const TVoxelData* voxelData, const FVector4& p) {
+	
+	int x, y, z;
+	FVector tmp(p.X, p.Y, p.Z);
+	voxelData->vectorToVoxelIndex(tmp, x, y, z);
+	
+	return voxelData->getDensity(x, y, z);
 
+	/*
+	const float Extend = 30.f;
 	const float r = FMath::Sqrt(p.X * p.X + p.Y * p.Y + p.Z * p.Z);
 
 	if (r < 3) {
 		//return 1;
 	}
 
-	
-	//if (p.X < Extend && p.X > -Extend && p.Y < Extend && p.Y > -Extend && p.Z < Extend && p.Z > -Extend) {
-		//return 1.f;
-	//}
+	if (p.X < Extend && p.X > -Extend && p.Y < Extend && p.Y > -Extend && p.Z < Extend && p.Z > -Extend) {
+		return 1.f;
+	}
 
-	return 3 - r;
+	return -1;
+	//return 3 - r;
+	*/
 }
 
 // returns x * (1.0 - a) + y * a 
@@ -91,6 +99,7 @@ FVector4 mix(const FVector4& x, const FVector4& y, float a) {
 	return x * (1.f - a) + y * a;
 }
 
+/*
 float FindIntersection(const FVector4& p0, const FVector4& p1) {
 	const int FIND_EDGE_INFO_STEPS = 16;
 	const float FIND_EDGE_INFO_INCREMENT = 1.f / FIND_EDGE_INFO_STEPS;
@@ -112,6 +121,7 @@ float FindIntersection(const FVector4& p0, const FVector4& p1) {
 
 	return t;
 }
+*/
 
 uint32 EncodeAxisUniqueID(const int axis, const int x, const int y, const int z) {
 	return (x << 0) | (y << 10) | (z << 20) | (axis << 30);
@@ -126,36 +136,38 @@ TVoxelIndex4 DecodeVoxelUniqueID(const uint32_t id) {
 }
 
 void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, EdgeInfoMap& activeEdges) {
-	for (int x = 0; x < VOXEL_GRID_SIZE; x++) {
-		for (int y = 0; y < VOXEL_GRID_SIZE; y++) {
-			for (int z = 0; z < VOXEL_GRID_SIZE; z++) {
+	for (int x = 0; x < voxelData->num(); x++) {
+		for (int y = 0; y < voxelData->num(); y++) {
+			for (int z = 0; z < voxelData->num(); z++) {
 
 				const TVoxelIndex4 idxPos(x, y, z, 0);
-				const FVector4 p0 = voxelData->voxelIndexToVector(x, y, z);
-				const FVector4 p(x - VOXEL_GRID_OFFSET, y - VOXEL_GRID_OFFSET, z - VOXEL_GRID_OFFSET, 1.f);
+				const FVector p0 = voxelData->voxelIndexToVector(x, y, z);
+				const FVector4 p(p0.X, p0.Y, p0.Z, 1.f);
 
 				for (int axis = 0; axis < 3; axis++) {
 
 					const FVector4 q = p + AXIS_OFFSET[axis];
 
-					const float pDensity = Density(p);
-					const float qDensity = Density(q);
+					const float pDensity = Density(voxelData, p);
+					
+					const float qDensity = Density(voxelData, q);
 
 					const bool zeroCrossing = (pDensity >= 0.f && qDensity < 0.f) || (pDensity < 0.f && qDensity >= 0.f);
 
 					if (!zeroCrossing) continue;
 
-					//UE_LOG(LogTemp, Warning, TEXT("x, y, z - pDensity, qDensity  --> %d %d %d - %f %f"), x, y, z, pDensity, qDensity);
+					UE_LOG(LogTemp, Warning, TEXT("x, y, z - pDensity, qDensity  --> %d %d %d - %f %f"), x, y, z, pDensity, qDensity);
 
-					const float t = FindIntersection(p, q);
+					//const float t = FindIntersection(p, q);
+					const float t = 0.5f;
 					const FVector4 pos(mix(p, q, t), 1.f);
 
 					const float H = 0.001f;
 
 					FVector4 tmp(
-						Density(pos + FVector4(H, 0.f, 0.f, 0.f)) - Density(pos - FVector4(H, 0.f, 0.f, 0.f)),
-						Density(pos + FVector4(0.f, H, 0.f, 0.f)) - Density(pos - FVector4(0.f, H, 0.f, 0.f)),
-						Density(pos + FVector4(0.f, 0.f, H, 0.f)) - Density(pos - FVector4(0.f, 0.f, H, 0.f)),
+						Density(voxelData, pos + FVector4(H, 0.f, 0.f, 0.f)) - Density(voxelData, pos - FVector4(H, 0.f, 0.f, 0.f)),
+						Density(voxelData, pos + FVector4(0.f, H, 0.f, 0.f)) - Density(voxelData, pos - FVector4(0.f, H, 0.f, 0.f)),
+						Density(voxelData, pos + FVector4(0.f, 0.f, H, 0.f)) - Density(voxelData, pos - FVector4(0.f, 0.f, H, 0.f)),
 						0.f);
 
 					auto normal = tmp.GetSafeNormal(0.000001f);
@@ -283,14 +295,22 @@ UVoxelDcMeshComponent::UVoxelDcMeshComponent(const FObjectInitializer& ObjectIni
 void UVoxelDcMeshComponent::BeginPlay() {
 	Super::BeginPlay();
 
+
 	VoxelData = new TVoxelData(128, 100.f);
-	static const float Extend = 50.f;
+
+	FVector p0 = VoxelData->voxelIndexToVector(0, 0, 0);
+	int x, y, z;
+	VoxelData->vectorToVoxelIndex(p0, x, y, z);
+	UE_LOG(LogTemp, Warning, TEXT("TEST  --> %d %d %d"), x, y, z);
+
+
+	static const float Extend = 30.f;
 
 	VoxelData->forEach([&](int x, int y, int z) {
 		FVector Pos = VoxelData->voxelIndexToVector(x, y, z);
 		if (Pos.X < Extend && Pos.X > -Extend && Pos.Y < Extend && Pos.Y > -Extend && Pos.Z < Extend && Pos.Z > -Extend) {
 			VoxelData->setDensity(x, y, z, 1);
-		}
+		} 
 	});
 
 	VoxelIDSet activeVoxels;

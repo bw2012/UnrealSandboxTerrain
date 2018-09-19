@@ -9,6 +9,7 @@
 #include <memory>
 #include <set>
 #include <mutex>
+#include <functional>
 
 #define LOD_ARRAY_SIZE 7
 
@@ -82,6 +83,7 @@ public:
     int num() const;
 
 	FVector voxelIndexToVector(int x, int y, int z) const;
+	void vectorToVoxelIndex(const FVector& v, int& x, int& y, int& z) const;
 
 	void setOrigin(FVector o);
 	FVector getOrigin() const;
