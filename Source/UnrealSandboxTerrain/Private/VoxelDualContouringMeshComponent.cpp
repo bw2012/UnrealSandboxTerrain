@@ -21,14 +21,11 @@ using EdgeInfoMap = std::unordered_map<uint32_t, EdgeInfo>;
 using VoxelIDSet = std::unordered_set<uint32_t>;
 using VoxelIndexMap = std::unordered_map<uint32_t, int>;
 
-#define VOXEL_GRID_SIZE			128
-#define VOXEL_GRID_OFFSET		(float)VOXEL_GRID_SIZE / 2.f 
 
-
-static const FVector4 AXIS_OFFSET[3] = {
-	FVector4(1.f, 0.f, 0.f, 0.f),
-	FVector4(0.f, 1.f, 0.f, 0.f),
-	FVector4(0.f, 0.f, 1.f, 0.f)
+static const TVoxelIndex4 AXIS_OFFSET[3] = {
+	TVoxelIndex4(1, 0, 0, 0),
+	TVoxelIndex4(0, 1, 0, 0),
+	TVoxelIndex4(0, 0, 1, 0)
 };
 
 static const TVoxelIndex4 EDGE_NODE_OFFSETS[3][4] = {
@@ -68,29 +65,8 @@ const uint32_t ENCODED_EDGE_NODE_OFFSETS[12] = {
 };
 
 
-float Density(const TVoxelData* voxelData, const FVector4& p) {
-	
-	int x, y, z;
-	FVector tmp(p.X, p.Y, p.Z);
-	voxelData->vectorToVoxelIndex(tmp, x, y, z);
-	
-	return voxelData->getDensity(x, y, z);
-
-	/*
-	const float Extend = 30.f;
-	const float r = FMath::Sqrt(p.X * p.X + p.Y * p.Y + p.Z * p.Z);
-
-	if (r < 3) {
-		//return 1;
-	}
-
-	if (p.X < Extend && p.X > -Extend && p.Y < Extend && p.Y > -Extend && p.Z < Extend && p.Z > -Extend) {
-		return 1.f;
-	}
-
-	return -1;
-	//return 3 - r;
-	*/
+float Density(const TVoxelData* VoxelData, const TVoxelIndex4& Index) {
+	return VoxelData->getDensity(Index.X, Index.Y, Index.Z);
 }
 
 // returns x * (1.0 - a) + y * a 
@@ -99,29 +75,28 @@ FVector4 mix(const FVector4& x, const FVector4& y, float a) {
 	return x * (1.f - a) + y * a;
 }
 
-/*
-float FindIntersection(const FVector4& p0, const FVector4& p1) {
-	const int FIND_EDGE_INFO_STEPS = 16;
-	const float FIND_EDGE_INFO_INCREMENT = 1.f / FIND_EDGE_INFO_STEPS;
+FVector vertexInterpolation(FVector p1, FVector p2, float valp1, float valp2) {
+	static const float isolevel = 0.5f;
 
-	float minValue = FLT_MAX;
-	float currentT = 0.f;
-	float t = 0.f;
-	for (int i = 0; i < FIND_EDGE_INFO_STEPS; i++) {
-		const FVector4 p = mix(p0, p1, currentT);
-		const float	d = std::abs(Density(p));
-
-		if (d < minValue) {
-			t = currentT;
-			minValue = d;
-		}
-
-		currentT += FIND_EDGE_INFO_INCREMENT;
+	if (std::abs(isolevel - valp1) < 0.00001) {
+		return p1;
 	}
 
-	return t;
+	if (std::abs(isolevel - valp2) < 0.00001) {
+		return p2;
+	}
+
+	if (std::abs(valp1 - valp2) < 0.00001) {
+		return p1;
+	}
+
+	if (valp1 == valp2) {
+		return p1;
+	}
+
+	float mu = (isolevel - valp1) / (valp2 - valp1);
+	return p1 + (p2 - p1) *mu;
 }
-*/
 
 uint32 EncodeAxisUniqueID(const int axis, const int x, const int y, const int z) {
 	return (x << 0) | (y << 10) | (z << 20) | (axis << 30);
@@ -139,43 +114,36 @@ void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, Edg
 	for (int x = 0; x < voxelData->num(); x++) {
 		for (int y = 0; y < voxelData->num(); y++) {
 			for (int z = 0; z < voxelData->num(); z++) {
-
-				const TVoxelIndex4 idxPos(x, y, z, 0);
-				const FVector p0 = voxelData->voxelIndexToVector(x, y, z);
-				const FVector4 p(p0.X, p0.Y, p0.Z, 1.f);
+				const TVoxelIndex4 p(x, y, z, 0);
 
 				for (int axis = 0; axis < 3; axis++) {
-
-					const FVector4 q = p + AXIS_OFFSET[axis];
+					const TVoxelIndex4 q = p + AXIS_OFFSET[axis];
 
 					const float pDensity = Density(voxelData, p);
-					
 					const float qDensity = Density(voxelData, q);
 
-					const bool zeroCrossing = (pDensity >= 0.f && qDensity < 0.f) || (pDensity < 0.f && qDensity >= 0.f);
+					const bool zeroCrossing = (pDensity >= 0.5f && qDensity < 0.5f) || (pDensity < 0.5f && qDensity >= 0.5f);
 
 					if (!zeroCrossing) continue;
 
-					UE_LOG(LogTemp, Warning, TEXT("x, y, z - pDensity, qDensity  --> %d %d %d - %f %f"), x, y, z, pDensity, qDensity);
+					//UE_LOG(LogTemp, Warning, TEXT("x, y, z - pDensity, qDensity  --> %d %d %d - %f %f"), x, y, z, pDensity, qDensity);
 
-					//const float t = FindIntersection(p, q);
-					const float t = 0.5f;
-					const FVector4 pos(mix(p, q, t), 1.f);
-
-					const float H = 0.001f;
+					const FVector p1 = voxelData->voxelIndexToVector(p.X, p.Y, p.Z);
+					const FVector q1 = voxelData->voxelIndexToVector(q.X, q.Y, q.Z);
+					const FVector4 pos = vertexInterpolation(p1, q1, pDensity, qDensity);
 
 					FVector4 tmp(
-						Density(voxelData, pos + FVector4(H, 0.f, 0.f, 0.f)) - Density(voxelData, pos - FVector4(H, 0.f, 0.f, 0.f)),
-						Density(voxelData, pos + FVector4(0.f, H, 0.f, 0.f)) - Density(voxelData, pos - FVector4(0.f, H, 0.f, 0.f)),
-						Density(voxelData, pos + FVector4(0.f, 0.f, H, 0.f)) - Density(voxelData, pos - FVector4(0.f, 0.f, H, 0.f)),
+						Density(voxelData, p + TVoxelIndex4(1, 0, 0, 0)) - Density(voxelData, p - TVoxelIndex4(1, 0, 0, 0)),
+						Density(voxelData, p + TVoxelIndex4(0, 1, 0, 0)) - Density(voxelData, p - TVoxelIndex4(0, 1, 0, 0)),
+						Density(voxelData, p + TVoxelIndex4(0, 0, 1, 0)) - Density(voxelData, p - TVoxelIndex4(0, 0, 1, 0)),
 						0.f);
 
-					auto normal = tmp.GetSafeNormal(0.000001f);
+					auto normal = -tmp.GetSafeNormal(0.000001f);
 
 					EdgeInfo info;
 					info.pos = pos;
 					info.normal = normal;
-					info.winding = pDensity >= 0.f;
+					info.winding = pDensity >= 0.5f;
 
 					const auto code = EncodeAxisUniqueID(axis, x, y, z);
 
@@ -185,7 +153,7 @@ void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, Edg
 
 					const auto edgeNodes = EDGE_NODE_OFFSETS[axis];
 					for (int i = 0; i < 4; i++) {
-						const auto nodeIdxPos = idxPos - edgeNodes[i];
+						const auto nodeIdxPos = p - edgeNodes[i];
 						const auto nodeID = EncodeVoxelUniqueID(nodeIdxPos);
 						activeVoxels.insert(nodeID);
 					}
@@ -285,6 +253,7 @@ static void GenerateTriangles(const EdgeInfoMap& edges, const VoxelIndexMap& ver
 	}
 }
 
+//==========================================================================================================================================================
 
 UVoxelDualContouringMeshComponent::UVoxelDualContouringMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
@@ -295,23 +264,37 @@ UVoxelDualContouringMeshComponent::UVoxelDualContouringMeshComponent(const FObje
 void UVoxelDualContouringMeshComponent::BeginPlay() {
 	Super::BeginPlay();
 
+	// create empty voxwl data
+	VoxelData = new TVoxelData(256, 500);
 
-	VoxelData = new TVoxelData(128, 100.f);
-
-	FVector p0 = VoxelData->voxelIndexToVector(0, 0, 0);
-	int x, y, z;
-	VoxelData->vectorToVoxelIndex(p0, x, y, z);
-	UE_LOG(LogTemp, Warning, TEXT("TEST  --> %d %d %d"), x, y, z);
-
-
-	static const float Extend = 30.f;
-
+	// create test shape
+	//=========================================================================================================================
+	static const float Extend = 100.f;
 	VoxelData->forEach([&](int x, int y, int z) {
 		FVector Pos = VoxelData->voxelIndexToVector(x, y, z);
 		if (Pos.X < Extend && Pos.X > -Extend && Pos.Y < Extend && Pos.Y > -Extend && Pos.Z < Extend && Pos.Z > -Extend) {
 			VoxelData->setDensity(x, y, z, 1);
-		} 
+			//DrawDebugPoint(GetWorld(), Pos + GetActorLocation(), 3, FColor(255, 0, 0), true, 10000000);
+		}
 	});
+
+	FVector Pos(100, 100, 100);
+	static const float R = 50.f;
+	static const float Extend2 = R * 5.f;
+
+	VoxelData->forEach([&](int x, int y, int z) {
+		float density = VoxelData->getDensity(x, y, z);
+		FVector o = VoxelData->voxelIndexToVector(x, y, z);
+		o -= Pos;
+
+		float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
+		if (rl < Extend2) {
+			float d = density + 1 / rl * R;
+			VoxelData->setDensity(x, y, z, d);
+		}
+
+	});
+	//=========================================================================================================================
 
 	VoxelIDSet activeVoxels;
 	EdgeInfoMap activeEdges;
@@ -320,7 +303,7 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 
 	UE_LOG(LogTemp, Warning, TEXT("activeVoxels --> %d"), activeVoxels.size());
 	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), activeEdges.size());
-	
+
 	TArray<FVector> varray;
 	TArray<FVector> narray;
 	TArray<int32> triarray;
@@ -336,20 +319,15 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 
 	UE_LOG(LogTemp, Warning, TEXT("triarray  --> %d"), triarray.Num());
 
-	TArray<FVector2D> UV0;
-	TArray<FLinearColor> vertexColors;
-	TArray<FProcMeshTangent> tangents;
-
 	TMeshDataPtr MeshDataPtr(new TMeshData());
 	TMeshMaterialSection& MatSection = MeshDataPtr->MeshSectionLodArray[0].RegularMeshContainer.MaterialSectionMap.FindOrAdd(0);
 
 	for (int i = 0; i < varray.Num(); i++) {
 		FProcMeshVertex vertex;
-		vertex.Position = varray[i] * 100;
+		vertex.Position = varray[i];
 		vertex.Normal = narray[i];
 
 		MatSection.MaterialMesh.ProcVertexBuffer.Add(vertex);
-		//DrawDebugPoint(GetWorld(), FVector(pos.X * 100, pos.Y * 100, pos.Z * 100), 5, FColor(255, 0, 0), true, 10000000);
 	}
 
 	for (int i = 0; i < triarray.Num(); i++) {
@@ -357,5 +335,4 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 	}
 
 	USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr);
-
 }
