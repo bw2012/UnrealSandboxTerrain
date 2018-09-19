@@ -24,7 +24,7 @@ TVoxelData::~TVoxelData() {
 }
 
 FORCEINLINE void TVoxelData::initializeDensity() {
-	int s = voxel_num * voxel_num * voxel_num;
+	const int s = voxel_num * voxel_num * voxel_num;
 	density_data = new unsigned char[s];
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
@@ -42,7 +42,7 @@ FORCEINLINE void TVoxelData::initializeDensity() {
 }
 
 FORCEINLINE void TVoxelData::initializeMaterial() {
-	int s = voxel_num * voxel_num * voxel_num;
+	const int s = voxel_num * voxel_num * voxel_num;
 	material_data = new unsigned short[s];
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
@@ -68,7 +68,7 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 	}
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
-		int index = x * voxel_num * voxel_num + y * voxel_num + z;
+		const int index = clcLinearIndex(x, y, z);
 
 		if (density < 0) density = 0;
 		if (density > 1) density = 1;
@@ -89,7 +89,7 @@ FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 	}
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
-		int index = x * voxel_num * voxel_num + y * voxel_num + z;
+		const int index = clcLinearIndex(x, y, z);
 
 		float d = (float)density_data[index] / 255.0f;
 		return d;
@@ -100,12 +100,12 @@ FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 }
 
 FORCEINLINE unsigned char TVoxelData::getRawDensityUnsafe(int x, int y, int z) const {
-	auto index = x * voxel_num * voxel_num + y * voxel_num + z;
+	const int index = clcLinearIndex(x, y, z);
 	return density_data[index];
 }
 
 FORCEINLINE unsigned short TVoxelData::getRawMaterialUnsafe(int x, int y, int z) const {
-	auto index = x * voxel_num * voxel_num + y * voxel_num + z;
+	const int index = clcLinearIndex(x, y, z);
 	return material_data[index];
 }
 
@@ -115,7 +115,7 @@ FORCEINLINE void TVoxelData::setMaterial(const int x, const int y, const int z, 
 	}
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
-		int index = x * voxel_num * voxel_num + y * voxel_num + z;
+		const int index = clcLinearIndex(x, y, z);
 		material_data[index] = material;
 	}
 }
@@ -126,7 +126,7 @@ FORCEINLINE unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
 	}
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
-		int index = x * voxel_num * voxel_num + y * voxel_num + z;
+		const int index = clcLinearIndex(x, y, z);
 		return material_data[index];
 	}
 	else {
@@ -170,7 +170,7 @@ FORCEINLINE int TVoxelData::num() const {
 }
 
 FORCEINLINE void TVoxelData::getRawVoxelData(int x, int y, int z, unsigned char& density, unsigned short& material) const {
-	int index = x * voxel_num * voxel_num + y * voxel_num + z;
+	const int index = clcLinearIndex(x, y, z);
 
 	if (density_data != NULL) {
 		density = density_data[index];
@@ -195,7 +195,7 @@ FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, unsigned char de
 		initializeMaterial();
 	}
 
-	int index = x * voxel_num * voxel_num + y * voxel_num + z;
+	const int index = clcLinearIndex(x, y, z);
 	material_data[index] = material;
 	density_data[index] = density;
 }
@@ -206,7 +206,7 @@ FORCEINLINE void TVoxelData::setVoxelPointDensity(int x, int y, int z, unsigned 
 		density_state = TVoxelDataFillState::MIX;
 	}
 
-	int index = x * voxel_num * voxel_num + y * voxel_num + z;
+	const int index = clcLinearIndex(x, y, z);
 	density_data[index] = density;
 }
 
@@ -215,7 +215,7 @@ FORCEINLINE void TVoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned
 		initializeMaterial();
 	}
 
-	int index = x * voxel_num * voxel_num + y * voxel_num + z;
+	const int index = clcLinearIndex(x, y, z);
 	material_data[index] = material;
 }
 
