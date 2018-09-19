@@ -128,7 +128,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const
 	}
 
 	if (fc == s) {
-		VoxelData.deinitializeDensity(TVoxelDataFillState::ALL);
+		VoxelData.deinitializeDensity(TVoxelDataFillState::FULL);
 	}
 
 	if (material_list.Num() == 1) {
@@ -181,7 +181,7 @@ void UTerrainGeneratorComponent::GenerateVoxelTerrain(TVoxelData &VoxelData) {
 		bool bIsZoneOnGround = IsZoneOnGroundLevel(ZoneHeightMapData, Origin);
 		if (LayersCount == 1 && !bIsZoneOnGround) {
 			// only one material
-			VoxelData.deinitializeDensity(TVoxelDataFillState::ALL);
+			VoxelData.deinitializeDensity(TVoxelDataFillState::FULL);
 			VoxelData.deinitializeMaterial(LayerList[0].MatId);
 		} else {
 			GenerateZoneVolume(VoxelData, ZoneHeightMapData);

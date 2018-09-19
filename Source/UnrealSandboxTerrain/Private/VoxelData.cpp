@@ -29,7 +29,7 @@ FORCEINLINE void TVoxelData::initializeDensity() {
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
 			for (auto z = 0; z < voxel_num; z++) {
-				if (density_state == TVoxelDataFillState::ALL) {
+				if (density_state == TVoxelDataFillState::FULL) {
 					setDensity(x, y, z, 1);
 				}
 
@@ -59,12 +59,12 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 			return;
 		}
 
-		if (density_state == TVoxelDataFillState::ALL && density == 1) {
+		if (density_state == TVoxelDataFillState::FULL && density == 1) {
 			return;
 		}
 
 		initializeDensity();
-		density_state = TVoxelDataFillState::MIX;
+		density_state = TVoxelDataFillState::MIXED;
 	}
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
@@ -81,7 +81,7 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 
 FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 	if (density_data == NULL) {
-		if (density_state == TVoxelDataFillState::ALL) {
+		if (density_state == TVoxelDataFillState::FULL) {
 			return 1;
 		}
 
@@ -188,7 +188,7 @@ FORCEINLINE void TVoxelData::getRawVoxelData(int x, int y, int z, unsigned char&
 FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material) {
 	if (density_data == NULL) {
 		initializeDensity();
-		density_state = TVoxelDataFillState::MIX;
+		density_state = TVoxelDataFillState::MIXED;
 	}
 
 	if (material_data == NULL) {
@@ -203,7 +203,7 @@ FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, unsigned char de
 FORCEINLINE void TVoxelData::setVoxelPointDensity(int x, int y, int z, unsigned char density) {
 	if (density_data == NULL) {
 		initializeDensity();
-		density_state = TVoxelDataFillState::MIX;
+		density_state = TVoxelDataFillState::MIXED;
 	}
 
 	const int index = clcLinearIndex(x, y, z);
@@ -220,7 +220,7 @@ FORCEINLINE void TVoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned
 }
 
 FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState State) {
-	if (State == TVoxelDataFillState::MIX) {
+	if (State == TVoxelDataFillState::MIXED) {
 		return;
 	}
 
@@ -365,12 +365,12 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 		binaryData << volume_state;
 	}
 
-	if (vd.getDensityFillState() == TVoxelDataFillState::ALL) {
+	if (vd.getDensityFillState() == TVoxelDataFillState::FULL) {
 		volume_state = 1;
 		binaryData << volume_state;
 	}
 
-	if (vd.getDensityFillState() == TVoxelDataFillState::MIX) {
+	if (vd.getDensityFillState() == TVoxelDataFillState::MIXED) {
 		volume_state = 2;
 		binaryData << volume_state;
 		for (int x = 0; x < num; x++) {
@@ -427,7 +427,7 @@ void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
 	}
 
 	if (volume_state == 1) {
-		vd.deinitializeDensity(TVoxelDataFillState::ALL);
+		vd.deinitializeDensity(TVoxelDataFillState::FULL);
 	}
 
 	if (volume_state == 2) {

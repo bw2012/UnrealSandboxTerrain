@@ -14,8 +14,11 @@
 typedef unsigned char TDensityVal;
 typedef unsigned short TMaterialId;
 
+// density or material data state
 enum TVoxelDataFillState {
-	ZERO, ALL, MIX
+	ZERO,		// data contains only zero values
+	FULL,		// data contains only one same value
+	MIXED		// mixed state, any value in any point
 };
 
 typedef struct TSubstanceCache {

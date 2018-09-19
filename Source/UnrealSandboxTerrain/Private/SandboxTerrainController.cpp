@@ -539,7 +539,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 
 	RegisterTerrainVoxelData(VdInfo, Index);
 
-	if (VdInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
+	if (VdInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfo.Vd);
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -596,7 +596,7 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 	}
 
 	// if no mesh data in file - generate mesh from voxel data
-	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIX) {
+	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		TMeshDataPtr MeshDataPtr = GenerateMesh(VoxelDataInfo->Vd);
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
@@ -1216,7 +1216,7 @@ float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
 std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* Vd) {
 	double start = FPlatformTime::Seconds();
 
-	if (Vd == NULL || Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::ALL) {
+	if (Vd == NULL || Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
 		return NULL;
 	}
 
