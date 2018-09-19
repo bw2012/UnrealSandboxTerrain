@@ -65,8 +65,8 @@ public:
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;
 
-	unsigned char getRawDensity(int x, int y, int z) const;
-	unsigned short getRawMaterial(int x, int y, int z) const;
+	unsigned char getRawDensityUnsafe(int x, int y, int z) const;
+	unsigned short getRawMaterialUnsafe(int x, int y, int z) const;
 
 	void setMaterial(const int x, const int y, const int z, unsigned short material);
 	unsigned short getMaterial(int x, int y, int z) const;

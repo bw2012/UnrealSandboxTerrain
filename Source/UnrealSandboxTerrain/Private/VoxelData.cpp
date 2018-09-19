@@ -99,12 +99,12 @@ FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 	}
 }
 
-FORCEINLINE unsigned char TVoxelData::getRawDensity(int x, int y, int z) const {
+FORCEINLINE unsigned char TVoxelData::getRawDensityUnsafe(int x, int y, int z) const {
 	auto index = x * voxel_num * voxel_num + y * voxel_num + z;
 	return density_data[index];
 }
 
-FORCEINLINE unsigned short TVoxelData::getRawMaterial(int x, int y, int z) const {
+FORCEINLINE unsigned short TVoxelData::getRawMaterialUnsafe(int x, int y, int z) const {
 	auto index = x * voxel_num * voxel_num + y * voxel_num + z;
 	return material_data[index];
 }
@@ -256,40 +256,40 @@ FORCEINLINE bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, in
 	}
 
 	unsigned char density[8];
-	static unsigned char isolevel = 127;
+	static unsigned char raw_isolevel = 127;
 
 	const int rx = x - step;
 	const int ry = y - step;
 	const int rz = z - step;
 
-	density[0] = getRawDensity(x, y - step, z);
-	density[1] = getRawDensity(x, y, z);
-	density[2] = getRawDensity(x - step, y - step, z);
-	density[3] = getRawDensity(x - step, y, z);
-	density[4] = getRawDensity(x, y - step, z - step);
-	density[5] = getRawDensity(x, y, z - step);
-	density[6] = getRawDensity(rx, ry, rz);
-	density[7] = getRawDensity(x - step, y, z - step);
+	density[0] = getRawDensityUnsafe(x, y - step, z);
+	density[1] = getRawDensityUnsafe(x, y, z);
+	density[2] = getRawDensityUnsafe(x - step, y - step, z);
+	density[3] = getRawDensityUnsafe(x - step, y, z);
+	density[4] = getRawDensityUnsafe(x, y - step, z - step);
+	density[5] = getRawDensityUnsafe(x, y, z - step);
+	density[6] = getRawDensityUnsafe(rx, ry, rz);
+	density[7] = getRawDensityUnsafe(x - step, y, z - step);
 
-	if (density[0] > isolevel &&
-		density[1] > isolevel &&
-		density[2] > isolevel &&
-		density[3] > isolevel &&
-		density[4] > isolevel &&
-		density[5] > isolevel &&
-		density[6] > isolevel &&
-		density[7] > isolevel) {
+	if (density[0] > raw_isolevel &&
+		density[1] > raw_isolevel &&
+		density[2] > raw_isolevel &&
+		density[3] > raw_isolevel &&
+		density[4] > raw_isolevel &&
+		density[5] > raw_isolevel &&
+		density[6] > raw_isolevel &&
+		density[7] > raw_isolevel) {
 		return false;
 	}
 
-	if (density[0] <= isolevel &&
-		density[1] <= isolevel &&
-		density[2] <= isolevel &&
-		density[3] <= isolevel &&
-		density[4] <= isolevel &&
-		density[5] <= isolevel &&
-		density[6] <= isolevel &&
-		density[7] <= isolevel) {
+	if (density[0] <= raw_isolevel &&
+		density[1] <= raw_isolevel &&
+		density[2] <= raw_isolevel &&
+		density[3] <= raw_isolevel &&
+		density[4] <= raw_isolevel &&
+		density[5] <= raw_isolevel &&
+		density[6] <= raw_isolevel &&
+		density[7] <= raw_isolevel) {
 		return false;
 	}
 
@@ -340,8 +340,7 @@ void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func,
 
 				if (LOD) {
 					performSubstanceCacheLOD(x, y, z);
-				}
-				else {
+				} else {
 					performSubstanceCacheNoLOD(x, y, z);
 				}
 
@@ -377,7 +376,7 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					unsigned char density = vd.getRawDensity(x, y, z);
+					unsigned char density = vd.getRawDensityUnsafe(x, y, z);
 					binaryData << density;
 				}
 			}
@@ -400,7 +399,7 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
-					unsigned short matId = vd.getRawMaterial(x, y, z);
+					unsigned short matId = vd.getRawMaterialUnsafe(x, y, z);
 					binaryData << matId;
 				}
 			}
@@ -457,8 +456,7 @@ void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
 				}
 			}
 		}
-	}
-	else {
+	} else {
 		vd.deinitializeMaterial(base_mat);
 	}
 
