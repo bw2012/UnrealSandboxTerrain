@@ -4,7 +4,7 @@
 
 #include "Engine.h"
 #include "SandboxTerrainMeshComponent.h"
-#include "VoxelDcMeshComponent.generated.h"
+#include "VoxelDualContouringMeshComponent.generated.h"
 
 
 
@@ -13,7 +13,7 @@
 *
 */
 UCLASS( ClassGroup = (Custom), meta = (BlueprintSpawnableComponent) )
-class UNREALSANDBOXTERRAIN_API UVoxelDcMeshComponent : public USandboxTerrainMeshComponent {
+class UNREALSANDBOXTERRAIN_API UVoxelDualContouringMeshComponent : public USandboxTerrainMeshComponent {
 	GENERATED_UCLASS_BODY()
 
 

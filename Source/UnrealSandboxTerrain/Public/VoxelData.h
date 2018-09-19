@@ -14,7 +14,7 @@
 typedef unsigned char TDensityVal;
 typedef unsigned short TMaterialId;
 
-// density or material data state
+// density or material state
 enum TVoxelDataFillState {
 	ZERO,		// data contains only zero values
 	FULL,		// data contains only one same value

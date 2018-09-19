@@ -1,7 +1,7 @@
 // Copyright blackw 2015-2020
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
-#include "VoxelDcMeshComponent.h"
+#include "VoxelDualContouringMeshComponent.h"
 #include "SandboxVoxeldata.h"
 #include "DrawDebugHelpers.h"
 #include <algorithm>
@@ -286,13 +286,13 @@ static void GenerateTriangles(const EdgeInfoMap& edges, const VoxelIndexMap& ver
 }
 
 
-UVoxelDcMeshComponent::UVoxelDcMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+UVoxelDualContouringMeshComponent::UVoxelDualContouringMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
 }
 
 
 
-void UVoxelDcMeshComponent::BeginPlay() {
+void UVoxelDualContouringMeshComponent::BeginPlay() {
 	Super::BeginPlay();
 
 
