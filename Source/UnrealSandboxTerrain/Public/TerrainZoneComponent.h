@@ -4,7 +4,6 @@
 
 #include "EngineMinimal.h"
 #include "SandboxTerrainMeshComponent.h"
-#include "SandboxTerrainCollisionComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "TerrainZoneComponent.generated.h"
 
@@ -33,9 +32,6 @@ public:
 
 	UPROPERTY()
 	USandboxTerrainMeshComponent* MainTerrainMesh;
-
-	UPROPERTY()
-	USandboxTerrainCollisionComponent* CollisionMesh;
 
 	UPROPERTY()
 	TMap<uint32, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;

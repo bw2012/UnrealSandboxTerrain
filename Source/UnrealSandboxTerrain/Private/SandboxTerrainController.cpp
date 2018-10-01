@@ -668,18 +668,11 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
 		TerrainMeshComp->RegisterComponent();
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
+		TerrainMeshComp->SetCanEverAffectNavigation(true);
+		TerrainMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
 		TerrainMeshComp->AttachTo(ZoneComponent);
 
-		FString CollisionMeshCompName = FString::Printf(TEXT("CollisionMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
-		USandboxTerrainCollisionComponent* CollisionMeshComp = NewObject<USandboxTerrainCollisionComponent>(this, FName(*CollisionMeshCompName));
-		CollisionMeshComp->RegisterComponent();
-		CollisionMeshComp->SetMobility(EComponentMobility::Stationary);
-		CollisionMeshComp->SetCanEverAffectNavigation(true);
-		CollisionMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
-		CollisionMeshComp->AttachTo(ZoneComponent);
-
 		ZoneComponent->MainTerrainMesh = TerrainMeshComp;
-		ZoneComponent->CollisionMesh = CollisionMeshComp;
 	}
 
 	TerrainZoneMap.Add(IndexTmp, ZoneComponent);
