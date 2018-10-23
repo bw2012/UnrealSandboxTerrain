@@ -331,9 +331,6 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 		MeshDataPtr->MeshSectionLodArray[0].WholeMesh.AddVertex(Vertex);
 	}
 
-	MatSection.MaterialMesh.SectionLocalBox.Min = FVector(-500, -500, -500);
-	MatSection.MaterialMesh.SectionLocalBox.Max = FVector(500, 500, 500);
-
 	FVector Min = MatSection.MaterialMesh.SectionLocalBox.Min;
 	FVector Max = MatSection.MaterialMesh.SectionLocalBox.Max;
 
@@ -350,7 +347,7 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 	MeshDataPtr->CollisionMeshPtr = &MeshDataPtr->MeshSectionLodArray[0].WholeMesh;
 
 
-	bUseComplexAsSimpleCollision = false;
+	//bUseComplexAsSimpleCollision = false;
 	//SetCollisionProfileName(TEXT("BlockAll"));
 	//SetMobility(EComponentMobility::Movable);
 	//SetSimulatePhysics(true);
@@ -359,7 +356,10 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 		SetMaterial(0, BasicMaterial);
 	}
 
-	UVoxelMeshComponent::AddCollisionConvexMesh(VertexArray);
+	if (!bUseComplexAsSimpleCollision) {
+		UVoxelMeshComponent::AddCollisionConvexMesh(VertexArray);
+	}
+
 
 	UVoxelMeshComponent::SetMeshData(MeshDataPtr);
 	UVoxelMeshComponent::SetCollisionMeshData(MeshDataPtr);
