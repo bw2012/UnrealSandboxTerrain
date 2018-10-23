@@ -94,8 +94,8 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetVisibility(true);
 
-	CollisionMesh->SetMeshData(MeshDataPtr);
-	CollisionMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
+	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;

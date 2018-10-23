@@ -15,7 +15,7 @@
 struct TMeshData;
 class FLoadInitialZonesThread;
 class FAsyncThread;
-class USandboxTerrainMeshComponent;
+class UVoxelMeshComponent;
 class UTerrainZoneComponent;
 struct TInstMeshTransArray;
 class UVdClientComponent;

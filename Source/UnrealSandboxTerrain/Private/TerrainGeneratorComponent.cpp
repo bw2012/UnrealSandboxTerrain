@@ -382,7 +382,7 @@ void UTerrainGeneratorComponent::SpawnFoliage(int32 FoliageTypeId, FSandboxFolia
 
 	if (hit.bBlockingHit) {
 		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {
-			if (Cast<USandboxTerrainCollisionComponent>(hit.Component.Get()) != NULL) {
+			if (Cast<UVoxelMeshComponent>(hit.Component.Get()) != NULL) {
 
 				float angle = rnd.FRandRange(0.f, 360.f);
 				float ScaleZ = rnd.FRandRange(FoliageType.ScaleMinZ, FoliageType.ScaleMaxZ);
