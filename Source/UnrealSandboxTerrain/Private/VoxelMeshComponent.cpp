@@ -1,7 +1,7 @@
 // Copyright blackw 2015-2020
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
-#include "SandboxTerrainMeshComponent.h"
+#include "VoxelMeshComponent.h"
 
 #include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
@@ -225,7 +225,7 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
-	FProceduralMeshSceneProxy(USandboxTerrainMeshComponent* Component)
+	FProceduralMeshSceneProxy(UVoxelMeshComponent* Component)
 		: FPrimitiveSceneProxy(Component)
 		, BodySetup(Component->GetBodySetup())
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
@@ -246,7 +246,7 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE void CopyMaterialMesh(USandboxTerrainMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, TMeshPtrArray& TargetMeshPtrArray, std::function<UMaterialInterface*(T)> GetMaterial) {
+	FORCEINLINE void CopyMaterialMesh(UVoxelMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, TMeshPtrArray& TargetMeshPtrArray, std::function<UMaterialInterface*(T)> GetMaterial) {
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
 		for (auto& Element : MaterialMap) {
@@ -268,11 +268,18 @@ public:
 		}
 	}
 
-	void CopyAll(USandboxTerrainMeshComponent* Component) {
-		ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
-		//if (TerrainController == nullptr) return;
-
+	void CopyAll(UVoxelMeshComponent* Component) {
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+		ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
+		
+		// if not terrain
+		if (TerrainController == nullptr) {
+			// grab default material
+			DefaultMaterial = Component->GetMaterial(0);
+			if (DefaultMaterial == NULL) {
+				DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+		}
 
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
 
@@ -286,23 +293,23 @@ public:
 			// copy regular material mesh
 			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
 			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : UMaterial::GetDefaultMaterial(MD_Surface); });
+				[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
 
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
 			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : UMaterial::GetDefaultMaterial(MD_Surface); });
+				[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : DefaultMaterial; });
 
 			for (auto i = 0; i < 6; i++) {
 				// copy regular material mesh
 				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
 				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : UMaterial::GetDefaultMaterial(MD_Surface); });
+					[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
 
 				// copy transition material mesh
 				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
 				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : UMaterial::GetDefaultMaterial(MD_Surface); });
+					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : DefaultMaterial; });
 			}
 
 			// Save ref to new section
@@ -310,7 +317,7 @@ public:
 		}
 	}
 
-	FORCEINLINE void CopySection(FProcMeshSection& SrcSection, FProcMeshProxySection* NewSection, USandboxTerrainMeshComponent* Component) {
+	FORCEINLINE void CopySection(FProcMeshSection& SrcSection, FProcMeshProxySection* NewSection, UVoxelMeshComponent* Component) {
 		if (SrcSection.ProcIndexBuffer.Num() > 0 && SrcSection.ProcVertexBuffer.Num() > 0) {
 
 			// Copy data from vertex buffer
@@ -518,17 +525,17 @@ public:
 
 // ================================================================================================================================================
 
-USandboxTerrainMeshComponent::USandboxTerrainMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+UVoxelMeshComponent::UVoxelMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	bLodFlag = false;
 	bUseComplexAsSimpleCollision = true;
-	test = NewObject<UZoneMeshCollisionData>(this, FName(TEXT("test")));
+	//test = NewObject<UZoneMeshCollisionData>(this, FName(TEXT("test")));
 }
 
-FPrimitiveSceneProxy* USandboxTerrainMeshComponent::CreateSceneProxy() {
+FPrimitiveSceneProxy* UVoxelMeshComponent::CreateSceneProxy() {
 	return new FProceduralMeshSceneProxy(this);
 }
 
-void USandboxTerrainMeshComponent::PostLoad() {
+void UVoxelMeshComponent::PostLoad() {
 	Super::PostLoad();
 
 	if (ProcMeshBodySetup && IsTemplate()) {
@@ -536,50 +543,15 @@ void USandboxTerrainMeshComponent::PostLoad() {
 	}
 }
 
-/*/
-void USandboxTerrainMeshComponent::SetMeshSectionVisible(int32 SectionIndex, bool bNewVisibility) {
-	if (SectionIndex < ProcMeshSections.Num()) {
-		// Set game thread state
-		ProcMeshSections[SectionIndex].bSectionVisible = bNewVisibility;
-
-		if (SceneProxy) {
-			// Enqueue command to modify render thread info
-			ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-				FProcMeshSectionVisibilityUpdate,
-				FProceduralMeshSceneProxy*, ProcMeshSceneProxy, (FProceduralMeshSceneProxy*)SceneProxy,
-				int32, SectionIndex, SectionIndex,
-				bool, bNewVisibility, bNewVisibility,
-				{
-					ProcMeshSceneProxy->SetSectionVisibility_RenderThread(SectionIndex, bNewVisibility);
-				}
-			);
-		}
-	}
-}
-*/
-
-/*
-void USandboxTerrainMeshComponent::UpdateLocalBounds() {
-	//FBox LocalBox(EForceInit::ForceInitToZero);
-	//LocalBox += MeshSectionLodArray[0].WholeMesh.SectionLocalBox;
-	//LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
-
-	LocalBounds = FBoxSphereBounds(FVector(0, 0, 0), FVector(USBT_ZONE_SIZE / 2, USBT_ZONE_SIZE / 2, USBT_ZONE_SIZE / 2), USBT_ZONE_SIZE / 2);
-
-	UpdateBounds(); // Update global bounds
-	MarkRenderTransformDirty(); // Need to send to render thread
-}
-*/
-
-int32 USandboxTerrainMeshComponent::GetNumMaterials() const {
+int32 UVoxelMeshComponent::GetNumMaterials() const {
 	return LocalMaterials.Num();
 }
 
-void USandboxTerrainMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
+void UVoxelMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
 	OutMaterials.Append(LocalMaterials);
 }
 
-void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
+void UVoxelMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
 	//if (TerrainController == nullptr) return;
 
@@ -624,7 +596,7 @@ void USandboxTerrainMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 	MarkRenderStateDirty(); // New section requires recreating scene proxy
 }
 
-FBoxSphereBounds USandboxTerrainMeshComponent::CalcBounds(const FTransform& LocalToWorld) const {
+FBoxSphereBounds UVoxelMeshComponent::CalcBounds(const FTransform& LocalToWorld) const {
 	return LocalBounds.TransformBy(LocalToWorld);
 }
 
@@ -634,10 +606,10 @@ FBoxSphereBounds USandboxTerrainMeshComponent::CalcBounds(const FTransform& Loca
 
 
 bool UZoneMeshCollisionData::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
-	return ((USandboxTerrainMeshComponent*)GetOuter())->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
+	return ((UVoxelMeshComponent*)GetOuter())->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
 }
 
-bool USandboxTerrainMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
+bool UVoxelMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
 	int32 VertexBase = 0; 
 						  
 	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults;
@@ -678,24 +650,24 @@ bool USandboxTerrainMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisio
 	return true;
 }
 
-void USandboxTerrainMeshComponent::UpdateLocalBounds() {
+void UVoxelMeshComponent::UpdateLocalBounds() {
 	FBox LocalBox(EForceInit::ForceInitToZero);
 
 	if (TriMeshData.ProcVertexBuffer.Num() == 0) return;
 
 	LocalBox += TriMeshData.SectionLocalBox;
-
 	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
+	
 	UpdateBounds();
 	// Need to send to render thread
 	MarkRenderTransformDirty();
 }
 
 bool UZoneMeshCollisionData::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
-	return ((USandboxTerrainMeshComponent*)GetOuter())->ContainsPhysicsTriMeshData(InUseAllTriData);
+	return ((UVoxelMeshComponent*)GetOuter())->ContainsPhysicsTriMeshData(InUseAllTriData);
 }
 
-bool USandboxTerrainMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
+bool UVoxelMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
 	if (TriMeshData.ProcVertexBuffer.Num() == 0) {
 		return false;
 	}
@@ -703,10 +675,10 @@ bool USandboxTerrainMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriDa
 	return true;
 }
 
-void USandboxTerrainMeshComponent::CreateProcMeshBodySetup() {
+void UVoxelMeshComponent::CreateProcMeshBodySetup() {
 	if (ProcMeshBodySetup == NULL) {
 		// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
-		ProcMeshBodySetup = NewObject<UBodySetup>(test, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
+		ProcMeshBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
 		ProcMeshBodySetup->BodySetupGuid = FGuid::NewGuid();
 
 		ProcMeshBodySetup->bGenerateMirroredCollision = false;
@@ -715,7 +687,24 @@ void USandboxTerrainMeshComponent::CreateProcMeshBodySetup() {
 	}
 }
 
-void USandboxTerrainMeshComponent::UpdateCollision() {
+void UVoxelMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts)
+{
+	if (ConvexVerts.Num() >= 4)
+	{
+		// New element
+		FKConvexElem NewConvexElem;
+		// Copy in vertex info
+		NewConvexElem.VertexData = ConvexVerts;
+		// Update bounding box
+		NewConvexElem.ElemBox = FBox(NewConvexElem.VertexData);
+		// Add to array of convex elements
+		CollisionConvexElems.Add(NewConvexElem);
+		// Refresh collision
+		UpdateCollision();
+	}
+}
+
+void UVoxelMeshComponent::UpdateCollision() {
 	bool bCreatePhysState = false; // Should we create physics state at the end of this function?
 
 								   // If its created, shut it down now
@@ -749,12 +738,12 @@ void USandboxTerrainMeshComponent::UpdateCollision() {
 	}
 }
 
-UBodySetup* USandboxTerrainMeshComponent::GetBodySetup() {
+UBodySetup* UVoxelMeshComponent::GetBodySetup() {
 	CreateProcMeshBodySetup();
 	return ProcMeshBodySetup;
 }
 
-void USandboxTerrainMeshComponent::SetCollisionMeshData(TMeshDataPtr MeshDataPtr) {
+void UVoxelMeshComponent::SetCollisionMeshData(TMeshDataPtr MeshDataPtr) {
 	TriMeshData.Reset();
 	TriMeshData.ProcIndexBuffer = MeshDataPtr->CollisionMeshPtr->ProcIndexBuffer;
 	TriMeshData.ProcVertexBuffer = MeshDataPtr->CollisionMeshPtr->ProcVertexBuffer;

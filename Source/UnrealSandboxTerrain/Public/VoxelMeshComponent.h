@@ -9,11 +9,11 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "SandboxVoxeldata.h"
 
-#include "SandboxTerrainMeshComponent.generated.h"
+#include "VoxelMeshComponent.generated.h"
 
 
 UCLASS()
-class UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataProvider {
+class UNREALSANDBOXTERRAIN_API UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataProvider {
 	GENERATED_BODY()
 
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
@@ -25,7 +25,7 @@ class UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataPr
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API USandboxTerrainMeshComponent : public UMeshComponent, public IInterface_CollisionDataProvider
+class UNREALSANDBOXTERRAIN_API UVoxelMeshComponent : public UMeshComponent, public IInterface_CollisionDataProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -67,15 +67,18 @@ public:
 	virtual bool WantsNegXTriMesh() override { return false; }
 	//~ End Interface_CollisionDataProvider Interface
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Procedural Mesh")
 	bool bUseComplexAsSimpleCollision;
 
 	UPROPERTY(Instanced)
 	class UBodySetup* ProcMeshBodySetup;
 
-	UPROPERTY()
-	class UZoneMeshCollisionData* test;
+	//UPROPERTY()
+	//class UZoneMeshCollisionData* test;
 
 	void SetCollisionMeshData(TMeshDataPtr MeshDataPtr);
+
+	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
 
 private:
 

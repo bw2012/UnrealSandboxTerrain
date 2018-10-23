@@ -3,7 +3,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
-#include "SandboxTerrainMeshComponent.h"
+#include "VoxelMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "TerrainZoneComponent.generated.h"
 
@@ -31,7 +31,7 @@ class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public USceneComponent
 public:
 
 	UPROPERTY()
-	USandboxTerrainMeshComponent* MainTerrainMesh;
+	UVoxelMeshComponent* MainTerrainMesh;
 
 	UPROPERTY()
 	TMap<uint32, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;

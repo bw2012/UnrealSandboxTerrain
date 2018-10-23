@@ -9,7 +9,7 @@
 #include "Json.h"
 #include "VdServerComponent.h"
 #include "VdClientComponent.h"
-#include "SandboxTerrainMeshComponent.h"
+#include "VoxelMeshComponent.h"
 
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
@@ -665,7 +665,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		ZoneComponent->SetWorldLocation(pos);
 
 		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
-		USandboxTerrainMeshComponent* TerrainMeshComp = NewObject<USandboxTerrainMeshComponent>(this, FName(*TerrainMeshCompName));
+		UVoxelMeshComponent* TerrainMeshComp = NewObject<UVoxelMeshComponent>(this, FName(*TerrainMeshCompName));
 		TerrainMeshComp->RegisterComponent();
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
 		TerrainMeshComp->SetCanEverAffectNavigation(true);

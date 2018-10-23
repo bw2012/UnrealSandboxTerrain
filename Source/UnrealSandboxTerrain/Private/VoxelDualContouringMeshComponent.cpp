@@ -296,43 +296,72 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 	});
 	//=========================================================================================================================
 
-	VoxelIDSet activeVoxels;
-	EdgeInfoMap activeEdges;
+	VoxelIDSet ActiveVoxels;
+	EdgeInfoMap ActiveEdges;
 
-	FindActiveVoxels(VoxelData, activeVoxels, activeEdges);
+	FindActiveVoxels(VoxelData, ActiveVoxels, ActiveEdges);
 
-	UE_LOG(LogTemp, Warning, TEXT("activeVoxels --> %d"), activeVoxels.size());
-	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), activeEdges.size());
+	UE_LOG(LogTemp, Warning, TEXT("activeVoxels --> %d"), ActiveVoxels.size());
+	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), ActiveEdges.size());
 
-	TArray<FVector> varray;
-	TArray<FVector> narray;
-	TArray<int32> triarray;
-	VoxelIndexMap vertexIndices;
+	TArray<FVector> VertexArray;
+	TArray<FVector> NormalArray;
+	TArray<int32> TriangleArray;
+	VoxelIndexMap VertexIndices;
 
-	GenerateVertexData(activeVoxels, activeEdges, vertexIndices, varray, narray);
+	GenerateVertexData(ActiveVoxels, ActiveEdges, VertexIndices, VertexArray, NormalArray);
 
-	UE_LOG(LogTemp, Warning, TEXT("varray --> %d"), varray.Num());
-	UE_LOG(LogTemp, Warning, TEXT("narray  --> %d"), narray.Num());
-	UE_LOG(LogTemp, Warning, TEXT("vertexIndices  --> %d"), vertexIndices.size());
+	UE_LOG(LogTemp, Warning, TEXT("varray --> %d"), VertexArray.Num());
+	UE_LOG(LogTemp, Warning, TEXT("narray  --> %d"), NormalArray.Num());
+	UE_LOG(LogTemp, Warning, TEXT("vertexIndices  --> %d"), VertexIndices.size());
 
-	GenerateTriangles(activeEdges, vertexIndices, triarray);
+	GenerateTriangles(ActiveEdges, VertexIndices, TriangleArray);
 
-	UE_LOG(LogTemp, Warning, TEXT("triarray  --> %d"), triarray.Num());
+	UE_LOG(LogTemp, Warning, TEXT("triarray  --> %d"), TriangleArray.Num());
 
 	TMeshDataPtr MeshDataPtr(new TMeshData());
 	TMeshMaterialSection& MatSection = MeshDataPtr->MeshSectionLodArray[0].RegularMeshContainer.MaterialSectionMap.FindOrAdd(0);
 
-	for (int i = 0; i < varray.Num(); i++) {
-		FProcMeshVertex vertex;
-		vertex.Position = varray[i];
-		vertex.Normal = narray[i];
+	for (int i = 0; i < VertexArray.Num(); i++) {
+		FProcMeshVertex Vertex;
+		Vertex.Position = VertexArray[i];
+		Vertex.Normal = NormalArray[i];
 
-		MatSection.MaterialMesh.ProcVertexBuffer.Add(vertex);
+		MatSection.MaterialMesh.AddVertex(Vertex);
+		MeshDataPtr->MeshSectionLodArray[0].WholeMesh.AddVertex(Vertex);
 	}
 
-	for (int i = 0; i < triarray.Num(); i++) {
-		MatSection.MaterialMesh.ProcIndexBuffer.Add(triarray[i]);
+	MatSection.MaterialMesh.SectionLocalBox.Min = FVector(-500, -500, -500);
+	MatSection.MaterialMesh.SectionLocalBox.Max = FVector(500, 500, 500);
+
+	FVector Min = MatSection.MaterialMesh.SectionLocalBox.Min;
+	FVector Max = MatSection.MaterialMesh.SectionLocalBox.Max;
+
+	UE_LOG(LogTemp, Warning, TEXT("min  --> %f %f %f"), Min.X, Min.Y, Min.Z);
+	UE_LOG(LogTemp, Warning, TEXT("max  --> %f %f %f"), Max.X, Max.Y, Max.Z);
+
+	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), ActiveEdges.size());
+
+	for (int i = 0; i < TriangleArray.Num(); i++) {
+		MatSection.MaterialMesh.ProcIndexBuffer.Add(TriangleArray[i]);
+		MeshDataPtr->MeshSectionLodArray[0].WholeMesh.ProcIndexBuffer.Add(TriangleArray[i]);
 	}
 
-	USandboxTerrainMeshComponent::SetMeshData(MeshDataPtr);
+	MeshDataPtr->CollisionMeshPtr = &MeshDataPtr->MeshSectionLodArray[0].WholeMesh;
+
+
+	bUseComplexAsSimpleCollision = false;
+	//SetCollisionProfileName(TEXT("BlockAll"));
+	//SetMobility(EComponentMobility::Movable);
+	//SetSimulatePhysics(true);
+
+	if (BasicMaterial != nullptr) {
+		SetMaterial(0, BasicMaterial);
+	}
+
+	UVoxelMeshComponent::AddCollisionConvexMesh(VertexArray);
+
+	UVoxelMeshComponent::SetMeshData(MeshDataPtr);
+	UVoxelMeshComponent::SetCollisionMeshData(MeshDataPtr);
+
 }
