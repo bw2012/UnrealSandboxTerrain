@@ -3,14 +3,14 @@
 #pragma once
 
 #include "EngineMinimal.h"
-#include "ProcMeshData.h"
-
 #include "Components/MeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
+#include "ProcMeshData.h"
 #include "SandboxVoxeldata.h"
 
 #include "VoxelMeshComponent.generated.h"
 
+typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataProvider {
@@ -111,10 +111,6 @@ private:
 	void CreateProcMeshBodySetup();
 
 	void UpdateCollision();
-
-	/** Array of sections of mesh */
-	//UPROPERTY()
-	//TArray<FProcMeshSection> ProcMeshSections;
 
 	/** Convex shapes used for simple collision */
 	UPROPERTY()

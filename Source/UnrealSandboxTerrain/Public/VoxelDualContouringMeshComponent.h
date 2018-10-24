@@ -23,12 +23,16 @@ public:
 
 	virtual void BeginPlay() override;
 
-	//virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 	UPROPERTY(EditAnywhere)
 	UMaterial* BasicMaterial;
 
+	void EditMeshDeleteSphere(const FVector& Origin, float Radius, float Strength);
+
 protected:
 	TVoxelData* VoxelData;
+
+	void MakeMesh();
 
 };

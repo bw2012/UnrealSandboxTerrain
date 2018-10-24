@@ -7,20 +7,17 @@
 //====================================================================================
 
 TVoxelData::TVoxelData(int num, float size) {
-	// int s = num*num*num;
-
-	density_data = NULL;
+	density_data = nullptr;
 	density_state = TVoxelDataFillState::ZERO;
-
-	material_data = NULL;
+	material_data = nullptr;
 
 	voxel_num = num;
 	volume_size = size;
 }
 
 TVoxelData::~TVoxelData() {
-	delete[] density_data;
-	delete[] material_data;
+	if (density_data != nullptr) delete[] density_data;
+	if (material_data != nullptr) delete[] material_data;
 }
 
 FORCEINLINE void TVoxelData::initializeDensity() {
@@ -135,8 +132,8 @@ FORCEINLINE unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
 }
 
 FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
-	static const float step = size() / (num() - 1);
-	static const float s = -size() / 2;
+	const float step = size() / (num() - 1);
+	const float s = -size() / 2;
 	FVector v(s, s, s);
 	FVector a(x * step, y * step, z * step);
 	v = v + a;
@@ -144,7 +141,7 @@ FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
 }
 
 void TVoxelData::vectorToVoxelIndex(const FVector& v, int& x, int& y, int& z) const {
-	static const float step = size() / (num() - 1);
+	const float step = size() / (num() - 1);
 
 	x = (int)(v.X / step) + num() / 2 - 1;
 	y = (int)(v.Y / step) + num() / 2 - 1;
