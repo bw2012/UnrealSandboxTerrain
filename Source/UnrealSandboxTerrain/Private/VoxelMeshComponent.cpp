@@ -3,6 +3,7 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "VoxelMeshComponent.h"
 
+#include "SandboxVoxeldata.h"
 #include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
 

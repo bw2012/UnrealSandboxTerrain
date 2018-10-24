@@ -264,7 +264,7 @@ UVoxelDualContouringMeshComponent::UVoxelDualContouringMeshComponent(const FObje
 void UVoxelDualContouringMeshComponent::BeginPlay() {
 	Super::BeginPlay();
 
-	// create empty voxwl data
+	// create empty voxel data
 	VoxelData = new TVoxelData(256, 500);
 
 	// create test shape
@@ -278,6 +278,7 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 		}
 	});
 
+	
 	FVector Pos(100, 100, 100);
 	static const float R = 50.f;
 	static const float Extend2 = R * 5.f;
@@ -294,8 +295,15 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 		}
 
 	});
+	
+
 	//=========================================================================================================================
 
+	MakeMesh();
+}
+
+
+void UVoxelDualContouringMeshComponent::MakeMesh() {
 	VoxelIDSet ActiveVoxels;
 	EdgeInfoMap ActiveEdges;
 
@@ -363,5 +371,21 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 
 	UVoxelMeshComponent::SetMeshData(MeshDataPtr);
 	UVoxelMeshComponent::SetCollisionMeshData(MeshDataPtr);
+}
 
+
+void UVoxelDualContouringMeshComponent::EditMeshDeleteSphere(const FVector& Origin, float Radius, float Strength) {
+
+	VoxelData->forEach([&](int x, int y, int z) {
+		FVector Pos = VoxelData->voxelIndexToVector(x, y, z);
+		Pos += GetComponentLocation();
+		Pos -= Origin;
+
+		float R = std::sqrt(Pos.X * Pos.X + Pos.Y * Pos.Y + Pos.Z * Pos.Z);
+		if (R < Radius) {
+			VoxelData->setDensity(x, y, z, 0);
+		}
+	});
+
+	MakeMesh();
 }

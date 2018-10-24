@@ -28,7 +28,11 @@ public:
 	UPROPERTY(EditAnywhere)
 	UMaterial* BasicMaterial;
 
+	void EditMeshDeleteSphere(const FVector& Origin, float Radius, float Strength);
+
 protected:
 	TVoxelData* VoxelData;
+
+	void MakeMesh();
 
 };
