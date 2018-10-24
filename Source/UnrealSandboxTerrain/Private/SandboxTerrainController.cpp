@@ -558,15 +558,13 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 
 	//if no voxel data in memory
 	if (!HasVoxelData(Index)) {
+		TVoxelDataInfo VdInfo;
 		// if voxel data exist in file
 		if (VdFile.get(Index) != nullptr) {
-			TVoxelDataInfo VdInfo;
 			VdInfo.DataState = TVoxelDataState::READY_TO_LOAD;
-
 			RegisterTerrainVoxelData(VdInfo, Index);
 		} else {
 			// generate new voxel data
-			TVoxelDataInfo VdInfo;
 			VdInfo.Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 			VdInfo.Vd->setOrigin(Pos);
 
