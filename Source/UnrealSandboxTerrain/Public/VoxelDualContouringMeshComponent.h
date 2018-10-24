@@ -23,7 +23,7 @@ public:
 
 	virtual void BeginPlay() override;
 
-	//virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 	UPROPERTY(EditAnywhere)
 	UMaterial* BasicMaterial;

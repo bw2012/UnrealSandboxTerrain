@@ -302,6 +302,12 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 	MakeMesh();
 }
 
+void UVoxelDualContouringMeshComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	delete VoxelData;
+	VoxelData = nullptr;
+}
+
+
 
 void UVoxelDualContouringMeshComponent::MakeMesh() {
 	VoxelIDSet ActiveVoxels;
