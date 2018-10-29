@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include "qef_simd.h"
 #include "VoxelIndex.h"
+#include "Async.h"
 
 
 struct EdgeInfo {
@@ -256,7 +257,8 @@ static void GenerateTriangles(const EdgeInfoMap& edges, const VoxelIndexMap& ver
 //==========================================================================================================================================================
 
 UVoxelDualContouringMeshComponent::UVoxelDualContouringMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-
+	float VoxelVolumeSize = 500;
+	int VoxelSize = 256;
 }
 
 
@@ -265,7 +267,7 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 	Super::BeginPlay();
 
 	// create empty voxel data
-	VoxelData = new TVoxelData(256, 500);
+	VoxelData = new TVoxelData(VoxelSize, VoxelVolumeSize);
 
 	// create test shape
 	//=========================================================================================================================
@@ -278,7 +280,7 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 		}
 	});
 
-	
+	/*
 	FVector Pos(100, 100, 100);
 	static const float R = 50.f;
 	static const float Extend2 = R * 5.f;
@@ -295,7 +297,7 @@ void UVoxelDualContouringMeshComponent::BeginPlay() {
 		}
 
 	});
-	
+	*/
 
 	//=========================================================================================================================
 
@@ -381,7 +383,12 @@ void UVoxelDualContouringMeshComponent::MakeMesh() {
 
 
 void UVoxelDualContouringMeshComponent::EditMeshDeleteSphere(const FVector& Origin, float Radius, float Strength) {
-
+	AsyncThread<void>([&]() {
+		AsyncTask(ENamedThreads::GameThread, [&]() {
+		
+		});
+	});
+	
 	VoxelData->forEach([&](int x, int y, int z) {
 		FVector Pos = VoxelData->voxelIndexToVector(x, y, z);
 		Pos += GetComponentLocation();

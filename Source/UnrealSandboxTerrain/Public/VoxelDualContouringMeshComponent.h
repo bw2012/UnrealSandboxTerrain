@@ -28,6 +28,12 @@ public:
 	UPROPERTY(EditAnywhere)
 	UMaterial* BasicMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel Mesh Generation")
+	float VoxelVolumeSize;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel Mesh Generation")
+	int VoxelSize;
+
 	void EditMeshDeleteSphere(const FVector& Origin, float Radius, float Strength);
 
 protected:
