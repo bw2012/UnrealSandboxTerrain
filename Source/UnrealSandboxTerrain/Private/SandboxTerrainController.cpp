@@ -100,7 +100,7 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
 
-	uint32 ServerPort = 6000;
+	ServerPort = 6000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);
@@ -115,7 +115,7 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
 
-	uint32 ServerPort = 6000;
+	ServerPort = 6000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachTo(RootComponent);

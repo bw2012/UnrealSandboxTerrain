@@ -27,7 +27,7 @@ void UVdServerComponent::BeginPlay() {
 	UE_LOG(LogTemp, Warning, TEXT("UVdServerComponent::BeginPlay()"));
 
 	const FString VdServerSocketName = TEXT("test");
-	const int Port = 6000;
+	const int Port = (GetTerrainController()->ServerPort == 0) ? 6000 : GetTerrainController()->ServerPort;
 
 	FIPv4Endpoint Endpoint(FIPv4Address(0, 0, 0, 0), Port);
 	FSocket* ListenerSocketPtr = FTcpSocketBuilder(*VdServerSocketName).AsReusable().BoundToEndpoint(Endpoint).Listening(8);
