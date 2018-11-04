@@ -131,6 +131,32 @@ FORCEINLINE unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
 	}
 }
 
+FORCEINLINE void TVoxelData::setNormal(int x, int y, int z, const FVector& normal) {
+	if (normal_data.size() == 0) {
+		normal_data.reserve(voxel_num * voxel_num * voxel_num);
+	}
+
+	if (x < voxel_num && y < voxel_num && z < voxel_num) {
+		const int index = x * voxel_num * voxel_num + y * voxel_num + z;
+		normal_data[index] = normal;
+	}
+}
+
+FORCEINLINE void TVoxelData::getNormal(int x, int y, int z, FVector& normal) const {
+	if (normal_data.size() == 0) {
+		normal.Set(0, 0, 0);
+	}
+
+	if (x < voxel_num && y < voxel_num && z < voxel_num) {
+		const int index = x * voxel_num * voxel_num + y * voxel_num + z;
+		FVector tmp = normal_data[index];
+		normal.Set(tmp.X, tmp.Y, tmp.Z);
+	}
+	else {
+		normal.Set(0, 0, 0);
+	}
+}
+
 FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
 	const float step = size() / (num() - 1);
 	const float s = -size() / 2;

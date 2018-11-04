@@ -8,6 +8,7 @@
 #include <set>
 #include <mutex>
 #include <functional>
+#include <vector>
 
 #define LOD_ARRAY_SIZE 7
 
@@ -35,6 +36,7 @@ private:
 	float volume_size;
 	unsigned char* density_data;
 	unsigned short* material_data;
+	std::vector<FVector> normal_data;
 
 	volatile double last_change;
 	volatile double last_save;
@@ -73,6 +75,9 @@ public:
 
 	void setMaterial(const int x, const int y, const int z, unsigned short material);
 	unsigned short getMaterial(int x, int y, int z) const;
+
+	void setNormal(int x, int y, int z, const FVector& normal);
+	void getNormal(int x, int y, int z, FVector& normal) const;
 
 	float size() const;
 	int num() const;
