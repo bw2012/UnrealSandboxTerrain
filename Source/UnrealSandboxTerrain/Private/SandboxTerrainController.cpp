@@ -103,7 +103,7 @@ ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& O
 	ServerPort = 6000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
-	TerrainGeneratorComponent->AttachTo(RootComponent);
+	TerrainGeneratorComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 }
 
 ASandboxTerrainController::ASandboxTerrainController() {
@@ -118,7 +118,7 @@ ASandboxTerrainController::ASandboxTerrainController() {
 	ServerPort = 6000;
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
-	TerrainGeneratorComponent->AttachTo(RootComponent);
+	TerrainGeneratorComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 }
 
 void ASandboxTerrainController::PostLoad() {
@@ -252,7 +252,7 @@ void ASandboxTerrainController::BeginServer() {
 			InvokeSafe([&]() {
 				UVdServerComponent* VdServerComponent = NewObject<UVdServerComponent>(this, TEXT("VdServer"));
 				VdServerComponent->RegisterComponent();
-				VdServerComponent->AttachTo(RootComponent);
+				VdServerComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 			});
 		});
 	});
@@ -261,7 +261,7 @@ void ASandboxTerrainController::BeginServer() {
 void ASandboxTerrainController::BeginClient() {
 	UVdClientComponent* VdClientComponent = NewObject<UVdClientComponent>(this, TEXT("VdClient"));
 	VdClientComponent->RegisterComponent();
-	VdClientComponent->AttachTo(RootComponent);
+	VdClientComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 }
 
 void ASandboxTerrainController::NetworkSerializeVd(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex) {
@@ -382,7 +382,7 @@ void ASandboxTerrainController::SaveJson() {
 
 	FString JsonStr;
 	FString FileName = TEXT("terrain.json");
-	FString SavePath = FPaths::GameSavedDir();
+	FString SavePath = FPaths::ProjectSavedDir();
 	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
 
 	TSharedRef <TJsonWriter<TCHAR>> JsonWriter = TJsonWriterFactory<>::Create(&JsonStr);
@@ -449,7 +449,7 @@ bool ASandboxTerrainController::OpenFile() {
 	FString FileNameMd = TEXT("terrain_mesh.dat");
 	FString FileNameObj = TEXT("terrain_objects.dat");
 
-	FString SavePath = FPaths::GameSavedDir();
+	FString SavePath = FPaths::ProjectSavedDir();
 	FString SaveDir = SavePath + TEXT("/Map/") + MapName + TEXT("/");
 
 	if (!GetWorld()->IsServer()) {
@@ -484,7 +484,7 @@ void ASandboxTerrainController::LoadJson() {
 	UE_LOG(LogTemp, Warning, TEXT("----------- load json -----------"));
 
 	FString FileName = TEXT("terrain.json");
-	FString SavePath = FPaths::GameSavedDir();
+	FString SavePath = FPaths::ProjectSavedDir();
 	FString FullPath = SavePath + TEXT("/Map/") + MapName + TEXT("/") + FileName;
 
 	FString jsonRaw;
@@ -659,7 +659,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		ZoneComponent->RegisterComponent();
 		//ZoneComponent->SetRelativeLocation(pos);
 
-		ZoneComponent->AttachTo(RootComponent);
+		ZoneComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 		ZoneComponent->SetWorldLocation(pos);
 
 		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
@@ -668,7 +668,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
 		TerrainMeshComp->SetCanEverAffectNavigation(true);
 		TerrainMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
-		TerrainMeshComp->AttachTo(ZoneComponent);
+		TerrainMeshComp->AttachToComponent(ZoneComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 
 		ZoneComponent->MainTerrainMesh = TerrainMeshComp;
 	}
