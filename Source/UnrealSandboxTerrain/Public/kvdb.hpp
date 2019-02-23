@@ -136,11 +136,6 @@ namespace kvdb {
 		ulong64 initialDataLength = 0;
 
 		TKeyData freeKeyData;
-
-		TKeyEntry() {
-			for (int i = 0; i < KVDB_KEY_SIZE; i++) freeKeyData[i] = 0;
-		}
-
 	} TKeyEntry;
 
 	typedef TPosWrapper<TKeyEntry> TKeyEntryInfo;
@@ -465,14 +460,13 @@ namespace kvdb {
 			filePtr->seekg(e.dataPos);
 
 			TValueDataPtr dataPtr = TValueDataPtr(new TValueData);
-			dataPtr->reserve(e.dataLength);
-			for (unsigned int i = 0; i < e.dataLength; i++) {
-				byte tmp;
-				read(filePtr, tmp);
-				dataPtr->push_back(tmp);
+			dataPtr->resize(e.dataLength);
+
+			if (filePtr->read((char*)dataPtr->data(), e.dataLength)) {
+				return dataPtr;
 			}
 
-			return dataPtr;
+			return nullptr;
 		}
 
 		std::shared_ptr<V> load(const K& k) {

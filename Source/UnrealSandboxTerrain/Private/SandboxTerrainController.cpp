@@ -16,6 +16,10 @@ bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function
 
 void SerializeMeshData(TMeshData const * MeshDataPtr, TArray<uint8>& CompressedData);
 
+void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
+
+void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
+
 
 class FAsyncThread : public FRunnable {
 
@@ -1372,15 +1376,12 @@ bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function
 		return false;
 	}
 
-	//TODO optimize all
+	// we need TArray to deseralization 
+	// so just copy memory from std::vector<char> to TArray<uint8>
+	// TODO refactor deseralization to use std::vector<char>
 	TArray<uint8> BinaryArray;
-	BinaryArray.Reserve(DataPtr->size());
-
-	TValueData& Data = *DataPtr.get();
-
-	for (auto Byte : Data) {
-		BinaryArray.Add(Byte);
-	}
+	BinaryArray.SetNum(DataPtr->size());
+	FMemory::Memcpy(BinaryArray.GetData(), DataPtr->data(), DataPtr->size());
 
 	Function(BinaryArray);
 	return true;
@@ -1442,3 +1443,127 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 	}
 }
 
+
+
+#define DATA_END_MARKER 666999
+
+void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
+	int32 num = vd.num();
+	float size = vd.size();
+	unsigned char volume_state = 0;
+
+	binaryData << num;
+	binaryData << size;
+
+	// save density
+	if (vd.getDensityFillState() == TVoxelDataFillState::ZERO) {
+		volume_state = 0;
+	}
+
+	if (vd.getDensityFillState() == TVoxelDataFillState::FULL) {
+		volume_state = 1;
+	}
+
+	if (vd.getDensityFillState() == TVoxelDataFillState::MIXED) {
+		volume_state = 2;
+	}
+
+	binaryData << volume_state;
+
+	// save material
+	if (vd.material_data == NULL) {
+		volume_state = 0;
+	} else {
+		volume_state = 2;
+	}
+
+	unsigned short base_mat = vd.base_fill_mat;
+
+	binaryData << volume_state;
+	binaryData << base_mat;
+
+	if (vd.getDensityFillState() == TVoxelDataFillState::MIXED) {
+		for (int x = 0; x < num; x++) {
+			for (int y = 0; y < num; y++) {
+				for (int z = 0; z < num; z++) {
+					unsigned char density = vd.getRawDensityUnsafe(x, y, z);
+					binaryData << density;
+				}
+			}
+		}
+	}
+
+	if (volume_state == 2) {
+		for (int x = 0; x < num; x++) {
+			for (int y = 0; y < num; y++) {
+				for (int z = 0; z < num; z++) {
+					unsigned short matId = vd.getRawMaterialUnsafe(x, y, z);
+					binaryData << matId;
+				}
+			}
+		}
+	}
+
+	int32 end_marker = DATA_END_MARKER;
+	binaryData << end_marker;
+}
+
+void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
+	int32 num;
+	float size;
+	unsigned char volume_state;
+	unsigned short base_mat;
+
+	binaryData << num;
+	binaryData << size;
+
+	// load density
+	binaryData << volume_state;
+
+	if (volume_state == 0) {
+		vd.deinitializeDensity(TVoxelDataFillState::ZERO);
+	}
+
+	if (volume_state == 1) {
+		vd.deinitializeDensity(TVoxelDataFillState::FULL);
+	}
+
+	// load material
+	binaryData << volume_state;
+	binaryData << base_mat;
+
+	if (volume_state == 2) {
+		for (int x = 0; x < num; x++) {
+			for (int y = 0; y < num; y++) {
+				for (int z = 0; z < num; z++) {
+					unsigned char density;
+					binaryData << density;
+					vd.setVoxelPointDensity(x, y, z, density);
+					vd.performSubstanceCacheLOD(x, y, z);
+				}
+			}
+		}
+	}
+	
+	if (volume_state == 2) {
+		for (int x = 0; x < num; x++) {
+			for (int y = 0; y < num; y++) {
+				for (int z = 0; z < num; z++) {
+					unsigned short matId;
+					binaryData << matId;
+					vd.setVoxelPointMaterial(x, y, z, matId);
+				}
+			}
+		}
+	}
+	else {
+		vd.deinitializeMaterial(base_mat);
+	}
+
+	int32 end_marker;
+	binaryData << end_marker;
+
+	if (end_marker != DATA_END_MARKER) {
+		UE_LOG(LogTemp, Warning, TEXT("Broken data! - end marker is not found"));
+	}
+}
