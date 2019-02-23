@@ -309,7 +309,7 @@ void ASandboxTerrainController::Save() {
 
 		TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
 		if (VdInfo.Vd->isChanged()) {
-			VdFile.put(Index, buffer);
+			VdFile.save(Index, buffer);
 			VdInfo.Vd->resetLastSave();
 			SavedVd++;
 		}
@@ -335,7 +335,7 @@ void ASandboxTerrainController::Save() {
 				buffer.push_back(b);
 			}
 
-			MdFile.put(Index2, buffer);
+			MdFile.save(Index2, buffer);
 
 			Zone->ClearCachedMeshData();
 			SavedMd++;
@@ -353,7 +353,7 @@ void ASandboxTerrainController::Save() {
 				buffer.push_back(b);
 			}
 
-			ObjFile.put(Index2, buffer);
+			ObjFile.save(Index2, buffer);
 
 			Zone->ResetNeedSave();
 			SavedObj++;
@@ -560,7 +560,7 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 	if (!HasVoxelData(Index)) {
 		TVoxelDataInfo VdInfo;
 		// if voxel data exist in file
-		if (VdFile.get(Index) != nullptr) {
+		if (VdFile.isExist(Index)) {
 			VdInfo.DataState = TVoxelDataState::READY_TO_LOAD;
 			RegisterTerrainVoxelData(VdInfo, Index);
 		} else {
@@ -1366,7 +1366,7 @@ TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMesh
 }
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function) {
-	TValueDataPtr DataPtr = KvFile.get(Index);
+	TValueDataPtr DataPtr = KvFile.loadData(Index);
 
 	if (DataPtr == nullptr || DataPtr->size() == 0) {
 		return false;

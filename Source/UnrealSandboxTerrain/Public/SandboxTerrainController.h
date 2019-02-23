@@ -9,7 +9,7 @@
 #include <list>
 #include <unordered_map>
 #include "VoxelIndex.h"
-#include "kvdb.h"
+#include "kvdb.hpp"
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
