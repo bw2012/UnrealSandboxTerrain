@@ -20,6 +20,8 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
 
 void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
 
+void deserializeVoxelData2(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
+
 
 class FAsyncThread : public FRunnable {
 
@@ -1022,10 +1024,11 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	TVoxelData* Vd = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 	Vd->setOrigin(GetZonePos(Index));
 
-	bool bIsLoaded = LoadDataFromKvFile(VdFile, Index, [&](TArray<uint8>& Data) { 
-		FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
-		BinaryData.Seek(0);
-		deserializeVoxelData(*Vd, BinaryData);
+	bool bIsLoaded = LoadDataFromKvFile(VdFile, Index, [=](TArray<uint8>& Data) { 
+		//FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
+		//BinaryData.Seek(0);
+		//deserializeVoxelData(*Vd, BinaryData);
+		deserializeVoxelData2(Vd, Data, false);
 	});
 
 	double End = FPlatformTime::Seconds();
@@ -1508,6 +1511,85 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 	binaryData << end_marker;
 }
 
+//===============================================================================================
+// test
+//===============================================================================================
+
+class FastUnsafeDeserializer {
+
+private:
+	size_t pos = 0;
+	uint8_t* dataPtr = nullptr;
+
+public:
+	FastUnsafeDeserializer(uint8_t* dataPtr_) : dataPtr(dataPtr_) { }
+
+	template <typename T>
+	void readObj(T& obj) {
+		memcpy(&obj, dataPtr + pos, sizeof(T));
+		pos += sizeof(T);
+	}
+
+	template <typename T>
+	void read(T* buffer, size_t size) {
+		size_t len = sizeof(T) * size;
+		memcpy(buffer, dataPtr + pos, len);
+		pos += len;
+	}
+};
+
+
+
+void deserializeVoxelData2(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache) {
+	FastUnsafeDeserializer deserializer(Data.GetData());
+
+	TVoxelDataHeader header;
+	deserializer.readObj(header);
+
+	vd->voxel_num = header.voxel_num;
+	vd->volume_size = header.volume_size;
+	vd->base_fill_mat = header.base_fill_mat;
+
+	if (header.density_state == 2) {
+		const size_t s = header.voxel_num * header.voxel_num * header.voxel_num;
+
+		vd->density_data = new unsigned char[s];
+		deserializer.read(vd->density_data, s);
+
+		vd->material_data = new unsigned short[s];
+		deserializer.read(vd->material_data, s);
+
+		uint32 test;
+		deserializer.readObj(test);
+
+		vd->density_state = TVoxelDataFillState::MIXED;
+
+		if (createSubstanceCache) {
+			auto num = header.voxel_num;
+			for (uint32 x = 0; x < num; x++) {
+				for (uint32 y = 0; y < num; y++) {
+					for (uint32 z = 0; z < num; z++) {
+						vd->performSubstanceCacheLOD(x, y, z);
+					}
+				}
+			}
+		}
+	} else {
+		if (header.density_state == 0) {
+			vd->deinitializeDensity(TVoxelDataFillState::ZERO);
+		}
+
+		if (header.density_state == 1) {
+			vd->deinitializeDensity(TVoxelDataFillState::FULL);
+		}
+
+		vd->deinitializeMaterial(header.base_fill_mat);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("test -> %d %f %d %d"), header.voxel_num, header.volume_size, header.density_state, header.base_fill_mat);
+}
+
+
 void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
 	int32 num;
 	float size;
@@ -1555,8 +1637,7 @@ void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
 				}
 			}
 		}
-	}
-	else {
+	} else {
 		vd.deinitializeMaterial(base_mat);
 	}
 

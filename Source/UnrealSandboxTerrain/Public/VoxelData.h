@@ -17,14 +17,22 @@ typedef unsigned short TMaterialId;
 
 // density or material state
 enum TVoxelDataFillState {
-	ZERO,		// data contains only zero values
-	FULL,		// data contains only one same value
-	MIXED		// mixed state, any value in any point
+	ZERO = 0,		// data contains only zero values
+	FULL = 1,		// data contains only one same value
+	MIXED = 2		// mixed state, any value in any point
 };
 
 typedef struct TSubstanceCache {
 	std::list<int> cellList;
 } TSubstanceCache;
+
+// POD structure. used in fast serialization
+typedef struct TVoxelDataHeader {
+	uint32 voxel_num;
+	float volume_size;
+	unsigned char density_state;
+	unsigned short base_fill_mat;
+} TVoxelDataHeader;
 
 class TVoxelData {
 
@@ -124,5 +132,7 @@ public:
 
 	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
 	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
+
+	friend void deserializeVoxelData2(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
 
 };
