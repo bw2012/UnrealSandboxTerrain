@@ -39,21 +39,13 @@ struct FProcMeshVertex {
 	FVector Normal;
 
 	/** Vertex tangent */
-	FProcMeshTangent Tangent;
+	//FProcMeshTangent Tangent;
 
 	/** Vertex color */
 	FColor Color;
 
 	/** Vertex texture co-ordinate */
 	FVector2D UV0;
-
-	FProcMeshVertex()
-		: Position(0.f, 0.f, 0.f)
-		, Normal(0.f, 0.f, 1.f)
-		, Tangent(FVector(1.f, 0.f, 0.f), false)
-		, Color(255, 255, 255)
-		, UV0(0.f, 0.f)
-	{}
 };
 
 /** One section of the procedural mesh. Each material has its own section. */

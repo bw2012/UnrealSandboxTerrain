@@ -186,12 +186,15 @@ public:
 };
 
 static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProcMeshVertex& ProcVert) {
+	// ignore tangent
 	Vert.Position = ProcVert.Position;
 	Vert.Color = ProcVert.Color;
 	Vert.TextureCoordinate[0] = ProcVert.UV0;
-	Vert.TangentX = ProcVert.Tangent.TangentX;
+	//Vert.TangentX = ProcVert.Tangent.TangentX;
+	Vert.TangentX = FVector(1.f, 0.f, 0.f);
 	Vert.TangentZ = ProcVert.Normal;
-	Vert.TangentZ.Vector.W = ProcVert.Tangent.bFlipTangentY ? 0 : 255;
+	//Vert.TangentZ.Vector.W = ProcVert.Tangent.bFlipTangentY ? 0 : 255;
+	Vert.TangentZ.Vector.W = 0;
 }
 
 class FProceduralMeshSceneProxy final : public FPrimitiveSceneProxy {

@@ -190,7 +190,7 @@ private:
 				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
 				Vertex.Color = FColor(0, 0, 0, 0);
-				Vertex.Tangent = FProcMeshTangent();
+				//Vertex.Tangent = FProcMeshTangent();
 				//Vertex.Tangent.TangentX = FVector(-1, 0, 0); // i dunno how it works but ugly seams between zones are gone. may be someone someday explain me it. lol
 
 				matSectionRef.MaterialMesh.AddVertex(Vertex);
@@ -230,7 +230,7 @@ private:
 				Vertex.Position = v;
 				Vertex.Normal = vertexInfo.normal;
 				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Tangent = FProcMeshTangent();
+				//Vertex.Tangent = FProcMeshTangent();
 				//Vertex.Tangent.TangentX = FVector(-1, 0, 0); // i dunno how it works but ugly seams between zones are gone. may be someone someday explain me it. kek
 
 				int i = 0;
