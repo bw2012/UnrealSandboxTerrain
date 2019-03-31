@@ -339,12 +339,13 @@ void UVoxelDualContouringMeshComponent::MakeMesh() {
 	TMeshMaterialSection& MatSection = MeshDataPtr->MeshSectionLodArray[0].RegularMeshContainer.MaterialSectionMap.FindOrAdd(0);
 
 	for (int i = 0; i < VertexArray.Num(); i++) {
-		FProcMeshVertex Vertex;
-		Vertex.Position = VertexArray[i];
-		Vertex.Normal = NormalArray[i];
+		//FIXME  
+		//FProcMeshVertex Vertex;
+		//Vertex.Position = VertexArray[i];
+		//Vertex.Normal = NormalArray[i];
 
-		MatSection.MaterialMesh.AddVertex(Vertex);
-		MeshDataPtr->MeshSectionLodArray[0].WholeMesh.AddVertex(Vertex);
+		//MatSection.MaterialMesh.AddVertex(Vertex);
+		//MeshDataPtr->MeshSectionLodArray[0].WholeMesh.AddVertex(Vertex);
 	}
 
 	FVector Min = MatSection.MaterialMesh.SectionLocalBox.Min;

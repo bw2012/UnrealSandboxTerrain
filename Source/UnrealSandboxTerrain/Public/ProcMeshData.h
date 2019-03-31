@@ -32,20 +32,15 @@ struct FProcMeshTangent {
 
 /** One vertex for the procedural mesh, used for storing data internally */
 struct FProcMeshVertex {
-	/** Vertex position */
-	FVector Position;
+	float PositionX;
+	float PositionY;
+	float PositionZ;
 
-	/** Vertex normal */
-	FVector Normal;
+	float NormalX;
+	float NormalY;
+	float NormalZ;
 
-	/** Vertex tangent */
-	//FProcMeshTangent Tangent;
-
-	/** Vertex color */
-	FColor Color;
-
-	/** Vertex texture co-ordinate */
-	FVector2D UV0;
+	int32 MatIdx;
 };
 
 /** One section of the procedural mesh. Each material has its own section. */
@@ -73,7 +68,8 @@ public:
 
 	void AddVertex(FProcMeshVertex& Vertex) {
 		ProcVertexBuffer.Add(Vertex);
-		SectionLocalBox += Vertex.Position;
+		FVector Pos(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
+		SectionLocalBox += Pos;
 	}
 
 	void SerializeMesh(FBufferArchive& BinaryData) const {
@@ -82,31 +78,25 @@ public:
 		BinaryData << VertexNum;
 		for (auto& Vertex : ProcVertexBuffer) {
 
-			float PosX = Vertex.Position.X;
-			float PosY = Vertex.Position.Y;
-			float PosZ = Vertex.Position.Z;
+			float PosX = Vertex.PositionX;
+			float PosY = Vertex.PositionY;
+			float PosZ = Vertex.PositionZ;
 
 			BinaryData << PosX;
 			BinaryData << PosY;
 			BinaryData << PosZ;
 
-			float NormalX = Vertex.Normal.X;
-			float NormalY = Vertex.Normal.Y;
-			float NormalZ = Vertex.Normal.Z;
+			float NormalX = Vertex.NormalX;
+			float NormalY = Vertex.NormalY;
+			float NormalZ = Vertex.NormalZ;
 
 			BinaryData << NormalX;
 			BinaryData << NormalY;
 			BinaryData << NormalZ;
 
-			uint8 ColorR = Vertex.Color.R;
-			uint8 ColorG = Vertex.Color.G;
-			uint8 ColorB = Vertex.Color.B;
-			uint8 ColorA = Vertex.Color.A;
+			int32 MatIdx = Vertex.MatIdx;
 
-			BinaryData << ColorR;
-			BinaryData << ColorG;
-			BinaryData << ColorB;
-			BinaryData << ColorA;
+			BinaryData << MatIdx;
 		}
 
 		// indexes
@@ -124,18 +114,15 @@ public:
 		for (int Idx = 0; Idx < VertexNum; Idx++) {
 			FProcMeshVertex Vertex;
 
-			BinaryData << Vertex.Position.X;
-			BinaryData << Vertex.Position.Y;
-			BinaryData << Vertex.Position.Z;
+			BinaryData << Vertex.PositionX;
+			BinaryData << Vertex.PositionY;
+			BinaryData << Vertex.PositionZ;
 
-			BinaryData << Vertex.Normal.X;
-			BinaryData << Vertex.Normal.Y;
-			BinaryData << Vertex.Normal.Z;
+			BinaryData << Vertex.NormalX;
+			BinaryData << Vertex.NormalY;
+			BinaryData << Vertex.NormalZ;
 
-			BinaryData << Vertex.Color.R;
-			BinaryData << Vertex.Color.G;
-			BinaryData << Vertex.Color.B;
-			BinaryData << Vertex.Color.A;
+			BinaryData << Vertex.MatIdx;
 
 			AddVertex(Vertex);
 		}

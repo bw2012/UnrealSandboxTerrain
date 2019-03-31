@@ -186,14 +186,24 @@ public:
 };
 
 static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProcMeshVertex& ProcVert) {
+	Vert.Position.X = ProcVert.PositionX;
+	Vert.Position.Y = ProcVert.PositionY;
+	Vert.Position.Z = ProcVert.PositionZ;
+
+	switch (ProcVert.MatIdx) {
+		case 0:  Vert.Color = FColor(255, 0, 0, 0); break;
+		case 1:  Vert.Color = FColor(0, 255, 0, 0); break;
+		case 2:  Vert.Color = FColor(0, 0, 255, 0); break;
+		default: Vert.Color = FColor(0, 0, 0, 0); break;
+	}
+
+	// ignore texture crd
+	Vert.TextureCoordinate[0] = FVector2D(0.f, 0.f);
+
 	// ignore tangent
-	Vert.Position = ProcVert.Position;
-	Vert.Color = ProcVert.Color;
-	Vert.TextureCoordinate[0] = ProcVert.UV0;
-	//Vert.TangentX = ProcVert.Tangent.TangentX;
 	Vert.TangentX = FVector(1.f, 0.f, 0.f);
-	Vert.TangentZ = ProcVert.Normal;
-	//Vert.TangentZ.Vector.W = ProcVert.Tangent.bFlipTangentY ? 0 : 255;
+	FVector Normal(ProcVert.NormalX, ProcVert.NormalY, ProcVert.NormalZ);
+	Vert.TangentZ = Normal;
 	Vert.TangentZ.Vector.W = 0;
 }
 
@@ -625,11 +635,13 @@ bool UVoxelMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Co
 
 	// Copy vert data
 	for (int32 VertIdx = 0; VertIdx < TriMeshData.ProcVertexBuffer.Num(); VertIdx++) {
-		CollisionData->Vertices.Add(TriMeshData.ProcVertexBuffer[VertIdx].Position);
+		FProcMeshVertex Vertex = TriMeshData.ProcVertexBuffer[VertIdx];
+		FVector Position(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
+		CollisionData->Vertices.Add(Position);
 
 		// Copy UV if desired
 		if (bCopyUVs) {
-			CollisionData->UVs[0].Add(TriMeshData.ProcVertexBuffer[VertIdx].UV0);
+			//CollisionData->UVs[0].Add(TriMeshData.ProcVertexBuffer[VertIdx].UV0);
 		}
 	}
 
