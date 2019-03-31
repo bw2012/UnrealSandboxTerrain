@@ -140,12 +140,17 @@ private:
 				// new vertex
 				vertexInfo.normal = n;
 
-				FProcMeshVertex vertex;
-				vertex.Position = v;
-				vertex.Normal = n;
+				FProcMeshVertex Vertex;
+				Vertex.PositionX = v.X;
+				Vertex.PositionY = v.Y;
+				Vertex.PositionZ = v.Z;
+				Vertex.NormalX = n.X;
+				Vertex.NormalY = n.Y;
+				Vertex.NormalZ = n.Z;
+				Vertex.MatIdx = -1;
 
 				generalMeshSection->ProcIndexBuffer.Add(vertexGeneralIndex);
-				generalMeshSection->AddVertex(vertex);
+				generalMeshSection->AddVertex(Vertex);
 				vertexInfo.vertexIndex = vertexGeneralIndex;
 
 				vertexGeneralIndex++;
@@ -186,12 +191,13 @@ private:
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
 
 				FProcMeshVertex Vertex;
-				Vertex.Position = v;
-				Vertex.Normal = vertexInfo.normal;
-				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Color = FColor(0, 0, 0, 0);
-				Vertex.Tangent = FProcMeshTangent();
-				//Vertex.Tangent.TangentX = FVector(-1, 0, 0); // i dunno how it works but ugly seams between zones are gone. may be someone someday explain me it. lol
+				Vertex.PositionX = v.X;
+				Vertex.PositionY = v.Y;
+				Vertex.PositionZ = v.Z;
+				Vertex.NormalX = vertexInfo.normal.X;
+				Vertex.NormalY = vertexInfo.normal.Y;
+				Vertex.NormalZ = vertexInfo.normal.Z;
+				Vertex.MatIdx = -1;
 
 				matSectionRef.MaterialMesh.AddVertex(Vertex);
 
@@ -227,32 +233,27 @@ private:
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
 
 				FProcMeshVertex Vertex;
-				Vertex.Position = v;
-				Vertex.Normal = vertexInfo.normal;
-				Vertex.UV0 = FVector2D(0.f, 0.f);
-				Vertex.Tangent = FProcMeshTangent();
-				//Vertex.Tangent.TangentX = FVector(-1, 0, 0); // i dunno how it works but ugly seams between zones are gone. may be someone someday explain me it. kek
+				Vertex.PositionX = v.X;
+				Vertex.PositionY = v.Y;
+				Vertex.PositionZ = v.Z;
+				Vertex.NormalX = vertexInfo.normal.X;
+				Vertex.NormalY = vertexInfo.normal.Y;
+				Vertex.NormalZ = vertexInfo.normal.Z;
 
 				int i = 0;
-				int test = -1;
+				int32 MatIdx = -1;
 				for (unsigned short m : materialIdSet) {
 					if (m == point.matId) {
-						test = i;
+						MatIdx = i;
 						break;
 					}
 
 					i++;
 				}
 
-				switch (test) {
-					case 0:  Vertex.Color = FColor(255,	0,		0,		0); break;
-					case 1:  Vertex.Color = FColor(0,	255,	0,		0); break;
-					case 2:  Vertex.Color = FColor(0,	0,		255,	0); break;
-					default: Vertex.Color = FColor(0,	0,		0,		0); break;
-				}
+				Vertex.MatIdx = MatIdx;
 
 				matSectionRef.MaterialMesh.AddVertex(Vertex);
-
 				vertexInfo.indexInMaterialTransitionSectionMap[matId] = matSectionRef.vertexIndexCounter;
 				matSectionRef.vertexIndexCounter++;
 			}

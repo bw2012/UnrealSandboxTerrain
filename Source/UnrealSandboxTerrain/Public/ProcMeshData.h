@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
+#include "serialization.hpp"
 
 /**
 *	Struct used to specify a tangent vector for a vertex
@@ -32,28 +33,15 @@ struct FProcMeshTangent {
 
 /** One vertex for the procedural mesh, used for storing data internally */
 struct FProcMeshVertex {
-	/** Vertex position */
-	FVector Position;
+	float PositionX;
+	float PositionY;
+	float PositionZ;
 
-	/** Vertex normal */
-	FVector Normal;
+	float NormalX;
+	float NormalY;
+	float NormalZ;
 
-	/** Vertex tangent */
-	FProcMeshTangent Tangent;
-
-	/** Vertex color */
-	FColor Color;
-
-	/** Vertex texture co-ordinate */
-	FVector2D UV0;
-
-	FProcMeshVertex()
-		: Position(0.f, 0.f, 0.f)
-		, Normal(0.f, 0.f, 1.f)
-		, Tangent(FVector(1.f, 0.f, 0.f), false)
-		, Color(255, 255, 255)
-		, UV0(0.f, 0.f)
-	{}
+	int32 MatIdx;
 };
 
 /** One section of the procedural mesh. Each material has its own section. */
@@ -81,40 +69,51 @@ public:
 
 	void AddVertex(FProcMeshVertex& Vertex) {
 		ProcVertexBuffer.Add(Vertex);
-		SectionLocalBox += Vertex.Position;
+		FVector Pos(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
+		SectionLocalBox += Pos;
 	}
 
 	void SerializeMesh(FBufferArchive& BinaryData) const {
 		// vertexes
 		int32 VertexNum = ProcVertexBuffer.Num();
 		BinaryData << VertexNum;
+
+		float MaxX = SectionLocalBox.Max.X;
+		float MaxY = SectionLocalBox.Max.Y;
+		float MaxZ = SectionLocalBox.Max.Z;
+		float MinX = SectionLocalBox.Min.X;
+		float MinY = SectionLocalBox.Min.Y;
+		float MinZ = SectionLocalBox.Min.Z;
+
+		BinaryData << MinX;
+		BinaryData << MinY;
+		BinaryData << MinZ;
+
+		BinaryData << MaxX;
+		BinaryData << MaxY;
+		BinaryData << MaxZ;
+
 		for (auto& Vertex : ProcVertexBuffer) {
 
-			float PosX = Vertex.Position.X;
-			float PosY = Vertex.Position.Y;
-			float PosZ = Vertex.Position.Z;
+			float PosX = Vertex.PositionX;
+			float PosY = Vertex.PositionY;
+			float PosZ = Vertex.PositionZ;
 
 			BinaryData << PosX;
 			BinaryData << PosY;
 			BinaryData << PosZ;
 
-			float NormalX = Vertex.Normal.X;
-			float NormalY = Vertex.Normal.Y;
-			float NormalZ = Vertex.Normal.Z;
+			float NormalX = Vertex.NormalX;
+			float NormalY = Vertex.NormalY;
+			float NormalZ = Vertex.NormalZ;
 
 			BinaryData << NormalX;
 			BinaryData << NormalY;
 			BinaryData << NormalZ;
 
-			uint8 ColorR = Vertex.Color.R;
-			uint8 ColorG = Vertex.Color.G;
-			uint8 ColorB = Vertex.Color.B;
-			uint8 ColorA = Vertex.Color.A;
+			int32 MatIdx = Vertex.MatIdx;
 
-			BinaryData << ColorR;
-			BinaryData << ColorG;
-			BinaryData << ColorB;
-			BinaryData << ColorA;
+			BinaryData << MatIdx;
 		}
 
 		// indexes
@@ -129,21 +128,33 @@ public:
 		int32 VertexNum;
 		BinaryData << VertexNum;
 
+		float MaxX;
+		float MaxY;
+		float MaxZ;
+		float MinX;
+		float MinY;
+		float MinZ;
+
+		BinaryData << MinX;
+		BinaryData << MinY;
+		BinaryData << MinZ;
+
+		BinaryData << MaxX;
+		BinaryData << MaxY;
+		BinaryData << MaxZ;
+
 		for (int Idx = 0; Idx < VertexNum; Idx++) {
 			FProcMeshVertex Vertex;
 
-			BinaryData << Vertex.Position.X;
-			BinaryData << Vertex.Position.Y;
-			BinaryData << Vertex.Position.Z;
+			BinaryData << Vertex.PositionX;
+			BinaryData << Vertex.PositionY;
+			BinaryData << Vertex.PositionZ;
 
-			BinaryData << Vertex.Normal.X;
-			BinaryData << Vertex.Normal.Y;
-			BinaryData << Vertex.Normal.Z;
+			BinaryData << Vertex.NormalX;
+			BinaryData << Vertex.NormalY;
+			BinaryData << Vertex.NormalZ;
 
-			BinaryData << Vertex.Color.R;
-			BinaryData << Vertex.Color.G;
-			BinaryData << Vertex.Color.B;
-			BinaryData << Vertex.Color.A;
+			BinaryData << Vertex.MatIdx;
 
 			AddVertex(Vertex);
 		}
@@ -156,5 +167,27 @@ public:
 			BinaryData << Index;
 			ProcIndexBuffer.Add(Index);
 		}
+	}
+
+	void DeserializeMeshFast(FastUnsafeDeserializer& Deserializer) {
+		int32 VertexNum;
+		Deserializer.readObj(VertexNum);
+
+		float Min[3];
+		float Max[3];
+
+		Deserializer.read(&Min[0], 3);
+		Deserializer.read(&Max[0], 3);
+
+		ProcVertexBuffer.SetNum(VertexNum);
+		Deserializer.read(ProcVertexBuffer.GetData(), VertexNum);
+
+		int32 IndexNum;
+		Deserializer.readObj(IndexNum);
+		ProcIndexBuffer.SetNum(IndexNum);
+		Deserializer.read(ProcIndexBuffer.GetData(), IndexNum);
+
+		FBox Box(FVector(Min[0], Min[1], Min[2]), FVector(Max[0], Max[1], Max[2]));
+		SectionLocalBox = Box;
 	}
 };

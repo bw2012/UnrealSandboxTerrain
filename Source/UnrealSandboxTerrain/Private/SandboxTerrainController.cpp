@@ -11,6 +11,8 @@
 #include "VdClientComponent.h"
 #include "VoxelMeshComponent.h"
 
+#include "serialization.hpp"
+
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
 
@@ -20,7 +22,7 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
 
 void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
 
-void deserializeVoxelData2(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
+void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
 
 
 class FAsyncThread : public FRunnable {
@@ -1028,7 +1030,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 		//FMemoryReader BinaryData = FMemoryReader(Data, true); //true, free data after done
 		//BinaryData.Seek(0);
 		//deserializeVoxelData(*Vd, BinaryData);
-		deserializeVoxelData2(Vd, Data, false);
+		deserializeVoxelDataFast(Vd, Data, false);
 	});
 
 	double End = FPlatformTime::Seconds();
@@ -1347,6 +1349,49 @@ void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& Bina
 	}
 }
 
+void DeserializeMeshContainerFast(TMeshContainer& MeshContainer, FastUnsafeDeserializer& Deserializer) {
+	// regular materials
+	int32 LodSectionRegularMatNum;
+	Deserializer.readObj(LodSectionRegularMatNum);
+
+	for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
+		unsigned short MatId;
+		Deserializer.readObj(MatId);
+
+		TMeshMaterialSection& MatSection = MeshContainer.MaterialSectionMap.FindOrAdd(MatId);
+		MatSection.MaterialId = MatId;
+
+		MatSection.MaterialMesh.DeserializeMeshFast(Deserializer);
+	}
+
+	// transition materials
+	int32 LodSectionTransitionMatNum;
+	Deserializer.readObj(LodSectionTransitionMatNum);
+
+	for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
+		unsigned short MatId;
+		Deserializer.readObj(MatId);
+
+		int MatSetSize;
+		Deserializer.readObj(MatSetSize);
+
+		std::set<unsigned short> MatSet;
+		for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
+			unsigned short MatSetElement;
+			Deserializer.readObj(MatSetElement);
+
+			MatSet.insert(MatSetElement);
+		}
+
+		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
+		MatTransSection.MaterialId = MatId;
+		MatTransSection.MaterialIdSet = MatSet;
+		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
+
+		MatTransSection.MaterialMesh.DeserializeMeshFast(Deserializer);
+	}
+}
+
 TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMeshSectionLodIndex) {
 	TMeshDataPtr MeshDataPtr(new TMeshData);
 
@@ -1368,7 +1413,34 @@ TMeshDataPtr DeserializeMeshData(FMemoryReader& BinaryData, uint32 CollisionMesh
 		}
 	}
 
-	MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[CollisionMeshSectionLodIndex].WholeMesh;//GetTerrainController()->GetCollisionMeshSectionLodIndex()
+	MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[CollisionMeshSectionLodIndex].WholeMesh;
+	return MeshDataPtr;
+}
+
+
+TMeshDataPtr DeserializeMeshDataFast(const TArray<uint8>& Data, uint32 CollisionMeshSectionLodIndex) {
+	TMeshDataPtr MeshDataPtr(new TMeshData);
+	FastUnsafeDeserializer Deserializer(Data.GetData());
+
+	int32 LodArraySize;
+	Deserializer.readObj(LodArraySize);
+
+	for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
+		int32 LodIndex;
+		Deserializer.readObj(LodIndex);
+
+		// whole mesh
+		MeshDataPtr.get()->MeshSectionLodArray[LodIndex].WholeMesh.DeserializeMeshFast(Deserializer);
+		DeserializeMeshContainerFast(MeshDataPtr.get()->MeshSectionLodArray[LodIndex].RegularMeshContainer, Deserializer);
+
+		if (LodIdx > 0) {
+			for (auto i = 0; i < 6; i++) {
+				DeserializeMeshContainerFast(MeshDataPtr.get()->MeshSectionLodArray[LodIndex].TransitionPatchArray[i], Deserializer);
+			}
+		}
+	}
+
+	MeshDataPtr.get()->CollisionMeshPtr = &MeshDataPtr.get()->MeshSectionLodArray[CollisionMeshSectionLodIndex].WholeMesh;
 	return MeshDataPtr;
 }
 
@@ -1402,26 +1474,31 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 			return;
 		}
 
-		FBufferArchive DecompressedBinaryArray;
-		Decompressor << DecompressedBinaryArray;
+		//FBufferArchive DecompressedBinaryArray;
+		//Decompressor << DecompressedBinaryArray;
+		//FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
+		//BinaryData.Seek(0);
 
-		FMemoryReader BinaryData = FMemoryReader(DecompressedBinaryArray, true); //true, free data after done
-		BinaryData.Seek(0);
+		TArray<uint8> DecompressedData;
+		Decompressor << DecompressedData;
 
-		MeshDataPtr = DeserializeMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
+		UE_LOG(LogTemp, Log, TEXT("DecompressedData -> %d bytes"), DecompressedData.Num());
+
+		//MeshDataPtr = DeserializeMeshData(BinaryData, GetCollisionMeshSectionLodIndex());
+		MeshDataPtr = DeserializeMeshDataFast(DecompressedData, GetCollisionMeshSectionLodIndex());
 
 		Data.Empty();
 		Decompressor.FlushCache();
-		BinaryData.FlushCache();
-		DecompressedBinaryArray.Empty();
-		DecompressedBinaryArray.Close();
+		//BinaryData.FlushCache();
+		//DecompressedBinaryArray.Empty();
+		//DecompressedBinaryArray.Close();
 	});
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
 	if (bIsLoaded) {
-		//UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 	}
 
 	return MeshDataPtr;
@@ -1515,32 +1592,7 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 // test
 //===============================================================================================
 
-class FastUnsafeDeserializer {
-
-private:
-	size_t pos = 0;
-	uint8_t* dataPtr = nullptr;
-
-public:
-	FastUnsafeDeserializer(uint8_t* dataPtr_) : dataPtr(dataPtr_) { }
-
-	template <typename T>
-	void readObj(T& obj) {
-		memcpy(&obj, dataPtr + pos, sizeof(T));
-		pos += sizeof(T);
-	}
-
-	template <typename T>
-	void read(T* buffer, size_t size) {
-		size_t len = sizeof(T) * size;
-		memcpy(buffer, dataPtr + pos, len);
-		pos += len;
-	}
-};
-
-
-
-void deserializeVoxelData2(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache) {
+void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache) {
 	FastUnsafeDeserializer deserializer(Data.GetData());
 
 	TVoxelDataHeader header;
