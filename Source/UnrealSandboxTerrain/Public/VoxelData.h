@@ -133,6 +133,6 @@ public:
 	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
 	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
 
-	friend void deserializeVoxelData2(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
+	friend void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
 
 };

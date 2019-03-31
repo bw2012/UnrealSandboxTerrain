@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
+#include "serialization.hpp"
 
 /**
 *	Struct used to specify a tangent vector for a vertex
@@ -76,6 +77,22 @@ public:
 		// vertexes
 		int32 VertexNum = ProcVertexBuffer.Num();
 		BinaryData << VertexNum;
+
+		float MaxX = SectionLocalBox.Max.X;
+		float MaxY = SectionLocalBox.Max.Y;
+		float MaxZ = SectionLocalBox.Max.Z;
+		float MinX = SectionLocalBox.Min.X;
+		float MinY = SectionLocalBox.Min.Y;
+		float MinZ = SectionLocalBox.Min.Z;
+
+		BinaryData << MinX;
+		BinaryData << MinY;
+		BinaryData << MinZ;
+
+		BinaryData << MaxX;
+		BinaryData << MaxY;
+		BinaryData << MaxZ;
+
 		for (auto& Vertex : ProcVertexBuffer) {
 
 			float PosX = Vertex.PositionX;
@@ -111,6 +128,21 @@ public:
 		int32 VertexNum;
 		BinaryData << VertexNum;
 
+		float MaxX;
+		float MaxY;
+		float MaxZ;
+		float MinX;
+		float MinY;
+		float MinZ;
+
+		BinaryData << MinX;
+		BinaryData << MinY;
+		BinaryData << MinZ;
+
+		BinaryData << MaxX;
+		BinaryData << MaxY;
+		BinaryData << MaxZ;
+
 		for (int Idx = 0; Idx < VertexNum; Idx++) {
 			FProcMeshVertex Vertex;
 
@@ -135,5 +167,27 @@ public:
 			BinaryData << Index;
 			ProcIndexBuffer.Add(Index);
 		}
+	}
+
+	void DeserializeMeshFast(FastUnsafeDeserializer& Deserializer) {
+		int32 VertexNum;
+		Deserializer.readObj(VertexNum);
+
+		float Min[3];
+		float Max[3];
+
+		Deserializer.read(&Min[0], 3);
+		Deserializer.read(&Max[0], 3);
+
+		ProcVertexBuffer.SetNum(VertexNum);
+		Deserializer.read(ProcVertexBuffer.GetData(), VertexNum);
+
+		int32 IndexNum;
+		Deserializer.readObj(IndexNum);
+		ProcIndexBuffer.SetNum(IndexNum);
+		Deserializer.read(ProcIndexBuffer.GetData(), IndexNum);
+
+		FBox Box(FVector(Min[0], Min[1], Min[2]), FVector(Max[0], Max[1], Max[2]));
+		SectionLocalBox = Box;
 	}
 };
