@@ -12,6 +12,7 @@
 #include "VoxelMeshComponent.h"
 
 #include "serialization.hpp"
+#include "utils.hpp"
 
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
@@ -224,6 +225,35 @@ void ASandboxTerrainController::BeginServer() {
 			int Total = (TerrainSizeX * 2 + 1) * (TerrainSizeY * 2 + 1) * (TerrainSizeZ * 2 + 1);
 			int Progress = 0;
 
+			ReverseSpiralWalkthrough(TerrainSizeX * 2, TerrainSizeY * 2, [&](int x, int y) {
+				x -= TerrainSizeX;
+				y -= TerrainSizeY;
+
+				for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
+					TVoxelIndex Index(x, y, z);
+					if (ThisThread.IsNotValid()) return;
+
+					if (!HasVoxelData(Index)) {
+						SpawnZone(Index);
+					}
+
+					Progress++;
+					GeneratingProgress = (float)Progress / (float)Total;
+					// must invoke in main thread
+					//OnProgressBuildTerrain(PercentProgress);
+
+					if (GeneratedVdConter > SaveGeneratedZones) {
+						TControllerTaskTaskPtr TaskPtr = InvokeSafe([=]() { Save(); });
+						TControllerTask::WaitForFinish(TaskPtr.get());
+						GeneratedVdConter = 0;
+					}
+
+					if (ThisThread.IsNotValid()) return;
+				}
+
+			});
+
+			/*
 			for (int x = -TerrainSizeX; x <= TerrainSizeX; x++) {
 				for (int y = -TerrainSizeY; y <= TerrainSizeY; y++) {
 					for (int z = -TerrainSizeZ; z <= TerrainSizeZ; z++) {
@@ -249,6 +279,7 @@ void ASandboxTerrainController::BeginServer() {
 					}
 				}
 			}
+			*/
 		}
 
 		TControllerTask::WaitForFinish(InvokeSafe([=]() { Save(); }).get());
