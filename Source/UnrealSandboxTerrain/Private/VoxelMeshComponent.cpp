@@ -671,8 +671,11 @@ void UVoxelMeshComponent::UpdateLocalBounds() {
 
 	if (TriMeshData.ProcVertexBuffer.Num() == 0) return;
 
-	LocalBox += TriMeshData.SectionLocalBox;
-	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
+	//LocalBox += TriMeshData.SectionLocalBox;
+	//LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
+
+	//FIXME use real bounds
+	LocalBounds = FBoxSphereBounds(FVector(0, 0, 0), FVector(700, 700, 700), 700);
 	
 	UpdateBounds();
 	// Need to send to render thread
