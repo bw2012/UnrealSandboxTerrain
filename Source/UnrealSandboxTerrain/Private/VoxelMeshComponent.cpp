@@ -312,7 +312,7 @@ public:
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
 			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : DefaultMaterial; });
+				[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
 
 			for (auto i = 0; i < 6; i++) {
 				// copy regular material mesh
@@ -323,7 +323,7 @@ public:
 				// copy transition material mesh
 				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
 				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.TransitionName, Ms.MaterialIdSet) : DefaultMaterial; });
+					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
 			}
 
 			// Save ref to new section
@@ -590,7 +590,7 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
 				}
 
 				for (auto& Element : sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap) {
-					LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.TransitionName, Element.Value.MaterialIdSet));
+					LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.MaterialIdSet));
 				}
 			}
 

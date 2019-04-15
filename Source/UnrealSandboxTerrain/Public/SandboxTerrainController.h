@@ -301,7 +301,7 @@ public:
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
-	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
+	UMaterialInterface* GetTransitionTerrainMaterial(std::set<unsigned short>& MaterialIdSet);
 
 	//===============================================================================
 	// async tasks
@@ -434,7 +434,7 @@ private:
 	//===============================================================================
 
 	UPROPERTY()
-	TMap<FString, UMaterialInterface*> TransitionMaterialCache;
+	TMap<uint64, UMaterialInterface*> TransitionMaterialCache;
 
 	UPROPERTY()
 	TMap<uint16, UMaterialInterface*> RegularMaterialCache;

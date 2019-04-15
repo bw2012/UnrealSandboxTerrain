@@ -1200,14 +1200,17 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 	return RegularMaterialCache[MaterialId];
 }
 
-UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet) {
+UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(std::set<unsigned short>& MaterialIdSet) {
 	if (TransitionMaterial == nullptr) {
 		return nullptr;
 	}
 
-	if (!TransitionMaterialCache.Contains(TransitionName)) {
-		UE_LOG(LogTemp, Warning, TEXT("create new transition terrain material instance ----> id: %s"), *TransitionName);
+	uint64 Code = TMeshMaterialTransitionSection::GenerateTransitionCode(MaterialIdSet);
+	if (!TransitionMaterialCache.Contains(Code)) {
+		TTransitionMaterialCode tmp;
+		tmp.Code = Code;
 
+		UE_LOG(LogTemp, Warning, TEXT("create new transition terrain material instance ----> id: %llu (%lu-%lu-%lu)"), Code, tmp.TriangleMatId[0], tmp.TriangleMatId[1], tmp.TriangleMatId[2]);
 		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(TransitionMaterial, this);
 
 		int Idx = 0;
@@ -1229,11 +1232,11 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 			Idx++;
 		}
 
-		TransitionMaterialCache.Add(TransitionName, DynMaterial);
+		TransitionMaterialCache.Add(Code, DynMaterial);
 		return DynMaterial;
 	}
 
-	return TransitionMaterialCache[TransitionName];
+	return TransitionMaterialCache[Code];
 }
 
 float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
