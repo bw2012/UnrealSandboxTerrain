@@ -1377,7 +1377,6 @@ void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& Bina
 		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
 		MatTransSection.MaterialId = MatId;
 		MatTransSection.MaterialIdSet = MatSet;
-		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
 
 		MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
 	}
@@ -1420,7 +1419,6 @@ void DeserializeMeshContainerFast(TMeshContainer& MeshContainer, FastUnsafeDeser
 		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
 		MatTransSection.MaterialId = MatId;
 		MatTransSection.MaterialIdSet = MatSet;
-		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
 
 		MatTransSection.MaterialMesh.DeserializeMeshFast(Deserializer);
 	}

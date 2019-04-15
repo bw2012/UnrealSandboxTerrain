@@ -34,8 +34,6 @@ union TTransitionMaterialCode {
 
 typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
-	FString TransitionName;
-
 	uint64 TransitionCode;
 
 	std::set<unsigned short> MaterialIdSet;
