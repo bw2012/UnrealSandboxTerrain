@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include "qef_simd.h"
 #include "VoxelIndex.h"
-#include "Async.h"
+#include "Async/Async.h"
 
 
 struct EdgeInfo {
@@ -384,11 +384,11 @@ void UVoxelDualContouringMeshComponent::MakeMesh() {
 
 
 void UVoxelDualContouringMeshComponent::EditMeshDeleteSphere(const FVector& Origin, float Radius, float Strength) {
-	AsyncThread<void>([&]() {
+	/*AsyncThread<void>([&]() {
 		AsyncTask(ENamedThreads::GameThread, [&]() {
 		
 		});
-	});
+	});*/
 	
 	VoxelData->forEach([&](int x, int y, int z) {
 		FVector Pos = VoxelData->voxelIndexToVector(x, y, z);

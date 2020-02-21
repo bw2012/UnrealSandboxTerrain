@@ -61,6 +61,7 @@ UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer&
 }
 
 void UTerrainGeneratorComponent::BeginPlay() {
+	Super::BeginPlay();
 	FTerrainUndergroundLayer LastLayer;
 	LastLayer.MatId = 0;
 	LastLayer.StartDepth = 9999999.f;
