@@ -401,8 +401,7 @@ namespace kvdb {
 		}
 
 		void close() {
-			if (filePtr == nullptr || !filePtr->is_open()) return;
-
+			if (!filePtr || !filePtr->is_open()) return;
 			filePtr->close();
 			dataMap.clear();
 			reservedKeyList.clear();

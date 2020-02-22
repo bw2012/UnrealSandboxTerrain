@@ -10,10 +10,10 @@
 #include "VdServerComponent.h"
 #include "VdClientComponent.h"
 #include "VoxelMeshComponent.h"
-
 #include "serialization.hpp"
 #include "utils.hpp"
-
+#include "Serialization\ArchiveLoadCompressedProxy.h"
+#include "Serialization\ArchiveSaveCompressedProxy.h"
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
 
@@ -143,6 +143,7 @@ void ASandboxTerrainController::PostLoad() {
 
 void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
+	
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
 
 	if (!GetWorld()) return;
@@ -214,11 +215,12 @@ void ASandboxTerrainController::BeginServer() {
 	//===========================
 	// load existing
 	//===========================
-	OnStartBuildTerrain();
+	//OnStartBuildTerrain();
 	bIsGeneratingTerrain = true;
 	LoadJson();
 
 	SpawnInitialZone();
+	
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
 		if (!bGenerateOnlySmallSpawnPoint) {
@@ -286,7 +288,7 @@ void ASandboxTerrainController::BeginServer() {
 
 		RunThread([&](FAsyncThread& ThisThread) {
 			bIsGeneratingTerrain = false;
-			OnFinishBuildTerrain(); // FIXME: thread-safe
+			//OnFinishBuildTerrain(); // FIXME: thread-safe
 
 			InvokeSafe([&]() {
 				UVdServerComponent* VdServerComponent = NewObject<UVdServerComponent>(this, TEXT("VdServer"));
