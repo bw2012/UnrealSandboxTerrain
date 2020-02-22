@@ -24,9 +24,17 @@ typedef struct TMeshMaterialSection {
 } TMeshMaterialSection;
 
 
+union TTransitionMaterialCode {
+
+	uint16 TriangleMatId[4];
+
+	uint64 Code;
+};
+
+
 typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
-	FString TransitionName;
+	uint64 TransitionCode;
 
 	std::set<unsigned short> MaterialIdSet;
 
@@ -39,6 +47,19 @@ typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 		}
 
 		return TransitionMaterialName;
+	}
+
+	static uint64 GenerateTransitionCode(std::set<unsigned short>& MaterialIdSet) {
+		TTransitionMaterialCode TransMat;
+		for (int i = 0; i < 4; i++) { TransMat.TriangleMatId[i] = 0; }
+
+		int i = 0;
+		for (unsigned short MaterialId : MaterialIdSet) {
+			TransMat.TriangleMatId[i] = MaterialId;
+			i++; if (i == 4) break;
+		}
+
+		return TransMat.Code;
 	}
 
 } TMeshMaterialTransitionSection;

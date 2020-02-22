@@ -105,6 +105,7 @@ private:
 		// transition material
 		unsigned short transitionMaterialIndex = 0;
 		TMap<FString, unsigned short> transitionMaterialDict;
+		std::map<uint64, uint16> transitionMaterialMap;
 
 		int triangleCount = 0;
 
@@ -261,25 +262,21 @@ private:
 
 	public:
 		FORCEINLINE unsigned short getTransitionMaterialIndex(std::set<unsigned short>& materialIdSet) {
-			FString transitionMaterialName = TEXT("");
-			FString separator = TEXT("");
-			for (unsigned short matId : materialIdSet) {
-				transitionMaterialName = FString::Printf(TEXT("%s%s%d"), *transitionMaterialName, *separator, matId);
-				separator = TEXT("-");
-			}
-
-			if (transitionMaterialDict.Contains(transitionMaterialName)) {
-				return transitionMaterialDict[transitionMaterialName];
-			} else {
+			uint64 code = TMeshMaterialTransitionSection::GenerateTransitionCode(materialIdSet);
+			if (transitionMaterialMap.find(code) == transitionMaterialMap.end()) {
+				// not found
 				unsigned short idx = transitionMaterialIndex;
-				transitionMaterialDict.Add(transitionMaterialName, idx);
+				transitionMaterialMap.insert({ code, idx });
 				transitionMaterialIndex++;
 
 				TMeshMaterialTransitionSection& sectionRef = materialTransitionSectionMapPtr->FindOrAdd(idx);
-				sectionRef.TransitionName = transitionMaterialName;
+				sectionRef.TransitionCode = code;
 				sectionRef.MaterialIdSet = materialIdSet;
 
 				return idx;
+			} else {
+				// found
+				return transitionMaterialMap[code];
 			}
 		}
 

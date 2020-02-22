@@ -192,7 +192,7 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 	while (It != ThreadList.end()) {
 		FAsyncThread* ThreadPtr = *It;
 		if (ThreadPtr->IsFinished()) {
-			std::unique_lock<std::shared_mutex> Lock(ThreadListMutex);
+			std::unique_lock<std::shared_timed_mutex> Lock(ThreadListMutex);
 			delete ThreadPtr;
 			It = ThreadList.erase(It);
 			Lock.unlock();
@@ -1087,12 +1087,12 @@ void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
 }
 
 void ASandboxTerrainController::AddAsyncTask(TControllerTaskTaskPtr TaskPtr) {
-	std::unique_lock<std::shared_mutex> Lock(AsyncTaskListMutex);
+	std::unique_lock<std::shared_timed_mutex> Lock(AsyncTaskListMutex);
 	AsyncTaskList.push(TaskPtr);
 }
 
 TControllerTaskTaskPtr ASandboxTerrainController::GetAsyncTask() {
-	std::shared_lock<std::shared_mutex> Lock(AsyncTaskListMutex);
+	std::shared_lock<std::shared_timed_mutex> Lock(AsyncTaskListMutex);
 	TControllerTaskTaskPtr Task = AsyncTaskList.front();
 	AsyncTaskList.pop();
 	return Task;
@@ -1103,7 +1103,7 @@ bool ASandboxTerrainController::HasNextAsyncTask() {
 }
 
 void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index) {
-	std::unique_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
+	std::unique_lock<std::shared_timed_mutex> Lock(VoxelDataMapMutex);
 	auto It = VoxelDataIndexMap.find(Index);
 	if (It != VoxelDataIndexMap.end()) {
 		VoxelDataIndexMap.erase(It);
@@ -1113,7 +1113,7 @@ void ASandboxTerrainController::RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, 
 
 void ASandboxTerrainController::RunThread(std::function<void(FAsyncThread&)> Function) {
 	FAsyncThread* ThreadTask = new FAsyncThread(Function);
-	std::unique_lock<std::shared_mutex> Lock(ThreadListMutex);
+	std::unique_lock<std::shared_timed_mutex> Lock(ThreadListMutex);
 	ThreadList.push_back(ThreadTask);
 	ThreadTask->Start();
 }
@@ -1123,7 +1123,7 @@ TVoxelData* ASandboxTerrainController::GetVoxelDataByPos(const FVector& Pos) {
 }
 
 TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(const TVoxelIndex& Index) {
-	std::shared_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
+	std::shared_lock<std::shared_timed_mutex> Lock(VoxelDataMapMutex);
 	if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
 		TVoxelDataInfo VdInfo = VoxelDataIndexMap[Index];
 		return VdInfo.Vd;
@@ -1133,12 +1133,12 @@ TVoxelData* ASandboxTerrainController::GetVoxelDataByIndex(const TVoxelIndex& In
 }
 
 bool ASandboxTerrainController::HasVoxelData(const TVoxelIndex& Index) {
-	std::shared_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
+	std::shared_lock<std::shared_timed_mutex> Lock(VoxelDataMapMutex);
 	return VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end();
 }
 
 TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& Index) {
-	std::shared_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
+	std::shared_lock<std::shared_timed_mutex> Lock(VoxelDataMapMutex);
 	if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
 		return &VoxelDataIndexMap[Index];
 	}
@@ -1147,7 +1147,7 @@ TVoxelDataInfo* ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& I
 }
 
 void ASandboxTerrainController::ClearVoxelData() {
-	std::unique_lock<std::shared_mutex> Lock(VoxelDataMapMutex);
+	std::unique_lock<std::shared_timed_mutex> Lock(VoxelDataMapMutex);
 	VoxelDataIndexMap.clear();
 }
 
@@ -1200,14 +1200,17 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 	return RegularMaterialCache[MaterialId];
 }
 
-UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet) {
+UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(std::set<unsigned short>& MaterialIdSet) {
 	if (TransitionMaterial == nullptr) {
 		return nullptr;
 	}
 
-	if (!TransitionMaterialCache.Contains(TransitionName)) {
-		UE_LOG(LogTemp, Warning, TEXT("create new transition terrain material instance ----> id: %s"), *TransitionName);
+	uint64 Code = TMeshMaterialTransitionSection::GenerateTransitionCode(MaterialIdSet);
+	if (!TransitionMaterialCache.Contains(Code)) {
+		TTransitionMaterialCode tmp;
+		tmp.Code = Code;
 
+		UE_LOG(LogTemp, Warning, TEXT("create new transition terrain material instance ----> id: %llu (%lu-%lu-%lu)"), Code, tmp.TriangleMatId[0], tmp.TriangleMatId[1], tmp.TriangleMatId[2]);
 		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(TransitionMaterial, this);
 
 		int Idx = 0;
@@ -1229,11 +1232,11 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(FStr
 			Idx++;
 		}
 
-		TransitionMaterialCache.Add(TransitionName, DynMaterial);
+		TransitionMaterialCache.Add(Code, DynMaterial);
 		return DynMaterial;
 	}
 
-	return TransitionMaterialCache[TransitionName];
+	return TransitionMaterialCache[Code];
 }
 
 float ASandboxTerrainController::GetRealGroungLevel(float X, float Y) {
@@ -1374,7 +1377,6 @@ void DeserializeMeshContainer(TMeshContainer& MeshContainer, FMemoryReader& Bina
 		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
 		MatTransSection.MaterialId = MatId;
 		MatTransSection.MaterialIdSet = MatSet;
-		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
 
 		MatTransSection.MaterialMesh.DeserializeMesh(BinaryData);
 	}
@@ -1417,7 +1419,6 @@ void DeserializeMeshContainerFast(TMeshContainer& MeshContainer, FastUnsafeDeser
 		TMeshMaterialTransitionSection& MatTransSection = MeshContainer.MaterialTransitionSectionMap.FindOrAdd(MatId);
 		MatTransSection.MaterialId = MatId;
 		MatTransSection.MaterialIdSet = MatSet;
-		MatTransSection.TransitionName = TMeshMaterialTransitionSection::GenerateTransitionName(MatSet);
 
 		MatTransSection.MaterialMesh.DeserializeMeshFast(Deserializer);
 	}

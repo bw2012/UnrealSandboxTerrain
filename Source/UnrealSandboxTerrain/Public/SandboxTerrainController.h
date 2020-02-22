@@ -5,6 +5,7 @@
 #include <memory>
 #include <queue>
 #include <mutex>
+#include <shared_mutex>
 #include <set>
 #include <list>
 #include <unordered_map>
@@ -301,7 +302,7 @@ public:
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
-	UMaterialInterface* GetTransitionTerrainMaterial(FString& TransitionName, std::set<unsigned short>& MaterialIdSet);
+	UMaterialInterface* GetTransitionTerrainMaterial(std::set<unsigned short>& MaterialIdSet);
 
 	//===============================================================================
 	// async tasks
@@ -373,11 +374,11 @@ private:
 
 	bool HasNextAsyncTask();
 
-	std::shared_mutex AsyncTaskListMutex;
+	std::shared_timed_mutex AsyncTaskListMutex;
 
 	std::queue<TControllerTaskTaskPtr> AsyncTaskList;
 
-	std::shared_mutex ThreadListMutex;
+	std::shared_timed_mutex ThreadListMutex;
 
 	std::list<FAsyncThread*> ThreadList;
 
@@ -391,7 +392,7 @@ private:
 
 	TKvFile ObjFile;
 
-	std::shared_mutex VoxelDataMapMutex;
+	std::shared_timed_mutex VoxelDataMapMutex;
 
 	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
 
@@ -434,7 +435,7 @@ private:
 	//===============================================================================
 
 	UPROPERTY()
-	TMap<FString, UMaterialInterface*> TransitionMaterialCache;
+	TMap<uint64, UMaterialInterface*> TransitionMaterialCache;
 
 	UPROPERTY()
 	TMap<uint16, UMaterialInterface*> RegularMaterialCache;
