@@ -215,11 +215,12 @@ void ASandboxTerrainController::BeginServer() {
 	//===========================
 	// load existing
 	//===========================
-	OnStartBuildTerrain();
+	//OnStartBuildTerrain();
 	bIsGeneratingTerrain = true;
 	LoadJson();
 
 	SpawnInitialZone();
+	
 	// async loading other zones
 	RunThread([&](FAsyncThread& ThisThread) {
 		if (!bGenerateOnlySmallSpawnPoint) {
@@ -287,7 +288,7 @@ void ASandboxTerrainController::BeginServer() {
 
 		RunThread([&](FAsyncThread& ThisThread) {
 			bIsGeneratingTerrain = false;
-			OnFinishBuildTerrain(); // FIXME: thread-safe
+			//OnFinishBuildTerrain(); // FIXME: thread-safe
 
 			InvokeSafe([&]() {
 				UVdServerComponent* VdServerComponent = NewObject<UVdServerComponent>(this, TEXT("VdServer"));

@@ -393,7 +393,7 @@ public:
 		MeshBatch.DepthPriorityGroup = SDPG_World;
 		MeshBatch.bCanApplyViewModeOverrides = false;
 		MeshBatch.bDitheredLODTransition = false;
-		MeshBatch.bRequiresPerElementVisibility = true;
+		//MeshBatch.bRequiresPerElementVisibility = true;
 
 		FMeshBatchElement* BatchElement = new(MeshBatch.Elements) FMeshBatchElement;
 		BatchElement->IndexBuffer = &Section->IndexBuffer;
@@ -492,12 +492,17 @@ public:
 		Mesh.bWireframe = bWireframe;
 		Mesh.VertexFactory = &Section->VertexFactory;
 		Mesh.MaterialRenderProxy = MaterialProxy;
-		Mesh.bRequiresPerElementVisibility = true;
 
-		FBoxSphereBounds PreSkinnedLocalBounds;
-		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+		bool bHasPrecomputedVolumetricLightmap;
+		FMatrix PreviousLocalToWorld;
+		int32 SingleCaptureIndex;
+		bool bOutputVelocity;
+		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
-		BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), PreSkinnedLocalBounds, true, DrawsVelocity());
+		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
+		DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, DrawsVelocity(), bOutputVelocity);
+		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
+
 		BatchElement.FirstIndex = 0;
 		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
 		BatchElement.MinVertexIndex = 0;
@@ -506,7 +511,7 @@ public:
 		Mesh.Type = PT_TriangleList;
 		Mesh.DepthPriorityGroup = SDPG_World;
 		Mesh.bCanApplyViewModeOverrides = false;
-		Collector.AddMesh(ViewIndex, Mesh);
+		Collector.AddMesh(ViewIndex, Mesh);	
 	}
 
 	int GetLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) const {
