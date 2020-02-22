@@ -5,6 +5,7 @@
 #include <memory>
 #include <queue>
 #include <mutex>
+#include <shared_mutex>
 #include <set>
 #include <list>
 #include <unordered_map>
@@ -373,11 +374,11 @@ private:
 
 	bool HasNextAsyncTask();
 
-	std::shared_mutex AsyncTaskListMutex;
+	std::shared_timed_mutex AsyncTaskListMutex;
 
 	std::queue<TControllerTaskTaskPtr> AsyncTaskList;
 
-	std::shared_mutex ThreadListMutex;
+	std::shared_timed_mutex ThreadListMutex;
 
 	std::list<FAsyncThread*> ThreadList;
 
@@ -391,7 +392,7 @@ private:
 
 	TKvFile ObjFile;
 
-	std::shared_mutex VoxelDataMapMutex;
+	std::shared_timed_mutex VoxelDataMapMutex;
 
 	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
 

@@ -9,9 +9,6 @@ Example project - https://github.com/bw2012/UE4VoxelTerrain
 
 Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI 
 
-# Attention
-* **C++17 required**. [How to enable C++17 in UE4 and Visual Studio 2017](https://gist.github.com/bw2012/069bcb43d0983217dc36f782fc2f1bcc) 
-
 # Features
 * Runtime terrain modification
 * Procedural landscape/caves generation
