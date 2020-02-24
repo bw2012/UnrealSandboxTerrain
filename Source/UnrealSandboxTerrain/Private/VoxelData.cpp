@@ -22,7 +22,7 @@ TVoxelData::~TVoxelData() {
 
 FORCEINLINE void TVoxelData::initializeDensity() {
 	const int s = voxel_num * voxel_num * voxel_num;
-	density_data = new unsigned char[s];
+	density_data = new TDensityVal[s];
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
 			for (auto z = 0; z < voxel_num; z++) {
@@ -70,7 +70,7 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 		if (density < 0) density = 0;
 		if (density > 1) density = 1;
 
-		unsigned char d = 255 * density;
+		TDensityVal d = 255 * density;
 
 		density_data[index] = d;
 	}
@@ -96,7 +96,7 @@ FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 	}
 }
 
-FORCEINLINE unsigned char TVoxelData::getRawDensityUnsafe(int x, int y, int z) const {
+FORCEINLINE TDensityVal TVoxelData::getRawDensityUnsafe(int x, int y, int z) const {
 	const int index = clcLinearIndex(x, y, z);
 	return density_data[index];
 }
@@ -192,7 +192,7 @@ FORCEINLINE int TVoxelData::num() const {
 	return voxel_num;
 }
 
-FORCEINLINE void TVoxelData::getRawVoxelData(int x, int y, int z, unsigned char& density, unsigned short& material) const {
+FORCEINLINE void TVoxelData::getRawVoxelData(int x, int y, int z, TDensityVal& density, unsigned short& material) const {
 	const int index = clcLinearIndex(x, y, z);
 
 	if (density_data != NULL) {
@@ -208,7 +208,7 @@ FORCEINLINE void TVoxelData::getRawVoxelData(int x, int y, int z, unsigned char&
 	}
 }
 
-FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material) {
+FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, TDensityVal density, unsigned short material) {
 	if (density_data == NULL) {
 		initializeDensity();
 		density_state = TVoxelDataFillState::MIXED;
@@ -223,7 +223,7 @@ FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, unsigned char de
 	density_data[index] = density;
 }
 
-FORCEINLINE void TVoxelData::setVoxelPointDensity(int x, int y, int z, unsigned char density) {
+FORCEINLINE void TVoxelData::setVoxelPointDensity(int x, int y, int z, TDensityVal density) {
 	if (density_data == NULL) {
 		initializeDensity();
 		density_state = TVoxelDataFillState::MIXED;
@@ -278,8 +278,8 @@ FORCEINLINE bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, in
 		return false;
 	}
 
-	unsigned char density[8];
-	static unsigned char raw_isolevel = 127;
+	TDensityVal density[8];
+	static TDensityVal raw_isolevel = 127;
 
 	const int rx = x - step;
 	const int ry = y - step;

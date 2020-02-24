@@ -30,7 +30,8 @@ typedef struct TSubstanceCache {
 typedef struct TVoxelDataHeader {
 	uint32 voxel_num;
 	float volume_size;
-	unsigned char density_state;
+	uint8 density_state;
+	uint8 material_state;
 	unsigned short base_fill_mat;
 } TVoxelDataHeader;
 
@@ -42,7 +43,7 @@ private:
 
 	int voxel_num;
 	float volume_size;
-	unsigned char* density_data;
+	TDensityVal* density_data;
 	unsigned short* material_data;
 	std::vector<FVector> normal_data;
 
@@ -78,7 +79,7 @@ public:
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;
 
-	unsigned char getRawDensityUnsafe(int x, int y, int z) const;
+	TDensityVal getRawDensityUnsafe(int x, int y, int z) const;
 	unsigned short getRawMaterialUnsafe(int x, int y, int z) const;
 
 	void setMaterial(const int x, const int y, const int z, unsigned short material);
@@ -99,9 +100,9 @@ public:
 	FVector getLower() const { return lower; };
 	FVector getUpper() const { return upper; };
 
-	void getRawVoxelData(int x, int y, int z, unsigned char& density, unsigned short& material) const;
-	void setVoxelPoint(int x, int y, int z, unsigned char density, unsigned short material);
-	void setVoxelPointDensity(int x, int y, int z, unsigned char density);
+	void getRawVoxelData(int x, int y, int z, TDensityVal& density, unsigned short& material) const;
+	void setVoxelPoint(int x, int y, int z, TDensityVal density, unsigned short material);
+	void setVoxelPointDensity(int x, int y, int z, TDensityVal density);
 	void setVoxelPointMaterial(int x, int y, int z, unsigned short material);
 
 	void performSubstanceCacheNoLOD(int x, int y, int z);

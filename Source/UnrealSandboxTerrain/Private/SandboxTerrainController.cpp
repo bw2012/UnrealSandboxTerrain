@@ -1042,7 +1042,7 @@ void ASandboxTerrainController::InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDat
 	TControllerTaskTaskPtr TaskPtr(new TControllerTask);
 
 	FVector ZonePos = GetZonePos(Index);
-	TaskPtr->Function = [&]() {
+	TaskPtr->Function = [=]() {
 		UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
 		Zone->ApplyTerrainMesh(MeshDataPtr);
 	};
@@ -1618,7 +1618,7 @@ void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData) {
 		}
 	}
 
-	int32 end_marker = DATA_END_MARKER;
+	uint32 end_marker = DATA_END_MARKER;
 	binaryData << end_marker;
 }
 
@@ -1636,20 +1636,12 @@ void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSu
 	vd->volume_size = header.volume_size;
 	vd->base_fill_mat = header.base_fill_mat;
 
+	const size_t s = header.voxel_num * header.voxel_num * header.voxel_num;
 	if (header.density_state == 2) {
-		const size_t s = header.voxel_num * header.voxel_num * header.voxel_num;
-
 		vd->density_data = new unsigned char[s];
 		deserializer.read(vd->density_data, s);
 
-		vd->material_data = new unsigned short[s];
-		deserializer.read(vd->material_data, s);
-
-		uint32 test;
-		deserializer.readObj(test);
-
 		vd->density_state = TVoxelDataFillState::MIXED;
-
 		if (createSubstanceCache) {
 			auto num = header.voxel_num;
 			for (uint32 x = 0; x < num; x++) {
@@ -1668,39 +1660,48 @@ void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSu
 		if (header.density_state == 1) {
 			vd->deinitializeDensity(TVoxelDataFillState::FULL);
 		}
+	}
 
+	if (header.material_state == 2) {
+		vd->material_data = new unsigned short[s];
+		deserializer.read(vd->material_data, s);
+	} else {
 		vd->deinitializeMaterial(header.base_fill_mat);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("test -> %d %f %d %d"), header.voxel_num, header.volume_size, header.density_state, header.base_fill_mat);
+	uint32 end_marker;
+	deserializer.readObj(end_marker);
+	UE_LOG(LogTemp, Log, TEXT("end_marker -> %d"), end_marker);
+	//UE_LOG(LogTemp, Log, TEXT("test -> %d %f %d %d"), header.voxel_num, header.volume_size, header.density_state, header.base_fill_mat);
 }
 
 
 void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
 	int32 num;
 	float size;
-	unsigned char volume_state;
+	unsigned char volume_state_density;
+	unsigned char volume_state_material;
 	unsigned short base_mat;
 
 	binaryData << num;
 	binaryData << size;
 
 	// load density
-	binaryData << volume_state;
+	binaryData << volume_state_density;
 
-	if (volume_state == 0) {
+	if (volume_state_density == 0) {
 		vd.deinitializeDensity(TVoxelDataFillState::ZERO);
 	}
 
-	if (volume_state == 1) {
+	if (volume_state_density == 1) {
 		vd.deinitializeDensity(TVoxelDataFillState::FULL);
 	}
 
 	// load material
-	binaryData << volume_state;
+	binaryData << volume_state_material;
 	binaryData << base_mat;
 
-	if (volume_state == 2) {
+	if (volume_state_density == 2) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
@@ -1713,7 +1714,7 @@ void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData) {
 		}
 	}
 	
-	if (volume_state == 2) {
+	if (volume_state_material == 2) {
 		for (int x = 0; x < num; x++) {
 			for (int y = 0; y < num; y++) {
 				for (int z = 0; z < num; z++) {
