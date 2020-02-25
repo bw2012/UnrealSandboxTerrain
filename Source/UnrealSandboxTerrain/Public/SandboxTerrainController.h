@@ -15,7 +15,6 @@
 
 struct TMeshData;
 class FLoadInitialZonesThread;
-class FAsyncThread;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
 struct TInstMeshTransArray;
@@ -25,10 +24,6 @@ typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 
-#define TH_STATE_NEW		0
-#define TH_STATE_RUNNING	1
-#define TH_STATE_STOP		2
-#define TH_STATE_FINISHED	3
 
 typedef struct TControllerTask {
 
@@ -36,8 +31,8 @@ typedef struct TControllerTask {
 
 	std::function<void()> Function;
 	
-	static void WaitForFinish(TControllerTask* Task) {
-		while (!Task->bIsFinished) {};
+	void WaitForFinish() {
+		while (!this->bIsFinished) {};
 	}
 	
 } TControllerTask;
@@ -161,7 +156,6 @@ public:
 	ASandboxTerrainController();
 
 	friend FLoadInitialZonesThread;
-	friend FAsyncThread;
 	friend UTerrainZoneComponent;
 	friend UTerrainGeneratorComponent;
 	friend UVdClientComponent;
@@ -310,7 +304,7 @@ public:
 
 	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
 
-	void RunThread(std::function<void(FAsyncThread&)> Function);
+	void RunThread(TUniqueFunction<void()> Function);
 
 	//========================================================================================
 	// network
@@ -333,6 +327,8 @@ private:
 
 
 	volatile bool bIsGeneratingTerrain = false;
+
+	volatile bool bIsWorkFinished = false;
 
 	volatile float GeneratingProgress;
 
@@ -360,6 +356,8 @@ private:
 
 	FLoadInitialZonesThread* InitialZoneLoader;
 
+	bool IsWorkFinished() { return bIsWorkFinished; };
+
 	//===============================================================================
 	// async tasks
 	//===============================================================================
@@ -378,9 +376,15 @@ private:
 
 	std::queue<TControllerTaskTaskPtr> AsyncTaskList;
 
+	void WaitForFinishAsyncTask(const TControllerTaskTaskPtr Task) { while (!Task->bIsFinished) { if (bIsWorkFinished) return; }; };
+
+	//===============================================================================
+	// threads
+	//===============================================================================
+
 	std::shared_timed_mutex ThreadListMutex;
 
-	std::list<FAsyncThread*> ThreadList;
+	FGraphEventArray TerrainControllerEventList;
 
 	//===============================================================================
 	// voxel data storage
