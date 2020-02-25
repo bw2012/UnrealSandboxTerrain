@@ -16,7 +16,7 @@
 	"Modules": [
 		{
 			"Name": "UnrealSandboxTerrain",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
 	]
