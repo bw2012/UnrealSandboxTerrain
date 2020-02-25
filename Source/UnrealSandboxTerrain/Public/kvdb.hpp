@@ -179,7 +179,7 @@ namespace kvdb {
 		std::shared_ptr<V> valueFromData(TValueDataPtr dataPtr) {
 			if (dataPtr == nullptr) return nullptr;
 
-			if constexpr (std::is_same<V, TValueData>::value) {
+                        if (std::is_same<V, TValueData>::value) {//constexpr
 				return std::static_pointer_cast<TValueData>(dataPtr);
 			} else {
 				V* temp = new V();
@@ -436,7 +436,7 @@ namespace kvdb {
 
 		bool isExist(const K& k) {
 			TKeyData keyData = toKeyData(k);
-			if (!filePtr->is_open()) return nullptr;
+                        if (!filePtr->is_open()) return false;
 			std::lock_guard<std::mutex> guard(fileSharedMutex);
 			return !(dataMap.find(keyData) == dataMap.end());
 		}
@@ -494,8 +494,9 @@ namespace kvdb {
 			TKeyData keyData = toKeyData(k);
 			TValueData valueData;
 
-			if constexpr(std::is_same<V, TValueData>::value) {
-				valueData = std::move((TValueData)v);
+                        if (std::is_same<V, TValueData>::value) { //constexpr
+                                //valueData = std::move((TValueData)v);
+                            valueData = static_cast<TValueData>(v);
 			} else {
 				toValueData(v, valueData);
 			}
@@ -544,8 +545,9 @@ namespace kvdb {
 				entry.dataPos = dataBody.size() + bodyDataOffset;
 
 				TValueData valueData;
-				if constexpr (std::is_same<V, TValueData>::value) {
-					valueData = std::move((TValueData)e.second);
+                                if (std::is_same<V, TValueData>::value) {//constexpr
+                                        //valueData = std::move((TValueData)e.second);
+                                    valueData = static_cast<TValueData>(e.second);
 				} else {
 					toValueData(e.second, valueData);
 				}

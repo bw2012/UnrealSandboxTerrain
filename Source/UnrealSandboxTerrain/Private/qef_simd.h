@@ -149,6 +149,7 @@ static void m4x4_mul_m4x4(Mat4x4& out, const Mat4x4& A, const Mat4x4& B)
 
 static void givens_coeffs_sym(__m128& c_result, __m128& s_result, const Mat4x4& vtav, const int a, const int b)
 {
+#ifdef _WIN32
 	__m128 simd_pp = _mm_set_ps(
 		0.f,
 		vtav.row[a].m128_f32[a],
@@ -166,6 +167,26 @@ static void givens_coeffs_sym(__m128& c_result, __m128& s_result, const Mat4x4& 
 		vtav.row[b].m128_f32[b],
 		vtav.row[b].m128_f32[b],
 		vtav.row[b].m128_f32[b]);
+#else
+	__m128 simd_pp = _mm_set_ps(
+		0.f,
+		vtav.row[a][a],
+		vtav.row[a][a],
+		vtav.row[a][a]);
+
+	__m128 simd_pq = _mm_set_ps(
+		0.f,
+		vtav.row[a][b],
+		vtav.row[a][b],
+		vtav.row[a][b]);
+
+	__m128 simd_qq = _mm_set_ps(
+		0.f,
+		vtav.row[b][b],
+		vtav.row[b][b],
+		vtav.row[b][b]);
+        
+#endif      
 
 	static const __m128 zeros = _mm_set1_ps(0.f);
 	static const __m128 ones  = _mm_set1_ps(1.f);
@@ -214,6 +235,7 @@ static void givens_coeffs_sym(__m128& c_result, __m128& s_result, const Mat4x4& 
 
 static void rotateq_xy(Mat4x4& vtav, const __m128& c, const __m128& s, const int a, const int b)
 {
+#ifdef _WIN32    
 	__m128 u = _mm_set_ps(
 		0.f,
 		vtav.row[a].m128_f32[a],
@@ -231,7 +253,28 @@ static void rotateq_xy(Mat4x4& vtav, const __m128& c, const __m128& s, const int
 		vtav.row[a].m128_f32[b],
 		vtav.row[a].m128_f32[b],
 		vtav.row[a].m128_f32[b]);
+#else
+        __m128 u = _mm_set_ps(
+		0.f,
+		vtav.row[a][a],
+		vtav.row[a][a],
+		vtav.row[a][a]);
 
+	__m128 v = _mm_set_ps(
+		0.f,
+		vtav.row[b][b],
+		vtav.row[b][b],
+		vtav.row[b][b]);
+
+	__m128 A = _mm_set_ps(
+		0.f,
+		vtav.row[a][b],
+		vtav.row[a][b],
+		vtav.row[a][b]);
+        
+#endif  
+        
+        
 	static const __m128 twos = _mm_set1_ps(2.f);
 
 	__m128 cc = _mm_mul_ps(c, c);
@@ -254,15 +297,20 @@ static void rotateq_xy(Mat4x4& vtav, const __m128& c, const __m128& s, const int
 	__m128 y2 = _mm_mul_ps(cc, v);
 	__m128 y  = _mm_add_ps(y1, y2);
 
-
+#ifdef _WIN32    
 	vtav.row[a].m128_f32[a] = x.m128_f32[0];
 	vtav.row[b].m128_f32[b] = y.m128_f32[0];
+#else  
+        vtav.row[a][a] = x[0];
+	vtav.row[b][b] = y[0];
+#endif        
 }
 
 // ----------------------------------------------------------------------------
 
 static void rotate_xy(Mat4x4& vtav, Mat4x4& v, float c, float s, const int& a, const int& b) 
 {
+#ifdef _WIN32   
 	 __m128 simd_u = _mm_set_ps(
 		vtav.row[0].m128_f32[3-b],
 		v.row[2].m128_f32[a],
@@ -274,7 +322,20 @@ static void rotate_xy(Mat4x4& vtav, Mat4x4& v, float c, float s, const int& a, c
 		v.row[2].m128_f32[b],
 		v.row[1].m128_f32[b],
 		v.row[0].m128_f32[b]);
+#else         
+        __m128 simd_u = _mm_set_ps(
+		vtav.row[0][3-b],
+		v.row[2][a],
+		v.row[1][a],
+		v.row[0][a]);
 
+	__m128 simd_v = _mm_set_ps(
+		vtav.row[1-a][2],
+		v.row[2][b],
+		v.row[1][b],
+		v.row[0][b]);
+#endif 
+        
 	__m128 simd_c = _mm_load1_ps(&c);
 	__m128 simd_s = _mm_load1_ps(&s);
 
@@ -286,6 +347,7 @@ static void rotate_xy(Mat4x4& vtav, Mat4x4& v, float c, float s, const int& a, c
 	__m128 y1 = _mm_mul_ps(simd_c, simd_v);
 	__m128 y = _mm_add_ps(y0, y1);
 
+#ifdef _WIN32
 	v.row[0].m128_f32[a] = x.m128_f32[0];
 	v.row[1].m128_f32[a] = x.m128_f32[1];
 	v.row[2].m128_f32[a] = x.m128_f32[2];
@@ -297,6 +359,20 @@ static void rotate_xy(Mat4x4& vtav, Mat4x4& v, float c, float s, const int& a, c
 	vtav.row[1-a].m128_f32[2] = y.m128_f32[3];
 
 	vtav.row[a].m128_f32[b] = 0.f;
+#else  
+        v.row[0][a] = x[0];
+	v.row[1][a] = x[1];
+	v.row[2][a] = x[2];
+	vtav.row[0][3-b] = x[3];
+
+	v.row[0][b] = y[0];
+	v.row[1][b] = y[1];
+	v.row[2][b] = y[2];
+	vtav.row[1-a][2] = y[3];
+
+	vtav.row[a][b] = 0.f;
+        
+#endif    
 }
 
 // ----------------------------------------------------------------------------
@@ -309,6 +385,7 @@ static __m128 svd_solve_sym(Mat4x4& v, const Mat4x4& a)
 	{
 		__m128 c, s;
 
+#ifdef _WIN32
 		if (vtav.row[0].m128_f32[1] != 0.f)
 		{
 			givens_coeffs_sym(c, s, vtav, 0, 1);
@@ -332,13 +409,46 @@ static __m128 svd_solve_sym(Mat4x4& v, const Mat4x4& a)
 			rotate_xy(vtav, v, c.m128_f32[2], s.m128_f32[2], 1, 2);
 			vtav.row[1].m128_f32[2] = 0.f;
 		}
+#else
+		if (vtav.row[0][1] != 0.f)
+		{
+			givens_coeffs_sym(c, s, vtav, 0, 1);
+			rotateq_xy(vtav, c, s, 0, 1);
+			rotate_xy(vtav, v, c[1], s[1], 0, 1);
+			vtav.row[0][1] = 0.f;
+		}
+
+		if (vtav.row[0][2] != 0.f)
+		{
+			givens_coeffs_sym(c, s, vtav, 0, 2);
+			rotateq_xy(vtav, c, s, 0, 2);
+			rotate_xy(vtav, v, c[1], s[1], 0, 2);
+			vtav.row[0][2] = 0.f;
+		}
+
+		if (vtav.row[1][2] != 0.f)
+		{
+			givens_coeffs_sym(c, s, vtav, 1, 2);
+			rotateq_xy(vtav, c, s, 1, 2);
+			rotate_xy(vtav, v, c[2], s[2], 1, 2);
+			vtav.row[1][2] = 0.f;
+		}
+#endif
 	}
 
+#ifdef _WIN32	
 	return _mm_set_ps(
 		0.f,
 		vtav.row[2].m128_f32[2],
 		vtav.row[1].m128_f32[1],
 		vtav.row[0].m128_f32[0]);
+#else
+       	return _mm_set_ps(
+		0.f,
+		vtav.row[2][2],
+		vtav.row[1][1],
+		vtav.row[0][0]); 
+#endif    
 }
 
 // ----------------------------------------------------------------------------
@@ -368,6 +478,7 @@ static void svd_pseudoinverse(Mat4x4& o, const __m128& sigma, const Mat4x4& v)
 	m.row[2] = _mm_mul_ps(v.row[2], invdet);
 	m.row[3] = _mm_set1_ps(0.f);
 
+#ifdef _WIN32  
 	o.row[0].m128_f32[0] = vec4_dot(m.row[0], v.row[0]);
 	o.row[0].m128_f32[1] = vec4_dot(m.row[1], v.row[0]);
 	o.row[0].m128_f32[2] = vec4_dot(m.row[2], v.row[0]);
@@ -382,7 +493,22 @@ static void svd_pseudoinverse(Mat4x4& o, const __m128& sigma, const Mat4x4& v)
 	o.row[2].m128_f32[1] = vec4_dot(m.row[1], v.row[2]);
 	o.row[2].m128_f32[2] = vec4_dot(m.row[2], v.row[2]);
 	o.row[2].m128_f32[3] = 0.f;
+#else
+        o.row[0][0] = vec4_dot(m.row[0], v.row[0]);
+	o.row[0][1] = vec4_dot(m.row[1], v.row[0]);
+	o.row[0][2] = vec4_dot(m.row[2], v.row[0]);
+	o.row[0][3] = 0.f;
 
+	o.row[1][0] = vec4_dot(m.row[0], v.row[1]);
+	o.row[1][1] = vec4_dot(m.row[1], v.row[1]);
+	o.row[1][2] = vec4_dot(m.row[2], v.row[1]);
+	o.row[1][3] = 0.f;
+
+	o.row[2][0] = vec4_dot(m.row[0], v.row[2]);
+	o.row[2][1] = vec4_dot(m.row[1], v.row[2]);
+	o.row[2][2] = vec4_dot(m.row[2], v.row[2]);
+	o.row[2][3] = 0.f;
+#endif
 	o.row[3] = m.row[3];
 }
 
@@ -447,7 +573,11 @@ float qef_simd_solve(
 	const __m128& pointaccum,
 	__m128& x)
 {
-	const __m128 masspoint = _mm_div_ps(pointaccum, _mm_set1_ps(pointaccum.m128_f32[3]));
+#ifdef _WIN32  	
+    const __m128 masspoint = _mm_div_ps(pointaccum, _mm_set1_ps(pointaccum.m128_f32[3]));
+#else
+    const __m128 masspoint = _mm_div_ps(pointaccum, _mm_set1_ps(pointaccum[3]));
+#endif
 
 	__m128 p = vec4_mul_m4x4(masspoint, ATA);
 	p = _mm_sub_ps(ATb, p);
@@ -482,7 +612,11 @@ float qef_solve_from_points(
 		qef_simd_add(positions[i], normals[i], ATA, ATb, pointaccum);
 	}
 
+#ifdef _WIN32	
 	__declspec(align(16)) float x[4];
+#else
+        alignas(16) float x[4];
+#endif
 	_mm_store_ps(x, ATb);
 	_mm_set_ps(0.f, x[2], x[1], x[0]);
 	
@@ -572,12 +706,17 @@ float qef_solve_from_points_3d(
 	__m128 solved;
 	const float error = qef_solve_from_points(p, n, count, &solved);
 
+#ifdef _WIN32        
 	solved_position[0] = solved.m128_f32[0];
 	solved_position[1] = solved.m128_f32[1];
 	solved_position[2] = solved.m128_f32[2];
+#else
+        solved_position[0] = solved[0];
+	solved_position[1] = solved[1];
+	solved_position[2] = solved[2];
+#endif
 	return error;
 }
-
 
 
 //#endif // QEF_INCLUDE_IMPL

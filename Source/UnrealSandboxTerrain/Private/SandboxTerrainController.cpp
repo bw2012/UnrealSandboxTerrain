@@ -12,8 +12,8 @@
 #include "VoxelMeshComponent.h"
 #include "serialization.hpp"
 #include "utils.hpp"
-#include "Serialization\ArchiveLoadCompressedProxy.h"
-#include "Serialization\ArchiveSaveCompressedProxy.h"
+#include "Serialization/ArchiveLoadCompressedProxy.h"
+#include "Serialization/ArchiveSaveCompressedProxy.h"
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TArray<uint8>&)> Function);
 

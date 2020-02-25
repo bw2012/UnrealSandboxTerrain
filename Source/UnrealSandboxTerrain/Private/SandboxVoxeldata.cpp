@@ -125,7 +125,7 @@ private:
 		TMap<FVector, VertexInfo> vertexInfoMap;
 
 		MeshHandler(VoxelMeshExtractor* e, FProcMeshSection* s, TMeshContainer* mc) :
-			extractor(e), generalMeshSection(s), meshMatContainer(mc) {
+                        generalMeshSection(s), extractor(e), meshMatContainer(mc) {
 			materialSectionMapPtr = &meshMatContainer->MaterialSectionMap;
 			materialTransitionSectionMapPtr = &meshMatContainer->MaterialTransitionSectionMap;
 		}
