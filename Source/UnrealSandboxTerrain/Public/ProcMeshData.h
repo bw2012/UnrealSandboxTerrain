@@ -73,100 +73,32 @@ public:
 		SectionLocalBox += Pos;
 	}
 
-	void SerializeMesh(FBufferArchive& BinaryData) const {
-		// vertexes
-		int32 VertexNum = ProcVertexBuffer.Num();
-		BinaryData << VertexNum;
-
-		float MaxX = SectionLocalBox.Max.X;
-		float MaxY = SectionLocalBox.Max.Y;
-		float MaxZ = SectionLocalBox.Max.Z;
-		float MinX = SectionLocalBox.Min.X;
-		float MinY = SectionLocalBox.Min.Y;
-		float MinZ = SectionLocalBox.Min.Z;
-
-		BinaryData << MinX;
-		BinaryData << MinY;
-		BinaryData << MinZ;
-
-		BinaryData << MaxX;
-		BinaryData << MaxY;
-		BinaryData << MaxZ;
-
-		for (auto& Vertex : ProcVertexBuffer) {
-
-			float PosX = Vertex.PositionX;
-			float PosY = Vertex.PositionY;
-			float PosZ = Vertex.PositionZ;
-
-			BinaryData << PosX;
-			BinaryData << PosY;
-			BinaryData << PosZ;
-
-			float NormalX = Vertex.NormalX;
-			float NormalY = Vertex.NormalY;
-			float NormalZ = Vertex.NormalZ;
-
-			BinaryData << NormalX;
-			BinaryData << NormalY;
-			BinaryData << NormalZ;
-
-			int32 MatIdx = Vertex.MatIdx;
-
-			BinaryData << MatIdx;
-		}
-
-		// indexes
-		int32 IndexNum = ProcIndexBuffer.Num();
-		BinaryData << IndexNum;
-		for (int32 Index : ProcIndexBuffer) {
-			BinaryData << Index;
-		}
-	}
-
-	void DeserializeMesh(FMemoryReader& BinaryData) {
+	typedef struct TMeshParamData {
 		int32 VertexNum;
-		BinaryData << VertexNum;
-
 		float MaxX;
 		float MaxY;
 		float MaxZ;
 		float MinX;
 		float MinY;
 		float MinZ;
+	} TMeshParamData;
 
-		BinaryData << MinX;
-		BinaryData << MinY;
-		BinaryData << MinZ;
+	void SerializeMesh(FastUnsafeSerializer& Serializer) const {
+		// vertexes
+		TMeshParamData D;
+		D.VertexNum = ProcVertexBuffer.Num();
+		D.MaxX = SectionLocalBox.Max.X;
+		D.MaxY = SectionLocalBox.Max.Y;
+		D.MaxZ = SectionLocalBox.Max.Z;
+		D.MinX = SectionLocalBox.Min.X;
+		D.MinY = SectionLocalBox.Min.Y;
+		D.MinZ = SectionLocalBox.Min.Z;
+		Serializer << D;
+		for (auto& Vertex : ProcVertexBuffer) {	Serializer << Vertex; }
 
-		BinaryData << MaxX;
-		BinaryData << MaxY;
-		BinaryData << MaxZ;
-
-		for (int Idx = 0; Idx < VertexNum; Idx++) {
-			FProcMeshVertex Vertex;
-
-			BinaryData << Vertex.PositionX;
-			BinaryData << Vertex.PositionY;
-			BinaryData << Vertex.PositionZ;
-
-			BinaryData << Vertex.NormalX;
-			BinaryData << Vertex.NormalY;
-			BinaryData << Vertex.NormalZ;
-
-			BinaryData << Vertex.MatIdx;
-
-			AddVertex(Vertex);
-		}
-
-		int32 IndexNum;
-		BinaryData << IndexNum;
-
-		for (int Idx = 0; Idx < IndexNum; Idx++) {
-			int32 Index;
-			BinaryData << Index;
-			ProcIndexBuffer.Add(Index);
-		}
+		// indexes
+		Serializer << ProcIndexBuffer.Num();
+		for (int32 Index : ProcIndexBuffer) { Serializer << Index; }
 	}
 
 	void DeserializeMeshFast(FastUnsafeDeserializer& Deserializer) {

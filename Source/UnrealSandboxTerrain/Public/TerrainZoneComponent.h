@@ -44,9 +44,9 @@ public:
 
 	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, bool bPutToCache = true);
 
-	void SerializeInstancedMeshes(FBufferArchive& binaryData);
+	std::shared_ptr<std::vector<uint8>> SerializeInstancedMeshes();
 
-	void DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap);
+	void DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstMeshTypeMap& ZoneInstMeshMap);
 
 	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
 
