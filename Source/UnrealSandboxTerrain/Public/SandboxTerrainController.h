@@ -54,26 +54,27 @@ enum TVoxelDataState {
 
 class TVoxelDataInfo {
 
-public:
-	TVoxelDataInfo() {
-		LoadVdMutexPtr = std::make_shared<std::mutex>();
-	}
+private:
+	volatile double LastChange;
+	volatile double LastSave;
+	volatile double LastMeshGeneration;
+	volatile double LastCacheCheck;
 
+public:
+	TVoxelDataInfo() {	LoadVdMutexPtr = std::make_shared<std::mutex>(); }
 	~TVoxelDataInfo() {	}
 
 	TVoxelData* Vd = nullptr;
-
 	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
-
 	std::shared_ptr<std::mutex> LoadVdMutexPtr;
 
-	bool IsNewGenerated() const {
-		return DataState == TVoxelDataState::GENERATED;
-	}
-
-	bool IsNewLoaded() const {
-		return DataState == TVoxelDataState::LOADED;
-	}
+	bool IsNewGenerated() const { return DataState == TVoxelDataState::GENERATED; }
+	bool IsNewLoaded() const { return DataState == TVoxelDataState::LOADED;	}
+	void SetChanged() { LastChange = FPlatformTime::Seconds(); }
+	bool IsChanged() { return LastChange > LastSave; }
+	void ResetLastSave() { LastSave = FPlatformTime::Seconds(); }
+	bool IsNeedToRegenerateMesh() { return LastChange > LastMeshGeneration; }
+	void ResetLastMeshRegenerationTime() { LastMeshGeneration = FPlatformTime::Seconds(); }
 
 	void Unload();
 };
@@ -323,8 +324,7 @@ private:
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete);
-
+	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo& VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsGeneratingTerrain = false;
 
