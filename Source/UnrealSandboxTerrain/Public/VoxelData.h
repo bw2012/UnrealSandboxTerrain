@@ -16,7 +16,7 @@ typedef unsigned char TDensityVal;
 typedef unsigned short TMaterialId;
 
 // density or material state
-enum TVoxelDataFillState {
+enum TVoxelDataFillState : uint8 {
 	ZERO = 0,		// data contains only zero values
 	FULL = 1,		// data contains only one same value
 	MIXED = 2		// mixed state, any value in any point
@@ -32,8 +32,11 @@ typedef struct TVoxelDataHeader {
 	float volume_size;
 	uint8 density_state;
 	uint8 material_state;
-	unsigned short base_fill_mat;
+	TMaterialId base_fill_mat;
 } TVoxelDataHeader;
+
+class TVoxelData;
+typedef std::shared_ptr<TVoxelData> TVoxelDataPtr;
 
 class TVoxelData {
 
@@ -64,6 +67,7 @@ private:
 public:
 	std::array<TSubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
+	TVoxelData();
 	TVoxelData(int, float);
 	~TVoxelData();
 
@@ -114,12 +118,6 @@ public:
 	void deinitializeDensity(TVoxelDataFillState density_state);
 	void deinitializeMaterial(unsigned short base_mat);
 
-	void setChanged() { last_change = FPlatformTime::Seconds(); }
-	bool isChanged() { return last_change > last_save; }
-	void resetLastSave() { last_save = FPlatformTime::Seconds(); }
-	bool needToRegenerateMesh() { return last_change > last_mesh_generation; }
-	void resetLastMeshRegenerationTime() { last_mesh_generation = FPlatformTime::Seconds(); }
-
 	bool isSubstanceCacheValid() const { return last_change <= last_cache_check; }
 	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
 
@@ -131,9 +129,10 @@ public:
 		last_cache_check = -1;
 	};
 
+	static TVoxelDataPtr deserialize(std::vector<uint8>& data, bool createSubstanceCache);
+	std::shared_ptr<std::vector<uint8>> serialize();
+
 	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
 	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
-
 	friend void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
-
 };

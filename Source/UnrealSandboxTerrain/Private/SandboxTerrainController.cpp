@@ -238,9 +238,9 @@ void ASandboxTerrainController::Save() {
 		}
 
 		TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
-		if (VdInfo.Vd->isChanged()) {
+		if (VdInfo.IsChanged()) {
 			VdFile.save(Index, buffer);
-			VdInfo.Vd->resetLastSave();
+			VdInfo.ResetLastSave();
 			SavedVd++;
 		}
 
@@ -464,7 +464,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 	deserializeVoxelData(*VdInfo.Vd, BinaryData);
 
 	VdInfo.DataState = TVoxelDataState::GENERATED;
-	VdInfo.Vd->setChanged();
+	VdInfo.SetChanged();
 	VdInfo.Vd->setCacheToValid();
 
 	RegisterTerrainVoxelData(VdInfo, Index);
@@ -502,7 +502,7 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 			GeneratedVdConter++;
 
 			VdInfo.DataState = TVoxelDataState::GENERATED;
-			VdInfo.Vd->setChanged();
+			VdInfo.SetChanged();
 			VdInfo.Vd->setCacheToValid();
 
 			RegisterTerrainVoxelData(VdInfo, Index);
@@ -835,20 +835,20 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 }
 
 template<class H>
-void ASandboxTerrainController::PerformZoneEditHandler(TVoxelData* Vd, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
+void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfo& VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
 	bool bIsChanged = false;
 	TMeshDataPtr MeshDataPtr = nullptr;
 
-	Vd->vd_edit_mutex.lock();
-	bIsChanged = handler(Vd);
+	VdInfo.Vd->vd_edit_mutex.lock();
+	bIsChanged = handler(VdInfo.Vd);
 	if (bIsChanged) {
-		Vd->setChanged();
-		Vd->setCacheToValid();
-		MeshDataPtr = GenerateMesh(Vd);
-		Vd->resetLastMeshRegenerationTime();
+		VdInfo.SetChanged();
+		VdInfo.Vd->setCacheToValid();
+		MeshDataPtr = GenerateMesh(VdInfo.Vd);
+		VdInfo.ResetLastMeshRegenerationTime();
 		MeshDataPtr->TimeStamp = FPlatformTime::Seconds();
 	}
-	Vd->vd_edit_mutex.unlock();
+	VdInfo.Vd->vd_edit_mutex.unlock();
 
 	if (bIsChanged) {
 		OnComplete(MeshDataPtr);
@@ -901,9 +901,9 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 					}
 
 					if (Zone == nullptr) {
-						PerformZoneEditHandler(Vd, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
+						PerformZoneEditHandler(*VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
 					} else {
-						PerformZoneEditHandler(Vd, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
+						PerformZoneEditHandler(*VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
 					}
 				}
 			}

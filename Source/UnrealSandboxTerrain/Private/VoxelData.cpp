@@ -1,10 +1,20 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "VoxelData.h"
+#include "serialization.hpp"
 
 //====================================================================================
 // Voxel data impl
 //====================================================================================
+
+TVoxelData::TVoxelData() {
+	density_data = nullptr;
+	density_state = TVoxelDataFillState::ZERO;
+	material_data = nullptr;
+
+	voxel_num = 0;
+	volume_size = 0;
+}
 
 TVoxelData::TVoxelData(int num, float size) {
 	density_data = nullptr;
@@ -372,3 +382,75 @@ void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func,
 	}
 }
 
+#define DATA_END_MARKER 0x000A2D77
+
+TVoxelDataPtr TVoxelData::deserialize(std::vector<uint8>& data, bool createSubstanceCache) {
+	auto vd = std::make_shared<TVoxelData>();
+	FastUnsafeDeserializer deserializer(data.data());
+
+	TVoxelDataHeader header;
+	deserializer >> header;
+
+	vd->voxel_num = header.voxel_num;
+	vd->volume_size = header.volume_size;
+	vd->base_fill_mat = header.base_fill_mat;
+
+	const size_t s = header.voxel_num * header.voxel_num * header.voxel_num;
+	if (header.density_state == TVoxelDataFillState::MIXED) {
+		vd->density_data = new TDensityVal[s];
+		deserializer.read(vd->density_data, s);
+		vd->density_state = TVoxelDataFillState::MIXED;
+
+		if (createSubstanceCache) {
+			auto num = header.voxel_num;
+			for (auto x = 0u; x < num; x++) {
+				for (auto y = 0u; y < num; y++) {
+					for (auto z = 0u; z < num; z++) {
+						vd->performSubstanceCacheLOD(x, y, z);
+					}
+				}
+			}
+		}
+	}
+	else {
+		vd->deinitializeDensity(static_cast<TVoxelDataFillState>(header.density_state));
+	}
+
+	if (header.material_state == TVoxelDataFillState::MIXED) {
+		vd->material_data = new TMaterialId[s];
+		deserializer.read(vd->material_data, s);
+	}
+	else {
+		vd->deinitializeMaterial(header.base_fill_mat);
+	}
+
+	uint32 end_marker;
+	deserializer.readObj(end_marker);
+
+	return (end_marker == DATA_END_MARKER) ? vd : nullptr;
+}
+
+std::shared_ptr<std::vector<uint8>> TVoxelData::serialize() {
+	FastUnsafeSerializer serializer;
+	const size_t s = num() * num() * num();
+	const TVoxelDataFillState material_volume_state = (material_data) ? TVoxelDataFillState::MIXED : TVoxelDataFillState::ZERO;
+
+	TVoxelDataHeader header;
+	header.voxel_num = num();
+	header.volume_size = size();
+	header.density_state = getDensityFillState();
+	header.material_state = material_volume_state;
+	header.base_fill_mat = base_fill_mat;
+	serializer << header;
+
+	if (getDensityFillState() == TVoxelDataFillState::MIXED) {
+		serializer.write(material_data, s);
+	}
+
+	if (material_volume_state == TVoxelDataFillState::MIXED) {
+		serializer.write(density_data, s);
+	}
+
+	serializer << (uint32)DATA_END_MARKER;
+	return serializer.data();
+}
