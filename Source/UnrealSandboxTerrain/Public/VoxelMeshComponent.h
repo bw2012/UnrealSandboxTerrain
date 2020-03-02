@@ -101,6 +101,13 @@ private:
 
 	friend class FProceduralMeshSceneProxy;
 
+	UPROPERTY(transient)
+	TArray<UBodySetup*> AsyncBodySetupQueue;
+
+	UBodySetup* CreateBodySetupHelper();
+
+	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup);
+
 
 	// ======================================================================
 	// collision 

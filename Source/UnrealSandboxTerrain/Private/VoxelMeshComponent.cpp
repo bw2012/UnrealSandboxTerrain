@@ -720,10 +720,8 @@ void UVoxelMeshComponent::CreateProcMeshBodySetup() {
 	}
 }
 
-void UVoxelMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts)
-{
-	if (ConvexVerts.Num() >= 4)
-	{
+void UVoxelMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts) {
+	if (ConvexVerts.Num() >= 4) {
 		// New element
 		FKConvexElem NewConvexElem;
 		// Copy in vertex info
@@ -737,10 +735,72 @@ void UVoxelMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts)
 	}
 }
 
-void UVoxelMeshComponent::UpdateCollision() {
-	bool bCreatePhysState = false; // Should we create physics state at the end of this function?
+UBodySetup* UVoxelMeshComponent::CreateBodySetupHelper() {
+	// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
+	UBodySetup* NewBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
+	NewBodySetup->BodySetupGuid = FGuid::NewGuid();
 
-								   // If its created, shut it down now
+	NewBodySetup->bGenerateMirroredCollision = false;
+	NewBodySetup->bDoubleSidedGeometry = true;
+	NewBodySetup->CollisionTraceFlag = bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
+
+	return NewBodySetup;
+}
+
+void UVoxelMeshComponent::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup) {
+	TArray<UBodySetup*> NewQueue;
+	NewQueue.Reserve(AsyncBodySetupQueue.Num());
+
+	int32 FoundIdx;
+	if (AsyncBodySetupQueue.Find(FinishedBodySetup, FoundIdx)) {
+		if (bSuccess) {
+			//The new body was found in the array meaning it's newer so use it
+			ProcMeshBodySetup = FinishedBodySetup;
+			RecreatePhysicsState();
+
+			//remove any async body setups that were requested before this one
+			for (int32 AsyncIdx = FoundIdx + 1; AsyncIdx < AsyncBodySetupQueue.Num(); ++AsyncIdx) {
+				NewQueue.Add(AsyncBodySetupQueue[AsyncIdx]);
+			}
+
+			AsyncBodySetupQueue = NewQueue;
+		} else {
+			AsyncBodySetupQueue.RemoveAt(FoundIdx);
+		}
+	}
+
+	UpdateNavigationData();
+}
+
+void UVoxelMeshComponent::UpdateCollision() {
+
+	//UWorld* World = GetWorld();
+	//const bool bUseAsyncCook = World && World->IsGameWorld() && bUseAsyncCooking;
+
+	// Abort all previous ones still standing
+	for (UBodySetup* OldBody : AsyncBodySetupQueue) {
+		OldBody->AbortPhysicsMeshAsyncCreation();
+	}
+
+	AsyncBodySetupQueue.Add(CreateBodySetupHelper());
+
+	UBodySetup* UseBodySetup = AsyncBodySetupQueue.Last();
+
+	// Fill in simple collision convex elements
+	UseBodySetup->AggGeom.ConvexElems = CollisionConvexElems;
+
+	// Set trace flag
+	UseBodySetup->CollisionTraceFlag = bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
+
+	UseBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &UVoxelMeshComponent::FinishPhysicsAsyncCook, UseBodySetup));
+	
+
+
+
+
+
+	/*
+	bool bCreatePhysState = false; // Should we create physics state at the end of this function? If its created, shut it down now
 	if (bPhysicsStateCreated) {
 		DestroyPhysicsState();
 		bCreatePhysState = true;
@@ -769,6 +829,7 @@ void UVoxelMeshComponent::UpdateCollision() {
 	if (bCreatePhysState) {
 		CreatePhysicsState();
 	}
+	*/
 }
 
 UBodySetup* UVoxelMeshComponent::GetBodySetup() {

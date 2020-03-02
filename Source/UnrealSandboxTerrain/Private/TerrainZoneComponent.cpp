@@ -80,16 +80,16 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	*/
 	//##########################################
 
-	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
+	//MainTerrainMesh->SetMobility(EComponentMobility::Movable);
 	
-	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
-	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
+	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
+	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
 
 	MainTerrainMesh->SetMeshData(MeshDataPtr);
 
-	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
+	//MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
