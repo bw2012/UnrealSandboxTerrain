@@ -1,17 +1,15 @@
 
 #include "UnrealSandboxTerrainPrivatePCH.h"
+
 #include "SandboxVoxeldata.h"
-
 #include "Transvoxel.h"
-
 #include <cmath>
 #include <vector>
 #include <mutex>
-
 #include <iterator>
-
-//#include <unordered_map>
 #include <map>
+
+#define USBT_USE_VD_PREBUILD_DATA 1
 
 
 //====================================================================================
@@ -464,24 +462,8 @@ private:
 		return (adr2 - adr1) / 2 + adr1;
 	}
 
-	FORCEINLINE void extractRegularCell(Point (&d)[8]) {
-		int8 corner[8];
-		for (auto i = 0; i < 8; i++) {
-			corner[i] = (d[i].density < isolevel) ? -127 : 0;
-		}
-
-		unsigned long caseCode = ((corner[0] >> 7) & 0x01)
-			| ((corner[1] >> 6) & 0x02)
-			| ((corner[2] >> 5) & 0x04)
-			| ((corner[3] >> 4) & 0x08)
-			| ((corner[4] >> 3) & 0x10)
-			| ((corner[5] >> 2) & 0x20)
-			| ((corner[6] >> 1) & 0x40)
-			| (corner[7] & 0x80);
-
-		if (caseCode == 0) {
-			return;
-		}
+	FORCEINLINE void extractRegularCell(Point (&d)[8], unsigned long caseCode) {
+		if (caseCode == 0) { return; }
 
 		unsigned int c = regularCellClass[caseCode];
 		RegularCellData cd = regularCellData[c];
@@ -532,6 +514,25 @@ private:
 		}
 	}
 
+	FORCEINLINE void extractRegularCell(Point(&d)[8]) {
+		int8 corner[8];
+		for (auto i = 0; i < 8; i++) {
+			corner[i] = (d[i].density < isolevel) ? -127 : 0;
+		}
+
+		unsigned long caseCode = ((corner[0] >> 7) & 0x01)
+			| ((corner[1] >> 6) & 0x02)
+			| ((corner[2] >> 5) & 0x04)
+			| ((corner[3] >> 4) & 0x08)
+			| ((corner[4] >> 3) & 0x10)
+			| ((corner[5] >> 2) & 0x20)
+			| ((corner[6] >> 1) & 0x40)
+			| (corner[7] & 0x80);
+
+		extractRegularCell(d, caseCode);
+	}
+
+
 	FORCEINLINE void extractTransitionCell(int sectionNumber, Point& d0, Point& d2, Point& d6, Point& d8) {
 		Point d[14];
 
@@ -554,11 +555,6 @@ private:
 		d[0xa] = d2;
 		d[0xb] = d6;
 		d[0xc] = d8;
-
-
-		for (auto i = 0; i < 9; i++) {
-			//mesh_data.DebugPointList.Add(d[i].pos);
-		}
 
 		int8 corner[9];
 		for (auto i = 0; i < 9; i++) {
@@ -680,6 +676,40 @@ public:
 		}
     }
 
+	FORCEINLINE void generateCell(const TSubstanceCacheItem& cacheItm) {
+		const int x = cacheItm.x;
+		const int y = cacheItm.y;
+		const int z = cacheItm.z;
+
+		Point d[8];
+
+		int step = voxel_data_param.step();
+
+		d[0] = getVoxelpoint(x, y + step, z);
+		d[1] = getVoxelpoint(x, y, z);
+		d[2] = getVoxelpoint(x + step, y + step, z);
+		d[3] = getVoxelpoint(x + step, y, z);
+		d[4] = getVoxelpoint(x, y + step, z + step);
+		d[5] = getVoxelpoint(x, y, z + step);
+		d[6] = getVoxelpoint(x + step, y + step, z + step);
+		d[7] = getVoxelpoint(x + step, y, z + step);
+
+		extractRegularCell(d, cacheItm.caseCode);
+
+		if (voxel_data_param.bGenerateLOD) {
+			if (voxel_data_param.lod > 0) {
+				const int e = voxel_data.num() - step - 1;
+
+				if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
+				if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
+				if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
+				if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
+				if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
+				if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
+			}
+		}
+	}
+
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
@@ -689,20 +719,9 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
-
 	int step = vdp.step();
-	for (auto it = vd.substanceCacheLOD[0].cellList.cbegin(); it != vd.substanceCacheLOD[0].cellList.cend(); ++it) {
-		int index = *it;
-
-		int x = index / (vd.num() * vd.num());
-		int y = (index / vd.num()) % vd.num();
-		int z = index % vd.num();
-
-		mesh_extractor_ptr->generateCell(x, y, z);
-	}
-
+	for (const auto& itm : vd.substanceCacheLOD[0].cellList) { mesh_extractor_ptr->generateCell(itm); }
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
-
 	return TMeshDataPtr(mesh_data);
 }
 
@@ -715,23 +734,24 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 	for (auto lod = 0; lod < max_lod; lod++) {
 		TVoxelDataParam me_vdp = vdp;
 		me_vdp.lod = lod;
-
 		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
-
 		int step = vdp.step();
-		for (auto it = vd.substanceCacheLOD[lod].cellList.cbegin(); it != vd.substanceCacheLOD[lod].cellList.cend(); ++it) {
-			int index = *it;
+		for (const auto& itm : vd.substanceCacheLOD[lod].cellList) { 
 
-			int x = index / (vd.num() * vd.num());
-			int y = (index / vd.num()) % vd.num();
-			int z = index % vd.num();
-
+#if USBT_USE_VD_PREBUILD_DATA == 1
+			mesh_extractor_ptr->generateCell(itm);
+#else
+			const int index = itm.index;
+			const int x = index / (vd.num() * vd.num());
+			const int y = (index / vd.num()) % vd.num();
+			const int z = index % vd.num();
 			mesh_extractor_ptr->generateCell(x, y, z);
+#endif
+
 		}
 	}
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
-
 	return TMeshDataPtr(mesh_data);
 }
 
@@ -740,7 +760,7 @@ TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataPara
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
-	int step = vdp.step();
+	auto step = vdp.step();
 
 	for (auto x = 0; x < vd.num() - step; x += step) {
 		for (auto y = 0; y < vd.num() - step; y += step) {

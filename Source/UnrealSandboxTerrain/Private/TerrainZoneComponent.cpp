@@ -5,6 +5,7 @@
 #include "SandboxTerrainController.h"
 #include "SandboxVoxeldata.h"
 #include "VoxelIndex.h"
+#include "serialization.hpp"
 
 #include "DrawDebugHelpers.h"
 
@@ -102,60 +103,67 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
-void UTerrainZoneComponent::SerializeInstancedMeshes(FBufferArchive& BinaryData) {
+typedef struct TInstantMeshData {
+	float X;
+	float Y;
+	float Z;
+
+	float Roll;
+	float Pitch;
+	float Yaw;
+
+	float ScaleX;
+	float ScaleY;
+	float ScaleZ;
+} TInstantMeshData;
+
+
+std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMeshes() {
+	FastUnsafeSerializer Serializer;
 	int32 MeshCount = InstancedMeshMap.Num();
-	BinaryData << MeshCount;
+	Serializer << MeshCount;
 
 	for (auto& Elem : InstancedMeshMap) {
 		UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = Elem.Value;
 		int32 MeshTypeId = Elem.Key;
-
 		int32 MeshInstanceCount = InstancedStaticMeshComponent->GetInstanceCount();
 
-		BinaryData << MeshTypeId;
-		BinaryData << MeshInstanceCount;
+		Serializer << MeshTypeId << MeshInstanceCount;
 
 		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			TInstantMeshData P;
 			FTransform InstanceTransform;
 			InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
 
-			float X = InstanceTransform.GetLocation().X;
-			float Y = InstanceTransform.GetLocation().Y;
-			float Z = InstanceTransform.GetLocation().Z;
+			P.X = InstanceTransform.GetLocation().X;
+			P.Y = InstanceTransform.GetLocation().Y;
+			P.Z = InstanceTransform.GetLocation().Z;
+			P.Roll = InstanceTransform.Rotator().Roll;
+			P.Pitch = InstanceTransform.Rotator().Pitch;
+			P.Yaw = InstanceTransform.Rotator().Yaw;
+			P.ScaleX = InstanceTransform.GetScale3D().X;
+			P.ScaleY = InstanceTransform.GetScale3D().Y;
+			P.ScaleZ = InstanceTransform.GetScale3D().Z;
 
-			float Roll = InstanceTransform.Rotator().Roll;
-			float Pitch = InstanceTransform.Rotator().Pitch;
-			float Yaw = InstanceTransform.Rotator().Yaw;
-
-			float ScaleX = InstanceTransform.GetScale3D().X;
-			float ScaleY = InstanceTransform.GetScale3D().Y;
-			float ScaleZ = InstanceTransform.GetScale3D().Z;
-
-			BinaryData << X;
-			BinaryData << Y;
-			BinaryData << Z;
-
-			BinaryData << Roll;
-			BinaryData << Pitch;
-			BinaryData << Yaw;
-
-			BinaryData << ScaleX;
-			BinaryData << ScaleY;
-			BinaryData << ScaleZ;
+			Serializer << P;
 		}
 	}
+
+	return Serializer.data();
 }
 
-void UTerrainZoneComponent::DeserializeInstancedMeshes(FMemoryReader& BinaryData, TInstMeshTypeMap& ZoneInstMeshMap) {
+void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstMeshTypeMap& ZoneInstMeshMap) {
+	FastUnsafeDeserializer Deserializer(Data.data());
+
 	int32 MeshCount;
-	BinaryData << MeshCount;
+	Deserializer >> MeshCount;
 
 	for (int Idx = 0; Idx < MeshCount; Idx++) {
 		int32 MeshTypeId;
 		int32 MeshInstanceCount;
 
-		BinaryData << MeshTypeId;
-		BinaryData << MeshInstanceCount;
+		Deserializer >> MeshTypeId;
+		Deserializer >> MeshInstanceCount;
 
 		FTerrainInstancedMeshType MeshType;
 		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
@@ -172,31 +180,9 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(FMemoryReader& BinaryData
 		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
 
 		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
-			float X;
-			float Y;
-			float Z;
-
-			float Roll;
-			float Pitch;
-			float Yaw;
-
-			float ScaleX;
-			float ScaleY;
-			float ScaleZ;
-
-			BinaryData << X;
-			BinaryData << Y;
-			BinaryData << Z;
-
-			BinaryData << Roll;
-			BinaryData << Pitch;
-			BinaryData << Yaw;
-
-			BinaryData << ScaleX;
-			BinaryData << ScaleY;
-			BinaryData << ScaleZ;
-
-			FTransform Transform(FRotator(Pitch, Yaw, Roll), FVector(X, Y, Z), FVector(ScaleX, ScaleY, ScaleZ));
+			TInstantMeshData P;
+			Deserializer >> P;
+			FTransform Transform(FRotator(P.Pitch, P.Yaw, P.Roll), FVector(P.X, P.Y, P.Z), FVector(P.ScaleX, P.ScaleY, P.ScaleZ));
 
 			if (MeshType.Mesh != nullptr) {
 				InstMeshArray.TransformArray.Add(Transform);

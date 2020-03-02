@@ -22,8 +22,16 @@ enum TVoxelDataFillState : uint8 {
 	MIXED = 2		// mixed state, any value in any point
 };
 
+typedef struct TSubstanceCacheItem {
+	uint32 index = 0;
+	unsigned long caseCode = 0;
+	uint32 x = 0;
+	uint32 y = 0;
+	uint32 z = 0;
+} TSubstanceCacheItem;
+
 typedef struct TSubstanceCache {
-	std::list<int> cellList;
+	std::list<TSubstanceCacheItem> cellList;
 } TSubstanceCache;
 
 // POD structure. used in fast serialization
@@ -73,12 +81,12 @@ public:
 
 	std::mutex vd_edit_mutex;
 
-	FORCEINLINE int clcLinearIndex(int x, int y, int z) const {
-		return x * voxel_num * voxel_num + y * voxel_num + z;
-	};
+	FORCEINLINE int clcLinearIndex(int x, int y, int z) const;
+	FORCEINLINE void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
 
 	void forEach(std::function<void(int x, int y, int z)> func);
 	void forEachWithCache(std::function<void(int x, int y, int z)> func, bool enableLOD);
+	void forEachCacheItem(std::function<void(const TSubstanceCacheItem& itm)> func) const;
 
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;
@@ -121,6 +129,7 @@ public:
 	bool isSubstanceCacheValid() const { return last_change <= last_cache_check; }
 	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
 
+	virtual void makeSubstanceCache();
 	void clearSubstanceCache() {
 		for (TSubstanceCache& lodCache : substanceCacheLOD) {
 			lodCache.cellList.clear();
@@ -129,10 +138,14 @@ public:
 		last_cache_check = -1;
 	};
 
-	static TVoxelDataPtr deserialize(std::vector<uint8>& data, bool createSubstanceCache);
 	std::shared_ptr<std::vector<uint8>> serialize();
 
 	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
 	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
 	friend void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
+
+	friend bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);
 };
+
+
+//bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);
