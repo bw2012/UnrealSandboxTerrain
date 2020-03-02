@@ -69,12 +69,10 @@ bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4End
 	SendVdByIndex(SocketPtr, TestIndex);
 	// test
 
-	GetTerrainController()->RunThread([=](FAsyncThread& ThisThread) {
+	GetTerrainController()->RunThread([=]() {
 		FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
 
 		while (true) {
-			if (ThisThread.IsNotValid()) return;
-
 			if (SocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
 				UE_LOG(LogTemp, Warning, TEXT("Vd Server -> connection finished"));
 				// TODO remove from client list

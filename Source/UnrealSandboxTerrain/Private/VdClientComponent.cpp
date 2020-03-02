@@ -65,10 +65,8 @@ void UVdClientComponent::BeginPlay() {
 
 					ClientSocketPtr = SocketPtr;
 
-					GetTerrainController()->RunThread([=](FAsyncThread& ThisThread) {
+					GetTerrainController()->RunThread([=]() {
 						while (true) {
-							if (ThisThread.IsNotValid()) return;
-
 							if (ClientSocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
 								UE_LOG(LogTemp, Warning, TEXT("Client -> connection finished"));
 								return;
