@@ -86,7 +86,6 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
-
 	MainTerrainMesh->SetMeshData(MeshDataPtr);
 
 	//MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
@@ -100,7 +99,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 typedef struct TInstantMeshData {
