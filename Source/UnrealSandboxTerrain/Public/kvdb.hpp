@@ -431,7 +431,7 @@ namespace kvdb {
 		}
 
 		int size() {
-			if (!filePtr->isOpen()) {
+			if (!isOpen()) {
 				return 0;
 			} else {
 				return dataMap.size();
@@ -547,8 +547,8 @@ namespace kvdb {
 				entry.dataPos = dataBody.size() + bodyDataOffset;
 
 				TValueData valueData;
-				if (std::is_same<V, TValueData>::value) {//constexpr
-					//valueData = std::move((TValueData)e.second);
+
+				if (std::is_same<V, TValueData>::value) { //constexpr
                     valueData = static_cast<TValueData>(e.second);
 				} else {
 					toValueData(e.second, valueData);

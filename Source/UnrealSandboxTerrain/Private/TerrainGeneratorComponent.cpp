@@ -3,9 +3,9 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "TerrainGeneratorComponent.h"
 #include "SandboxVoxeldata.h"
-#include "SandboxPerlinNoise.h"
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
+#include "perlin.hpp"
 #include <algorithm>
 
 
@@ -48,8 +48,7 @@ FORCEINLINE float TZoneHeightMapData::GetHeightLevel(TVoxelIndex VoxelIndex) con
 }
 
 
-
-usand::PerlinNoise Pn;
+PerlinNoise Pn;
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	FTerrainUndergroundLayer DefaultLayer;
@@ -223,8 +222,12 @@ float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 
 	float noise_small = Pn.noise(v.X * scale1, v.Y * scale1, 0);
 	float noise_medium = Pn.noise(v.X * scale2, v.Y * scale2, 0) * 5;
-	float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 15;
-	float gl = noise_medium + noise_small + noise_big;
+	float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 10;
+    
+    float r = v.X * v.X + v.Y * v.Y;
+    float t = 1 - exp(-r/5000000);
+    
+    float gl = noise_small + (noise_medium * t) + (noise_big * t);
 	return (gl * 100) + USBT_VGEN_GROUND_LEVEL_OFFSET;
 }
 
