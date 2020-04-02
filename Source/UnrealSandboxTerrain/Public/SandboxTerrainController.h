@@ -175,6 +175,21 @@ struct FSandboxTerrainMaterial {
 	UTexture* TextureNormal;
 };
 
+UCLASS(Blueprintable)
+class UNREALSANDBOXTERRAIN_API USandboxTerrainParameters : public UObject {
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
+	TMap<uint32, FSandboxFoliage> FoliageMap;
+
+};
+
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
