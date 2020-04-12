@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 #include "TerrainGeneratorComponent.h"
+#include "Runtime/Engine/Classes/Engine/DataAsset.h"
 #include <memory>
 #include <queue>
 #include <mutex>
@@ -151,6 +152,16 @@ struct FSandboxFoliage {
 	float ScaleMaxZ = 1.0f;
 };
 
+UCLASS(BlueprintType, Blueprintable)
+class UNREALSANDBOXTERRAIN_API USandboxTarrainFoliageMap : public UDataAsset {
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
+	TMap<uint32, FSandboxFoliage> FoliageMap;
+};
+
 
 USTRUCT()
 struct FSandboxTerrainMaterial {
@@ -176,16 +187,13 @@ struct FSandboxTerrainMaterial {
 };
 
 UCLASS(Blueprintable)
-class UNREALSANDBOXTERRAIN_API USandboxTerrainParameters : public UObject {
+class UNREALSANDBOXTERRAIN_API USandboxTerrainParameters : public UDataAsset {
 	GENERATED_BODY()
 
 public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
 	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
-	TMap<uint32, FSandboxFoliage> FoliageMap;
 
 };
 
@@ -219,9 +227,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool bShowZoneBounds = false;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool bDisableFoliage = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
@@ -270,7 +275,7 @@ public:
 	UMaterialInterface* TransitionMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
-	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+	USandboxTerrainParameters* TerrainParameters;
 
 	//========================================================================================
 	// general
@@ -311,7 +316,7 @@ public:
 	//========================================================================================
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
-	TMap<uint32, FSandboxFoliage> FoliageMap;
+	USandboxTarrainFoliageMap* FoliageDataAsset;
 
 	//========================================================================================
 	
@@ -470,6 +475,8 @@ private:
 	// foliage
 	//===============================================================================
 
+	TMap<uint32, FSandboxFoliage> FoliageMap;
+
 	void GenerateNewFoliage(UTerrainZoneComponent* Zone);
 
 	void LoadFoliage(UTerrainZoneComponent* Zone);
@@ -485,6 +492,8 @@ private:
 
 	UPROPERTY()
 	TMap<uint16, UMaterialInterface*> RegularMaterialCache;
+
+	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
 
 	//===============================================================================
 	// collision

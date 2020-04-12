@@ -69,6 +69,16 @@ void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
 
+	FoliageMap.Empty();
+	if (FoliageDataAsset) {
+		FoliageMap = FoliageDataAsset->FoliageMap;
+	}
+
+	MaterialMap.Empty();
+	if (TerrainParameters) {
+		MaterialMap = TerrainParameters->MaterialMap;
+	}
+
 	if (!GetWorld()) return;
 	bIsLoadFinished = false;
 
@@ -928,9 +938,7 @@ void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
 }
 
 void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
-	if (!bDisableFoliage) {
 		LoadFoliage(Zone);
-	}
 }
 
 void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex) {
@@ -939,7 +947,7 @@ void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& Zone
 		if (Zone) {
 			TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
 			if (VoxelDataInfo->IsNewGenerated()) {
-				if (!bDisableFoliage && TerrainGeneratorComponent) {
+				if (TerrainGeneratorComponent) {
 					TerrainGeneratorComponent->GenerateNewFoliage(Zone);
 				}
 				OnGenerateNewZone(Zone);
@@ -1018,8 +1026,6 @@ void ASandboxTerrainController::ClearVoxelData() {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
-	if (bDisableFoliage) return;
-
 	TInstMeshTypeMap ZoneInstMeshMap;
 	LoadObjectDataByIndex(Zone, ZoneInstMeshMap);
 
