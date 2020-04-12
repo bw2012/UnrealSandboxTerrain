@@ -178,6 +178,8 @@ void ASandboxTerrainController::RunLoadMapAsync(std::function<void()> OnFinish) 
 						GeneratedVdConter = 0;
 					}
 				}
+
+
 			});
 		}
 
