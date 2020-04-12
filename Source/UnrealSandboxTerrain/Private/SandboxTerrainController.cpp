@@ -507,7 +507,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 		FVector Pos = FVector(0);
 		SpawnZone(TVoxelIndex(0, 0, 0));
 		InitialZoneSet.Add(Pos);
-	}	
+	}
 }
 
 TVoxelIndex ASandboxTerrainController::GetZoneIndex(const FVector& Pos) {

@@ -204,14 +204,14 @@ bool UTerrainGeneratorComponent::IsZoneOverGroundLevel(TZoneHeightMapData* ZoneH
 	return ZoneHeightMapData->GetMaxHeightLevel() < ZoneOrigin.Z - ZoneHalfSize;
 }
 
-bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin) {
+FORCENOINLINE bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin) {
 	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
-	float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize;
-	float ZoneLow = ZoneOrigin.Z - ZoneHalfSize;
+	float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize + 10;
+	float ZoneLow = ZoneOrigin.Z - ZoneHalfSize - 10;
 	float TerrainHigh = ZoneHeightMapData->GetMaxHeightLevel();
 	float TerrainLow = ZoneHeightMapData->GetMinHeightLevel();
 
-	return std::max(ZoneLow, TerrainLow) < std::min(ZoneHigh, TerrainHigh);
+	return std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh);
 }
 
 float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
