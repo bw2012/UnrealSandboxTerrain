@@ -44,7 +44,7 @@ void ASandboxTerrainController::InitializeTerrainController() {
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
-	TerrainGeneratorComponent->SetMobility(EComponentMobility::Stationary);
+	TerrainGeneratorComponent->SetMobility(EComponentMobility::Static);
 }
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
@@ -249,12 +249,14 @@ void ASandboxTerrainController::Save() {
 		}
 
 		// save instanced meshes
-		if (Zone->IsNeedSave()) {
-			FBufferArchive BinaryData;
-			TValueDataPtr DataPtr = Zone->SerializeInstancedMeshes();
-			ObjFile.save(TVoxelIndex (ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z), *DataPtr);
-			Zone->ResetNeedSave();
-			SavedObj++;
+		if (FoliageDataAsset) {
+			if (Zone->IsNeedSave()) {
+				FBufferArchive BinaryData;
+				TValueDataPtr DataPtr = Zone->SerializeInstancedMeshes();
+				ObjFile.save(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z), *DataPtr);
+				Zone->ResetNeedSave();
+				SavedObj++;
+			}
 		}
 	}
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save mesh data ----> %d"), SavedMd);
@@ -938,7 +940,9 @@ void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
 }
 
 void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
+	if (FoliageDataAsset) {
 		LoadFoliage(Zone);
+	}
 }
 
 void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex) {
@@ -947,7 +951,7 @@ void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& Zone
 		if (Zone) {
 			TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
 			if (VoxelDataInfo->IsNewGenerated()) {
-				if (TerrainGeneratorComponent) {
+				if (TerrainGeneratorComponent && FoliageDataAsset) {
 					TerrainGeneratorComponent->GenerateNewFoliage(Zone);
 				}
 				OnGenerateNewZone(Zone);
@@ -1133,7 +1137,7 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 
-	UE_LOG(LogTemp, Warning, TEXT("generateMesh -------------> %f %f %f --> %f ms"), Vd->getOrigin().X, Vd->getOrigin().Y, Vd->getOrigin().Z, Time);
+	//UE_LOG(LogTemp, Warning, TEXT("generateMesh -------------> %f %f %f --> %f ms"), Vd->getOrigin().X, Vd->getOrigin().Y, Vd->getOrigin().Z, Time);
 	return MeshDataPtr;
 }
 
@@ -1307,7 +1311,7 @@ TValueDataPtr Decompress(TValueDataPtr CompressedDataPtr) {
 
 	FArchiveLoadCompressedProxy Decompressor = FArchiveLoadCompressedProxy(BinaryArray, ECompressionFlags::COMPRESS_ZLIB);
 	if (Decompressor.GetError()) {
-		UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
+		//UE_LOG(LogTemp, Log, TEXT("FArchiveLoadCompressedProxy -> ERROR : File was not compressed"));
 		return Result;
 	}
 
@@ -1315,7 +1319,7 @@ TValueDataPtr Decompress(TValueDataPtr CompressedDataPtr) {
 	Decompressor << DecompressedData;
 
 	float CompressionRatio = ((float)CompressedDataPtr->size() / (float)DecompressedData.Num()) * 100.f;
-	UE_LOG(LogTemp, Log, TEXT("DecompressedData -> %d bytes ==> %d bytes -> %f%%"), DecompressedData.Num(), CompressedDataPtr->size(), CompressionRatio);
+	//UE_LOG(LogTemp, Log, TEXT("DecompressedData -> %d bytes ==> %d bytes -> %f%%"), DecompressedData.Num(), CompressedDataPtr->size(), CompressionRatio);
 
 	Result->resize(DecompressedData.Num());
 	FMemory::Memcpy(Result->data(), DecompressedData.GetData(), DecompressedData.Num());
@@ -1339,7 +1343,7 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	double Time = (End - Start) * 1000;
 
 	if (bIsLoaded) {
-		UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		//UE_LOG(LogTemp, Log, TEXT("loading mesh data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 	}
 
 	return MeshDataPtr;
@@ -1357,6 +1361,6 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 	double Time = (End - Start) * 1000;
 
 	if (bIsLoaded) {
-		UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		//UE_LOG(LogTemp, Log, TEXT("loading inst-objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 	}
 }
