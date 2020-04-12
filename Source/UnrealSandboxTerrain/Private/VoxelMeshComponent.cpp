@@ -770,10 +770,11 @@ void UVoxelMeshComponent::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* Fini
 	}
 
 	UpdateNavigationData();
+	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
+	TerrainController->OnFinishAsyncPhysicsCook(ZoneIndex);
 }
 
 void UVoxelMeshComponent::UpdateCollision() {
-
 	//UWorld* World = GetWorld();
 	//const bool bUseAsyncCook = World && World->IsGameWorld() && bUseAsyncCooking;
 
@@ -794,10 +795,6 @@ void UVoxelMeshComponent::UpdateCollision() {
 
 	UseBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &UVoxelMeshComponent::FinishPhysicsAsyncCook, UseBodySetup));
 	
-
-
-
-
 
 	/*
 	bool bCreatePhysState = false; // Should we create physics state at the end of this function? If its created, shut it down now

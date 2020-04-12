@@ -304,6 +304,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Collision")
 	unsigned int CollisionSection;
 
+	void OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex);
+
 	//========================================================================================
 	// foliage
 	//========================================================================================

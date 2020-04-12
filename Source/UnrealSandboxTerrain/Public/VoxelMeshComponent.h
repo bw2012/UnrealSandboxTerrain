@@ -33,6 +33,9 @@ class UNREALSANDBOXTERRAIN_API UVoxelMeshComponent : public UMeshComponent, publ
 
 public:
 
+	// zone position inside terrain
+	TVoxelIndex ZoneIndex;
+
 	void SetMeshData(TMeshDataPtr mdPtr);
 
 	void SetLodFlag(bool bLodFlag) {

@@ -382,7 +382,7 @@ void UTerrainGeneratorComponent::SpawnFoliage(int32 FoliageTypeId, FSandboxFolia
 	const FVector end_trace(v.X, v.Y, v.Z - USBT_ZONE_SIZE / 2);
 
 	FHitResult hit(ForceInit);
-	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
+	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_Visibility);
 
 	if (hit.bBlockingHit) {
 		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {

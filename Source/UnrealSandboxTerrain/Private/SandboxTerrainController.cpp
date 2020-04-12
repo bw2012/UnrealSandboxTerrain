@@ -44,6 +44,7 @@ void ASandboxTerrainController::InitializeTerrainController() {
 
 	TerrainGeneratorComponent = CreateDefaultSubobject<UTerrainGeneratorComponent>(TEXT("TerrainGenerator"));
 	TerrainGeneratorComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
+	TerrainGeneratorComponent->SetMobility(EComponentMobility::Stationary);
 }
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
@@ -463,10 +464,15 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			Zone->ApplyTerrainMesh(MeshDataPtr);
 
+			/*
 			if (VoxelDataInfo->IsNewGenerated()) {
-				if (!bDisableFoliage && TerrainGeneratorComponent) { TerrainGeneratorComponent->GenerateNewFoliage(Zone); }
+				if (!bDisableFoliage && TerrainGeneratorComponent) { 
+					TerrainGeneratorComponent->GenerateNewFoliage(Zone); 
+				}
+
 				OnGenerateNewZone(Zone);
 			}
+			*/
 
 			if (VoxelDataInfo->IsNewLoaded()) {	OnLoadZone(Zone); }
 		});
@@ -510,8 +516,8 @@ UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(const TVo
 	return NULL;
 }
 
-UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
-	TVoxelIndex Index = GetZoneIndex(pos);
+UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
+	TVoxelIndex Index = GetZoneIndex(Pos);
 	FVector IndexTmp(Index.X, Index.Y,Index.Z);
 
 	FString ZoneName = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
@@ -521,7 +527,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		//ZoneComponent->SetRelativeLocation(pos);
 
 		ZoneComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
-		ZoneComponent->SetWorldLocation(pos);
+		ZoneComponent->SetWorldLocation(Pos);
 
 		FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
 		UVoxelMeshComponent* TerrainMeshComp = NewObject<UVoxelMeshComponent>(this, FName(*TerrainMeshCompName));
@@ -530,12 +536,13 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector pos) {
 		TerrainMeshComp->SetCanEverAffectNavigation(true);
 		TerrainMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
 		TerrainMeshComp->AttachToComponent(ZoneComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
+		TerrainMeshComp->ZoneIndex = Index;
 
 		ZoneComponent->MainTerrainMesh = TerrainMeshComp;
 	}
 
 	TerrainZoneMap.Add(IndexTmp, ZoneComponent);
-	if(bShowZoneBounds) DrawDebugBox(GetWorld(), pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
+	if(bShowZoneBounds) DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
 	return ZoneComponent;
 }
 
@@ -674,10 +681,17 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 		bool operator()(TVoxelData* vd) {
 			changed = false;
 
+			FBox Box(FVector(-Extend), FVector(Extend));
+			FRotator Rotator(0, 30, 0);
+
 			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
 				o -= Pos;
+				//o = Rotator.RotateVector(o);
+				//o = o.RotateAngleAxis(45, FVector(0, 0, 1));
+				//bool bIsIntersect = FMath::PointBoxIntersection(o, Box);
+				//if (bIsIntersect) {
 				if (o.X < Extend && o.X > -Extend && o.Y < Extend && o.Y > -Extend && o.Z < Extend && o.Z > -Extend) {
 					unsigned short  MatId = vd->getMaterial(x, y, z);
 					FSandboxTerrainMaterial& Mat = MaterialMapPtr->FindOrAdd(MatId);
@@ -905,6 +919,10 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	return Vd;
 }
 
+//======================================================================================================================================================================
+// events
+//======================================================================================================================================================================
+
 void ASandboxTerrainController::OnGenerateNewZone(UTerrainZoneComponent* Zone) {
 
 }
@@ -914,6 +932,23 @@ void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
 		LoadFoliage(Zone);
 	}
 }
+
+void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex) {
+	InvokeSafe([=]() {
+		UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
+		if (Zone) {
+			TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
+			if (VoxelDataInfo->IsNewGenerated()) {
+				if (!bDisableFoliage && TerrainGeneratorComponent) {
+					TerrainGeneratorComponent->GenerateNewFoliage(Zone);
+				}
+				OnGenerateNewZone(Zone);
+			}
+		}
+	});
+}
+
+//======================================================================================================================================================================
 
 void ASandboxTerrainController::AddAsyncTask(TControllerTaskTaskPtr TaskPtr) {
 	std::unique_lock<std::shared_timed_mutex> Lock(AsyncTaskListMutex);
