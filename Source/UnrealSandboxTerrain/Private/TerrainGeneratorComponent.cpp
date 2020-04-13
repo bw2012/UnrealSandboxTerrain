@@ -72,13 +72,17 @@ void UTerrainGeneratorComponent::BeginPlay() {
 
 void UTerrainGeneratorComponent::BeginDestroy() {
 	Super::BeginDestroy();
+	Clean();
+}
 
+void UTerrainGeneratorComponent::Clean() {
 	for (std::unordered_map<TVoxelIndex, TZoneHeightMapData*>::iterator It = ZoneHeightMapCollection.begin(); It != ZoneHeightMapCollection.end(); ++It) {
 		delete It->second;
 	}
 
 	ZoneHeightMapCollection.clear();
 }
+
 
 void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData) {
 	TSet<unsigned char> material_list;
@@ -216,11 +220,11 @@ FORCEINLINE bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TZoneHeightMapD
 
 float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 	//float scale1 = 0.0035f; // small
-	float scale1 = 0.0015f; // small
+	float scale1 = 0.001f; // small
 	float scale2 = 0.0004f; // medium
 	float scale3 = 0.00009f; // big
 
-	float noise_small = Pn.noise(v.X * scale1, v.Y * scale1, 0);
+	float noise_small = Pn.noise(v.X * scale1, v.Y * scale1, 0) * 0.5f;
 	float noise_medium = Pn.noise(v.X * scale2, v.Y * scale2, 0) * 5;
 	float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 10;
     
