@@ -179,7 +179,7 @@ namespace kvdb {
 		std::shared_ptr<V> valueFromData(TValueDataPtr dataPtr) {
 			if (dataPtr == nullptr) return nullptr;
 
-                        if (std::is_same<V, TValueData>::value) {//constexpr
+            if (std::is_same<V, TValueData>::value) { //constexpr
 				return std::static_pointer_cast<TValueData>(dataPtr);
 			} else {
 				V* temp = new V();
@@ -401,7 +401,7 @@ namespace kvdb {
 		}
 
 		void close() {
-			if (!filePtr || !filePtr->is_open()) return;
+			if (!isOpen()) return;
 			filePtr->close();
 			dataMap.clear();
 			reservedKeyList.clear();
@@ -409,10 +409,14 @@ namespace kvdb {
 			tableList.clear();
 		}
 
+		bool isOpen() {
+			return filePtr && filePtr->is_open();
+		}
+
 		bool open(const std::string& file) {
 			filePtr = new std::fstream(file, std::ios::in | std::ios::out | std::ios::binary);
 
-			if (!filePtr->is_open()) return false;
+			if (!isOpen()) return false;
 
 			TFileHeader fileHeader;
 			filePtr >> fileHeader;
@@ -427,7 +431,7 @@ namespace kvdb {
 		}
 
 		int size() {
-			if (!filePtr->is_open()) {
+			if (!isOpen()) {
 				return 0;
 			} else {
 				return dataMap.size();
@@ -436,7 +440,7 @@ namespace kvdb {
 
 		bool isExist(const K& k) {
 			TKeyData keyData = toKeyData(k);
-                        if (!filePtr->is_open()) return false;
+			if (!isOpen()) return false;
 			std::lock_guard<std::mutex> guard(fileSharedMutex);
 			return !(dataMap.find(keyData) == dataMap.end());
 		}
@@ -445,7 +449,7 @@ namespace kvdb {
 		TValueDataPtr loadData(const K& k) {
 			TKeyData keyData = toKeyData(k);
 
-			if (!filePtr->is_open()) return nullptr;
+			if (!isOpen()) return nullptr;
             std::lock_guard<std::mutex> guard(fileSharedMutex);
 
 			auto got = dataMap.find(keyData);
@@ -472,7 +476,6 @@ namespace kvdb {
 			return valueFromData(loadData(k));
 		}
         
-        
         std::shared_ptr<V> operator[] (const K& k) {
             return valueFromData(loadData(k));
         }
@@ -480,7 +483,7 @@ namespace kvdb {
 		void erase(const K& k) {
 			TKeyData keyData = toKeyData(k);
 
-			if (!filePtr->is_open()) return;
+			if (!isOpen()) return;
             std::lock_guard<std::mutex> guard(fileSharedMutex);
 
 			auto got = dataMap.find(keyData);
@@ -494,14 +497,13 @@ namespace kvdb {
 			TKeyData keyData = toKeyData(k);
 			TValueData valueData;
 
-                        if (std::is_same<V, TValueData>::value) { //constexpr
-                                //valueData = std::move((TValueData)v);
-                            valueData = static_cast<TValueData>(v);
+            if (std::is_same<V, TValueData>::value) { 
+				valueData = static_cast<TValueData>(v);
 			} else {
 				toValueData(v, valueData);
 			}
 
-			if (!filePtr->is_open()) return;
+			if (!isOpen()) return;
             std::lock_guard<std::mutex> guard(fileSharedMutex);
 
 			std::unordered_map<TKeyData, TKeyEntryInfo>::const_iterator got = dataMap.find(keyData);
@@ -545,9 +547,9 @@ namespace kvdb {
 				entry.dataPos = dataBody.size() + bodyDataOffset;
 
 				TValueData valueData;
-                                if (std::is_same<V, TValueData>::value) {//constexpr
-                                        //valueData = std::move((TValueData)e.second);
-                                    valueData = static_cast<TValueData>(e.second);
+
+				if (std::is_same<V, TValueData>::value) { //constexpr
+                    valueData = static_cast<TValueData>(e.second);
 				} else {
 					toValueData(e.second, valueData);
 				}

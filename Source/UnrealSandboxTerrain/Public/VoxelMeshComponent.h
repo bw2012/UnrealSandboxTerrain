@@ -33,6 +33,9 @@ class UNREALSANDBOXTERRAIN_API UVoxelMeshComponent : public UMeshComponent, publ
 
 public:
 
+	// zone position inside terrain
+	TVoxelIndex ZoneIndex;
+
 	void SetMeshData(TMeshDataPtr mdPtr);
 
 	void SetLodFlag(bool bLodFlag) {
@@ -100,6 +103,13 @@ private:
 	TArray<UMaterialInterface*> LocalMaterials;
 
 	friend class FProceduralMeshSceneProxy;
+
+	UPROPERTY(transient)
+	TArray<UBodySetup*> AsyncBodySetupQueue;
+
+	UBodySetup* CreateBodySetupHelper();
+
+	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup);
 
 
 	// ======================================================================

@@ -3,9 +3,9 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "TerrainGeneratorComponent.h"
 #include "SandboxVoxeldata.h"
-#include "SandboxPerlinNoise.h"
 #include "SandboxTerrainController.h"
 #include "TerrainZoneComponent.h"
+#include "perlin.hpp"
 #include <algorithm>
 
 
@@ -48,8 +48,7 @@ FORCEINLINE float TZoneHeightMapData::GetHeightLevel(TVoxelIndex VoxelIndex) con
 }
 
 
-
-usand::PerlinNoise Pn;
+PerlinNoise Pn;
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	FTerrainUndergroundLayer DefaultLayer;
@@ -73,13 +72,17 @@ void UTerrainGeneratorComponent::BeginPlay() {
 
 void UTerrainGeneratorComponent::BeginDestroy() {
 	Super::BeginDestroy();
+	Clean();
+}
 
+void UTerrainGeneratorComponent::Clean() {
 	for (std::unordered_map<TVoxelIndex, TZoneHeightMapData*>::iterator It = ZoneHeightMapCollection.begin(); It != ZoneHeightMapCollection.end(); ++It) {
 		delete It->second;
 	}
 
 	ZoneHeightMapCollection.clear();
 }
+
 
 void UTerrainGeneratorComponent::GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData) {
 	TSet<unsigned char> material_list;
@@ -205,26 +208,30 @@ bool UTerrainGeneratorComponent::IsZoneOverGroundLevel(TZoneHeightMapData* ZoneH
 	return ZoneHeightMapData->GetMaxHeightLevel() < ZoneOrigin.Z - ZoneHalfSize;
 }
 
-bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin) {
+FORCEINLINE bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin) {
 	static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
-	float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize;
-	float ZoneLow = ZoneOrigin.Z - ZoneHalfSize;
+	float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize + 10;
+	float ZoneLow = ZoneOrigin.Z - ZoneHalfSize - 10;
 	float TerrainHigh = ZoneHeightMapData->GetMaxHeightLevel();
 	float TerrainLow = ZoneHeightMapData->GetMinHeightLevel();
 
-	return std::max(ZoneLow, TerrainLow) < std::min(ZoneHigh, TerrainHigh);
+	return std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh);
 }
 
 float UTerrainGeneratorComponent::GroundLevelFunc(FVector v) {
 	//float scale1 = 0.0035f; // small
-	float scale1 = 0.0015f; // small
+	float scale1 = 0.001f; // small
 	float scale2 = 0.0004f; // medium
 	float scale3 = 0.00009f; // big
 
-	float noise_small = Pn.noise(v.X * scale1, v.Y * scale1, 0);
+	float noise_small = Pn.noise(v.X * scale1, v.Y * scale1, 0) * 0.5f;
 	float noise_medium = Pn.noise(v.X * scale2, v.Y * scale2, 0) * 5;
-	float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 15;
-	float gl = noise_medium + noise_small + noise_big;
+	float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 10;
+    
+    float r = v.X * v.X + v.Y * v.Y;
+    float t = 1 - exp(-r/5000000);
+    
+    float gl = noise_small + (noise_medium * t) + (noise_big * t);
 	return (gl * 100) + USBT_VGEN_GROUND_LEVEL_OFFSET;
 }
 
@@ -379,7 +386,7 @@ void UTerrainGeneratorComponent::SpawnFoliage(int32 FoliageTypeId, FSandboxFolia
 	const FVector end_trace(v.X, v.Y, v.Z - USBT_ZONE_SIZE / 2);
 
 	FHitResult hit(ForceInit);
-	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_WorldStatic);
+	GetWorld()->LineTraceSingleByChannel(hit, start_trace, end_trace, ECC_Visibility);
 
 	if (hit.bBlockingHit) {
 		if (Cast<ASandboxTerrainController>(hit.Actor.Get()) != NULL) {

@@ -83,6 +83,8 @@ public:
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
 
+	void Clean();
+
 private:
     
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;

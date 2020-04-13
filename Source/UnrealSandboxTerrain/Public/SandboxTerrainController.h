@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 #include "TerrainGeneratorComponent.h"
+#include "Runtime/Engine/Classes/Engine/DataAsset.h"
 #include <memory>
 #include <queue>
 #include <mutex>
@@ -80,6 +81,32 @@ public:
 };
 
 USTRUCT()
+struct FMapInfo {
+	GENERATED_BODY()
+
+	UPROPERTY()
+	uint32 FormatVersion = 0;
+
+	UPROPERTY()
+	uint32 FormatSubversion = 0;
+
+	UPROPERTY()
+	double SaveTimestamp;
+
+	UPROPERTY()
+	uint32 TerrainSizeX = 0;
+
+	UPROPERTY()
+	uint32 TerrainSizeY = 0;
+
+	UPROPERTY()
+	uint32 TerrainSizeMinZ = 0;
+
+	UPROPERTY()
+	uint32 TerrainSizeMaxZ = 0;
+};
+
+USTRUCT()
 struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
 
@@ -125,6 +152,16 @@ struct FSandboxFoliage {
 	float ScaleMaxZ = 1.0f;
 };
 
+UCLASS(BlueprintType, Blueprintable)
+class UNREALSANDBOXTERRAIN_API USandboxTarrainFoliageMap : public UDataAsset {
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
+	TMap<uint32, FSandboxFoliage> FoliageMap;
+};
+
 
 USTRUCT()
 struct FSandboxTerrainMaterial {
@@ -148,6 +185,18 @@ struct FSandboxTerrainMaterial {
 	UPROPERTY(EditAnywhere)
 	UTexture* TextureNormal;
 };
+
+UCLASS(Blueprintable)
+class UNREALSANDBOXTERRAIN_API USandboxTerrainParameters : public UDataAsset {
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
+	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+
+};
+
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
@@ -178,9 +227,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool bShowZoneBounds = false;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool bDisableFoliage = false;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
@@ -229,7 +275,7 @@ public:
 	UMaterialInterface* TransitionMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
-	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+	USandboxTerrainParameters* TerrainParameters;
 
 	//========================================================================================
 	// general
@@ -248,7 +294,10 @@ public:
 	int32 TerrainSizeY;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 TerrainSizeZ;
+	int32 TerrainSizeMinZ;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	int32 TerrainSizeMaxZ;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	bool bEnableLOD;
@@ -260,20 +309,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Collision")
 	unsigned int CollisionSection;
 
+	void OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex);
+
 	//========================================================================================
 	// foliage
 	//========================================================================================
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
-	TMap<uint32, FSandboxFoliage> FoliageMap;
+	USandboxTarrainFoliageMap* FoliageDataAsset;
 
 	//========================================================================================
 	
 	//static bool CheckZoneBounds(FVector Origin, float Size);
 
 	//========================================================================================
-
-	float GetRealGroungLevel(float X, float Y);
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
@@ -317,8 +366,6 @@ public:
 
 private:
 
-	void BeginServer();
-
 	void BeginClient();
 
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
@@ -338,13 +385,13 @@ private:
 	// save/load
 	//===============================================================================
 
+	bool bIsLoadFinished;
+
 	void Save();
 
 	void SaveJson();
 
-	void LoadJson();
-
-	bool OpenFile();
+	bool LoadJson();
 	
 	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
 
@@ -428,6 +475,8 @@ private:
 	// foliage
 	//===============================================================================
 
+	TMap<uint32, FSandboxFoliage> FoliageMap;
+
 	void GenerateNewFoliage(UTerrainZoneComponent* Zone);
 
 	void LoadFoliage(UTerrainZoneComponent* Zone);
@@ -444,6 +493,8 @@ private:
 	UPROPERTY()
 	TMap<uint16, UMaterialInterface*> RegularMaterialCache;
 
+	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+
 	//===============================================================================
 	// collision
 	//===============================================================================
@@ -457,8 +508,24 @@ private:
 	}
 
 protected:
+
+	virtual void InitializeTerrainController();
+
+	virtual void BeginPlayServer();
+
+	virtual TVoxelData* newVoxelData();
 	
 	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
 
 	virtual void OnLoadZone(UTerrainZoneComponent* Zone);
+
+	//===============================================================================
+	// save/load
+	//===============================================================================
+
+	bool VerifyMap();
+
+	bool OpenFile();
+
+	void RunLoadMapAsync(std::function<void()> OnFinish);
 };

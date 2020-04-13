@@ -80,16 +80,15 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	*/
 	//##########################################
 
-	MainTerrainMesh->SetMobility(EComponentMobility::Movable);
+	//MainTerrainMesh->SetMobility(EComponentMobility::Movable);
 	
-	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
-	MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
+	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
+	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
-
 	MainTerrainMesh->SetMeshData(MeshDataPtr);
 
-	MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
+	//MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
@@ -100,7 +99,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 typedef struct TInstantMeshData {
