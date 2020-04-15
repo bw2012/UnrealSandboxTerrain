@@ -73,3 +73,33 @@ void ReverseSpiralWalkthrough(int m, int n, std::function<void(int x, int y)> Fu
 	}
 
 }
+
+
+extern FVector sandboxSnapToGrid(FVector vec, float grid_range) {
+    FVector tmp(vec);
+    tmp /= grid_range;
+    //FVector tmp2(std::round(tmp.X), std::round(tmp.Y), std::round(tmp.Z));
+    FVector tmp2((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
+    tmp2 *= grid_range;
+    return FVector((int)tmp2.X, (int)tmp2.Y, (int)tmp2.Z);
+}
+
+
+extern FVector sandboxConvertVectorToCubeIndex(FVector vec) {
+    return sandboxSnapToGrid(vec, 200);
+}
+
+
+FVector sandboxGridIndex(const FVector& v, int range) {
+    FVector tmp(v);
+
+    const int r = range / 2;
+
+    tmp.X = (tmp.X > 0) ? tmp.X + r : tmp.X - r;
+    tmp.Y = (tmp.Y > 0) ? tmp.Y + r : tmp.Y - r;
+    tmp.Z = (tmp.Z > 0) ? tmp.Z + r : tmp.Z - r;
+
+    tmp /= range;
+
+    return FVector((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
+}

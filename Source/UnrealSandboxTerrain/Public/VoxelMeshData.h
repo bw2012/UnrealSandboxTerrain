@@ -14,28 +14,18 @@
 
 // mesh per one material
 typedef struct TMeshMaterialSection {
-
 	unsigned short MaterialId = 0;
-
 	FProcMeshSection MaterialMesh;
-
 	int32 vertexIndexCounter = 0;
-
 } TMeshMaterialSection;
 
-
 union TTransitionMaterialCode {
-
 	uint16 TriangleMatId[4];
-
 	uint64 Code;
 };
 
-
 typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
-
 	uint64 TransitionCode;
-
 	std::set<unsigned short> MaterialIdSet;
 
 	static FString GenerateTransitionName(std::set<unsigned short>& MaterialIdSet) {
@@ -69,43 +59,24 @@ typedef TMap<unsigned short, TMeshMaterialSection> TMaterialSectionMap;
 typedef TMap<unsigned short, TMeshMaterialTransitionSection> TMaterialTransitionSectionMap;
 
 typedef struct TMeshContainer {
-
-	// single materials map
-	TMaterialSectionMap MaterialSectionMap;
-
-	// materials with blending
-	TMaterialTransitionSectionMap MaterialTransitionSectionMap;
-
+	TMaterialSectionMap MaterialSectionMap; // single materials map
+	TMaterialTransitionSectionMap MaterialTransitionSectionMap; // materials with blending
 } TMeshContainer;
 
 typedef struct TMeshLodSection {
-
-	// whole mesh (collision only)
-	FProcMeshSection WholeMesh;
-
-	// used only for render main mesh
-	TMeshContainer RegularMeshContainer;
-
-	// used for render transition 1 to 1 LOD patch mesh 
-	TArray<TMeshContainer> TransitionPatchArray;
-
-	// just point to draw debug. remove it after release
-	TArray<FVector> DebugPointList;
-
-	TMeshLodSection() {
-		TransitionPatchArray.SetNum(6);
-	}
-
+	FProcMeshSection WholeMesh; // whole mesh (collision only)
+	TMeshContainer RegularMeshContainer; // used only for render main mesh
+	TArray<TMeshContainer> TransitionPatchArray; // used for render transition 1 to 1 LOD patch mesh
+	TArray<FVector> DebugPointList; // just point to draw debug. remove it after release
+	TMeshLodSection() { TransitionPatchArray.SetNum(6); }
 } TMeshLodSection;
 
 
 typedef struct TMeshData {
 	TArray<TMeshLodSection> MeshSectionLodArray;
-
 	FProcMeshSection* CollisionMeshPtr;
-
 	double TimeStamp = 0;
-
+    
 	TMeshData() {
 		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
 		CollisionMeshPtr = nullptr;
@@ -121,15 +92,7 @@ typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
 typedef struct TVoxelDataParam {
 	bool bGenerateLOD = false;
-
 	int collisionLOD = 0;
-
-	int lod = 0;
-	float z_cut_level = 0;
-	bool z_cut = false;
-
-	FORCEINLINE int step() const {
-		return 1 << lod;
-	}
-
+	float ZCutLevel = 0;
+	bool bZCut = false;
 } TVoxelDataParam;

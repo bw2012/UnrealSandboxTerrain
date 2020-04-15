@@ -468,7 +468,13 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 			OnLoadZone(Zone);
 		});
 		return;
-	}
+    } else {
+        // mesh data not exist -> load voxel data and prepare to generate new
+        if(VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD){
+            VoxelDataInfo->DataState = TVoxelDataState::LOADED;
+            VoxelDataInfo->Vd = LoadVoxelDataByIndex(Index);
+        }
+    }
 
 	// if no mesh data in file - generate mesh from voxel data
 	if (VoxelDataInfo->Vd != nullptr && VoxelDataInfo->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
@@ -847,7 +853,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
 						// double-check locking
 						VoxelDataInfo->LoadVdMutexPtr->lock();
-						if ((VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD)) {
+						if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
 							Vd = LoadVoxelDataByIndex(ZoneIndex);
 							VoxelDataInfo->DataState = TVoxelDataState::LOADED;
 							VoxelDataInfo->Vd = Vd;
@@ -1125,6 +1131,9 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 	}
 
 	TVoxelDataParam Vdp;
+    
+    Vdp.bZCut = true;
+    Vdp.ZCutLevel = -100;
 
 	if (bEnableLOD) {
 		Vdp.bGenerateLOD = true;

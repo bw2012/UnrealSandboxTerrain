@@ -12,6 +12,19 @@
 #define USBT_USE_VD_PREBUILD_DATA 1
 
 
+typedef struct TVoxelDataGenerationParam {
+    int lod = 0;
+    bool bGenerateLOD = false;
+    
+    FORCEINLINE int step() const { return 1 << lod; }
+    TVoxelDataGenerationParam(const TVoxelDataParam& vdp) {
+        bGenerateLOD = vdp.bGenerateLOD;
+        //collisionLOD = vdp.collisionLOD;
+        //ZCutLevel = vdp.ZCutLevel;
+        //bZCut = vdp.bZCut;
+    }
+} TVoxelDataGenerationParam;
+
 //====================================================================================
 	
 static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
@@ -40,7 +53,7 @@ private:
 
 	TMeshLodSection &mesh_data;
 	const TVoxelData &voxel_data;
-	const TVoxelDataParam voxel_data_param;
+	const TVoxelDataGenerationParam voxel_data_param;
 
 	typedef struct PointAddr {
 		int x = 0;
@@ -312,7 +325,7 @@ private:
 	TArray<MeshHandler*> transitionHandlerArray;
 
 public:
-	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
+	VoxelMeshExtractor(TMeshLodSection &a, const TVoxelData &b, const TVoxelDataGenerationParam c) : mesh_data(a), voxel_data(b), voxel_data_param(c) {
 		mainMeshHandler = new MeshHandler(this, &a.WholeMesh, &a.RegularMeshContainer);
 
 		for (auto i = 0; i < 6; i++) {
@@ -345,14 +358,13 @@ private:
 	}
 
 	FORCEINLINE float getDensity(int x, int y, int z) {
-		int step = voxel_data_param.step();
-		if (voxel_data_param.z_cut) {
-			FVector p = voxel_data.voxelIndexToVector(x, y, z);
-			p += voxel_data.getOrigin();
-			if (p.Z > voxel_data_param.z_cut_level) {
-				return 0;
-			}
-		}
+		//if (voxel_data_param.bZCut) {
+		//	FVector p = voxel_data.voxelIndexToVector(x, y, z);
+		//	p += voxel_data.getOrigin();
+		//	if (p.Z > voxel_data_param.ZCutLevel) {
+		//		return 0;
+		//	}
+		//}
 
 		return voxel_data.getDensity(x, y, z);
 	}
@@ -645,12 +657,8 @@ private:
 		}
 	}
 
-public:
-	FORCEINLINE void generateCell(int x, int y, int z) {
-		Point d[8];
-
-		int step = voxel_data_param.step();
-
+    void makeVoxelpointArray(Point (&d)[8], const int x, const int y, const int z){
+        const int step = voxel_data_param.step();
         d[0] = getVoxelpoint(x, y + step, z);
         d[1] = getVoxelpoint(x, y, z);
         d[2] = getVoxelpoint(x + step, y + step, z);
@@ -659,57 +667,45 @@ public:
         d[5] = getVoxelpoint(x, y, z + step);
         d[6] = getVoxelpoint(x + step, y + step, z + step);
         d[7] = getVoxelpoint(x + step, y, z + step);
-
+    }
+    
+    void extractAllTransitionCell(Point (&d)[8], const int x, const int y, const int z){
+        if (voxel_data_param.bGenerateLOD) {
+            if (voxel_data_param.lod > 0) {
+                const int e = voxel_data.num() - voxel_data_param.step() - 1;
+                if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
+                if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
+                if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
+                if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
+                if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
+                if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
+            }
+        }
+    }
+    
+    //####################################################################################################################################
+    // public API
+    //####################################################################################################################################
+    
+public:
+	FORCEINLINE void generateCell(int x, int y, int z) {
+		Point d[8];
+        makeVoxelpointArray(d, x, y, z);
 		extractRegularCell(d);
-
-		if (voxel_data_param.bGenerateLOD) {
-			if (voxel_data_param.lod > 0) {
-				const int e = voxel_data.num() - step - 1;
-
-				if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
-				if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
-				if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
-				if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
-				if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
-				if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
-			}
-		}
+        extractAllTransitionCell(d, x, y, z);
     }
 
-	FORCEINLINE void generateCell(const TSubstanceCacheItem& cacheItm) {
+	FORCEINLINE void generateCell
+ (const TSubstanceCacheItem& cacheItm) {
 		const int x = cacheItm.x;
 		const int y = cacheItm.y;
 		const int z = cacheItm.z;
 
 		Point d[8];
-
-		int step = voxel_data_param.step();
-
-		d[0] = getVoxelpoint(x, y + step, z);
-		d[1] = getVoxelpoint(x, y, z);
-		d[2] = getVoxelpoint(x + step, y + step, z);
-		d[3] = getVoxelpoint(x + step, y, z);
-		d[4] = getVoxelpoint(x, y + step, z + step);
-		d[5] = getVoxelpoint(x, y, z + step);
-		d[6] = getVoxelpoint(x + step, y + step, z + step);
-		d[7] = getVoxelpoint(x + step, y, z + step);
-
+        makeVoxelpointArray(d, x, y, z);
 		extractRegularCell(d, cacheItm.caseCode);
-
-		if (voxel_data_param.bGenerateLOD) {
-			if (voxel_data_param.lod > 0) {
-				const int e = voxel_data.num() - step - 1;
-
-				if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
-				if (x == e) extractTransitionCell(1, d[2], d[3], d[6], d[7]); // X-
-				if (y == 0) extractTransitionCell(2, d[3], d[1], d[7], d[5]); // Y-
-				if (y == e) extractTransitionCell(3, d[0], d[2], d[4], d[6]); // Y+
-				if (z == 0) extractTransitionCell(4, d[3], d[2], d[1], d[0]); // Z-
-				if (z == e) extractTransitionCell(5, d[6], d[7], d[4], d[5]); // Z+
-			}
-		}
-	}
-
+        extractAllTransitionCell(d, x, y, z);
+    }
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
@@ -719,7 +715,6 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
-	int step = vdp.step();
 	for (const auto& itm : vd.substanceCacheLOD[0].cellList) { mesh_extractor_ptr->generateCell(itm); }
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 	return TMeshDataPtr(mesh_data);
@@ -732,10 +727,10 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
-		TVoxelDataParam me_vdp = vdp;
+		TVoxelDataGenerationParam me_vdp = vdp;
 		me_vdp.lod = lod;
 		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
-		int step = vdp.step();
+		int step = me_vdp.step();
 		for (const auto& itm : vd.substanceCacheLOD[lod].cellList) { 
 
 #if USBT_USE_VD_PREBUILD_DATA == 1
@@ -747,7 +742,6 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 			const int z = index % vd.num();
 			mesh_extractor_ptr->generateCell(x, y, z);
 #endif
-
 		}
 	}
 
@@ -760,11 +754,9 @@ TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataPara
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
-	auto step = vdp.step();
-
-	for (auto x = 0; x < vd.num() - step; x += step) {
-		for (auto y = 0; y < vd.num() - step; y += step) {
-			for (auto z = 0; z < vd.num() - step; z += step) {
+	for (auto x = 0; x < vd.num(); x++) {
+		for (auto y = 0; y < vd.num(); y++) {
+			for (auto z = 0; z < vd.num(); z++) {
 				mesh_extractor_ptr->generateCell(x, y, z);
 			}
 		}
@@ -784,17 +776,15 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
-		TVoxelDataParam me_vdp = vdp;
+		TVoxelDataGenerationParam me_vdp = vdp;
 		me_vdp.lod = lod;
 		VoxelMeshExtractorPtr me_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
 		MeshExtractorLod.push_back(me_ptr);
 	}
 
-	int step = vdp.step();
-
-	for (auto x = 0; x < vd.num() - step; x += step) {
-		for (auto y = 0; y < vd.num() - step; y += step) {
-			for (auto z = 0; z < vd.num() - step; z += step) {
+	for (auto x = 0; x < vd.num(); x++) {
+		for (auto y = 0; y < vd.num(); y++) {
+			for (auto z = 0; z < vd.num(); z++) {
 				// generate mesh for each LOD
 				//==================================================================
 				for (auto i = 0; i < max_lod; i++) {
@@ -809,52 +799,21 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 		}
 	}
 
+    if(vdp.bZCut){
+        VoxelMeshExtractorPtr mdresh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
+    }
+    
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
-
 	return TMeshDataPtr(mesh_data);
 }
 
-TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp) {
-	if (vd.isSubstanceCacheValid()) {
-		//for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
-		//	UE_LOG(LogTemp, Warning, TEXT("SubstanceCacheLOD -> %d ---> %f %f %f -> %d elenents"), lod, vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z, vd.substanceCacheLOD[lod].cellList.size());
-		//}
+//####################################################################################################################################
 
+TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp) {
+    if (vd.isSubstanceCacheValid() && !vdp.bZCut) {
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
-
-// =================================================================
-// utils
-// =================================================================
-
-extern FVector sandboxConvertVectorToCubeIndex(FVector vec) {
-	return sandboxSnapToGrid(vec, 200);
-}
-
-extern FVector sandboxSnapToGrid(FVector vec, float grid_range) {
-	FVector tmp(vec);
-	tmp /= grid_range;
-	//FVector tmp2(std::round(tmp.X), std::round(tmp.Y), std::round(tmp.Z));
-	FVector tmp2((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
-	tmp2 *= grid_range;
-	return FVector((int)tmp2.X, (int)tmp2.Y, (int)tmp2.Z);
-}
-
-FVector sandboxGridIndex(const FVector& v, int range) {
-	FVector tmp(v);
-
-	const int r = range / 2;
-
-	tmp.X = (tmp.X > 0) ? tmp.X + r : tmp.X - r;
-	tmp.Y = (tmp.Y > 0) ? tmp.Y + r : tmp.Y - r;
-	tmp.Z = (tmp.Z > 0) ? tmp.Z + r : tmp.Z - r;
-
-	tmp /= range;
-
-	return FVector((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
-}
-
 
