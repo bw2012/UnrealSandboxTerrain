@@ -754,9 +754,10 @@ TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataPara
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
-	for (auto x = 0; x < vd.num(); x++) {
-		for (auto y = 0; y < vd.num(); y++) {
-			for (auto z = 0; z < vd.num(); z++) {
+    const auto n = vd.num() - 1;
+	for (auto x = 0; x < n; x++) {
+		for (auto y = 0; y < n; y++) {
+			for (auto z = 0; z < n; z++) {
 				mesh_extractor_ptr->generateCell(x, y, z);
 			}
 		}
@@ -782,9 +783,10 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 		MeshExtractorLod.push_back(me_ptr);
 	}
 
-	for (auto x = 0; x < vd.num(); x++) {
-		for (auto y = 0; y < vd.num(); y++) {
-			for (auto z = 0; z < vd.num(); z++) {
+    const auto n = vd.num() - 1;
+	for (auto x = 0; x < n; x++) {
+		for (auto y = 0; y < n; y++) {
+			for (auto z = 0; z < n; z++) {
 				// generate mesh for each LOD
 				//==================================================================
 				for (auto i = 0; i < max_lod; i++) {
