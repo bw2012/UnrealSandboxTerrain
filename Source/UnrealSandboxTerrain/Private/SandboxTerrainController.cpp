@@ -68,6 +68,14 @@ void ASandboxTerrainController::PostLoad() {
 void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
+    
+    GlobalTerrainZoneLOD[0] = 0;
+    GlobalTerrainZoneLOD[1] = LodDistance.Distance1;
+    GlobalTerrainZoneLOD[2] = LodDistance.Distance2;
+    GlobalTerrainZoneLOD[3] = LodDistance.Distance3;
+    GlobalTerrainZoneLOD[4] = LodDistance.Distance4;
+    GlobalTerrainZoneLOD[5] = LodDistance.Distance5;
+    GlobalTerrainZoneLOD[6] = LodDistance.Distance6;
 
 	FoliageMap.Empty();
 	if (FoliageDataAsset) {

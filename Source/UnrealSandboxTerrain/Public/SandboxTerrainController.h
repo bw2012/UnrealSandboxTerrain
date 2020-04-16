@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include "VoxelIndex.h"
 #include "kvdb.hpp"
+#include "VoxelData.h"
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
@@ -197,6 +198,31 @@ public:
 
 };
 
+extern float GlobalTerrainZoneLOD[LOD_ARRAY_SIZE];
+
+USTRUCT()
+struct FSandboxTerrainLODDistance {
+    GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere)
+    float Distance1 = 1500;
+    
+    UPROPERTY(EditAnywhere)
+    float Distance2 = 3000;
+    
+    UPROPERTY(EditAnywhere)
+    float Distance3 = 6000;
+    
+    UPROPERTY(EditAnywhere)
+    float Distance4 = 12000;
+    
+    UPROPERTY(EditAnywhere)
+    float Distance5 = 24000;
+    
+    UPROPERTY(EditAnywhere)
+    float Distance6 = 48000;
+};
+
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
@@ -301,6 +327,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	bool bEnableLOD;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    FSandboxTerrainLODDistance LodDistance;
 
 	//========================================================================================
 	// collision

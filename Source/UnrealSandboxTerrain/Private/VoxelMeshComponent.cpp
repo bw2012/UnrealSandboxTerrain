@@ -78,10 +78,12 @@ struct FTerrainMeshBatchInfo {
 };
 
 
-const float LOD[LOD_ARRAY_SIZE] = { 0, 1500, 3000, 6000, 12000, 24000, 48000 };
+//const float LOD[LOD_ARRAY_SIZE] = { 0, 1500, 3000, 6000, 12000, 24000, 48000 };
 //const float LOD[LOD_ARRAY_SIZE] = { 0, 1500, 3000, 6000, 9000, 12000, 15000 };
+float GlobalTerrainZoneLOD[LOD_ARRAY_SIZE];
 
 int CalculateLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) {
+    auto& LOD = GlobalTerrainZoneLOD;
 	float Distance = FVector::Dist(ViewOrigin, ZoneOrigin);
 
 	if (Distance <= LOD[1]) {
