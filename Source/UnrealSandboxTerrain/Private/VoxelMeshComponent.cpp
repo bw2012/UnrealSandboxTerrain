@@ -581,43 +581,46 @@ void UVoxelMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	OutMaterials.Append(LocalMaterials);
 }
 
-void UVoxelMeshComponent::SetMeshData(TMeshDataPtr mdPtr) {
+void UVoxelMeshComponent::SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask) {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
 	//if (TerrainController == nullptr) return;
 
 	LocalMaterials.Empty();
 	//LocalMaterials.Reserve(10);
 
+    static const auto DummyMesh = TMeshLodSection();
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
-	if (mdPtr) {
-		TMeshData* meshData = mdPtr.get();
-
-		auto lodIndex = 0;
-		for (auto& sectionLOD : meshData->MeshSectionLodArray) {
-			MeshSectionLodArray[lodIndex].WholeMesh = sectionLOD.WholeMesh;
-
-			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialSectionMap = sectionLOD.RegularMeshContainer.MaterialSectionMap;
-			MeshSectionLodArray[lodIndex].RegularMeshContainer.MaterialTransitionSectionMap = sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap;
-
+	if (MeshDataPtr) {
+		auto LodIndex = 0;
+		for (auto& SectionLOD : MeshDataPtr->MeshSectionLodArray) {
+            const auto* SourceMesh = &SectionLOD;
+            bool bIgnoreLod = TerrainLodMask & (1 << LodIndex);
+            if(bIgnoreLod){
+                SourceMesh = &DummyMesh;
+            }
+            
+			MeshSectionLodArray[LodIndex].WholeMesh = SourceMesh->WholeMesh;
+			MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialSectionMap = SourceMesh->RegularMeshContainer.MaterialSectionMap;
+			MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialTransitionSectionMap = SourceMesh->RegularMeshContainer.MaterialTransitionSectionMap;
+            
 			if (TerrainController != nullptr) {
-				for (auto& Element : sectionLOD.RegularMeshContainer.MaterialSectionMap) {
+				for (auto& Element : SourceMesh->RegularMeshContainer.MaterialSectionMap) {
 					LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
 				}
-
-				for (auto& Element : sectionLOD.RegularMeshContainer.MaterialTransitionSectionMap) {
+                
+				for (const auto& Element : SourceMesh->RegularMeshContainer.MaterialTransitionSectionMap) {
 					LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.MaterialIdSet));
 				}
 			}
-
 			if (bLodFlag) {
 				for (auto i = 0; i < 6; i++) {
-					MeshSectionLodArray[lodIndex].TransitionPatchArray[i].MaterialSectionMap = sectionLOD.TransitionPatchArray[i].MaterialSectionMap;
-					MeshSectionLodArray[lodIndex].TransitionPatchArray[i].MaterialTransitionSectionMap = sectionLOD.TransitionPatchArray[i].MaterialTransitionSectionMap;
+					MeshSectionLodArray[LodIndex].TransitionPatchArray[i].MaterialSectionMap = SourceMesh->TransitionPatchArray[i].MaterialSectionMap;
+					MeshSectionLodArray[LodIndex].TransitionPatchArray[i].MaterialTransitionSectionMap = SourceMesh->TransitionPatchArray[i].MaterialTransitionSectionMap;
 				}
 			}
 
-			lodIndex++;
+			LodIndex++;
 		}
 	}
 	
@@ -685,7 +688,7 @@ bool UVoxelMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Co
 void UVoxelMeshComponent::UpdateLocalBounds() {
 	FBox LocalBox(EForceInit::ForceInitToZero);
 
-	if (TriMeshData.ProcVertexBuffer.Num() == 0) return;
+	//if (TriMeshData.ProcVertexBuffer.Num() == 0) return;
 
 	//LocalBox += TriMeshData.SectionLocalBox;
 	//LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds

@@ -1,14 +1,12 @@
 #pragma once
 
 #include "Engine.h"
-#include "TerrainGeneratorComponent.h"
 #include "Runtime/Engine/Classes/Engine/DataAsset.h"
 #include <memory>
 #include <queue>
 #include <mutex>
 #include <shared_mutex>
 #include <set>
-#include <list>
 #include <unordered_map>
 #include "VoxelIndex.h"
 #include "kvdb.hpp"
@@ -16,30 +14,19 @@
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
-class FLoadInitialZonesThread;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
 struct TInstMeshTransArray;
 class UVdClientComponent;
+class TTerrainLoadHandler;
+class TTerrainData;
+class TCheckAreaMap;
+class TTerrainGenerator;
 
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 
-
-typedef struct TControllerTask {
-
-	volatile bool bIsFinished = false;
-
-	std::function<void()> Function;
-	
-	void WaitForFinish() {
-		while (!this->bIsFinished) {};
-	}
-	
-} TControllerTask;
-
-typedef std::shared_ptr<TControllerTask> TControllerTaskTaskPtr;
 
 UENUM(BlueprintType)
 enum class ETerrainInitialArea : uint8 {
@@ -48,10 +35,10 @@ enum class ETerrainInitialArea : uint8 {
 };
 
 enum TVoxelDataState {
-	UNDEFINED, 
-	GENERATED, 
-	LOADED,
-	READY_TO_LOAD
+	UNDEFINED = 0,
+	GENERATED = 1,
+	LOADED = 2,
+	READY_TO_LOAD = 3
 };
 
 class TVoxelDataInfo {
@@ -93,18 +80,6 @@ struct FMapInfo {
 
 	UPROPERTY()
 	double SaveTimestamp;
-
-	UPROPERTY()
-	uint32 TerrainSizeX = 0;
-
-	UPROPERTY()
-	uint32 TerrainSizeY = 0;
-
-	UPROPERTY()
-	uint32 TerrainSizeMinZ = 0;
-
-	UPROPERTY()
-	uint32 TerrainSizeMaxZ = 0;
 };
 
 USTRUCT()
@@ -187,6 +162,20 @@ struct FSandboxTerrainMaterial {
 	UTexture* TextureNormal;
 };
 
+USTRUCT()
+struct FTerrainUndergroundLayer {
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere)
+    int32 MatId;
+
+    UPROPERTY(EditAnywhere)
+    float StartDepth;
+
+    UPROPERTY(EditAnywhere)
+    FString Name;
+};
+
 UCLASS(Blueprintable)
 class UNREALSANDBOXTERRAIN_API USandboxTerrainParameters : public UDataAsset {
 	GENERATED_BODY()
@@ -195,6 +184,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Material")
 	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Generator")
+    TArray<FTerrainUndergroundLayer> UndergroundLayers;
 
 };
 
@@ -214,26 +206,51 @@ struct FSandboxTerrainLODDistance {
     float Distance3 = 6000;
     
     UPROPERTY(EditAnywhere)
-    float Distance4 = 12000;
+    float Distance4 = 8000;
     
     UPROPERTY(EditAnywhere)
-    float Distance5 = 24000;
+    float Distance5 = 10000;
     
     UPROPERTY(EditAnywhere)
-    float Distance6 = 48000;
+    float Distance6 = 12000;
 };
 
+typedef uint8 TTerrainLodMask;
+
+UENUM(BlueprintType)
+enum class ETerrainLodMaskPreset : uint8 {
+    All      = 0            UMETA(DisplayName = "Show all"),
+    Medium   = 0b00000011   UMETA(DisplayName = "Show medium"),
+    Far      = 0b00011111   UMETA(DisplayName = "Show far"),
+};
+
+USTRUCT()
+struct FTerrainSwapAreaParams {
+    GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere)
+    float Radius = 3000;
+    
+    UPROPERTY(EditAnywhere)
+    float FullLodDistance = 1000;
+    
+    UPROPERTY(EditAnywhere)
+    int TerrainSizeMinZ = 5;
+    
+    UPROPERTY(EditAnywhere)
+    int TerrainSizeMaxZ = 5;
+};
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
 
 public:
-	ASandboxTerrainController();
-
-	friend FLoadInitialZonesThread;
-	friend UTerrainZoneComponent;
-	friend UTerrainGeneratorComponent;
+    ASandboxTerrainController();
+    
+    friend TTerrainLoadHandler;
+    friend UTerrainZoneComponent;
+	friend TTerrainGenerator;
 	friend UVdClientComponent;
 
 	virtual void BeginPlay() override;
@@ -243,22 +260,59 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void PostLoad() override;
-
+    
+    virtual void BeginDestroy() override;
+    
 	//========================================================================================
 	// debug only
 	//========================================================================================
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool bGenerateOnlySmallSpawnPoint = false;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+    ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool bShowZoneBounds = false;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+    bool bShowInitialArea = false;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+    bool bShowStartSwapPos = false;
+    
+    //========================================================================================
+    // general
+    //========================================================================================
 
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    FString MapName;
 
-	UPROPERTY(EditAnywhere)
-	UTerrainGeneratorComponent* TerrainGeneratorComponent;
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    int32 Seed;
+
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    FTerrainSwapAreaParams InitialLoadArea;
+        
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    bool bEnableLOD;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    FSandboxTerrainLODDistance LodDistance;
+    
+    //========================================================================================
+    // Dynamic area swapping
+    //========================================================================================
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    bool bEnableAreaSwapping;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    float PlayerLocationThreshold = 1000;
+    
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    FTerrainSwapAreaParams DynamicLoadArea;
 
 	//========================================================================================
 	// 
@@ -274,19 +328,15 @@ public:
 	void OnProgressBuildTerrain(float Progress);
 
 	//========================================================================================
-	// networking
-	//========================================================================================
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Network")
-	uint32 ServerPort;
-
-	//========================================================================================
 	// save/load
 	//========================================================================================
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
 	void SaveMapAsync();
 
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    int32 AutoSavePeriod;
+    
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 SaveGeneratedZones;
 
@@ -304,34 +354,6 @@ public:
 	USandboxTerrainParameters* TerrainParameters;
 
 	//========================================================================================
-	// general
-	//========================================================================================
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	FString MapName;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 Seed;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 TerrainSizeX;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 TerrainSizeY;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 TerrainSizeMinZ;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 TerrainSizeMaxZ;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	bool bEnableLOD;
-    
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    FSandboxTerrainLODDistance LodDistance;
-
-	//========================================================================================
 	// collision
 	//========================================================================================
 
@@ -346,6 +368,13 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	USandboxTarrainFoliageMap* FoliageDataAsset;
+    
+    //========================================================================================
+    // networking
+    //========================================================================================
+
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Network")
+    uint32 ServerPort;
 
 	//========================================================================================
 	
@@ -375,13 +404,13 @@ public:
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
-	UMaterialInterface* GetTransitionTerrainMaterial(std::set<unsigned short>& MaterialIdSet);
+	UMaterialInterface* GetTransitionTerrainMaterial(const std::set<unsigned short>& MaterialIdSet);
 
 	//===============================================================================
 	// async tasks
 	//===============================================================================
 
-	TControllerTaskTaskPtr InvokeSafe(std::function<void()> Function);
+	void InvokeSafe(std::function<void()> Function);
 
 	void RunThread(TUniqueFunction<void()> Function);
 
@@ -394,7 +423,17 @@ public:
 	void NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData);
 
 private:
+    
+    TCheckAreaMap* CheckAreaMap;
 
+    FTimerHandle TimerSwapArea;
+    
+    void PerformCheckArea();
+    
+    void StartCheckArea();
+    
+    TMap<uint32, FVector> PlayerSwapAreaMap;
+    
 	void BeginClient();
 
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
@@ -402,35 +441,35 @@ private:
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo& VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
-	volatile bool bIsGeneratingTerrain = false;
-
 	volatile bool bIsWorkFinished = false;
 
 	volatile float GeneratingProgress;
 
-	volatile int  GeneratedVdConter;
-
 	//===============================================================================
 	// save/load
 	//===============================================================================
+    
+    FTimerHandle TimerAutoSave;
+    
+    std::mutex FastSaveMutex;
 
 	bool bIsLoadFinished;
 
 	void Save();
+    
+    void FastSave();
+    
+    void AutoSaveByTimer();
 
 	void SaveJson();
 
 	bool LoadJson();
 	
-	TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
-
 	void SpawnInitialZone();
 
-	void SpawnZone(const TVoxelIndex& pos);
+	int SpawnZone(const TVoxelIndex& pos, const TTerrainLodMask TerrainLodMask = 0);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
-
-	FLoadInitialZonesThread* InitialZoneLoader;
 
 	bool IsWorkFinished() { return bIsWorkFinished; };
 
@@ -441,18 +480,6 @@ private:
 	void InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
 
 	void InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDataPtr MeshDataPtr);
-
-	void AddAsyncTask(TControllerTaskTaskPtr TaskPtr);
-
-	TControllerTaskTaskPtr GetAsyncTask();
-
-	bool HasNextAsyncTask();
-
-	std::shared_timed_mutex AsyncTaskListMutex;
-
-	std::queue<TControllerTaskTaskPtr> AsyncTaskList;
-
-	void WaitForFinishAsyncTask(const TControllerTaskTaskPtr Task) { while (!Task->bIsFinished) { if (bIsWorkFinished) return; }; };
 
 	//===============================================================================
 	// threads
@@ -465,18 +492,16 @@ private:
 	//===============================================================================
 	// voxel data storage
 	//===============================================================================
+    
+    TTerrainGenerator* Generator;
+    
+    TTerrainData* TerrainData;
 
 	TKvFile VdFile;
 
 	TKvFile MdFile;
 
 	TKvFile ObjFile;
-
-	std::shared_timed_mutex VoxelDataMapMutex;
-
-	std::unordered_map<TVoxelIndex, TVoxelDataInfo> VoxelDataIndexMap;
-
-	void RegisterTerrainVoxelData(TVoxelDataInfo VdInfo, TVoxelIndex Index);
 
 	TVoxelData* GetVoxelDataByPos(const FVector& Pos);
 
@@ -485,8 +510,6 @@ private:
 	bool HasVoxelData(const TVoxelIndex& Index);
 
 	TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index);
-
-	void ClearVoxelData();
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
@@ -505,8 +528,6 @@ private:
 	//===============================================================================
 
 	TMap<uint32, FSandboxFoliage> FoliageMap;
-
-	void GenerateNewFoliage(UTerrainZoneComponent* Zone);
 
 	void LoadFoliage(UTerrainZoneComponent* Zone);
 
@@ -536,25 +557,28 @@ private:
 		return 0;
 	}
 
+    void OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
+
+    void OnLoadZone(UTerrainZoneComponent* Zone);
+    
+    //===============================================================================
+    // save/load
+    //===============================================================================
+
+    bool VerifyMap();
+
+    bool OpenFile();
+
+    void RunLoadMapAsync(std::function<void()> OnFinish);
+    
+    TVoxelData* NewVoxelData();
+    
 protected:
 
 	virtual void InitializeTerrainController();
 
 	virtual void BeginPlayServer();
-
-	virtual TVoxelData* newVoxelData();
+    
+    virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
 	
-	virtual void OnGenerateNewZone(UTerrainZoneComponent* Zone);
-
-	virtual void OnLoadZone(UTerrainZoneComponent* Zone);
-
-	//===============================================================================
-	// save/load
-	//===============================================================================
-
-	bool VerifyMap();
-
-	bool OpenFile();
-
-	void RunLoadMapAsync(std::function<void()> OnFinish);
 };

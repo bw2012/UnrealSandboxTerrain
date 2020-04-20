@@ -11,20 +11,25 @@
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
+    CurrentTerrainLodMask = 0xff;
 }
 
-
+/*
 TMeshData const * UTerrainZoneComponent::GetCachedMeshData() {
 	return (TMeshData const *) CachedMeshDataPtr.get();
+}
+*/
+
+TMeshDataPtr UTerrainZoneComponent::GetCachedMeshData() {
+    return CachedMeshDataPtr;
 }
 
 void UTerrainZoneComponent::ClearCachedMeshData() {
 	CachedMeshDataPtr = nullptr;
 }
 
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache, const TTerrainLodMask TerrainLodMask) {
 	double start = FPlatformTime::Seconds();
-
 	TMeshData* MeshData = MeshDataPtr.get();
 
 	if (MeshData == nullptr) {
@@ -38,6 +43,14 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	if (bPutToCache) {
 		CachedMeshDataPtr = MeshDataPtr;
 	}
+    
+    TTerrainLodMask TargetTerrainLodMask = 0;
+    if(TerrainLodMask < CurrentTerrainLodMask){
+        TargetTerrainLodMask = TerrainLodMask;
+        CurrentTerrainLodMask = TerrainLodMask;
+    } else {
+        TargetTerrainLodMask = CurrentTerrainLodMask;
+    }
 
 	//##########################################
 	// draw debug points
@@ -86,7 +99,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
-	MainTerrainMesh->SetMeshData(MeshDataPtr);
+	MainTerrainMesh->SetMeshData(MeshDataPtr, TargetTerrainLodMask);
 
 	//MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 

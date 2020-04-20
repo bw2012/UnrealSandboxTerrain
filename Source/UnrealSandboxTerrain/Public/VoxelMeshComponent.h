@@ -36,7 +36,7 @@ public:
 	// zone position inside terrain
 	TVoxelIndex ZoneIndex;
 
-	void SetMeshData(TMeshDataPtr mdPtr);
+	void SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
 
 	void SetLodFlag(bool bLodFlag) {
 		this->bLodFlag = bLodFlag;
