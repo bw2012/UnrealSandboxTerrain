@@ -7,12 +7,16 @@
 //  https://www.geeksforgeeks.org/print-given-matrix-reverse-spiral-form/
 //	m - ending row index
 //	n - ending column index
-void ReverseSpiralWalkthrough(int m, int n, std::function<void(int x, int y)> Function) {
+void ReverseSpiralWalkthrough(const unsigned int r, std::function<void(int x, int y)> Function) {
 	struct XY {
 		int x, y;
 		XY(int x_, int y_) : x(x_), y(y_) { };
 	};
 
+    auto r2 = r * 2 + 1;
+    int m = r2;
+    int n = r2;
+    
 	std::list<XY> list;
 
 	/* k - starting row index
@@ -69,11 +73,10 @@ void ReverseSpiralWalkthrough(int m, int n, std::function<void(int x, int y)> Fu
 	}
 
 	for (auto& itm : list) {
-		Function(itm.x, itm.y);
+		Function(itm.x - r, itm.y - r);
 	}
 
 }
-
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range) {
     FVector tmp(vec);
