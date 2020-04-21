@@ -110,7 +110,7 @@ private:
 			//InvokeSafe([=]() { OnProgressBuildTerrain(GeneratingProgress); } );
 			if (Controller->IsWorkFinished()) return;
 			if (GeneratedVdConter > SaveGeneratedZones) {
-				Controller->FastSave();
+				//Controller->FastSave();
 				GeneratedVdConter = 0;
 			}
 		}
@@ -129,7 +129,7 @@ private:
             EndChunk();
         });
         
-        Controller->FastSave();
+        //Controller->FastSave();
     }
     
 public:
@@ -713,15 +713,15 @@ TVoxelData* ASandboxTerrainController::NewVoxelData() {
 
 // load or generate new zone voxel data and mesh
 int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
-	UE_LOG(LogTemp, Log, TEXT("SpawnZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
+	//UE_LOG(LogTemp, Log, TEXT("SpawnZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
 	FVector Pos = GetZonePos(Index);
 
     bool bMeshExist = false;
     auto ExistingZone = GetZoneByVectorIndex(Index);
     if(ExistingZone){
-		UE_LOG(LogTemp, Log, TEXT("ExistingZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
-        if(ExistingZone->GetTerrainLodMask() == TerrainLodMask){
-            //return TZoneSpawnResult::None;
+		//UE_LOG(LogTemp, Log, TEXT("ExistingZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
+        if(ExistingZone->GetTerrainLodMask() <= TerrainLodMask){
+            return TZoneSpawnResult::None;
         } else {
             bMeshExist = true;
         }
@@ -759,7 +759,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
         if(bMeshExist){
             // just change lod mask
             InvokeSafe([=]() {
-				UE_LOG(LogTemp, Log, TEXT("ChangeLodMask -> %d %d %d -> %d "), Index.X, Index.Y, Index.Z, TerrainLodMask);
+				//UE_LOG(LogTemp, Log, TEXT("ChangeLodMask -> %d %d %d -> %d "), Index.X, Index.Y, Index.Z, TerrainLodMask);
                 ExistingZone->ApplyTerrainMesh(MeshDataPtr, false, TerrainLodMask); // already in cache
             });
             return (int)TZoneSpawnResult::ChangeLodMask;
@@ -768,7 +768,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
             InvokeSafe([=]() {
                 UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 				if (Zone) {
-					UE_LOG(LogTemp, Log, TEXT("SpawnMesh -> %d %d %d "), Index.X, Index.Y, Index.Z);
+					//UE_LOG(LogTemp, Log, TEXT("SpawnMesh -> %d %d %d "), Index.X, Index.Y, Index.Z);
 					Zone->ApplyTerrainMesh(MeshDataPtr, false, TerrainLodMask); // already in cache
 					OnLoadZone(Zone);
 				}
@@ -784,7 +784,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 		if (ExistingZone) {
 			// just change lod mask
 			InvokeSafe([=]() {
-				UE_LOG(LogTemp, Log, TEXT("ChangeLodMask -> %d %d %d -> %d "), Index.X, Index.Y, Index.Z, TerrainLodMask);
+				//UE_LOG(LogTemp, Log, TEXT("ChangeLodMask -> %d %d %d -> %d "), Index.X, Index.Y, Index.Z, TerrainLodMask);
 				ExistingZone->ApplyTerrainMesh(MeshDataPtr, false, TerrainLodMask); // already in cache
 			});
 		}
@@ -807,7 +807,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 		});
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("None -> %d %d %d "), Index.X, Index.Y, Index.Z);
+	//UE_LOG(LogTemp, Log, TEXT("None -> %d %d %d "), Index.X, Index.Y, Index.Z);
 
 	return bNewVdGenerated ? TZoneSpawnResult::GeneratedNewVd : TZoneSpawnResult::None;
 }

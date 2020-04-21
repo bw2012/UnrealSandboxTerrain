@@ -259,6 +259,9 @@ public:
     
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
     bool bShowStartSwapPos = false;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	bool bShowApplyZone = false;
     
     //========================================================================================
     // general

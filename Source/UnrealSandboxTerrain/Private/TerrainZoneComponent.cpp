@@ -56,7 +56,9 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 	double start = FPlatformTime::Seconds();
 	TMeshData* MeshData = MeshDataPtr.get();
 
-	DrawDebugBox(GetWorld(), GetComponentLocation(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), false, 10);
+	if (GetTerrainController()->bShowApplyZone) {
+		DrawDebugBox(GetWorld(), GetComponentLocation(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), false, 5);
+	}
 
 	if (MeshData == nullptr) {
 		return;
@@ -70,16 +72,16 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		CachedMeshDataPtr = MeshDataPtr;
 	}
 
+	// do not reduce lod mask
     TTerrainLodMask TargetTerrainLodMask = 0;
-	/*
-    if(TerrainLodMask < CurrentTerrainLodMask){
+	if(TerrainLodMask < CurrentTerrainLodMask){
         TargetTerrainLodMask = TerrainLodMask;
         CurrentTerrainLodMask = TerrainLodMask;
     } else {
         TargetTerrainLodMask = CurrentTerrainLodMask;
     }
-	*/
-	TargetTerrainLodMask = TerrainLodMask;
+	
+	//TargetTerrainLodMask = TerrainLodMask;
 
 
 	//##########################################
