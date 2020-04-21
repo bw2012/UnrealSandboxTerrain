@@ -103,6 +103,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 
 	//MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 
+    MainTerrainMesh->bCastShadowAsTwoSided = true;    
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetVisibility(true);

@@ -241,6 +241,16 @@ struct FTerrainSwapAreaParams {
     int TerrainSizeMaxZ = 5;
 };
 
+
+typedef struct TVoxelDensityFunctionData {
+    float Density;
+    float GroundLelel;
+    FVector WorldPos;
+    FVector LocalPos;
+    TVoxelIndex ZoneIndex;
+} TVoxelDensityFunctionData;
+
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -578,7 +588,15 @@ protected:
 	virtual void InitializeTerrainController();
 
 	virtual void BeginPlayServer();
+       
+    //===============================================================================
+    // virtual functions
+    //===============================================================================
     
     virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
+    
+    virtual float GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData);
+    
+    virtual bool GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex);
 	
 };

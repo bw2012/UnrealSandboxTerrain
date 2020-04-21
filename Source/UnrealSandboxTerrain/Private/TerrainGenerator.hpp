@@ -16,6 +16,7 @@
 //#include "TerrainZoneComponent.h"
 #include "perlin.hpp"
 #include <algorithm>
+#include <math.h>
 
 class ASandboxTerrainController;
 class TVoxelData;
@@ -83,7 +84,6 @@ public:
 };
 
 
-
 class TTerrainGenerator {
 
 private:
@@ -120,7 +120,7 @@ public:
     
 private:
     
-    float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const {
+    FORCEINLINE float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const {
         float val = 1;
         float gl = GroundLevel - USBT_VGEN_GROUND_LEVEL_OFFSET;
 
@@ -142,18 +142,49 @@ private:
         return val;
     }
 
-    float DensityFunc(const FVector& ZoneIndex, const FVector& LocalPos, const FVector& WorldPos){
-        //float den = ClcDensityByGroundLevel(WorldPos);
-
-        // ==============================================================
-        // cavern
-        // ==============================================================
-        //if (this->cavern) {
-        //    den = funcGenerateCavern(den, local);
-        //}
-        // ==============================================================
-
-        return 0;
+    float DensityFunc(TVoxelDensityFunctionData& FunctionData){
+        return Controller->GeneratorDensityFunc(FunctionData);
+        
+        /*
+        const FVector& WorldPos = FunctionData.WorldPos;
+        float Density = FunctionData.Density;
+        
+        static const float scale0 = 0.005f; // small
+        static const float scale1 = 0.001f; // small
+        
+       
+        float Noise0 = Pn.noise(WorldPos.X * scale0, WorldPos.Y * scale0, WorldPos.Z * 0.0005);
+        float Noise1 = Pn.noise(WorldPos.X * scale1, WorldPos.Y * scale1, WorldPos.Z * scale1);
+        
+        //float NormalizedPerlin = (NoiseMedium + 0.87) / 1.73;
+        //float Z = WorldPos.Z + NoiseMedium * 100;
+        //float DensityByGroundLevel = 1 - (1 / (1 + exp(-Z)));
+        
+        float Result = Density;
+                
+        float cave_level = 800; // 600 ->~599 bingo
+        float cave_height = 80000; // 80000 -> 473
+        float t = 1 - exp( - pow((WorldPos.Z + cave_level), 2) / cave_height); // 80000 -> 473 = 473 * 169.13
+        //Result *= t;
+        
+        if(WorldPos.Z < -300){
+            Result = Density * (t + Noise1 * 0.75 + ((1 - t) * Noise0 * 0.5));
+        }
+        //Result = Density * (NoiseMedium * 0.5 + t);
+        
+        
+        if(Result < 0 ){
+            //UE_LOG(LogTemp, Warning, TEXT("%f"), Result);
+            Result = 0;
+        }
+        
+        if(Result > 1){
+            //001- UE_LOG(LogTemp, Warning, TEXT("%f"), Result);
+            Result = 1;
+        }
+        
+        return Result;
+         */
     }
 
     unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel){
@@ -176,7 +207,7 @@ private:
         return mat;
     }
 
-    void GenerateZoneVolume(TVoxelData &VoxelData, const TZoneHeightMapData* ZoneHeightMapData){
+    void GenerateZoneVolume(TVoxelIndex& ZoneIndex, TVoxelData& VoxelData, const TZoneHeightMapData* ZoneHeightMapData){
         TSet<unsigned char> material_list;
         int zc = 0; int fc = 0;
 
@@ -186,8 +217,15 @@ private:
                     FVector LocalPos = VoxelData.voxelIndexToVector(x, y, z);
                     FVector WorldPos = LocalPos + VoxelData.getOrigin();
                     float GroundLevel = ZoneHeightMapData->GetHeightLevel(TVoxelIndex(x, y, 0));
-                    float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
-                    //float den = DensityFunc(ZoneIndex, LocalPos, WorldPos);
+                    //float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+                    
+                    TVoxelDensityFunctionData FunctionData;
+                    FunctionData.Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+                    FunctionData.ZoneIndex = ZoneIndex;
+                    FunctionData.WorldPos = WorldPos;
+                    FunctionData.LocalPos = LocalPos;
+                    
+                    float Density = DensityFunc(FunctionData);
                     unsigned char MaterialId = MaterialFunc(LocalPos, WorldPos, GroundLevel);
 
                     VoxelData.setDensity(x, y, z, Density);
@@ -264,7 +302,6 @@ private:
         float ZoneLow = ZoneOrigin.Z - ZoneHalfSize - 10;
         float TerrainHigh = ZoneHeightMapData->GetMaxHeightLevel();
         float TerrainLow = ZoneHeightMapData->GetMinHeightLevel();
-
         return std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh);
     }
 
@@ -309,21 +346,27 @@ public:
 
         static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
         const FVector Origin = VoxelData.getOrigin();
-        if (!IsZoneOverGroundLevel(ZoneHeightMapData, Origin)) {
-            TArray<FTerrainUndergroundLayer> LayerList;
-            int LayersCount = GetAllUndergroundMaterialLayers(ZoneHeightMapData, Origin, &LayerList);
-            bool bIsZoneOnGround = IsZoneOnGroundLevel(ZoneHeightMapData, Origin);
-            if (LayersCount == 1 && !bIsZoneOnGround) {
-                // only one material
-                VoxelData.deinitializeDensity(TVoxelDataFillState::FULL);
-                VoxelData.deinitializeMaterial(LayerList[0].MatId);
-            } else {
-                GenerateZoneVolume(VoxelData, ZoneHeightMapData);
-            }
+        
+        bool bForcePerformZone = Controller->GeneratorForcePerformZone(ZoneIndex);
+        if(bForcePerformZone){
+            GenerateZoneVolume(ZoneIndex, VoxelData, ZoneHeightMapData);
         } else {
-            // air only
-            VoxelData.deinitializeDensity(TVoxelDataFillState::ZERO);
-            VoxelData.deinitializeMaterial(0);
+            if (!IsZoneOverGroundLevel(ZoneHeightMapData, Origin)) {
+                TArray<FTerrainUndergroundLayer> LayerList;
+                int LayersCount = GetAllUndergroundMaterialLayers(ZoneHeightMapData, Origin, &LayerList);
+                bool bIsZoneOnGround = IsZoneOnGroundLevel(ZoneHeightMapData, Origin);
+                if (LayersCount == 1 && !bIsZoneOnGround) {
+                    // only one material
+                    VoxelData.deinitializeDensity(TVoxelDataFillState::FULL);
+                    VoxelData.deinitializeMaterial(LayerList[0].MatId);
+                } else {
+                    GenerateZoneVolume(ZoneIndex, VoxelData, ZoneHeightMapData);
+                }
+            } else {
+                // air only
+                VoxelData.deinitializeDensity(TVoxelDataFillState::ZERO);
+                VoxelData.deinitializeMaterial(0);
+            }
         }
             
         VoxelData.setCacheToValid();

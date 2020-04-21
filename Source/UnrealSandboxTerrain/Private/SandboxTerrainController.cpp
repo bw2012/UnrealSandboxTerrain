@@ -1160,7 +1160,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
-				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend + 10), FBox(Lower, Upper))) {
+                if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 1.5f), FBox(Lower, Upper))) {
 					if (VoxelDataInfo == nullptr) {
 						continue;
 					}
@@ -1309,6 +1309,13 @@ bool ASandboxTerrainController::OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex
     return true;
 }
 
+float ASandboxTerrainController::GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData) {
+    return FunctionData.Density;
+}
+
+bool ASandboxTerrainController::GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex) {
+    return false;
+}
 
 //======================================================================================================================================================================
 // Sandbox Foliage
