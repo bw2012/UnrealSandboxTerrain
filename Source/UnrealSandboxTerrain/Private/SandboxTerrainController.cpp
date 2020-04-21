@@ -765,7 +765,6 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	TVoxelDataInfo* VoxelDataInfo = GetVoxelDataInfo(Index);
 
 	// if mesh data exist in file - load, apply and return
-	// BUG HERE. new mesh generated is not in file
 	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(Index);
 	if (MeshDataPtr) {
         if(bMeshExist){
