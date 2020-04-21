@@ -19,6 +19,7 @@
 #include "SandboxVoxeldata.h"
 #include "serialization.hpp"
 #include "utils.hpp"
+#include "VoxelDataInfo.hpp"
 #include "TerrainGenerator.hpp"
 #include "TerrainData.hpp"
 
@@ -28,14 +29,6 @@ bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function
 //TValueDataPtr SerializeMeshData(TMeshData const * MeshDataPtr);
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 //bool CheckSaveDir(FString SaveDir);
-
-void TVoxelDataInfo::Unload() {
-    if (Vd != nullptr) {
-        delete Vd;
-        Vd = nullptr;
-    }
-    DataState = TVoxelDataState::READY_TO_LOAD;
-}
 
 //======================================================================================================================================================================
 //
@@ -462,6 +455,7 @@ void ASandboxTerrainController::FastSave() {
     
     for(auto& Index : VdList){
         TVoxelDataInfo* VdInfo = GetVoxelDataInfo(Index);
+        VdInfo->LoadVdMutexPtr->lock();
         if (VdInfo->Vd == nullptr) return;
         if (VdInfo->IsChanged()) {
             auto Data = VdInfo->Vd->serialize();
@@ -469,6 +463,7 @@ void ASandboxTerrainController::FastSave() {
             VdInfo->ResetLastSave();
         }
         VdInfo->Unload();
+        VdInfo->LoadVdMutexPtr->unlock();
     }
     
     for(auto& Index : MdList){
@@ -1118,20 +1113,20 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 }
 
 template<class H>
-void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfo& VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
+void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
 	bool bIsChanged = false;
 	TMeshDataPtr MeshDataPtr = nullptr;
 
-	VdInfo.Vd->vd_edit_mutex.lock();
-	bIsChanged = handler(VdInfo.Vd);
+	VdInfo->Vd->vd_edit_mutex.lock();
+	bIsChanged = handler(VdInfo->Vd);
 	if (bIsChanged) {
-		VdInfo.SetChanged();
-		VdInfo.Vd->setCacheToValid();
-		MeshDataPtr = GenerateMesh(VdInfo.Vd);
-		VdInfo.ResetLastMeshRegenerationTime();
+		VdInfo->SetChanged();
+		VdInfo->Vd->setCacheToValid();
+		MeshDataPtr = GenerateMesh(VdInfo->Vd);
+		VdInfo->ResetLastMeshRegenerationTime();
 		MeshDataPtr->TimeStamp = FPlatformTime::Seconds();
 	}
-	VdInfo.Vd->vd_edit_mutex.unlock();
+	VdInfo->Vd->vd_edit_mutex.unlock();
 
 	if (bIsChanged) {
 		OnComplete(MeshDataPtr);
@@ -1185,9 +1180,9 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 					}
 
 					if (Zone == nullptr) {
-						PerformZoneEditHandler(*VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
+						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
 					} else {
-						PerformZoneEditHandler(*VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
+						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
 					}
 				}
 			}

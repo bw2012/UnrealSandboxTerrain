@@ -22,6 +22,8 @@ class TTerrainLoadHandler;
 class TTerrainData;
 class TCheckAreaMap;
 class TTerrainGenerator;
+class TVoxelDataInfo;
+
 
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -32,40 +34,6 @@ UENUM(BlueprintType)
 enum class ETerrainInitialArea : uint8 {
 	TIA_1_1 = 0	UMETA(DisplayName = "1x1"),
 	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
-};
-
-enum TVoxelDataState {
-	UNDEFINED = 0,
-	GENERATED = 1,
-	LOADED = 2,
-	READY_TO_LOAD = 3
-};
-
-class TVoxelDataInfo {
-
-private:
-	volatile double LastChange;
-	volatile double LastSave;
-	volatile double LastMeshGeneration;
-	volatile double LastCacheCheck;
-
-public:
-	TVoxelDataInfo() {	LoadVdMutexPtr = std::make_shared<std::mutex>(); }
-	~TVoxelDataInfo() {	}
-
-	TVoxelData* Vd = nullptr;
-	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
-	std::shared_ptr<std::mutex> LoadVdMutexPtr;
-
-	bool IsNewGenerated() const { return DataState == TVoxelDataState::GENERATED; }
-	bool IsNewLoaded() const { return DataState == TVoxelDataState::LOADED;	}
-	void SetChanged() { LastChange = FPlatformTime::Seconds(); }
-	bool IsChanged() { return LastChange > LastSave; }
-	void ResetLastSave() { LastSave = FPlatformTime::Seconds(); }
-	bool IsNeedToRegenerateMesh() { return LastChange > LastMeshGeneration; }
-	void ResetLastMeshRegenerationTime() { LastMeshGeneration = FPlatformTime::Seconds(); }
-
-	void Unload();
 };
 
 USTRUCT()
@@ -449,7 +417,7 @@ private:
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo& VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
 
