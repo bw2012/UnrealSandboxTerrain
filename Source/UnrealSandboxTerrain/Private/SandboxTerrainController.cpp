@@ -436,8 +436,8 @@ void ASandboxTerrainController::FastSave() {
     TerrainData->ForEachZoneSafe([&](FVector ZoneIndex, UTerrainZoneComponent* Zone){
         // save terrain mesh
         //TMeshData const* MeshDataPtr = Zone->GetCachedMeshData();
-        auto MeshDataPtr = Zone->GetCachedMeshData();
-        if (MeshDataPtr) {
+        //auto MeshDataPtr = Zone->GetCachedMeshData();
+        if (Zone->HasCachedMeshData()) {
             MdList.push_back(ZoneIndex);
         }
 
@@ -470,11 +470,9 @@ void ASandboxTerrainController::FastSave() {
         TVoxelIndex Index2 = TVoxelIndex(Index.X, Index.Y, Index.Z);
         auto Zone = GetZoneByVectorIndex(Index2);
         //TMeshData const* MeshDataPtr = Zone->GetCachedMeshData();
-        auto MeshDataPtr = Zone->GetCachedMeshData();
-        if (MeshDataPtr) {
-            auto Data = SerializeMeshData(MeshDataPtr);
-            MdFile.save(Index2, *Data);
-            Zone->ClearCachedMeshData();
+        auto DataPtr = Zone->SerializeAndClearCachedMeshData();
+        if (DataPtr) {
+            MdFile.save(Index2, *DataPtr);
         }
     }
     
@@ -482,9 +480,8 @@ void ASandboxTerrainController::FastSave() {
         TVoxelIndex Index2 = TVoxelIndex(Index.X, Index.Y, Index.Z);
         auto Zone = GetZoneByVectorIndex(Index2);
         if (Zone->IsNeedSave()) {
-            auto Data = Zone->SerializeInstancedMeshes();
+            auto Data = Zone->SerializeAndResetObjectData();
             ObjFile.save(Index2, *Data);
-            Zone->ResetNeedSave();
         }
     }
     
@@ -519,20 +516,18 @@ void ASandboxTerrainController::Save() {
     
     TerrainData->ForEachZoneSafe([&](FVector ZoneIndex, UTerrainZoneComponent* Zone){
         // save terrain mesh
-        auto MeshDataPtr = Zone->GetCachedMeshData();
-        if (MeshDataPtr) {
-            TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
+        auto DataPtr = Zone->SerializeAndClearCachedMeshData();
+        //auto MeshDataPtr = Zone->GetCachedMeshData();
+        if (DataPtr) {
             MdFile.save(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z), *DataPtr);
-            Zone->ClearCachedMeshData();
             SavedMd++;
         }
 
         // save instanced meshes
         if (FoliageDataAsset) {
             if (Zone->IsNeedSave()) {
-                TValueDataPtr DataPtr = Zone->SerializeInstancedMeshes();
+                auto DataPtr = Zone->SerializeAndResetObjectData();
                 ObjFile.save(TVoxelIndex(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z), *DataPtr);
-                Zone->ResetNeedSave();
                 SavedObj++;
             }
         }

@@ -9,6 +9,8 @@
 
 #include "DrawDebugHelpers.h"
 
+TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
+
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
     CurrentTerrainLodMask = 0xff;
@@ -18,17 +20,39 @@ UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectIni
 TMeshData const * UTerrainZoneComponent::GetCachedMeshData() {
 	return (TMeshData const *) CachedMeshDataPtr.get();
 }
-*/
 
 TMeshDataPtr UTerrainZoneComponent::GetCachedMeshData() {
     return CachedMeshDataPtr;
 }
+*/
+
 
 void UTerrainZoneComponent::ClearCachedMeshData() {
+    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	CachedMeshDataPtr = nullptr;
 }
 
+bool UTerrainZoneComponent::HasCachedMeshData() {
+    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
+    return CachedMeshDataPtr != nullptr;
+}
+
+TValueDataPtr UTerrainZoneComponent::SerializeAndClearCachedMeshData() {
+    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
+    
+    if(CachedMeshDataPtr){
+        TValueDataPtr DataPtr = SerializeMeshData(CachedMeshDataPtr);
+        CachedMeshDataPtr = nullptr;
+        return DataPtr;
+    }
+    
+    return nullptr;
+}
+
+
+
 void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache, const TTerrainLodMask TerrainLodMask) {
+    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	double start = FPlatformTime::Seconds();
 	TMeshData* MeshData = MeshDataPtr.get();
 
@@ -36,7 +60,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		return;
 	}
 
-	if (CachedMeshDataPtr != nullptr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
+	if (CachedMeshDataPtr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
 		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
 	}
 
@@ -130,6 +154,12 @@ typedef struct TInstantMeshData {
 	float ScaleZ;
 } TInstantMeshData;
 
+TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
+    const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
+    TValueDataPtr Data = SerializeInstancedMeshes();
+    bIsObjectsNeedSave = false;
+    return Data;
+}
 
 std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMeshes() {
 	FastUnsafeSerializer Serializer;
@@ -205,6 +235,7 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data,
 }
 
 void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& Transform) {
+    const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
 	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = nullptr;
 
 	if (InstancedMeshMap.Contains(MeshType.MeshTypeId)) {
@@ -232,4 +263,5 @@ void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshTy
 	}
 
 	InstancedStaticMeshComponent->AddInstanceWorldSpace(Transform);
+    SetNeedSave();
 }

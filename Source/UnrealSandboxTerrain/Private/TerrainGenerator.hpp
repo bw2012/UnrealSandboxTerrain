@@ -428,12 +428,8 @@ public:
                         }
                     }
                 }
-
-
             }
         }
-
-        Zone->SetNeedSave();
     }
 
     void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, UTerrainZoneComponent* Zone){
