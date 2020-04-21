@@ -55,6 +55,10 @@ class TTerrainLoadHandler {
 public:
     
     TTerrainLoadHandler(){}
+
+	~TTerrainLoadHandler() {
+		//UE_LOG(LogSandboxTerrain, Warning, TEXT("~TTerrainLoadHandler()"));
+	}
     
     TTerrainLoadHandler(FString Name_, ASandboxTerrainController* Controller_) :
                 Name(Name_), Controller(Controller_) {}
@@ -142,6 +146,7 @@ private:
 public:
     
     void Cancel(){
+		//UE_LOG(LogSandboxTerrain, Warning, TEXT("Cancel -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
         this->bIsStopped = true;
     }
    
@@ -324,13 +329,15 @@ void ASandboxTerrainController::PerformCheckArea() {
                                 
                 if(CheckAreaMap->PlayerSwapHandler.Contains(PlayerId)){
                     // cancel old
-                    std::shared_ptr<TTerrainLoadHandler> HandlerPtr = CheckAreaMap->PlayerSwapHandler[PlayerId];
-                    HandlerPtr->Cancel();
+                    std::shared_ptr<TTerrainLoadHandler> HandlerPtr2 = CheckAreaMap->PlayerSwapHandler[PlayerId];
+                    HandlerPtr2->Cancel();
                     CheckAreaMap->PlayerSwapHandler.Remove(PlayerId);
                 }
                 
                 // start new
                 std::shared_ptr<TTerrainLoadHandler> HandlerPtr = std::make_shared<TTerrainLoadHandler>();
+				CheckAreaMap->PlayerSwapHandler.Add(PlayerId, HandlerPtr);
+
                 if(bShowStartSwapPos){
                     DrawDebugBox(GetWorld(), Location, FVector(100), FColor(255, 0, 255, 0), false, 15);
                     static const float Len = 1000;
