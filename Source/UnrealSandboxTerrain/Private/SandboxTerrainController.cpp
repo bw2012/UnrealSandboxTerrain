@@ -787,7 +787,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 	TSet<FVector> InitialZoneSet;
 
 	if (s > 0) {
-		for (auto z = -s; z <= s; z++) {
+		for (auto z = -5; z <= 5; z++) {
 			for (auto x = -s; x <= s; x++) {
 				for (auto y = -s; y <= s; y++) {
 					SpawnZone(TVoxelIndex(x, y, z));
