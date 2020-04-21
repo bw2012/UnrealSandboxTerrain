@@ -113,14 +113,14 @@ private:
                 //InvokeSafe([=]() { OnProgressBuildTerrain(GeneratingProgress); } );
                 if (Controller->IsWorkFinished()) return;
                 if (GeneratedVdConter > SaveGeneratedZones) {
-                    Controller->FastSave();
+                    //Controller->FastSave();
                     GeneratedVdConter = 0;
                 }
             }
             EndChunk();
         });
         
-        Controller->FastSave();
+       // Controller->FastSave();
     }
     
 public:
@@ -1112,6 +1112,7 @@ void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H
 	bool bIsChanged = false;
 	TMeshDataPtr MeshDataPtr = nullptr;
 
+	VdInfo->LoadVdMutexPtr->lock();
 	VdInfo->Vd->vd_edit_mutex.lock();
 	bIsChanged = handler(VdInfo->Vd);
 	if (bIsChanged) {
@@ -1122,6 +1123,7 @@ void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H
 		MeshDataPtr->TimeStamp = FPlatformTime::Seconds();
 	}
 	VdInfo->Vd->vd_edit_mutex.unlock();
+	VdInfo->LoadVdMutexPtr->unlock();
 
 	if (bIsChanged) {
 		OnComplete(MeshDataPtr);

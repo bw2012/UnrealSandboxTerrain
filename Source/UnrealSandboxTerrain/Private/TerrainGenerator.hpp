@@ -298,7 +298,7 @@ private:
 
     FORCEINLINE bool IsZoneOnGroundLevel(TZoneHeightMapData* ZoneHeightMapData, const FVector& ZoneOrigin){
         static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
-        float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize + 10;
+        float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize + 500;
         float ZoneLow = ZoneOrigin.Z - ZoneHalfSize - 10;
         float TerrainHigh = ZoneHeightMapData->GetMaxHeightLevel();
         float TerrainLow = ZoneHeightMapData->GetMinHeightLevel();
