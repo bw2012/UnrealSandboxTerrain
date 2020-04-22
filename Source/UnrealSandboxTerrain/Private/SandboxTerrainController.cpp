@@ -163,28 +163,9 @@ public:
 };
 
 class TCheckAreaMap {
-    
-private:
-    std::shared_timed_mutex Mutex;
-    TMap<uint32, TTerrainLoadHandler> Map;
-    
 public:
-    
-    TMap<uint32, FVector> PlayerSwapAreaMap;
-    
-    TTerrainLoadHandler& Get(const uint32 PlayerId){
-        std::unique_lock<std::shared_timed_mutex> Lock(Mutex);
-        return Map.FindOrAdd(PlayerId);
-    }
-    
-    bool Contains(const uint32 PlayerId){
-        std::unique_lock<std::shared_timed_mutex> Lock(Mutex);
-        return Map.Contains(PlayerId);
-    }
-    
-    void Delete(const uint32 PlayerId){
-        Map.Remove(PlayerId);
-    }
+    TMap<uint32, std::shared_ptr<TTerrainLoadHandler>> PlayerSwapHandler;
+    TMap<uint32, FVector> PlayerSwapPosition;
 };
 
 
@@ -313,7 +294,7 @@ void ASandboxTerrainController::StartCheckArea() {
                 const auto PlayerId = PlayerController->GetUniqueID();
                 const auto Pawn = PlayerController->GetCharacter();
                 const FVector Location = Pawn->GetActorLocation();
-                CheckAreaMap->PlayerSwapAreaMap.Add(PlayerId, Location);
+                CheckAreaMap->PlayerSwapPosition.Add(PlayerId, Location);
             }
         }
         GetWorld()->GetTimerManager().SetTimer(TimerSwapArea, this, &ASandboxTerrainController::PerformCheckArea, 0.25, true);
@@ -333,23 +314,23 @@ void ASandboxTerrainController::PerformCheckArea() {
             const auto PlayerId = PlayerController->GetUniqueID();
             const auto Pawn = PlayerController->GetCharacter();
             const FVector Location = Pawn->GetActorLocation();
-            const FVector PrevLocation = CheckAreaMap->PlayerSwapAreaMap.FindOrAdd(PlayerId);
+            const FVector PrevLocation = CheckAreaMap->PlayerSwapPosition.FindOrAdd(PlayerId);
             const float Distance = FVector::Distance(Location, PrevLocation);
             const float Threshold = PlayerLocationThreshold;
             if(Distance > Threshold) {
-                CheckAreaMap->PlayerSwapAreaMap[PlayerId] = Location;
+                CheckAreaMap->PlayerSwapPosition[PlayerId] = Location;
                 TVoxelIndex LocationIndex = GetZoneIndex(Location);
                 FVector Tmp = GetZonePos(LocationIndex);
-                
-                if(CheckAreaMap->Contains(PlayerId)){
+                                
+                if(CheckAreaMap->PlayerSwapHandler.Contains(PlayerId)){
                     // cancel old
-                    TTerrainLoadHandler& Handler = CheckAreaMap->Get(PlayerId);
-                    Handler.Cancel();
-                    CheckAreaMap->Delete(PlayerId);
+                    std::shared_ptr<TTerrainLoadHandler> HandlerPtr = CheckAreaMap->PlayerSwapHandler[PlayerId];
+                    HandlerPtr->Cancel();
+                    CheckAreaMap->PlayerSwapHandler.Remove(PlayerId);
                 }
                 
                 // start new
-                TTerrainLoadHandler& Handler = CheckAreaMap->Get(PlayerId);
+                std::shared_ptr<TTerrainLoadHandler> HandlerPtr = std::make_shared<TTerrainLoadHandler>();
                 if(bShowStartSwapPos){
                     DrawDebugBox(GetWorld(), Location, FVector(100), FColor(255, 0, 255, 0), false, 15);
                     static const float Len = 1000;
@@ -361,12 +342,14 @@ void ASandboxTerrainController::PerformCheckArea() {
                 Params.Radius = DynamicLoadArea.Radius;
                 Params.TerrainSizeMinZ = DynamicLoadArea.TerrainSizeMinZ;
                 Params.TerrainSizeMaxZ = DynamicLoadArea.TerrainSizeMaxZ;
-                Handler.SetParams(TEXT("Player_Swap_Terrain_Task"), this, Params);
+                HandlerPtr->SetParams(TEXT("Player_Swap_Terrain_Task"), this, Params);
+                
+                //TSharedPtr<ASandboxTerrainController> ControllerPtr = MakeShareable(this);
+                //TSharedRef<ASandboxTerrainController> NewReference = this;
                 
                 RunThread([=]() {
-                    TTerrainLoadHandler& Handler2 = CheckAreaMap->Get(PlayerId);
-                    Handler2.LoadArea(Location);
-                    //CheckAreaMap->Delete(LocationIndex);
+                    //TTerrainLoadHandler& Handler2 = CheckAreaMap->Get(PlayerId);
+                    HandlerPtr->LoadArea(Location);
                 });
             }
         }
