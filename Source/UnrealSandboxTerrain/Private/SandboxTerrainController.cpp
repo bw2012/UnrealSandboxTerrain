@@ -55,10 +55,15 @@ class TTerrainLoadHandler {
 public:
     
     TTerrainLoadHandler(){}
-    TTerrainLoadHandler(ASandboxTerrainController* Controller_) : Controller(Controller_) {}
-    TTerrainLoadHandler(ASandboxTerrainController* Controller_, TTerrainLoadParams Params_) : Controller(Controller_), Params(Params_) {}
+    
+    TTerrainLoadHandler(FString Name_, ASandboxTerrainController* Controller_) :
+                Name(Name_), Controller(Controller_) {}
+    
+    TTerrainLoadHandler(FString Name_, ASandboxTerrainController* Controller_, TTerrainLoadParams Params_) :
+                Name(Name_), Controller(Controller_), Params(Params_) {}
     
 private:
+    FString Name;
     ASandboxTerrainController* Controller;
     TTerrainLoadParams Params;
     FVector AreaOrigin;
@@ -66,6 +71,7 @@ private:
 	uint32 Progress = 0;
 	uint32 GeneratedVdConter = 0;
 	uint32 SaveGeneratedZones = 1000;
+    bool bIsStopped = false;
     
     int PerformZone(const TVoxelIndex& Index){
         TTerrainLodMask TerrainLodMask = (TTerrainLodMask)ETerrainLodMaskPreset::All;
@@ -118,23 +124,29 @@ private:
         
     void AreaWalkthrough(){
         const unsigned int AreaRadius = Params.Radius / 1000;
-        int Total = (AreaRadius * 2 + 1) * (AreaRadius * 2 + 1) * (Params.TerrainSizeMinZ + Params.TerrainSizeMaxZ + 1);
-        uint32 Progress = 0;
-        uint32 GeneratedVdConter = 0;
-        uint32 SaveGeneratedZones = 1000;
-        TVoxelIndex OriginIndex = Controller->GetZoneIndex(this->AreaOrigin);
-
+        //int Total = (AreaRadius * 2 + 1) * (AreaRadius * 2 + 1) * (Params.TerrainSizeMinZ + Params.TerrainSizeMaxZ + 1);
         ReverseSpiralWalkthrough(AreaRadius, [&](int x, int y) {
 			PerformChunk(x, y);
             EndChunk();
+            return this->bIsStopped;
         });
         
+        if(bIsStopped){
+            UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+        } else {
+            UE_LOG(LogSandboxTerrain, Warning, TEXT("Finish terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+        }
         //Controller->FastSave();
     }
     
 public:
+    
+    void Cancel(){
+        this->bIsStopped = true;
+    }
    
-    void SetParams(ASandboxTerrainController* Controller, TTerrainLoadParams Params){
+    void SetParams(FString Name, ASandboxTerrainController* Controller, TTerrainLoadParams Params){
+        this->Name = Name;
         this->Controller = Controller;
         this->Params = Params;
     }
@@ -143,6 +155,7 @@ public:
         if(this->Controller){
             this->AreaOrigin = Origin;
 			this->OriginIndex = Controller->GetZoneIndex(Origin);
+            UE_LOG(LogSandboxTerrain, Warning, TEXT("Start terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
             AreaWalkthrough();
         }
     }
@@ -153,22 +166,24 @@ class TCheckAreaMap {
     
 private:
     std::shared_timed_mutex Mutex;
-    TMap<FVector, TTerrainLoadHandler> Map;
+    TMap<uint32, TTerrainLoadHandler> Map;
     
 public:
     
-    TTerrainLoadHandler& Get(const TVoxelIndex& Index){
+    TMap<uint32, FVector> PlayerSwapAreaMap;
+    
+    TTerrainLoadHandler& Get(const uint32 PlayerId){
         std::unique_lock<std::shared_timed_mutex> Lock(Mutex);
-        return Map.FindOrAdd(FVector(Index.X, Index.Y, Index.Z));
+        return Map.FindOrAdd(PlayerId);
     }
     
-    bool Contains(const TVoxelIndex& Index){
+    bool Contains(const uint32 PlayerId){
         std::unique_lock<std::shared_timed_mutex> Lock(Mutex);
-        return Map.Contains(FVector(Index.X, Index.Y, Index.Z));
+        return Map.Contains(PlayerId);
     }
     
-    void Delete(const TVoxelIndex& Index){
-        Map.Remove(FVector(Index.X, Index.Y, Index.Z));
+    void Delete(const uint32 PlayerId){
+        Map.Remove(PlayerId);
     }
 };
 
@@ -298,7 +313,7 @@ void ASandboxTerrainController::StartCheckArea() {
                 const auto PlayerId = PlayerController->GetUniqueID();
                 const auto Pawn = PlayerController->GetCharacter();
                 const FVector Location = Pawn->GetActorLocation();
-                PlayerSwapAreaMap.Add(PlayerId, Location);
+                CheckAreaMap->PlayerSwapAreaMap.Add(PlayerId, Location);
             }
         }
         GetWorld()->GetTimerManager().SetTimer(TimerSwapArea, this, &ASandboxTerrainController::PerformCheckArea, 0.25, true);
@@ -318,34 +333,41 @@ void ASandboxTerrainController::PerformCheckArea() {
             const auto PlayerId = PlayerController->GetUniqueID();
             const auto Pawn = PlayerController->GetCharacter();
             const FVector Location = Pawn->GetActorLocation();
-            const FVector PrevLocation = PlayerSwapAreaMap.FindOrAdd(PlayerId);
+            const FVector PrevLocation = CheckAreaMap->PlayerSwapAreaMap.FindOrAdd(PlayerId);
             const float Distance = FVector::Distance(Location, PrevLocation);
             const float Threshold = PlayerLocationThreshold;
             if(Distance > Threshold) {
-                PlayerSwapAreaMap[PlayerId] = Location;
+                CheckAreaMap->PlayerSwapAreaMap[PlayerId] = Location;
                 TVoxelIndex LocationIndex = GetZoneIndex(Location);
                 FVector Tmp = GetZonePos(LocationIndex);
-                if(!CheckAreaMap->Contains(LocationIndex)){
-                    TTerrainLoadHandler& Handler = CheckAreaMap->Get(LocationIndex);
-                    if(bShowStartSwapPos){
-                        DrawDebugBox(GetWorld(), Location, FVector(100), FColor(255, 0, 255, 0), false, 15);
-                        static const float Len = 1000;
-                        DrawDebugCylinder(GetWorld(), FVector(Tmp.X, Tmp.Y, Len), FVector(Tmp.X, Tmp.Y, -Len), DynamicLoadArea.Radius, 128, FColor(255, 0, 255, 128), false, 30);
-                    }
-                    
-                    TTerrainLoadParams Params;
-                    Params.FullLodDistance = DynamicLoadArea.FullLodDistance;
-                    Params.Radius = DynamicLoadArea.Radius;
-                    Params.TerrainSizeMinZ = DynamicLoadArea.TerrainSizeMinZ;
-                    Params.TerrainSizeMaxZ = DynamicLoadArea.TerrainSizeMaxZ;
-                    Handler.SetParams(this, Params);
-                    
-                    RunThread([=]() {
-                        TTerrainLoadHandler& Handler2 = CheckAreaMap->Get(LocationIndex);
-                        Handler2.LoadArea(Location);
-						//CheckAreaMap->Delete(LocationIndex);
-                    });
+                
+                if(CheckAreaMap->Contains(PlayerId)){
+                    // cancel old
+                    TTerrainLoadHandler& Handler = CheckAreaMap->Get(PlayerId);
+                    Handler.Cancel();
+                    CheckAreaMap->Delete(PlayerId);
                 }
+                
+                // start new
+                TTerrainLoadHandler& Handler = CheckAreaMap->Get(PlayerId);
+                if(bShowStartSwapPos){
+                    DrawDebugBox(GetWorld(), Location, FVector(100), FColor(255, 0, 255, 0), false, 15);
+                    static const float Len = 1000;
+                    DrawDebugCylinder(GetWorld(), FVector(Tmp.X, Tmp.Y, Len), FVector(Tmp.X, Tmp.Y, -Len), DynamicLoadArea.Radius, 128, FColor(255, 0, 255, 128), false, 30);
+                }
+                
+                TTerrainLoadParams Params;
+                Params.FullLodDistance = DynamicLoadArea.FullLodDistance;
+                Params.Radius = DynamicLoadArea.Radius;
+                Params.TerrainSizeMinZ = DynamicLoadArea.TerrainSizeMinZ;
+                Params.TerrainSizeMaxZ = DynamicLoadArea.TerrainSizeMaxZ;
+                Handler.SetParams(TEXT("Player_Swap_Terrain_Task"), this, Params);
+                
+                RunThread([=]() {
+                    TTerrainLoadHandler& Handler2 = CheckAreaMap->Get(PlayerId);
+                    Handler2.LoadArea(Location);
+                    //CheckAreaMap->Delete(LocationIndex);
+                });
             }
         }
     }
@@ -390,7 +412,7 @@ void ASandboxTerrainController::RunLoadMapAsync(std::function<void()> OnFinish) 
             Params.TerrainSizeMinZ = InitialLoadArea.TerrainSizeMinZ;
             Params.TerrainSizeMaxZ = InitialLoadArea.TerrainSizeMaxZ;
             
-            TTerrainLoadHandler Loader(this, Params);
+            TTerrainLoadHandler Loader(TEXT("Initial_Load_Task"), this, Params);
             Loader.LoadArea(FVector(0));
             
             //InvokeSafe([=]() { OnProgressBuildTerrain(GeneratingProgress); } );

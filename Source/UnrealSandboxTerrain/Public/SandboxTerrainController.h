@@ -413,8 +413,6 @@ private:
     
     void StartCheckArea();
     
-    TMap<uint32, FVector> PlayerSwapAreaMap;
-    
 	void BeginClient();
 
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
