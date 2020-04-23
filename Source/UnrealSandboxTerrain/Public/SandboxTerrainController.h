@@ -557,6 +557,10 @@ protected:
 	virtual void InitializeTerrainController();
 
 	virtual void BeginPlayServer();
+
+	float PerlinNoise(const FVector& Pos) const;
+
+	float NormalizedPerlinNoise(const FVector& Pos) const;
        
     //===============================================================================
     // virtual functions

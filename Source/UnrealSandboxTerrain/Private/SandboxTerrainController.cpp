@@ -1353,6 +1353,21 @@ bool ASandboxTerrainController::GeneratorForcePerformZone(const TVoxelIndex& Zon
 }
 
 //======================================================================================================================================================================
+// Perlin noise according seed
+//======================================================================================================================================================================
+
+// TODO use seed
+float ASandboxTerrainController::PerlinNoise(const FVector& Pos) const {
+	return Generator->PerlinNoise(Pos.X, Pos.Y, Pos.Z);
+}
+
+// range 0..1
+float ASandboxTerrainController::NormalizedPerlinNoise(const FVector& Pos) const {
+	float NormalizedPerlin = (Generator->PerlinNoise(Pos.X, Pos.Y, Pos.Z) + 0.87) / 1.73;
+	return NormalizedPerlin;
+}
+
+//======================================================================================================================================================================
 // Sandbox Foliage
 //======================================================================================================================================================================
 

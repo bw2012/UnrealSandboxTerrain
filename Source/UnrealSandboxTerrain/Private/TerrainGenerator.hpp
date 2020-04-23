@@ -98,6 +98,10 @@ public:
         this->Controller = Controller;
     }
     
+	float PerlinNoise(float X, float Y, float Z) {
+		return Pn.noise(X, Y, Z);
+	}
+
     void OnBeginPlay(){
         UndergroundLayersTmp.Empty();
         
@@ -144,47 +148,6 @@ private:
 
     float DensityFunc(TVoxelDensityFunctionData& FunctionData){
         return Controller->GeneratorDensityFunc(FunctionData);
-        
-        /*
-        const FVector& WorldPos = FunctionData.WorldPos;
-        float Density = FunctionData.Density;
-        
-        static const float scale0 = 0.005f; // small
-        static const float scale1 = 0.001f; // small
-        
-       
-        float Noise0 = Pn.noise(WorldPos.X * scale0, WorldPos.Y * scale0, WorldPos.Z * 0.0005);
-        float Noise1 = Pn.noise(WorldPos.X * scale1, WorldPos.Y * scale1, WorldPos.Z * scale1);
-        
-        //float NormalizedPerlin = (NoiseMedium + 0.87) / 1.73;
-        //float Z = WorldPos.Z + NoiseMedium * 100;
-        //float DensityByGroundLevel = 1 - (1 / (1 + exp(-Z)));
-        
-        float Result = Density;
-                
-        float cave_level = 800; // 600 ->~599 bingo
-        float cave_height = 80000; // 80000 -> 473
-        float t = 1 - exp( - pow((WorldPos.Z + cave_level), 2) / cave_height); // 80000 -> 473 = 473 * 169.13
-        //Result *= t;
-        
-        if(WorldPos.Z < -300){
-            Result = Density * (t + Noise1 * 0.75 + ((1 - t) * Noise0 * 0.5));
-        }
-        //Result = Density * (NoiseMedium * 0.5 + t);
-        
-        
-        if(Result < 0 ){
-            //UE_LOG(LogTemp, Warning, TEXT("%f"), Result);
-            Result = 0;
-        }
-        
-        if(Result > 1){
-            //001- UE_LOG(LogTemp, Warning, TEXT("%f"), Result);
-            Result = 1;
-        }
-        
-        return Result;
-         */
     }
 
     unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel){
