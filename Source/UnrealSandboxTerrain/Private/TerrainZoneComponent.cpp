@@ -14,6 +14,7 @@ TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
     CurrentTerrainLodMask = 0xff;
+	bIsObjectsNeedSave = false;
 }
 
 /*
@@ -271,5 +272,4 @@ void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshTy
 	}
 
 	InstancedStaticMeshComponent->AddInstanceWorldSpace(Transform);
-    SetNeedSave();
 }

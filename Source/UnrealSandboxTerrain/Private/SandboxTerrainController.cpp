@@ -120,7 +120,7 @@ private:
 			//InvokeSafe([=]() { OnProgressBuildTerrain(GeneratingProgress); } );
 			if (Controller->IsWorkFinished()) return;
 			if (GeneratedVdConter > SaveGeneratedZones) {
-				//Controller->FastSave();
+				Controller->FastSave();
 				GeneratedVdConter = 0;
 			}
 		}
@@ -136,11 +136,10 @@ private:
         });
         
         if(bIsStopped){
-            UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+            //UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
         } else {
-            UE_LOG(LogSandboxTerrain, Warning, TEXT("Finish terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+            //UE_LOG(LogSandboxTerrain, Warning, TEXT("Finish terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
         }
-        //Controller->FastSave();
     }
     
 public:
@@ -160,8 +159,12 @@ public:
         if(this->Controller){
             this->AreaOrigin = Origin;
 			this->OriginIndex = Controller->GetZoneIndex(Origin);
-            UE_LOG(LogSandboxTerrain, Warning, TEXT("Start terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+            //UE_LOG(LogSandboxTerrain, Warning, TEXT("Start terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
             AreaWalkthrough();
+
+			if (!Controller->IsWorkFinished()) {
+				Controller->FastSave();
+			}
         }
     }
     
@@ -404,6 +407,8 @@ void ASandboxTerrainController::RunLoadMapAsync(std::function<void()> OnFinish) 
             
             TTerrainLoadHandler Loader(TEXT("Initial_Load_Task"), this, Params);
             Loader.LoadArea(FVector(0));
+			//Generator->Clean;
+			UE_LOG(LogTemp, Warning, TEXT("Finish initial terrain load"));
             
             //InvokeSafe([=]() { OnProgressBuildTerrain(GeneratingProgress); } );
             //InvokeSafe([&]() { OnFinishBuildTerrain(); });
@@ -1310,6 +1315,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone) {
     if (FoliageDataAsset) {
         Generator->GenerateNewFoliage(Index, Zone);
+		Zone->SetNeedSave();
     }
 }
 

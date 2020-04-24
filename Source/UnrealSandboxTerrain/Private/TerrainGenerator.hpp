@@ -441,7 +441,11 @@ public:
     }
 
     void Clean(){
-        
+		for (std::unordered_map<TVoxelIndex, TZoneHeightMapData*>::iterator It = ZoneHeightMapCollection.begin(); It != ZoneHeightMapCollection.end(); ++It) {
+			delete It->second;
+		}
+
+		ZoneHeightMapCollection.clear();
     }
         
 };
