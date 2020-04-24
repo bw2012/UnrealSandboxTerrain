@@ -22,6 +22,8 @@ class TTerrainLoadHandler;
 class TTerrainData;
 class TCheckAreaMap;
 class TTerrainGenerator;
+class TVoxelDataInfo;
+
 
 typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -32,40 +34,6 @@ UENUM(BlueprintType)
 enum class ETerrainInitialArea : uint8 {
 	TIA_1_1 = 0	UMETA(DisplayName = "1x1"),
 	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
-};
-
-enum TVoxelDataState {
-	UNDEFINED = 0,
-	GENERATED = 1,
-	LOADED = 2,
-	READY_TO_LOAD = 3
-};
-
-class TVoxelDataInfo {
-
-private:
-	volatile double LastChange;
-	volatile double LastSave;
-	volatile double LastMeshGeneration;
-	volatile double LastCacheCheck;
-
-public:
-	TVoxelDataInfo() {	LoadVdMutexPtr = std::make_shared<std::mutex>(); }
-	~TVoxelDataInfo() {	}
-
-	TVoxelData* Vd = nullptr;
-	TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
-	std::shared_ptr<std::mutex> LoadVdMutexPtr;
-
-	bool IsNewGenerated() const { return DataState == TVoxelDataState::GENERATED; }
-	bool IsNewLoaded() const { return DataState == TVoxelDataState::LOADED;	}
-	void SetChanged() { LastChange = FPlatformTime::Seconds(); }
-	bool IsChanged() { return LastChange > LastSave; }
-	void ResetLastSave() { LastSave = FPlatformTime::Seconds(); }
-	bool IsNeedToRegenerateMesh() { return LastChange > LastMeshGeneration; }
-	void ResetLastMeshRegenerationTime() { LastMeshGeneration = FPlatformTime::Seconds(); }
-
-	void Unload();
 };
 
 USTRUCT()
@@ -241,6 +209,16 @@ struct FTerrainSwapAreaParams {
     int TerrainSizeMaxZ = 5;
 };
 
+
+typedef struct TVoxelDensityFunctionData {
+    float Density;
+    float GroundLelel;
+    FVector WorldPos;
+    FVector LocalPos;
+    TVoxelIndex ZoneIndex;
+} TVoxelDensityFunctionData;
+
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -281,6 +259,9 @@ public:
     
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
     bool bShowStartSwapPos = false;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
+	bool bShowApplyZone = false;
     
     //========================================================================================
     // general
@@ -432,14 +413,12 @@ private:
     
     void StartCheckArea();
     
-    TMap<uint32, FVector> PlayerSwapAreaMap;
-    
 	void BeginClient();
 
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo& VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
 
@@ -578,7 +557,19 @@ protected:
 	virtual void InitializeTerrainController();
 
 	virtual void BeginPlayServer();
+
+	float PerlinNoise(const FVector& Pos) const;
+
+	float NormalizedPerlinNoise(const FVector& Pos) const;
+       
+    //===============================================================================
+    // virtual functions
+    //===============================================================================
     
     virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
+    
+    virtual float GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData);
+    
+    virtual bool GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex);
 	
 };

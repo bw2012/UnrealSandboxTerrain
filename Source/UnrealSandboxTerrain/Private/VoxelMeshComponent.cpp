@@ -274,8 +274,10 @@ public:
 			FProcMeshSection& SourceMaterialSection = SrcMaterialSection.MaterialMesh;
 
 			UMaterialInterface* Material = GetMaterial(Section);
-			if (Material == nullptr) { Material = DefaultMaterial; }
-
+			if (Material == nullptr) {
+                Material = DefaultMaterial;
+            }
+            
 			FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection(GetScene().GetFeatureLevel());
 			NewMaterialProxySection->Material = Material;
 
@@ -578,6 +580,8 @@ int32 UVoxelMeshComponent::GetNumMaterials() const {
 }
 
 void UVoxelMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const {
+    UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+    OutMaterials.Add(DefaultMaterial);
 	OutMaterials.Append(LocalMaterials);
 }
 
@@ -606,7 +610,8 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLo
             
 			if (TerrainController != nullptr) {
 				for (auto& Element : SourceMesh->RegularMeshContainer.MaterialSectionMap) {
-					LocalMaterials.Add(TerrainController->GetRegularTerrainMaterial(Element.Key));
+                    UMaterialInterface* Material = TerrainController->GetRegularTerrainMaterial(Element.Key);
+					LocalMaterials.Add(Material);
 				}
                 
 				for (const auto& Element : SourceMesh->RegularMeshContainer.MaterialTransitionSectionMap) {
@@ -617,6 +622,18 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLo
 				for (auto i = 0; i < 6; i++) {
 					MeshSectionLodArray[LodIndex].TransitionPatchArray[i].MaterialSectionMap = SourceMesh->TransitionPatchArray[i].MaterialSectionMap;
 					MeshSectionLodArray[LodIndex].TransitionPatchArray[i].MaterialTransitionSectionMap = SourceMesh->TransitionPatchArray[i].MaterialTransitionSectionMap;
+                    
+                    if (TerrainController != nullptr) {
+                        for (auto& Element : SourceMesh->TransitionPatchArray[i].MaterialSectionMap) {
+                            UMaterialInterface* Material = TerrainController->GetRegularTerrainMaterial(Element.Key);
+                            LocalMaterials.Add(Material);
+                        }
+                        
+                        for (const auto& Element : SourceMesh->TransitionPatchArray[i].MaterialTransitionSectionMap) {
+                            LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.MaterialIdSet));
+                        }
+                    }
+                    
 				}
 			}
 
