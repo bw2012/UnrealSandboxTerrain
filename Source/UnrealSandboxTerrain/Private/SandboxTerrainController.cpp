@@ -104,6 +104,7 @@ private:
     
     void EndChunk(){
         //Controller->TerrainGeneratorComponent->Clean();
+		//Controller->TerrainGenerator->Clean(Index);
     }
 
 	void PerformChunk(int x, int y) {
@@ -132,6 +133,8 @@ private:
         ReverseSpiralWalkthrough(AreaRadius, [&](int x, int y) {
 			PerformChunk(x, y);
             EndChunk();
+			TVoxelIndex Index(x, y, 0);
+			Controller->Generator->Clean(Index);
             return this->bIsStopped;
         });
         
@@ -472,7 +475,7 @@ void ASandboxTerrainController::FastSave() {
         // save instanced meshes
         if (FoliageDataAsset) {
             if (Zone->IsNeedSave()) {
-                MdList.push_back(ZoneIndex);
+				ObjList.push_back(ZoneIndex);
             }
         }
     });
@@ -1132,12 +1135,11 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	TArray<struct FHitResult> OutHits;
 	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Handler.Pos, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Handler.Extend)); // ECC_Visibility
 	if (bIsOverlap) {
-		for (auto OverlapItem : OutHits) {
-			AActor* Actor = OverlapItem.GetActor();
-			if (Cast<ASandboxTerrainController>(OverlapItem.GetActor()) != nullptr) {
-				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(OverlapItem.GetComponent());
-				if (InstancedMesh != nullptr) {
-					InstancedMesh->RemoveInstance(OverlapItem.Item);
+		for (FHitResult& Overlap : OutHits) {
+			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
+				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(Overlap.GetComponent());
+				if (InstancedMesh) {
+					InstancedMesh->RemoveInstance(Overlap.Item);
 
 					TArray<USceneComponent*> Parents;
 					InstancedMesh->GetParentComponents(Parents);
@@ -1148,6 +1150,8 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 						}
 					}
 				}
+			} else {
+				OnOverlapActorDuringTerrainEdit(Overlap, Handler.Pos);
 			}
 		}
 	}
@@ -1356,6 +1360,10 @@ float ASandboxTerrainController::GeneratorDensityFunc(const TVoxelDensityFunctio
 
 bool ASandboxTerrainController::GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex) {
     return false;
+}
+
+void ASandboxTerrainController::OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos) {
+
 }
 
 //======================================================================================================================================================================

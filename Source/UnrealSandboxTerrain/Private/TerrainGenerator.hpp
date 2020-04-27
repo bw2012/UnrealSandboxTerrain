@@ -90,6 +90,7 @@ private:
     PerlinNoise Pn;
     ASandboxTerrainController* Controller;
     TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
+	std::mutex ZoneHeightMapMutex;
     std::unordered_map<TVoxelIndex, TZoneHeightMapData*> ZoneHeightMapCollection;
     
 public:
@@ -274,8 +275,24 @@ private:
     }
     
     
+	bool GetOoCreateZoneHeightMap(TVoxelIndex& Index, TZoneHeightMapData** ZoneHeightMapData, int num) {
+		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
+		bool bIsNew = false;
+
+		if (ZoneHeightMapCollection.find(Index) == ZoneHeightMapCollection.end()) {
+			*ZoneHeightMapData = new TZoneHeightMapData(num);
+			ZoneHeightMapCollection.insert({ Index, *ZoneHeightMapData });
+			bIsNew = true;
+		} else {
+			*ZoneHeightMapData = ZoneHeightMapCollection[Index];
+		}
+
+		return bIsNew;
+	};
+
+
 public:
-    
+   
     void GenerateVoxelTerrain (TVoxelData &VoxelData){
         double start = FPlatformTime::Seconds();
 
@@ -287,23 +304,17 @@ public:
         TVoxelIndex Index2((int)ZoneIndexTmp.X, (int)ZoneIndexTmp.Y, 0);
         TZoneHeightMapData* ZoneHeightMapData = nullptr;
 
-        if (ZoneHeightMapCollection.find(Index2) == ZoneHeightMapCollection.end()) {
-            ZoneHeightMapData = new TZoneHeightMapData(VoxelData.num());
-            ZoneHeightMapCollection.insert({ Index2, ZoneHeightMapData });
+		if (GetOoCreateZoneHeightMap(Index2, &ZoneHeightMapData, VoxelData.num())) {
+			for (int X = 0; X < VoxelData.num(); X++) {
+				for (int Y = 0; Y < VoxelData.num(); Y++) {
+					FVector LocalPos = VoxelData.voxelIndexToVector(X, Y, 0);
+					FVector WorldPos = LocalPos + VoxelData.getOrigin();
 
-            for (int X = 0; X < VoxelData.num(); X++) {
-                for (int Y = 0; Y < VoxelData.num(); Y++) {
-                    FVector LocalPos = VoxelData.voxelIndexToVector(X, Y, 0);
-                    FVector WorldPos = LocalPos + VoxelData.getOrigin();
-
-                    float GroundLevel = GroundLevelFunc(WorldPos);
-                    ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
-                }
-            }
-
-        } else {
-            ZoneHeightMapData = ZoneHeightMapCollection[Index2];
-        }
+					float GroundLevel = GroundLevelFunc(WorldPos);
+					ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
+				}
+			}
+		}
 
         //======================================
 
@@ -441,12 +452,24 @@ public:
     }
 
     void Clean(){
+		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
 		for (std::unordered_map<TVoxelIndex, TZoneHeightMapData*>::iterator It = ZoneHeightMapCollection.begin(); It != ZoneHeightMapCollection.end(); ++It) {
 			delete It->second;
 		}
 
 		ZoneHeightMapCollection.clear();
     }
+
+	void Clean(TVoxelIndex& Index) {
+		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
+
+		if (ZoneHeightMapCollection.find(Index) != ZoneHeightMapCollection.end()) {
+			TZoneHeightMapData* HeightMapData = ZoneHeightMapCollection[Index];
+			delete HeightMapData;
+			ZoneHeightMapCollection.erase(Index);
+			//UE_LOG(LogTemp, Warning, TEXT("Clean ZoneHeightMap ----> %d %d %d "), Index.X, Index.Y, Index.Z);
+		} 
+	}
         
 };
 

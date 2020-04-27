@@ -571,5 +571,7 @@ protected:
     virtual float GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData);
     
     virtual bool GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex);
+
+	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
 	
 };
