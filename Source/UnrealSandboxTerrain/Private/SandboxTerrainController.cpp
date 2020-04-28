@@ -1350,21 +1350,34 @@ void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& Zone
 // virtual functions
 //======================================================================================================================================================================
 
-bool ASandboxTerrainController::OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale) {
+FORCEINLINE bool ASandboxTerrainController::OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale) {
     return true;
 }
 
-float ASandboxTerrainController::GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData) {
+FORCEINLINE float ASandboxTerrainController::GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData) {
     return FunctionData.Density;
 }
 
-bool ASandboxTerrainController::GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex) {
+FORCEINLINE bool ASandboxTerrainController::IsOverrideGroundLevel(const TVoxelIndex& Index) {
+	return false;
+}
+
+FORCEINLINE float ASandboxTerrainController::GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel) {
+	return GroundLevel;
+}
+
+FORCEINLINE bool ASandboxTerrainController::GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex) {
     return false;
 }
 
-void ASandboxTerrainController::OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos) {
+FORCEINLINE void ASandboxTerrainController::OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos) {
 
 }
+
+FORCEINLINE FSandboxFoliage ASandboxTerrainController::GeneratorFoliageOverride(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos) {
+	return FoliageType;
+}
+
 
 //======================================================================================================================================================================
 // Perlin noise according seed

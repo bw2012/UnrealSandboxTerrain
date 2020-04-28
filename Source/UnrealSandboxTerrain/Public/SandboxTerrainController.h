@@ -67,9 +67,19 @@ struct FTerrainInstancedMeshType {
 	int32 EndCullDistance;
 };
 
+UENUM(BlueprintType)
+enum class ESandboxFoliageType : uint8 {
+	Grass = 0	UMETA(DisplayName = "Grass"),
+	Tree = 1   UMETA(DisplayName = "Tree"),
+};
+
+
 USTRUCT()
 struct FSandboxFoliage {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	ESandboxFoliageType Type;
 
 	UPROPERTY(EditAnywhere)
 	UStaticMesh* Mesh;
@@ -571,6 +581,12 @@ protected:
     virtual float GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData);
     
     virtual bool GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex);
+
+	virtual FSandboxFoliage GeneratorFoliageOverride(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
+
+	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
+
+	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
 	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
 	

@@ -275,7 +275,7 @@ private:
     }
     
     
-	bool GetOoCreateZoneHeightMap(TVoxelIndex& Index, TZoneHeightMapData** ZoneHeightMapData, int num) {
+	bool GetOrCreateZoneHeightMap(TVoxelIndex& Index, TZoneHeightMapData** ZoneHeightMapData, int num) {
 		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
 		bool bIsNew = false;
 
@@ -304,13 +304,13 @@ public:
         TVoxelIndex Index2((int)ZoneIndexTmp.X, (int)ZoneIndexTmp.Y, 0);
         TZoneHeightMapData* ZoneHeightMapData = nullptr;
 
-		if (GetOoCreateZoneHeightMap(Index2, &ZoneHeightMapData, VoxelData.num())) {
+		if (GetOrCreateZoneHeightMap(Index2, &ZoneHeightMapData, VoxelData.num())) {
 			for (int X = 0; X < VoxelData.num(); X++) {
 				for (int Y = 0; Y < VoxelData.num(); Y++) {
 					FVector LocalPos = VoxelData.voxelIndexToVector(X, Y, 0);
 					FVector WorldPos = LocalPos + VoxelData.getOrigin();
 
-					float GroundLevel = GroundLevelFunc(WorldPos);
+					float GroundLevel = GroundLevelFunc(ZoneIndex, WorldPos);
 					ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
 				}
 			}
@@ -350,26 +350,44 @@ public:
         //UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::generateTerrain ----> %f %f %f --> %f ms"), VoxelData.getOrigin().X, VoxelData.getOrigin().Y, VoxelData.getOrigin().Z, time);
     }
 
-    float GroundLevelFunc(FVector v){
+    float GroundLevelFuncLocal(const FVector& V){
         //float scale1 = 0.0035f; // small
         float scale1 = 0.001f; // small
         float scale2 = 0.0004f; // medium
         float scale3 = 0.00009f; // big
 
-        float noise_small = Pn.noise(v.X * scale1, v.Y * scale1, 0) * 0.5f;
-        float noise_medium = Pn.noise(v.X * scale2, v.Y * scale2, 0) * 5;
-        float noise_big = Pn.noise(v.X * scale3, v.Y * scale3, 0) * 10;
+        float noise_small = Pn.noise(V.X * scale1, V.Y * scale1, 0) * 0.5f;
+        float noise_medium = Pn.noise(V.X * scale2, V.Y * scale2, 0) * 5;
+        float noise_big = Pn.noise(V.X * scale3, V.Y * scale3, 0) * 10;
         
-        float r = v.X * v.X + v.Y * v.Y;
-        float t = 1 - exp(-r/5000000);
+        //float r = std::sqrt(V.X * V.X + V.Y * V.Y);
+		//const float MaxR = 5000;
+        //float t = 1 - exp(-pow(r, 2) / ( MaxR * 100));
         
-        float gl = noise_small + (noise_medium * t) + (noise_big * t);
+        float gl = noise_small + noise_medium + noise_big;
         return (gl * 100) + USBT_VGEN_GROUND_LEVEL_OFFSET;
     }
 
+	float GroundLevelFunc(const TVoxelIndex& Index, const FVector& V) {
+		float GroundLevel = GroundLevelFuncLocal(V);
+
+		if (Controller->IsOverrideGroundLevel(Index)) {
+			return Controller->GeneratorGroundLevelFunc(Index, V, GroundLevel);
+		}
+
+		return GroundLevel;
+	}
+
+
     void GenerateNewFoliage(const TVoxelIndex& Index, UTerrainZoneComponent* Zone){
-        if (Controller->FoliageMap.Num() == 0) return;
-        if (GroundLevelFunc(Zone->GetComponentLocation()) > Zone->GetComponentLocation().Z + 500) return;
+		if (Controller->FoliageMap.Num() == 0) {
+			return;
+		}
+
+		float GroundLevel = GroundLevelFunc(Index, Zone->GetComponentLocation()); // TODO fix with zone on ground
+		if (GroundLevel > Zone->GetComponentLocation().Z + 500) {
+			return;
+		}
 
         int32 Hash = 7;
         Hash = Hash * 31 + (int32)Zone->GetComponentLocation().X;
@@ -394,11 +412,13 @@ public:
                     int32 FoliageTypeId = Elem.Key;
 
                     if ((int)x % (int)FoliageType.SpawnStep == 0 && (int)y % (int)FoliageType.SpawnStep == 0) {
-                        //UE_LOG(LogTemp, Warning, TEXT("%d - %d"), (int)x, (int)y);
                         float Chance = rnd.FRandRange(0.f, 1.f);
-                        if (Chance <= FoliageType.Probability) {
+						FSandboxFoliage FoliageType2 = Controller->GeneratorFoliageOverride(FoliageTypeId, FoliageType, Index, v);
+						float Probability = FoliageType2.Probability;
+
+                        if (Chance <= Probability) {
                             float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-                            SpawnFoliage(FoliageTypeId, FoliageType, v, rnd, Index, Zone);
+                            SpawnFoliage(FoliageTypeId, FoliageType2, v, rnd, Index, Zone);
                         }
                     }
                 }
@@ -430,7 +450,7 @@ public:
             }
         } else {
             bSpawn = true;
-            float GroundLevel = GroundLevelFunc(FVector(v.X, v.Y, 0)) - 5.5;
+            float GroundLevel = GroundLevelFunc(Index, FVector(v.X, v.Y, 0)) - 5.5;
             Location = FVector(v.X, v.Y, GroundLevel);
         }
         
