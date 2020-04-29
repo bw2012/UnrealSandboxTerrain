@@ -102,7 +102,7 @@ private:
 
 	TArray<UMaterialInterface*> LocalMaterials;
 
-	friend class FProceduralMeshSceneProxy;
+	friend class FVoxelMeshSceneProxy;
 
 	UPROPERTY(transient)
 	TArray<UBodySetup*> AsyncBodySetupQueue;

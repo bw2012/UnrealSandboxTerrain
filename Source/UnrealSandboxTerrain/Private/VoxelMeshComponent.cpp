@@ -209,7 +209,7 @@ static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProc
 	Vert.TangentZ.Vector.W = 0;
 }
 
-class FProceduralMeshSceneProxy final : public FPrimitiveSceneProxy {
+class FVoxelMeshSceneProxy final : public FPrimitiveSceneProxy {
 
 private:
 	/** Array of lod sections */
@@ -241,7 +241,7 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
-	FProceduralMeshSceneProxy(UVoxelMeshComponent* Component)
+	FVoxelMeshSceneProxy(UVoxelMeshComponent* Component)
 		: FPrimitiveSceneProxy(Component)
 		, BodySetup(Component->GetBodySetup())
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
@@ -253,7 +253,7 @@ public:
 		CopyAll(Component);
 	}
 
-	virtual ~FProceduralMeshSceneProxy() {
+	virtual ~FVoxelMeshSceneProxy() {
 		for (FMeshProxyLodSection* Section : LodSectionArray) {
 			if (Section != nullptr) {
 				delete Section;
@@ -301,7 +301,9 @@ public:
 
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
 
-		if (NumSections == 0) return;
+		if (NumSections == 0) {
+			return;
+		}
 
 		LodSectionArray.AddZeroed(NumSections);
 
@@ -430,15 +432,18 @@ public:
 		}
 	}
 
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
-		if (LodSectionArray.Num() == 0) return;
+
+	FORCENOINLINE virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
+		if (LodSectionArray.Num() == 0) {
+			return;
+		}
 
 		// Set up wireframe material (if needed)
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 		FColoredMaterialRenderProxy* WireframeMaterialInstance = NULL;
 		if (bWireframe) {
 			WireframeMaterialInstance = new FColoredMaterialRenderProxy(
-				GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy(/*IsSelected()*/) : NULL,
+				GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : NULL,
 				FLinearColor(0, 0.5f, 1.f)
 			);
 
@@ -474,7 +479,7 @@ public:
 							if (NeighborLodIndex != LodIndex) {
 								for (FProcMeshProxySection* MatSection : LodSectionProxy->NormalPatchPtrArray[i]) {
 									if (MatSection != nullptr &&  MatSection->Material != nullptr) {
-										FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy(/*IsSelected()*/);
+										FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : MatSection->Material->GetRenderProxy();
 										DrawDynamicMeshSection(MatSection, Collector, MaterialProxy, bWireframe, ViewIndex);
 									}
 								}
@@ -564,7 +569,7 @@ UVoxelMeshComponent::UVoxelMeshComponent(const FObjectInitializer& ObjectInitial
 }
 
 FPrimitiveSceneProxy* UVoxelMeshComponent::CreateSceneProxy() {
-	return new FProceduralMeshSceneProxy(this);
+	return new FVoxelMeshSceneProxy(this);
 }
 
 void UVoxelMeshComponent::PostLoad() {
