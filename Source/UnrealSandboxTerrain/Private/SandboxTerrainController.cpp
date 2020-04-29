@@ -1202,7 +1202,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
-                if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 1.5f), FBox(Lower, Upper))) {
+                if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					if (VoxelDataInfo == nullptr) {
 						continue;
 					}
