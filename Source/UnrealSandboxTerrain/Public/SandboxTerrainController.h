@@ -250,6 +250,8 @@ public:
 	virtual void PostLoad() override;
     
     virtual void BeginDestroy() override;
+
+	virtual void FinishDestroy() override;
     
 	//========================================================================================
 	// debug only
@@ -401,7 +403,7 @@ public:
 	// async tasks
 	//===============================================================================
 
-	void InvokeSafe(std::function<void()> Function);
+	//void InvokeSafe(std::function<void()> Function);
 
 	void RunThread(TUniqueFunction<void()> Function);
 
@@ -466,9 +468,9 @@ private:
 	// async tasks
 	//===============================================================================
 
-	void InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
+	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, bool bPutToCache = false, const TTerrainLodMask TerrainLodMask = 0x0);
 
-	void InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDataPtr MeshDataPtr);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, bool bPutToCache = false, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
 
 	//===============================================================================
 	// threads

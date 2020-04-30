@@ -16,7 +16,6 @@
 #include <cmath>
 #include <list>
 
-#include "SandboxVoxeldata.h"
 #include "serialization.hpp"
 #include "utils.hpp"
 #include "VoxelDataInfo.hpp"
@@ -29,6 +28,10 @@ bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function
 //TValueDataPtr SerializeMeshData(TMeshData const * MeshDataPtr);
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 //bool CheckSaveDir(FString SaveDir);
+
+//FIXME 
+bool bIsGameShutdown;
+
 
 //======================================================================================================================================================================
 //
@@ -202,9 +205,20 @@ void ASandboxTerrainController::InitializeTerrainController() {
 
 void ASandboxTerrainController::BeginDestroy() {
     Super::BeginDestroy();
-    delete TerrainData;
-    delete CheckAreaMap;
-    delete Generator;
+
+	bIsGameShutdown = true;
+
+    //delete TerrainData;
+    //delete CheckAreaMap;
+    //delete Generator;
+}
+
+void ASandboxTerrainController::FinishDestroy() {
+	Super::FinishDestroy();
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::FinishDestroy()"));
+	delete TerrainData;
+	delete CheckAreaMap;
+	delete Generator;
 }
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
@@ -217,7 +231,9 @@ ASandboxTerrainController::ASandboxTerrainController() {
 
 void ASandboxTerrainController::PostLoad() {
 	Super::PostLoad();
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> PostLoad"));
+	UE_LOG(LogTemp, Log, TEXT("ASandboxTerrainController::PostLoad()"));
+
+	bIsGameShutdown = false;
 
 #if WITH_EDITOR
 	//spawnInitialZone();
@@ -227,7 +243,7 @@ void ASandboxTerrainController::PostLoad() {
 
 void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController ---> BeginPlay"));
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::BeginPlay()"));
     
     Generator->OnBeginPlay();
     
@@ -378,7 +394,10 @@ void ASandboxTerrainController::PerformCheckArea() {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::BeginPlayServer() {
-	if (!OpenFile()) return;
+	if (!OpenFile()) {
+		return;
+	}
+
 	RunLoadMapAsync(nullptr);
 
 	UVdServerComponent* VdServerComponent = NewObject<UVdServerComponent>(this, TEXT("VdServer"));
@@ -720,10 +739,12 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 
 	if (VdInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfo.Vd);
+		/*
 		InvokeSafe([=]() {
 			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 			//Zone->ApplyTerrainMesh(MeshDataPtr);
 		});
+		*/
 	}
 }
 
@@ -777,21 +798,11 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	if (MeshDataPtr) {
         if(bMeshExist){
             // just change lod mask
-            InvokeSafe([=]() {
-				//UE_LOG(LogTemp, Log, TEXT("ChangeLodMask -> %d %d %d -> %d "), Index.X, Index.Y, Index.Z, TerrainLodMask);
-                ExistingZone->ApplyTerrainMesh(MeshDataPtr, false, TerrainLodMask); // already in cache
-            });
+			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, false, TerrainLodMask);
             return (int)TZoneSpawnResult::ChangeLodMask;
         } else {
             // spawn new zone with mesh
-            InvokeSafe([=]() {
-                UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-				if (Zone) {
-					//UE_LOG(LogTemp, Log, TEXT("SpawnMesh -> %d %d %d "), Index.X, Index.Y, Index.Z);
-					Zone->ApplyTerrainMesh(MeshDataPtr, false, TerrainLodMask); // already in cache
-					OnLoadZone(Zone);
-				}
-            });
+			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, false, TerrainLodMask, true);
             return (int)TZoneSpawnResult::SpawnMesh;
         }
     }
@@ -802,32 +813,14 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 
 		if (ExistingZone) {
 			// just change lod mask
-			InvokeSafe([=]() {
-				//UE_LOG(LogTemp, Log, TEXT("ChangeLodMask -> %d %d %d -> %d "), Index.X, Index.Y, Index.Z, TerrainLodMask);
-				ExistingZone->ApplyTerrainMesh(MeshDataPtr, false, TerrainLodMask); // already in cache
-			});
+			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, false, TerrainLodMask);
 		}
 
         TVoxelDataState State = VoxelDataInfo->DataState;
-		InvokeSafe([=]() {
-			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			if (Zone) {
-				Zone->ApplyTerrainMesh(MeshDataPtr, true, TerrainLodMask);
-
-				if (State == TVoxelDataState::GENERATED) {
-					OnGenerateNewZone(Index, Zone);
-				}
-
-				if (State == TVoxelDataState::LOADED) {
-					OnLoadZone(Zone);
-
-				}
-			}
-		});
+		ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, true, TerrainLodMask, State);
 	}
 
 	//UE_LOG(LogTemp, Log, TEXT("None -> %d %d %d "), Index.X, Index.Y, Index.Z);
-
 	return bNewVdGenerated ? TZoneSpawnResult::GeneratedNewVd : TZoneSpawnResult::None;
 }
 
@@ -1227,9 +1220,9 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 					}
 
 					if (Zone == nullptr) {
-						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeLazyZoneAsync(ZoneIndex, MeshDataPtr); });
+						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr); });
 					} else {
-						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ InvokeZoneMeshAsync(Zone, MeshDataPtr); });
+						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr); });
 					}
 				}
 			}
@@ -1245,7 +1238,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 // invoke async
 //======================================================================================================================================================================
 
-
+/*
 void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
     if (IsInGameThread()) {
         Function();
@@ -1253,25 +1246,58 @@ void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
         AsyncTask(ENamedThreads::GameThread, [=]() { Function(); });
     }
 }
+*/
 
-void ASandboxTerrainController::InvokeZoneMeshAsync(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr) {
-    AsyncTask(ENamedThreads::GameThread, [=]() {
-        if (MeshDataPtr) {
-            Zone->ApplyTerrainMesh(MeshDataPtr);
-        }
-    });
+void ASandboxTerrainController::ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, bool bPutToCache, const TTerrainLodMask TerrainLodMask) {
+	ASandboxTerrainController* Controller = this;
+
+	TFunction<void()> Function = [=]() {
+		if (!bIsGameShutdown) {
+			if (MeshDataPtr) {
+				Zone->ApplyTerrainMesh(MeshDataPtr, bPutToCache, TerrainLodMask);
+			}
+		} else {
+			UE_LOG(LogTemp, Log, TEXT("ASandboxTerrainController::ExecGameThreadZoneApplyMesh - game shutdown"));
+		}
+	};
+
+	if (IsInGameThread()) {
+		Function();
+	} else {
+		AsyncTask(ENamedThreads::GameThread, Function);
+	}
 }
 
-void ASandboxTerrainController::InvokeLazyZoneAsync(TVoxelIndex& Index, TMeshDataPtr MeshDataPtr) {
+void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, bool bPutToCache, const TTerrainLodMask TerrainLodMask, const uint32 State) {
 	FVector ZonePos = GetZonePos(Index);
-    AsyncTask(ENamedThreads::GameThread, [=]() {
-        if (MeshDataPtr) {
-            UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
-			if (Zone) {
-				Zone->ApplyTerrainMesh(MeshDataPtr);
+	ASandboxTerrainController* Controller = this;
+
+	TFunction<void()> Function = [=]() {
+		if (!bIsGameShutdown) {
+			if (MeshDataPtr) {
+				UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
+				if (Zone) {
+					Zone->ApplyTerrainMesh(MeshDataPtr, bPutToCache, TerrainLodMask);
+
+					if (State == TVoxelDataState::GENERATED) {
+						OnGenerateNewZone(Index, Zone);
+					}
+
+					if (State == TVoxelDataState::LOADED) {
+						OnLoadZone(Zone);
+					}
+				}
 			}
-        }
-    });
+		} else {
+			UE_LOG(LogTemp, Log, TEXT("ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh - game shutdown"));
+		}
+	};
+
+	if (IsInGameThread()) {
+		Function();
+	} else {
+		AsyncTask(ENamedThreads::GameThread, Function);
+	}
 }
 
 void ASandboxTerrainController::RunThread(TUniqueFunction<void()> Function) {

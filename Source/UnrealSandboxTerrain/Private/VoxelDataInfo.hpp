@@ -9,7 +9,7 @@
 
 #include "VoxelData.h"
 
-enum TVoxelDataState {
+enum TVoxelDataState : uint32 {
     UNDEFINED = 0,
     GENERATED = 1,
     LOADED = 2,
