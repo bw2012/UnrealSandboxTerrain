@@ -42,7 +42,7 @@ public:
 		return (ASandboxTerrainController*)GetAttachmentRootActor();
 	};
 
-	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0);
+	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
 
 	std::shared_ptr<std::vector<uint8>> SerializeInstancedMeshes();
 
@@ -55,11 +55,11 @@ public:
 	//TMeshData const * GetCachedMeshData();
     //TMeshDataPtr GetCachedMeshData();
     
-    bool HasCachedMeshData();
+    //bool HasCachedMeshData();
     
-    TValueDataPtr SerializeAndClearCachedMeshData();
+    //TValueDataPtr SerializeAndClearCachedMeshData();
 
-	void ClearCachedMeshData();
+	//void ClearCachedMeshData();
 
     TValueDataPtr SerializeAndResetObjectData();
     
@@ -83,7 +83,7 @@ private:
     
     TTerrainLodMask CurrentTerrainLodMask;
 
-	TMeshDataPtr CachedMeshDataPtr;
+	//TMeshDataPtr CachedMeshDataPtr;
 
 	bool bIsObjectsNeedSave = false;
 };

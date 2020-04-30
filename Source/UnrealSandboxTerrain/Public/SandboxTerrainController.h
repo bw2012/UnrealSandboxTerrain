@@ -468,9 +468,9 @@ private:
 	// async tasks
 	//===============================================================================
 
-	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0x0);
+	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0);
 
-	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
 
 	//===============================================================================
 	// threads

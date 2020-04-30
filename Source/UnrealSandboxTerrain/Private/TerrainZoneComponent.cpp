@@ -27,7 +27,7 @@ TMeshDataPtr UTerrainZoneComponent::GetCachedMeshData() {
 }
 */
 
-
+/*
 void UTerrainZoneComponent::ClearCachedMeshData() {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	CachedMeshDataPtr = nullptr;
@@ -49,10 +49,10 @@ TValueDataPtr UTerrainZoneComponent::SerializeAndClearCachedMeshData() {
     
     return nullptr;
 }
+*/
 
 
-
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache, const TTerrainLodMask TerrainLodMask) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask) {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	double start = FPlatformTime::Seconds();
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -65,13 +65,15 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		return;
 	}
 
-	if (CachedMeshDataPtr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
-		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
-	}
+	//if (CachedMeshDataPtr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
+	//	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
+	//}
 
+	/*
 	if (bPutToCache) {
 		CachedMeshDataPtr = MeshDataPtr;
 	}
+	*/
 
 	// do not reduce lod mask
     TTerrainLodMask TargetTerrainLodMask = 0;

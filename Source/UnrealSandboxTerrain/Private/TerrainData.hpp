@@ -19,11 +19,35 @@ class TTerrainData {
 private:
     std::shared_timed_mutex VoxelDataMutex;
     std::unordered_map<TVoxelIndex, TVoxelDataInfo*> VoxelDataIndexMap;
+
 	std::shared_timed_mutex ZoneMapMutex;
     TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
+
+	std::shared_timed_mutex MeshDataMutex;
+	std::unordered_map<TVoxelIndex, TMeshDataPtr> MeshDataCaheIndexMap;
     
-    
+  
 public:
+
+	void PutMeshDataToCache(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr) {
+		std::unique_lock<std::shared_timed_mutex> Lock(MeshDataMutex);
+		auto It = MeshDataCaheIndexMap.find(Index);
+		if (It != MeshDataCaheIndexMap.end()) {
+			MeshDataCaheIndexMap.erase(It);
+		}
+		MeshDataCaheIndexMap.insert({ Index, MeshDataPtr });
+	}
+
+	void ForEachMeshDataSafeAndClear(std::function<void(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr)> Function) {
+		std::unique_lock<std::shared_timed_mutex> Lock(MeshDataMutex);
+		for (auto& It : MeshDataCaheIndexMap) {
+			const auto& Index = It.first;
+			TMeshDataPtr MeshDataPtr = MeshDataCaheIndexMap[It.first];
+			Function(Index, MeshDataPtr);
+		}
+		MeshDataCaheIndexMap.clear();
+	}
+
     void AddZone(const FVector& Pos, UTerrainZoneComponent* ZoneComponent){
         std::unique_lock<std::shared_timed_mutex> Lock(ZoneMapMutex);
         TerrainZoneMap.Add(Pos, ZoneComponent);
