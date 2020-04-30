@@ -16,7 +16,7 @@
 struct TMeshData;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
-struct TInstMeshTransArray;
+struct TInstanceMeshArray;
 class UVdClientComponent;
 class TTerrainLoadHandler;
 class TTerrainData;
@@ -25,7 +25,7 @@ class TTerrainGenerator;
 class TVoxelDataInfo;
 
 
-typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
+typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 
@@ -468,9 +468,9 @@ private:
 	// async tasks
 	//===============================================================================
 
-	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, bool bPutToCache = false, const TTerrainLodMask TerrainLodMask = 0x0);
+	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0x0);
 
-	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, bool bPutToCache = false, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
 
 	//===============================================================================
 	// threads
@@ -512,7 +512,7 @@ private:
 
 	TMeshDataPtr LoadMeshDataByIndex(const TVoxelIndex& Index);
 
-	void LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap);
+	void LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstanceMeshTypeMap& ZoneInstMeshMap);
 
 	//===============================================================================
 	// foliage

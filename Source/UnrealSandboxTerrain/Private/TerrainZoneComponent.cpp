@@ -204,7 +204,7 @@ std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMes
 	return Serializer.data();
 }
 
-void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstMeshTypeMap& ZoneInstMeshMap) {
+void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap) {
 	FastUnsafeDeserializer Deserializer(Data.data());
 
 	int32 MeshCount;
@@ -227,7 +227,7 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data,
 			MeshType.EndCullDistance = FoliageType.EndCullDistance;
 		}
 
-		TInstMeshTransArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
+		TInstanceMeshArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
 		InstMeshArray.MeshType = MeshType;
 		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
 
@@ -243,7 +243,16 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data,
 	}
 }
 
-void UTerrainZoneComponent::SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& Transform) {
+void UTerrainZoneComponent::SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap) {
+	for (const auto& Elem : InstanceMeshMap) {
+		const TInstanceMeshArray& InstMeshTransArray = Elem.Value;
+		for (const FTransform& Transform : InstMeshTransArray.TransformArray) {
+			SpawnInstancedMesh(InstMeshTransArray.MeshType, Transform);
+		}
+	}
+}
+
+void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const FTransform& Transform) {
     const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
 	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = nullptr;
 

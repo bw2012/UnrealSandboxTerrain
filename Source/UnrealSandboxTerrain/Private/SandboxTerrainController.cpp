@@ -802,7 +802,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
             return (int)TZoneSpawnResult::ChangeLodMask;
         } else {
             // spawn new zone with mesh
-			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, false, TerrainLodMask, true);
+			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, false, TerrainLodMask, TVoxelDataState::LOADED);
             return (int)TZoneSpawnResult::SpawnMesh;
         }
     }
@@ -1344,7 +1344,9 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 
 void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone) {
     if (FoliageDataAsset) {
-        Generator->GenerateNewFoliage(Index, Zone);
+		TInstanceMeshTypeMap ZoneInstanceMeshMap;
+        Generator->GenerateNewFoliage(Index, ZoneInstanceMeshMap);
+		Zone->SpawnAll(ZoneInstanceMeshMap);
 		Zone->SetNeedSave();
     }
 }
@@ -1425,16 +1427,19 @@ float ASandboxTerrainController::NormalizedPerlinNoise(const FVector& Pos) const
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
-	TInstMeshTypeMap ZoneInstMeshMap;
-	LoadObjectDataByIndex(Zone, ZoneInstMeshMap);
+	TInstanceMeshTypeMap ZoneInstanceMeshMap;
+	LoadObjectDataByIndex(Zone, ZoneInstanceMeshMap);
+	Zone->SpawnAll(ZoneInstanceMeshMap);
 
+	/*
 	for (auto& Elem : ZoneInstMeshMap) {
-		TInstMeshTransArray& InstMeshTransArray = Elem.Value;
+		TInstanceMeshArray& InstMeshTransArray = Elem.Value;
 
 		for (FTransform& Transform : InstMeshTransArray.TransformArray) {
 			Zone->SpawnInstancedMesh(InstMeshTransArray.MeshType, Transform);
 		}
 	}
+	*/
 }
 
 //======================================================================================================================================================================
@@ -1747,7 +1752,7 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	return MeshDataPtr;
 }
 
-void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstMeshTypeMap& ZoneInstMeshMap) {
+void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstanceMeshTypeMap& ZoneInstMeshMap) {
 	double Start = FPlatformTime::Seconds();
 	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
 

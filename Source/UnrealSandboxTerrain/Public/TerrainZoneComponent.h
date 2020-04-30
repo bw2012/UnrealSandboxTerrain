@@ -10,15 +10,15 @@
 
 class ASandboxTerrainController;
 
-typedef struct TInstMeshTransArray {
+typedef struct TInstanceMeshArray {
 
 	TArray<FTransform> TransformArray;
 
 	FTerrainInstancedMeshType MeshType;
 
-} TInstMeshTransArray;
+} TInstanceMeshArray;
 
-typedef TMap<int32, TInstMeshTransArray> TInstMeshTypeMap;
+typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 /**
 *
@@ -46,9 +46,11 @@ public:
 
 	std::shared_ptr<std::vector<uint8>> SerializeInstancedMeshes();
 
-	void DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstMeshTypeMap& ZoneInstMeshMap);
+	void DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap);
 
-	void SpawnInstancedMesh(FTerrainInstancedMeshType& MeshType, FTransform& transform);
+	void SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap);
+
+	void SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const FTransform& transform);
 
 	//TMeshData const * GetCachedMeshData();
     //TMeshDataPtr GetCachedMeshData();

@@ -379,20 +379,22 @@ public:
 	}
 
 
-    void GenerateNewFoliage(const TVoxelIndex& Index, UTerrainZoneComponent* Zone){
+    void GenerateNewFoliage(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap){
 		if (Controller->FoliageMap.Num() == 0) {
 			return;
 		}
 
-		float GroundLevel = GroundLevelFunc(Index, Zone->GetComponentLocation()); // TODO fix with zone on ground
-		if (GroundLevel > Zone->GetComponentLocation().Z + 500) {
+		FVector ZonePos = Controller->GetZonePos(Index);
+
+		float GroundLevel = GroundLevelFunc(Index, ZonePos); // TODO fix with zone on ground
+		if (GroundLevel > ZonePos.Z + 500) {
 			return;
 		}
 
         int32 Hash = 7;
-        Hash = Hash * 31 + (int32)Zone->GetComponentLocation().X;
-        Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Y;
-        Hash = Hash * 31 + (int32)Zone->GetComponentLocation().Z;
+        Hash = Hash * 31 + (int32)ZonePos.X;
+        Hash = Hash * 31 + (int32)ZonePos.Y;
+        Hash = Hash * 31 + (int32)ZonePos.Z;
 
         FRandomStream rnd = FRandomStream();
         rnd.Initialize(Hash);
@@ -404,7 +406,7 @@ public:
         for (auto x = -s; x <= s; x += step) {
             for (auto y = -s; y <= s; y += step) {
 
-                FVector v(Zone->GetComponentLocation());
+                FVector v(ZonePos);
                 v += FVector(x, y, 0);
 
                 for (auto& Elem : Controller->FoliageMap) {
@@ -418,7 +420,7 @@ public:
 
                         if (Chance <= Probability) {
                             float r = std::sqrt(v.X * v.X + v.Y * v.Y);
-                            SpawnFoliage(FoliageTypeId, FoliageType2, v, rnd, Index, Zone);
+                            SpawnFoliage(FoliageTypeId, FoliageType2, v, rnd, Index, ZoneInstanceMeshMap);
                         }
                     }
                 }
@@ -426,7 +428,7 @@ public:
         }
     }
 
-    void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, UTerrainZoneComponent* Zone){
+    void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap){
         FVector v = Origin;
         
         if (FoliageType.OffsetRange > 0) {
@@ -466,7 +468,10 @@ public:
                 MeshType.StartCullDistance = FoliageType.StartCullDistance;
                 MeshType.EndCullDistance = FoliageType.EndCullDistance;
 
-                Zone->SpawnInstancedMesh(MeshType, Transform);
+				auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(FoliageTypeId);
+				InstanceMeshContainer.MeshType = MeshType;
+				InstanceMeshContainer.TransformArray.Add(Transform);
+                //Zone->SpawnInstancedMesh(MeshType, Transform);
             }
         }
     }
