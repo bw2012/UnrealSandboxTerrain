@@ -27,7 +27,7 @@ TMeshDataPtr UTerrainZoneComponent::GetCachedMeshData() {
 }
 */
 
-
+/*
 void UTerrainZoneComponent::ClearCachedMeshData() {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	CachedMeshDataPtr = nullptr;
@@ -49,10 +49,10 @@ TValueDataPtr UTerrainZoneComponent::SerializeAndClearCachedMeshData() {
     
     return nullptr;
 }
+*/
 
 
-
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPutToCache, const TTerrainLodMask TerrainLodMask) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask) {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	double start = FPlatformTime::Seconds();
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -65,13 +65,15 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bPut
 		return;
 	}
 
-	if (CachedMeshDataPtr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
-		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
-	}
+	//if (CachedMeshDataPtr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
+	//	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
+	//}
 
+	/*
 	if (bPutToCache) {
 		CachedMeshDataPtr = MeshDataPtr;
 	}
+	*/
 
 	// do not reduce lod mask
     TTerrainLodMask TargetTerrainLodMask = 0;
@@ -169,6 +171,42 @@ TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
     bIsObjectsNeedSave = false;
     return Data;
 }
+
+
+TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceObjectMap) {
+	FastUnsafeSerializer Serializer;
+	int32 MeshCount = InstanceObjectMap.Num();
+	Serializer << MeshCount;
+
+	for (auto& Elem : InstanceObjectMap) {
+		const TInstanceMeshArray& InstancedObjectArray = Elem.Value;
+		int32 MeshTypeId = Elem.Key;
+		int32 MeshInstanceCount = InstancedObjectArray.TransformArray.Num();
+
+		Serializer << MeshTypeId << MeshInstanceCount;
+
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			TInstantMeshData P;
+			const FTransform& InstanceTransform = InstancedObjectArray.TransformArray[InstanceIdx];
+
+			P.X = InstanceTransform.GetLocation().X;
+			P.Y = InstanceTransform.GetLocation().Y;
+			P.Z = InstanceTransform.GetLocation().Z;
+			P.Roll = InstanceTransform.Rotator().Roll;
+			P.Pitch = InstanceTransform.Rotator().Pitch;
+			P.Yaw = InstanceTransform.Rotator().Yaw;
+			P.ScaleX = InstanceTransform.GetScale3D().X;
+			P.ScaleY = InstanceTransform.GetScale3D().Y;
+			P.ScaleZ = InstanceTransform.GetScale3D().Z;
+
+			Serializer << P;
+		}
+	}
+
+	return Serializer.data();
+}
+
+
 
 std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMeshes() {
 	FastUnsafeSerializer Serializer;

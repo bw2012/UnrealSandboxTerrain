@@ -18,12 +18,13 @@ class UVoxelMeshComponent;
 class UTerrainZoneComponent;
 struct TInstanceMeshArray;
 class UVdClientComponent;
-class TTerrainLoadHandler;
 class TTerrainData;
 class TCheckAreaMap;
 class TTerrainGenerator;
 class TVoxelDataInfo;
-
+class TTerrainAreaPipeline;
+class TTerrainLoadPipeline;
+class TTerrainGeneratorPipeline;
 
 typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -48,6 +49,9 @@ struct FMapInfo {
 
 	UPROPERTY()
 	double SaveTimestamp;
+
+	UPROPERTY()
+	FString Status;
 };
 
 USTRUCT()
@@ -236,10 +240,12 @@ class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 public:
     ASandboxTerrainController();
     
-    friend TTerrainLoadHandler;
     friend UTerrainZoneComponent;
 	friend TTerrainGenerator;
 	friend UVdClientComponent;
+	friend TTerrainAreaPipeline;
+	friend TTerrainLoadPipeline;
+	friend TTerrainGeneratorPipeline;
 
 	virtual void BeginPlay() override;
 
@@ -311,14 +317,14 @@ public:
 	// 
 	//========================================================================================
 
-	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
-	void OnStartBuildTerrain();
+	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
+	//void OnStartBuildTerrain();
 
-	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Finish Build Sandbox Terrain"))
-	void OnFinishBuildTerrain();
+	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Finish Build Sandbox Terrain"))
+	//void OnFinishBuildTerrain();
 
-	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
-	void OnProgressBuildTerrain(float Progress);
+	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
+	//void OnProgressBuildTerrain(float Progress);
 
 	//========================================================================================
 	// save/load
@@ -403,8 +409,6 @@ public:
 	// async tasks
 	//===============================================================================
 
-	//void InvokeSafe(std::function<void()> Function);
-
 	void RunThread(TUniqueFunction<void()> Function);
 
 	//========================================================================================
@@ -417,6 +421,8 @@ public:
 
 private:
     
+	void StartPostLoadTimers();
+
     TCheckAreaMap* CheckAreaMap;
 
     FTimerHandle TimerSwapArea;
@@ -434,7 +440,7 @@ private:
 
 	volatile bool bIsWorkFinished = false;
 
-	volatile float GeneratingProgress;
+	bool IsWorkFinished() { return bIsWorkFinished; };
 
 	//===============================================================================
 	// save/load
@@ -453,24 +459,26 @@ private:
     void AutoSaveByTimer();
 
 	void SaveJson();
-
-	bool LoadJson();
 	
 	void SpawnInitialZone();
 
-	int SpawnZone(const TVoxelIndex& pos, const TTerrainLodMask TerrainLodMask = 0);
+	//===============================================================================
+	// pipeline
+	//===============================================================================
+
+	int GeneratePipeline(const TVoxelIndex& Index);
+
+	int SpawnZonePipeline(const TVoxelIndex& pos, const TTerrainLodMask TerrainLodMask = 0);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
-
-	bool IsWorkFinished() { return bIsWorkFinished; };
 
 	//===============================================================================
 	// async tasks
 	//===============================================================================
 
-	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0x0);
+	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0);
 
-	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, bool bPutToCache = true, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
 
 	//===============================================================================
 	// threads
@@ -551,20 +559,22 @@ private:
     void OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
 
     void OnLoadZone(UTerrainZoneComponent* Zone);
-    
-    //===============================================================================
-    // save/load
-    //===============================================================================
-
-    bool VerifyMap();
-
-    bool OpenFile();
-
-    void RunLoadMapAsync(std::function<void()> OnFinish);
-    
+       
     TVoxelData* NewVoxelData();
     
 protected:
+
+	FMapInfo MapInfo;
+
+	void RunGenerateTerrainPipeline(std::function<void()> OnFinish = nullptr, std::function<void(uint32, uint32)> OnProgress = nullptr);
+
+	bool LoadJson();
+
+	bool OpenFile();
+
+	void CloseFile();
+
+	virtual void BeginTerrainLoad();
 
 	virtual void InitializeTerrainController();
 
