@@ -62,6 +62,8 @@ public:
 	//void ClearCachedMeshData();
 
     TValueDataPtr SerializeAndResetObjectData();
+
+	static TValueDataPtr SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceMeshMap);
     
 	void SetNeedSave() {
 		bIsObjectsNeedSave = true;

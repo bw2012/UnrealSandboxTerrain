@@ -172,6 +172,42 @@ TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
     return Data;
 }
 
+
+TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceObjectMap) {
+	FastUnsafeSerializer Serializer;
+	int32 MeshCount = InstanceObjectMap.Num();
+	Serializer << MeshCount;
+
+	for (auto& Elem : InstanceObjectMap) {
+		const TInstanceMeshArray& InstancedObjectArray = Elem.Value;
+		int32 MeshTypeId = Elem.Key;
+		int32 MeshInstanceCount = InstancedObjectArray.TransformArray.Num();
+
+		Serializer << MeshTypeId << MeshInstanceCount;
+
+		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
+			TInstantMeshData P;
+			const FTransform& InstanceTransform = InstancedObjectArray.TransformArray[InstanceIdx];
+
+			P.X = InstanceTransform.GetLocation().X;
+			P.Y = InstanceTransform.GetLocation().Y;
+			P.Z = InstanceTransform.GetLocation().Z;
+			P.Roll = InstanceTransform.Rotator().Roll;
+			P.Pitch = InstanceTransform.Rotator().Pitch;
+			P.Yaw = InstanceTransform.Rotator().Yaw;
+			P.ScaleX = InstanceTransform.GetScale3D().X;
+			P.ScaleY = InstanceTransform.GetScale3D().Y;
+			P.ScaleZ = InstanceTransform.GetScale3D().Z;
+
+			Serializer << P;
+		}
+	}
+
+	return Serializer.data();
+}
+
+
+
 std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMeshes() {
 	FastUnsafeSerializer Serializer;
 	int32 MeshCount = InstancedMeshMap.Num();
