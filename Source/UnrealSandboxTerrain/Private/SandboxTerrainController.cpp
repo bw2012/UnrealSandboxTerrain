@@ -260,7 +260,7 @@ void ASandboxTerrainController::RunGenerateTerrainPipeline(std::function<void()>
 		TTerrainGeneratorPipeline GeneratorPipeline(TEXT("Generate_Terrain_Pipeline"), this, Params);
 		GeneratorPipeline.LoadArea(FVector(0));
 
-		if (OnFinish) {
+		if (OnFinish && !bIsWorkFinished) {
 			OnFinish();
 		}
 	});
@@ -305,9 +305,12 @@ void ASandboxTerrainController::BeginTerrainLoad() {
             
 			TTerrainLoadPipeline Loader(TEXT("Initial_Load_Task"), this, Params);
             Loader.LoadArea(FVector(0));
-			//Generator->Clean;
 			UE_LOG(LogTemp, Warning, TEXT("Finish initial terrain load"));
-			StartPostLoadTimers();
+
+			if (!bIsWorkFinished) {
+				//Generator->Clean;
+				StartPostLoadTimers();
+			}
         });
     }
 }

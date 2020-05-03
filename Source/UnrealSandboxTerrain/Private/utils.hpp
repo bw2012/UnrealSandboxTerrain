@@ -3,15 +3,17 @@
 
 #include <functional>
 #include <list>
-  
+
+
+struct XY {
+	int x, y;
+	XY(int x_, int y_) : x(x_), y(y_) { };
+};
+
 //  https://www.geeksforgeeks.org/print-given-matrix-reverse-spiral-form/
 //	m - ending row index
 //	n - ending column index
-void ReverseSpiralWalkthrough(const unsigned int r, std::function<bool(int x, int y)> Function) {
-	struct XY {
-		int x, y;
-		XY(int x_, int y_) : x(x_), y(y_) { };
-	};
+std::list<XY> ReverseSpiralWalkthrough(const unsigned int r) {
 
     auto r2 = r * 2 + 1;
     int m = r2;
@@ -35,7 +37,7 @@ void ReverseSpiralWalkthrough(const unsigned int r, std::function<bool(int x, in
 		for (i = l; i < n; ++i) {
 			// printf("%d ", a[k][i]); 
 			//Function(k, i);
-			list.push_front(XY(k, i));
+			list.push_front(XY(k - r, i - r));
 			++z;
 		}
 		k++;
@@ -44,7 +46,7 @@ void ReverseSpiralWalkthrough(const unsigned int r, std::function<bool(int x, in
 		for (i = k; i < m; ++i) {
 			// printf("%d ", a[i][n-1]); 
 			//Function(i, n - 1);
-			list.push_front(XY(i, n - 1));
+			list.push_front(XY(i - r, n - 1 - r));
 			++z;
 		}
 		n--;
@@ -54,7 +56,7 @@ void ReverseSpiralWalkthrough(const unsigned int r, std::function<bool(int x, in
 			for (i = n - 1; i >= l; --i) {
 				// printf("%d ", a[m-1][i]); 
 				//Function(m - 1, i);
-				list.push_front(XY(m - 1, i));
+				list.push_front(XY(m - 1 - r, i - r));
 				++z;
 			}
 			m--;
@@ -65,18 +67,14 @@ void ReverseSpiralWalkthrough(const unsigned int r, std::function<bool(int x, in
 			for (i = m - 1; i >= k; --i) {
 				// printf("%d ", a[i][l]); 
 				//Function(i, l);
-				list.push_front(XY(i, l));
+				list.push_front(XY(i - r, l - r));
 				++z;
 			}
 			l++;
 		}
 	}
 
-	for (auto& itm : list) {
-        if(Function(itm.x - r, itm.y - r)){
-            break;
-        }
-	}
+	return list;
 }
 
 extern FVector sandboxSnapToGrid(FVector vec, float grid_range) {

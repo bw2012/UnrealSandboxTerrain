@@ -64,6 +64,8 @@ protected:
 	void EndChunk(int x, int y) {
 		//Controller->TerrainGeneratorComponent->Clean();
 		//Controller->TerrainGenerator->Clean(Index);
+		TVoxelIndex Index(x, y, 0);
+		Controller->Generator->Clean(Index);
 	}
 
 private:
@@ -83,7 +85,10 @@ private:
 			}
 
 			//GeneratingProgress = (float)Progress / (float)Total;
-			if (Controller->IsWorkFinished()) return;
+			if (Controller->IsWorkFinished() || bIsStopped) {
+				return;
+			}
+
 			if (GeneratedVdConter > SaveGeneratedZones) {
 				Controller->FastSave();
 				GeneratedVdConter = 0;
@@ -94,13 +99,19 @@ private:
 	void AreaWalkthrough() {
 		const unsigned int AreaRadius = Params.Radius / 1000;
 		Total = (AreaRadius * 2 + 1) * (AreaRadius * 2 + 1) * (Params.TerrainSizeMinZ + Params.TerrainSizeMaxZ + 1);
-		ReverseSpiralWalkthrough(AreaRadius, [&](int x, int y) {
+		auto List = ReverseSpiralWalkthrough(AreaRadius);
+		for (auto& Itm : List) {
+			int x = Itm.x;
+			int y = Itm.y;
+
 			PerformChunk(x, y);
 			EndChunk(x, y);
-			TVoxelIndex Index(x, y, 0);
-			Controller->Generator->Clean(Index);
-			return this->bIsStopped;
-		});
+
+			if (Controller->IsWorkFinished() || bIsStopped) {
+				return;
+			}
+		}
+
 
 		if (bIsStopped) {
 			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
@@ -177,8 +188,12 @@ public:
 protected:
 
 	virtual int PerformZone(const TVoxelIndex& Index) override {
-		//UE_LOG(LogTemp, Warning, TEXT("TTerrainGeneratorPipeline::PerformZone %d %d %d"), Index.X, Index.Y, Index.Z);
-		return Controller->GeneratePipeline(Index);
+		double Start = FPlatformTime::Seconds();
+		auto Res = Controller->GeneratePipeline(Index);
+		double End = FPlatformTime::Seconds();
+		double Time = (End - Start) * 1000;
+		UE_LOG(LogTemp, Warning, TEXT("GenerateTerrainPipeline -> %d %d %d --> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		return Res;
 	}
 };
 
