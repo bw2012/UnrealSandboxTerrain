@@ -87,11 +87,20 @@ public:
 class TTerrainGenerator {
 
 private:
+	int VdNum;
     PerlinNoise Pn;
     ASandboxTerrainController* Controller;
     TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
 	std::mutex ZoneHeightMapMutex;
     std::unordered_map<TVoxelIndex, TZoneHeightMapData*> ZoneHeightMapCollection;
+
+	struct TTerrainGeneratorPrebuiltData {
+		TVoxelIndex Index;
+		FVector LocalPos;
+	};
+
+	std::list<TTerrainGeneratorPrebuiltData> PrebuiltDataCache2D;
+
     
 public:
     
@@ -121,6 +130,20 @@ public:
         LastLayer.StartDepth = 9999999.f;
         LastLayer.Name = TEXT("");
         UndergroundLayersTmp.Add(LastLayer);
+
+
+		TVoxelData* VdTmp = this->Controller->NewVoxelData();
+		for (int X = 0; X < VdTmp->num(); X++) {
+			for (int Y = 0; Y < VdTmp->num(); Y++) {
+				TTerrainGeneratorPrebuiltData PrebuiltData;
+				PrebuiltData.LocalPos = VdTmp->voxelIndexToVector(X, Y, 0);
+				PrebuiltData.Index = TVoxelIndex(X, Y, 0);
+				PrebuiltDataCache2D.push_back(PrebuiltData);
+			}
+		}
+
+		this->VdNum = VdTmp->num();
+		delete VdTmp;
     }
     
 private:
@@ -275,23 +298,62 @@ private:
     }
     
     
-	bool GetOrCreateZoneHeightMap(TVoxelIndex& Index, TZoneHeightMapData** ZoneHeightMapData, int num) {
+	TZoneHeightMapData* GetZoneHeightMap(int X, int Y) {
 		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
-		bool bIsNew = false;
+		TVoxelIndex Index(X, Y, 0);
+		TZoneHeightMapData* ZoneHeightMapData = nullptr;
 
 		if (ZoneHeightMapCollection.find(Index) == ZoneHeightMapCollection.end()) {
-			*ZoneHeightMapData = new TZoneHeightMapData(num);
-			ZoneHeightMapCollection.insert({ Index, *ZoneHeightMapData });
-			bIsNew = true;
+			ZoneHeightMapData = new TZoneHeightMapData(VdNum);
+			ZoneHeightMapCollection.insert({ Index, ZoneHeightMapData });
+
+			for (const auto& PrebuiltData : PrebuiltDataCache2D) {
+				const FVector& LocalPos = PrebuiltData.LocalPos;
+				FVector WorldPos = LocalPos + Controller->GetZonePos(Index);
+				int X = PrebuiltData.Index.X;
+				int Y = PrebuiltData.Index.Y;
+
+				float GroundLevel = GroundLevelFunc(Index, WorldPos);
+				ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
+			}
 		} else {
-			*ZoneHeightMapData = ZoneHeightMapCollection[Index];
+			ZoneHeightMapData = ZoneHeightMapCollection[Index];
 		}
 
-		return bIsNew;
+		return ZoneHeightMapData;
 	};
 
 
 public:
+
+	std::list<TVoxelIndex> GetLandscapeZones(int X, int Y) {
+		std::list<TVoxelIndex> Res;
+		TZoneHeightMapData* ZoneHeightMapData = GetZoneHeightMap(X, Y);
+
+		float Max = ZoneHeightMapData->GetMaxHeightLevel();
+		float Min = ZoneHeightMapData->GetMinHeightLevel();
+
+		FVector ZonePos = Controller->GetZonePos(TVoxelIndex(X, Y, 0));
+		FVector ZonePos1 = ZonePos;
+		FVector ZonePos2 = ZonePos;
+
+		ZonePos1.Z = Max;
+		ZonePos2.Z = Min;
+
+		TVoxelIndex Index1 = Controller->GetZoneIndex(ZonePos1);
+		TVoxelIndex Index2 = Controller->GetZoneIndex(ZonePos2);
+
+		int Z = Index1.Z;
+		do { 
+			TVoxelIndex Index(X, Y, Z);
+			Res.push_back(Index);
+			Z--;
+		} while (Z >= Index2.Z);
+
+		//UE_LOG(LogTemp, Log, TEXT("Index1 %d %d %d - Index2 %d %d %d"), Index1.X, Index1.Y, Index1.Z, Index2.X, Index2.Y, Index2.Z);
+		return Res;
+	}
+
    
     void GenerateVoxelTerrain (TVoxelData &VoxelData){
         double start = FPlatformTime::Seconds();
@@ -300,23 +362,8 @@ public:
         FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
         // get heightmap data
-        //======================================
         TVoxelIndex Index2((int)ZoneIndexTmp.X, (int)ZoneIndexTmp.Y, 0);
-        TZoneHeightMapData* ZoneHeightMapData = nullptr;
-
-		if (GetOrCreateZoneHeightMap(Index2, &ZoneHeightMapData, VoxelData.num())) {
-			for (int X = 0; X < VoxelData.num(); X++) {
-				for (int Y = 0; Y < VoxelData.num(); Y++) {
-					FVector LocalPos = VoxelData.voxelIndexToVector(X, Y, 0);
-					FVector WorldPos = LocalPos + VoxelData.getOrigin();
-
-					float GroundLevel = GroundLevelFunc(ZoneIndex, WorldPos);
-					ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
-				}
-			}
-		}
-
-        //======================================
+		TZoneHeightMapData* ZoneHeightMapData = GetZoneHeightMap(ZoneIndexTmp.X, ZoneIndexTmp.Y);
 
         static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
         const FVector Origin = VoxelData.getOrigin();

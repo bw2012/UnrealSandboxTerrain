@@ -61,11 +61,15 @@ protected:
 		return TZoneSpawnResult::None;
 	}
 
-	void EndChunk(int x, int y) {
+	virtual void EndChunk(int x, int y) {
 		//Controller->TerrainGeneratorComponent->Clean();
 		//Controller->TerrainGenerator->Clean(Index);
 		TVoxelIndex Index(x, y, 0);
 		Controller->Generator->Clean(Index);
+	}
+
+	virtual void BeginChunk(int x, int y) {
+
 	}
 
 private:
@@ -84,7 +88,6 @@ private:
 				GeneratedVdConter++;
 			}
 
-			//GeneratingProgress = (float)Progress / (float)Total;
 			if (Controller->IsWorkFinished() || bIsStopped) {
 				return;
 			}
@@ -104,6 +107,7 @@ private:
 			int x = Itm.x;
 			int y = Itm.y;
 
+			BeginChunk(x, y);
 			PerformChunk(x, y);
 			EndChunk(x, y);
 
@@ -187,13 +191,33 @@ public:
 
 protected:
 
+	virtual void BeginChunk(int x, int y) {
+		double Start = FPlatformTime::Seconds();
+		auto IndexList = Controller->Generator->GetLandscapeZones(x, y);
+
+		for(const auto& Index : IndexList) {
+			Controller->GeneratePipeline(Index);
+		}
+		
+		double End = FPlatformTime::Seconds();
+		double Time = (End - Start) * 1000;
+
+		UE_LOG(LogTemp, Warning, TEXT("GenerateTerrainPipeline chunk -> %d %d --> %f ms"), x, y, Time);
+	}
+
 	virtual int PerformZone(const TVoxelIndex& Index) override {
+
+		/*
 		double Start = FPlatformTime::Seconds();
 		auto Res = Controller->GeneratePipeline(Index);
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
-		UE_LOG(LogTemp, Warning, TEXT("GenerateTerrainPipeline -> %d %d %d --> %f ms"), Index.X, Index.Y, Index.Z, Time);
+		//UE_LOG(LogTemp, Warning, TEXT("GenerateTerrainPipeline -> %d %d %d --> %f ms"), Index.X, Index.Y, Index.Z, Time);
 		return Res;
+		*/
+
+		return TZoneSpawnResult::None;
+
 	}
 };
 
