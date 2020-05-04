@@ -387,33 +387,30 @@ public:
 
 
 	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, FMaterialRenderProxy* Material, FTerrainMeshBatchInfo* TerrainMeshBatchInfo) {
-		FMeshBatch MeshBatch;
-		MeshBatch.Elements.Empty(1);
+		// Draw the mesh.
+		FMeshBatch Mesh;
+		FMeshBatchElement& BatchElement = Mesh.Elements[0];
+		BatchElement.IndexBuffer = &Section->IndexBuffer;
+		Mesh.bWireframe = false;
+		Mesh.VertexFactory = &Section->VertexFactory;
+		Mesh.MaterialRenderProxy = Material;
+		BatchElement.FirstIndex = 0;
+		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
+		BatchElement.MinVertexIndex = 0;
+		BatchElement.MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
+		Mesh.bDitheredLODTransition = true;
+		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+		Mesh.Type = PT_TriangleList;
+		Mesh.DepthPriorityGroup = SDPG_World;
+		Mesh.bCanApplyViewModeOverrides = false;
 
-		//MeshBatch.PreparePrimitiveUniformBuffer()
-		MeshBatch.bWireframe = false;
-		MeshBatch.VertexFactory = &Section->VertexFactory;
-		MeshBatch.MaterialRenderProxy = Material;
-		MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
-		MeshBatch.Type = PT_TriangleList;
-		MeshBatch.DepthPriorityGroup = SDPG_World;
-		MeshBatch.bCanApplyViewModeOverrides = false;
-		MeshBatch.bDitheredLODTransition = false;
-		//MeshBatch.bRequiresPerElementVisibility = true;
+		// Set LOD information
+		Mesh.LODIndex = 0;
+		Mesh.bDitheredLODTransition = false;
+		//BatchElement.MinScreenSize = LODResource.LODInfo.MinScreenSize;
+		//BatchElement.MaxScreenSize = LODResource.LODInfo.MaxScreenSize;
 
-		FMeshBatchElement* BatchElement = new(MeshBatch.Elements) FMeshBatchElement;
-		BatchElement->IndexBuffer = &Section->IndexBuffer;
-		FBoxSphereBounds PreSkinnedLocalBounds;
-		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
-		BatchElement->PrimitiveUniformBuffer = 0;// CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), PreSkinnedLocalBounds, true, DrawsVelocity());
-		//BatchElement->PrimitiveUniformBufferResource =  GetUniformBuffer();
-		BatchElement->FirstIndex = 0;
-		BatchElement->NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
-		BatchElement->MinVertexIndex = 0;
-		BatchElement->MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
-		BatchElement->UserData = TerrainMeshBatchInfo;
-		
-		PDI->DrawMesh(MeshBatch, FLT_MAX);
+		PDI->DrawMesh(Mesh, MAX_FLT); // ok
 	}
 
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {
@@ -424,7 +421,7 @@ public:
 				LodSectionProxy->TerrainMeshBatchInfo.ZoneOriginPtr = &ZoneOrigin;
 				for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
 					if (MatSection != nullptr) {
-						FMaterialRenderProxy* MaterialInstance = MatSection->Material->GetRenderProxy(/*IsSelected()*/);
+						FMaterialRenderProxy* MaterialInstance = MatSection->Material->GetRenderProxy();
 						DrawStaticMeshSection(PDI, MatSection, MaterialInstance, &LodSectionProxy->TerrainMeshBatchInfo);
 					}
 				}
