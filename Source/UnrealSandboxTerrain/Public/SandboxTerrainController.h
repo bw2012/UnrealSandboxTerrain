@@ -436,7 +436,7 @@ private:
 	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
 
@@ -502,13 +502,9 @@ private:
 
 	TKvFile ObjFile;
 
-	TVoxelData* GetVoxelDataByPos(const FVector& Pos);
+	//TVoxelData* GetVoxelDataByPos(const FVector& Pos);
 
-	TVoxelData* GetVoxelDataByIndex(const TVoxelIndex& Index);
-
-	bool HasVoxelData(const TVoxelIndex& Index);
-
-	TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index);
+	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 

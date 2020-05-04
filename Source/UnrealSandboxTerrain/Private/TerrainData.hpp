@@ -13,52 +13,86 @@
 #include <unordered_map>
 #include <mutex>
 #include <shared_mutex>
+#include <memory>
+#include <atomic>
+#include <unordered_set>
+
+static const uint64 StorageZoneCap = 100;
+static const uint64 StorageSize = (StorageZoneCap + StorageZoneCap + 1) * (StorageZoneCap + StorageZoneCap + 1) * (StorageZoneCap + StorageZoneCap + 1);
+
+template<class T>
+class TStorage {
+
+private:
+	std::array<std::shared_ptr<T>, StorageSize> PtrArray;
+
+public:
+
+	TStorage() {
+		// initialize
+		for (auto& Ptr : PtrArray) {
+			Ptr = nullptr;
+		}
+	}
+
+	std::shared_ptr<T> Get(uint64 Index) {
+		std::shared_ptr<T> Current = std::atomic_load(&PtrArray[Index]);
+		if (!Current) {
+			std::shared_ptr<T> New = std::make_shared<T>();
+			if (std::atomic_compare_exchange_weak(&PtrArray[Index], &Current, New)) {
+				return New;
+			}
+		}
+		return Current;
+	}
+
+	std::shared_ptr<T> operator[](uint64 Index) { 
+		return Get(Index);
+	}
+};
+
 
 class TTerrainData {
     
 private:
-    std::shared_timed_mutex VoxelDataMutex;
-    std::unordered_map<TVoxelIndex, TVoxelDataInfo*> VoxelDataIndexMap;
 
-	std::shared_timed_mutex ZoneMapMutex;
-    TMap<FVector, UTerrainZoneComponent*> TerrainZoneMap;
+	TStorage<TVoxelDataInfo> Storage;
 
-	std::shared_timed_mutex MeshDataMutex;
-	std::unordered_map<TVoxelIndex, TMeshDataPtr> MeshDataCaheIndexMap;
+	std::shared_timed_mutex StorageMapMutex;
+	std::unordered_map<TVoxelIndex, std::shared_ptr<TVoxelDataInfo>> StorageMap;
 
-	std::shared_timed_mutex InstanceObjectDataMutex;
-	std::unordered_map<TVoxelIndex, TInstanceMeshTypeMap> InstanceObjectDataMap;
+	std::shared_timed_mutex SaveIndexSetpMutex;
+	std::unordered_set<TVoxelIndex> SaveIndexSet;
+
+	int64 ClcStorageLinearindex(const TVoxelIndex& Index) {
+		int32 x = Index.X + StorageZoneCap;
+		int32 y = Index.Y + StorageZoneCap;
+		int32 z = Index.Z + StorageZoneCap;
+		static const int n = (StorageZoneCap + StorageZoneCap + 1);
+		int64 LinearIndex = x * n * n + y * n + z;
+		return LinearIndex;
+	}
     
 public:
+
+	void AddSaveIndex(const TVoxelIndex& Index) {
+		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetpMutex);
+		SaveIndexSet.insert(Index);
+	}
+
+	std::unordered_set<TVoxelIndex> PopSaveIndexSet() {
+		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetpMutex);
+		std::unordered_set<TVoxelIndex> Res = SaveIndexSet;
+		SaveIndexSet.clear();
+		return Res;
+	}
 
 	//=====================================================================================
 	// instance objects 
 	//=====================================================================================
 
-	TInstanceMeshTypeMap& GetInstanceObjectTypeMap(const TVoxelIndex& Index) {
-		std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectDataMutex);
-		if (InstanceObjectDataMap.find(Index) == InstanceObjectDataMap.end()) {
-			InstanceObjectDataMap.insert({ Index, TInstanceMeshTypeMap() });
-		}
-
-		return InstanceObjectDataMap[Index];
-	}
-
-	void RemoveInstanceObjectTypeMap(const TVoxelIndex& Index) {
-		std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectDataMutex);
-		if (InstanceObjectDataMap.find(Index) != InstanceObjectDataMap.end()) {
-			InstanceObjectDataMap.erase(Index);
-		}
-	}
-
-	void ForEachInstanceObjectSafeAndClear(std::function<void(const TVoxelIndex& Index, const TInstanceMeshTypeMap& InstanceObjectMap)> Function) {
-		std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectDataMutex);
-		for (auto& It : InstanceObjectDataMap) {
-			const auto& Index = It.first;
-			const TInstanceMeshTypeMap& InstanceObjectMap = InstanceObjectDataMap[It.first];
-			Function(Index, InstanceObjectMap);
-		}
-		InstanceObjectDataMap.clear();
+	std::shared_ptr<TInstanceMeshTypeMap> GetOrCreateInstanceObjectMap(const TVoxelIndex& Index) {
+		return GetVoxelDataInfo(Index)->GetOrCreateInstanceObjectMap();
 	}
 
 	//=====================================================================================
@@ -66,94 +100,40 @@ public:
 	//=====================================================================================
 
 	void PutMeshDataToCache(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr) {
-		std::unique_lock<std::shared_timed_mutex> Lock(MeshDataMutex);
-		auto It = MeshDataCaheIndexMap.find(Index);
-		if (It != MeshDataCaheIndexMap.end()) {
-			MeshDataCaheIndexMap.erase(It);
-		}
-		MeshDataCaheIndexMap.insert({ Index, MeshDataPtr });
-	}
-
-	void ForEachMeshDataSafeAndClear(std::function<void(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr)> Function) {
-		std::unique_lock<std::shared_timed_mutex> Lock(MeshDataMutex);
-		for (auto& It : MeshDataCaheIndexMap) {
-			const auto& Index = It.first;
-			TMeshDataPtr MeshDataPtr = MeshDataCaheIndexMap[It.first];
-			Function(Index, MeshDataPtr);
-		}
-		MeshDataCaheIndexMap.clear();
+		GetVoxelDataInfo(Index)->PushMeshDataCache(MeshDataPtr);
+		AddSaveIndex(Index);
 	}
 
 	//=====================================================================================
 	// terrain zone 
 	//=====================================================================================
 
-    void AddZone(const FVector& Pos, UTerrainZoneComponent* ZoneComponent){
-        std::unique_lock<std::shared_timed_mutex> Lock(ZoneMapMutex);
-        TerrainZoneMap.Add(Pos, ZoneComponent);
+    void AddZone(const TVoxelIndex& Index, UTerrainZoneComponent* ZoneComponent){
+		GetVoxelDataInfo(Index)->AddZone(ZoneComponent);
     }
     
-    UTerrainZoneComponent* GetZone(const FVector& Pos){
-        std::shared_lock<std::shared_timed_mutex> Lock(ZoneMapMutex);
-        if (TerrainZoneMap.Contains(Pos)) {
-            return TerrainZoneMap[Pos];
-        }
-        return nullptr;
+    UTerrainZoneComponent* GetZone(const TVoxelIndex& Index){
+        return GetVoxelDataInfo(Index)->GetZone();
     }
     
-    void ForEachZoneSafe(std::function<void(const FVector Pos, UTerrainZoneComponent* Zone)> Function){
-        std::unique_lock<std::shared_timed_mutex> Lock(ZoneMapMutex);
-        for (auto& Elem : TerrainZoneMap) {
-            FVector Pos = Elem.Key;
-            UTerrainZoneComponent* Zone = Elem.Value;
-            Function(Pos, Zone);
-        }
-    }
-
 	//=====================================================================================
-	// terrina voxel data 
+	// terrain voxel data 
 	//=====================================================================================
     
-    void RegisterVoxelData(TVoxelDataInfo* VdInfo, TVoxelIndex Index) {
-        std::unique_lock<std::shared_timed_mutex> Lock(VoxelDataMutex);
-        auto It = VoxelDataIndexMap.find(Index);
-        if (It != VoxelDataIndexMap.end()) {
-            VoxelDataIndexMap.erase(It);
-        }
-        VoxelDataIndexMap.insert({ Index, VdInfo });
-    }
-    
-    TVoxelData* GetVd(const TVoxelIndex& Index) {
-        std::shared_lock<std::shared_timed_mutex> Lock(VoxelDataMutex);
-        if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
-            TVoxelDataInfo* VdInfo = VoxelDataIndexMap[Index];
-            return VdInfo->Vd;
-        }
-
-        return nullptr;
-    }
-
-    bool HasVoxelData(const TVoxelIndex& Index) {
-        std::shared_lock<std::shared_timed_mutex> Lock(VoxelDataMutex);
-        return VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end();
-    }
-
-    TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index) {
-        std::shared_lock<std::shared_timed_mutex> Lock(VoxelDataMutex);
-        if (VoxelDataIndexMap.find(Index) != VoxelDataIndexMap.end()) {
-            return VoxelDataIndexMap[Index];
-        }
-
-        return nullptr;
-    }
-    
-    void ForEachVdSafe(std::function<void(const TVoxelIndex& Index, TVoxelDataInfo* VdInfo)> Function){
-        std::unique_lock<std::shared_timed_mutex> Lock(VoxelDataMutex);
-        for (auto& It : VoxelDataIndexMap) {
-            const auto& Index = It.first;
-            TVoxelDataInfo* VdInfo = VoxelDataIndexMap[It.first];
-            Function(Index, VdInfo);
-        }
+	TVoxelDataInfoPtr GetVoxelDataInfo(const TVoxelIndex& Index) {
+		int64 LinearIndex = ClcStorageLinearindex(Index);
+		if (LinearIndex > 0 && LinearIndex < StorageSize) {
+			return Storage.Get(LinearIndex);
+		} else {
+			std::unique_lock<std::shared_timed_mutex> Lock(StorageMapMutex);
+			if (StorageMap.find(Index) != StorageMap.end()) {
+				return StorageMap[Index];
+			} else {
+				TVoxelDataInfoPtr NewVdinfo = std::make_shared<TVoxelDataInfo>();
+				StorageMap.insert({ Index, NewVdinfo });
+				return NewVdinfo;
+			}
+		}
     }
 
 	//=====================================================================================
@@ -162,18 +142,7 @@ public:
 
     void Clean(){
 		// no locking because end play only
-        TerrainZoneMap.Empty();
-		MeshDataCaheIndexMap.clear();
-		InstanceObjectDataMap.clear();
-        
-        for (auto& It : VoxelDataIndexMap) {
-            TVoxelDataInfo* VdInfo = It.second;
-            if(VdInfo){
-                VdInfo->Unload();
-                delete VdInfo;
-            }
-        }
-        VoxelDataIndexMap.clear();
+		StorageMap.clear();
     }
 };
 

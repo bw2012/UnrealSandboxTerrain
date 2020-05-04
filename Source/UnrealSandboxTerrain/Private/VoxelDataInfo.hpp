@@ -8,6 +8,7 @@
 #pragma once
 
 #include "VoxelData.h"
+#include <atomic>
 
 enum TVoxelDataState : uint32 {
     UNDEFINED = 0,
@@ -24,6 +25,14 @@ private:
     volatile double LastMeshGeneration;
     volatile double LastCacheCheck;
 
+	TMeshDataPtr MeshDataCachePtr = nullptr;
+
+	std::shared_timed_mutex ZoneMutex;
+	std::atomic<UTerrainZoneComponent*> ZoneComponentAtomicPtr = nullptr;
+
+	std::shared_timed_mutex InstanceObjectMapMutex;
+	std::shared_ptr<TInstanceMeshTypeMap> InstanceMeshTypeMapPtr = nullptr;
+
 public:
     TVoxelData* Vd = nullptr;
     TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
@@ -33,7 +42,13 @@ public:
         LoadVdMutexPtr = std::make_shared<std::mutex>();
     }
     
-    ~TVoxelDataInfo() {    }
+    ~TVoxelDataInfo() { 
+		//UE_LOG(LogSandboxTerrain, Warning, TEXT("~TVoxelDataInfo()"));
+		if (Vd != nullptr) {
+			delete Vd;
+			Vd = nullptr;
+		}
+	}
 
     bool IsNewGenerated() const {
         return DataState == TVoxelDataState::GENERATED;
@@ -70,4 +85,42 @@ public:
         }
         DataState = TVoxelDataState::READY_TO_LOAD;
     }
+
+	void PushMeshDataCache(TMeshDataPtr MeshDataPtr) {
+		std::atomic_store(&MeshDataCachePtr, MeshDataPtr);
+	}
+
+	TMeshDataPtr PopMeshDataCache() {
+		TMeshDataPtr NullPtr = nullptr;
+		TMeshDataPtr MeshDataPtr = std::atomic_exchange(&MeshDataCachePtr, NullPtr);
+		return MeshDataPtr;
+	}
+
+	void AddZone(UTerrainZoneComponent* ZoneComponent) {
+		ZoneComponentAtomicPtr.store(ZoneComponent);
+	}
+
+	UTerrainZoneComponent* GetZone() {
+		UTerrainZoneComponent* ZoneComponent = ZoneComponentAtomicPtr.load();
+		return ZoneComponent;
+	}
+
+	std::shared_ptr<TInstanceMeshTypeMap> GetOrCreateInstanceObjectMap() {
+		std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectMapMutex);
+		if (!InstanceMeshTypeMapPtr) {
+			InstanceMeshTypeMapPtr = std::make_shared<TInstanceMeshTypeMap>();
+		}
+		return InstanceMeshTypeMapPtr;
+	}
+
+	std::shared_ptr<TInstanceMeshTypeMap> PopInstanceObjectMap() {
+		std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectMapMutex);
+		auto Res = InstanceMeshTypeMapPtr;
+		InstanceMeshTypeMapPtr = nullptr;
+		return Res;
+	}
+
 };
+
+
+typedef std::shared_ptr<TVoxelDataInfo> TVoxelDataInfoPtr;
