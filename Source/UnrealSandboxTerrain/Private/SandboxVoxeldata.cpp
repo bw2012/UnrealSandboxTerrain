@@ -722,14 +722,14 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 
 
 TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
-	TMeshData* mesh_data = new TMeshData();
+	TMeshDataPtr mesh_data_ptr = std::make_shared<TMeshData>();
 	static const int max_lod = LOD_ARRAY_SIZE;
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
 		TVoxelDataGenerationParam me_vdp = vdp;
 		me_vdp.lod = lod;
-		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
+		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data_ptr->MeshSectionLodArray[lod], vd, me_vdp));
 		int step = me_vdp.step();
 		for (const auto& itm : vd.substanceCacheLOD[lod].cellList) { 
 
@@ -745,8 +745,8 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 		}
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
-	return TMeshDataPtr(mesh_data);
+	mesh_data_ptr->CollisionMeshPtr = &mesh_data_ptr->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
+	return mesh_data_ptr;
 }
 
 

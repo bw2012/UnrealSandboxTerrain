@@ -431,6 +431,15 @@ public:
 
 
 	FORCENOINLINE virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
+		/*
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
+			FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
+			auto Box = FBox{ ZoneOrigin - FVector(1.f, 1.f, 1.f) * 500.f, ZoneOrigin + FVector(1.f, 1.f, 1.f) * 500.f };
+			auto Color = FLinearColor::Blue;
+			DrawWireBox(PDI, Box, Color, SDPG_World, 2.f, 0.f, false);
+		}
+		*/
+
 		if (LodSectionArray.Num() == 0) {
 			return;
 		}

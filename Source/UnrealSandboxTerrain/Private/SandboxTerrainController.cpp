@@ -365,6 +365,7 @@ void ASandboxTerrainController::Save() {
 
 		//save voxel data
 		if (VdInfoPtr->Vd) {
+			VdInfoPtr->VdMutexPtr->lock();
 			if (VdInfoPtr->IsChanged()) {
 				//TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
 				auto Data = VdInfoPtr->Vd->serialize();
@@ -373,6 +374,7 @@ void ASandboxTerrainController::Save() {
 				SavedVd++;
 			}
 			VdInfoPtr->Unload();
+			VdInfoPtr->VdMutexPtr->unlock();
 		}
 
 		//save mesh data
@@ -623,6 +625,7 @@ int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const
     //if no voxel data in memory
 	TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 	bool bNewVdGenerated = false;
+	VdInfoPtr->VdMutexPtr->lock();
 	if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 		// if voxel data exist in file
@@ -640,6 +643,7 @@ int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const
 			TerrainData->AddSaveIndex(Index);
 		}
 	}
+	VdInfoPtr->VdMutexPtr->unlock();
 
 	// voxel data must exist in this point
 	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
@@ -660,7 +664,9 @@ int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const
     
 	// if no mesh data in file - generate mesh from voxel data
 	if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
+		VoxelDataInfoPtr->VdMutexPtr->lock();
 		MeshDataPtr = GenerateMesh(VoxelDataInfoPtr->Vd);
+		VoxelDataInfoPtr->VdMutexPtr->unlock();
 
 		if (ExistingZone) {
 			// just change lod mask
@@ -786,7 +792,9 @@ struct TZoneEditHandler {
 };
 
 void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Extend, int MatId) {
-	if (!GetWorld()->IsServer()) return;
+	if (!GetWorld()->IsServer()) {
+		return;
+	}
 
 	struct ZoneHandler : TZoneEditHandler {
 		int newMaterialId;
@@ -883,27 +891,29 @@ void ASandboxTerrainController::DigTerrainRoundHole_Internal(const FVector& Orig
 }
 
 
-void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend) {
+void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator) {
 	if (!GetWorld()->IsServer()) return;
 
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
+		FRotator Rotator;
 
 		bool operator()(TVoxelData* vd) {
 			changed = false;
 
+			bool bIsRotator = !Rotator.IsZero();
 			FBox Box(FVector(-Extend), FVector(Extend));
-			FRotator Rotator(0, 30, 0);
-
 			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
 				o -= Pos;
-				//o = Rotator.RotateVector(o);
-				//o = o.RotateAngleAxis(45, FVector(0, 0, 1));
-				//bool bIsIntersect = FMath::PointBoxIntersection(o, Box);
-				//if (bIsIntersect) {
-				if (o.X < Extend && o.X > -Extend && o.Y < Extend && o.Y > -Extend && o.Z < Extend && o.Z > -Extend) {
+
+				if (bIsRotator) {
+					o = Rotator.RotateVector(o);
+				}
+
+				bool bIsIntersect = FMath::PointBoxIntersection(o, Box);
+				if (bIsIntersect) {
 					unsigned short  MatId = vd->getMaterial(x, y, z);
 					FSandboxTerrainMaterial& Mat = MaterialMapPtr->FindOrAdd(MatId);
 					if (Mat.RockHardness < USBT_MAX_MATERIAL_HARDNESS) {
@@ -921,6 +931,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 	Zh.MaterialMapPtr = &MaterialMap;
 	Zh.Pos = Origin;
 	Zh.Extend = Extend;
+	Zh.Rotator = Rotator;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
@@ -997,24 +1008,23 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 
 template<class H>
 void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
+	if (!VdInfoPtr->Vd) {
+		UE_LOG(LogTemp, Warning, TEXT("voxel data is null"));
+		return;
+	}
+	
 	bool bIsChanged = false;
-	TMeshDataPtr MeshDataPtr = nullptr;
 
-	VdInfoPtr->LoadVdMutexPtr->lock();
-	VdInfoPtr->Vd->vd_edit_mutex.lock();
 	bIsChanged = handler(VdInfoPtr->Vd);
 	if (bIsChanged) {
 		VdInfoPtr->SetChanged();
 		VdInfoPtr->Vd->setCacheToValid();
-		MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
+		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
 		VdInfoPtr->ResetLastMeshRegenerationTime();
-		MeshDataPtr->TimeStamp = FPlatformTime::Seconds();
-	}
-	VdInfoPtr->Vd->vd_edit_mutex.unlock();
-	VdInfoPtr->LoadVdMutexPtr->unlock();
 
-	if (bIsChanged) {
-		OnComplete(MeshDataPtr);
+		if (bIsChanged) {
+			OnComplete(MeshDataPtr);
+		}
 	}
 }
 
@@ -1026,6 +1036,8 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 	static float ZoneVolumeSize = USBT_ZONE_SIZE / 2;
 	TVoxelIndex BaseZoneIndex = GetZoneIndex(ZoneHandler.Pos);
 
+	bool bIsValid = true;
+
 	static const float V[3] = { -1, 0, 1 };
 	for (float x : V) {
 		for (float y : V) {
@@ -1033,48 +1045,65 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);
 				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 				TVoxelDataInfoPtr VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
-				TVoxelData* Vd = nullptr;
 
 				// check zone bounds
 				FVector ZoneOrigin = GetZonePos(ZoneIndex);
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
+				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
+					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
+						UE_LOG(LogTemp, Warning, TEXT("Invalid zone vd state"));
+						bIsValid = false;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (!bIsValid) {
+		return;
+	}
+
+
+	for (float x : V) {
+		for (float y : V) {
+			for (float z : V) {
+				TVoxelIndex ZoneIndex = BaseZoneIndex + TVoxelIndex(x, y, z);
+				UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
+				TVoxelDataInfoPtr VoxelDataInfo = GetVoxelDataInfo(ZoneIndex);
+	
+				// check zone bounds
+				FVector ZoneOrigin = GetZonePos(ZoneIndex);
+				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
+				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
+
                 if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
-					if (VoxelDataInfo == nullptr) {
+					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
+						UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
 						continue;
 					}
 
+					VoxelDataInfo->VdMutexPtr->lock();
 					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
-						// double-check locking
-						VoxelDataInfo->LoadVdMutexPtr->lock();
-						if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
-							Vd = LoadVoxelDataByIndex(ZoneIndex);
-							VoxelDataInfo->DataState = TVoxelDataState::LOADED;
-							VoxelDataInfo->Vd = Vd;
-						} else {
-							Vd = VoxelDataInfo->Vd;
-						}
-						VoxelDataInfo->LoadVdMutexPtr->unlock();
-					} else {
-						Vd = VoxelDataInfo->Vd;
-					}
-
-					if (Vd == nullptr) {
-						continue;
+						VoxelDataInfo->Vd = LoadVoxelDataByIndex(ZoneIndex);
+						VoxelDataInfo->DataState = TVoxelDataState::LOADED;
 					}
 
 					if (Zone == nullptr) {
-						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){ 
+						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 							TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
-							ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr); 
+							ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr);
 						});
 					} else {
-						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr){
+						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 							TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
-							ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr); 
+							ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr);
 						});
 					}
+
+					VoxelDataInfo->VdMutexPtr->unlock();
 				}
 			}
 		}
@@ -1082,7 +1111,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
+	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
 }
 
 //======================================================================================================================================================================
@@ -1370,8 +1399,8 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(cons
 std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* Vd) {
 	double Start = FPlatformTime::Seconds();
 
-	if (Vd == NULL || Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
-		return NULL;
+	if (!Vd|| Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
+		return nullptr;
 	}
 
 	TVoxelDataParam Vdp;
@@ -1391,6 +1420,8 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
+
+	MeshDataPtr->TimeStamp = End;
 
 	//UE_LOG(LogTemp, Warning, TEXT("generateMesh -------------> %f %f %f --> %f ms"), Vd->getOrigin().X, Vd->getOrigin().Y, Vd->getOrigin().Z, Time);
 	return MeshDataPtr;

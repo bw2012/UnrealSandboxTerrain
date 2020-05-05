@@ -79,6 +79,8 @@ public:
     
 private:
     
+	double MeshDataTimeStamp;
+
     std::mutex TerrainMeshMutex;
     
     std::mutex InstancedMeshMutex;

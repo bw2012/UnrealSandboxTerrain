@@ -36,10 +36,10 @@ private:
 public:
     TVoxelData* Vd = nullptr;
     TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
-    std::shared_ptr<std::mutex> LoadVdMutexPtr;
+    std::shared_ptr<std::mutex> VdMutexPtr;
     
     TVoxelDataInfo() {
-        LoadVdMutexPtr = std::make_shared<std::mutex>();
+		VdMutexPtr = std::make_shared<std::mutex>();
     }
     
     ~TVoxelDataInfo() { 

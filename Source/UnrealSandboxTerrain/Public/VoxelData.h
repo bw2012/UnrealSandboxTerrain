@@ -79,8 +79,6 @@ public:
 	TVoxelData(int, float);
 	~TVoxelData();
 
-	std::mutex vd_edit_mutex;
-
 	FORCEINLINE int clcLinearIndex(int x, int y, int z) const;
 	FORCEINLINE void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
 

@@ -383,7 +383,7 @@ public:
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
-	void DigTerrainCubeHole(const FVector& Origin, float Extend);
+	void DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator = FRotator());
 
 	void FillTerrainCube(const FVector& Origin, float Extend, int MatId);
 

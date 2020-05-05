@@ -65,15 +65,11 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 		return;
 	}
 
-	//if (CachedMeshDataPtr && CachedMeshDataPtr->TimeStamp > MeshDataPtr->TimeStamp) {
-	//	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
-	//}
-
-	/*
-	if (bPutToCache) {
-		CachedMeshDataPtr = MeshDataPtr;
+	if (MeshDataTimeStamp > MeshDataPtr->TimeStamp) {
+		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
 	}
-	*/
+
+	MeshDataTimeStamp = MeshDataPtr->TimeStamp;
 
 	// do not reduce lod mask
     TTerrainLodMask TargetTerrainLodMask = 0;
@@ -83,53 +79,8 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
     } else {
         TargetTerrainLodMask = CurrentTerrainLodMask;
     }
-	
-	//TargetTerrainLodMask = TerrainLodMask;
-
-
-	//##########################################
-	// draw debug points
-	//##########################################
-	/*
-	MeshLodSection& section6 = mesh_data->MeshSectionLodArray[4];
-	for (auto p : section6.DebugPointList) {
-		DrawDebugPoint(GetWorld(), p, 5, FColor(0, 0, 255, 100), false, 1000000);
-		UE_LOG(LogTemp, Warning, TEXT("DebugPointList ---> %f %f %f "), p.X, p.Y, p.Z);
-	}
-	*/
-	//##########################################
-
-	//##########################################
-	// mat section test
-	//##########################################
-	/*
-	TMeshLodSection& section0 = MeshData->MeshSectionLodArray[0];
-	TMaterialSectionMap matSectionMap = section0.MaterialSectionMap;
-
-	for (auto& Elem : matSectionMap) {
-		short matId = Elem.Key;
-		TMeshMaterialSection matSection = Elem.Value;
-
-		UE_LOG(LogTemp, Warning, TEXT("material section -> %d - %d -> %d "), matId, matSection.MaterialId, matSection.MaterialMesh.ProcVertexBuffer.Num());
-	}	
-	*/
-	/*
-	TMaterialTransitionSectionMap& matTraSectionMap = section0.MaterialTransitionSectionMap;
-	for (auto& Elem : matTraSectionMap) {
-		short matId = Elem.Key;
-		TMeshMaterialTransitionSection& matSection = Elem.Value;
-
-		UE_LOG(LogTemp, Warning, TEXT("material transition section -> %d - [%s] -> %d "), matId, *matSection.TransitionName, matSection.MaterialMesh.ProcVertexBuffer.Num());
-
-		for (auto p : matSection.MaterialMesh.ProcVertexBuffer) {
-			//DrawDebugPoint(GetWorld(), p.Position, 3, FColor(255, 255, 255, 100), false, 1000000);
-		}
-	}
-	*/
-	//##########################################
 
 	//MainTerrainMesh->SetMobility(EComponentMobility::Movable);
-	
 	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, 0.01, 0.0f));  // workaround
 	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
