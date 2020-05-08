@@ -368,8 +368,14 @@ void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func,
 	}
 }
 
-void TVoxelData::forEachCacheItem(std::function<void(const TSubstanceCacheItem& itm)> func) const {
-
+void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func) {
+	for (const auto& itm : substanceCacheLOD[lod].cellList) {
+		func(itm);
+		//const int index = itm.index;
+		//const int x = index / (vd.num() * vd.num());
+		//const int y = (index / vd.num()) % vd.num();
+		//const int z = index % vd.num();
+	}
 }
 
 FORCEINLINE int TVoxelData::clcLinearIndex(int x, int y, int z) const {

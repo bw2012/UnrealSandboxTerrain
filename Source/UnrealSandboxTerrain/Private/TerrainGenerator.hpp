@@ -426,7 +426,16 @@ public:
 	}
 
 
-    void GenerateNewFoliage(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap){
+	int32 ZoneHash(const FVector& ZonePos) {
+		int32 Hash = 7;
+		Hash = Hash * 31 + (int32)ZonePos.X;
+		Hash = Hash * 31 + (int32)ZonePos.Y;
+		Hash = Hash * 31 + (int32)ZonePos.Z;
+
+		return Hash;
+	}
+
+    void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap){
 		if (Controller->FoliageMap.Num() == 0) {
 			return;
 		}
@@ -438,11 +447,7 @@ public:
 			return;
 		}
 
-        int32 Hash = 7;
-        Hash = Hash * 31 + (int32)ZonePos.X;
-        Hash = Hash * 31 + (int32)ZonePos.Y;
-        Hash = Hash * 31 + (int32)ZonePos.Z;
-
+        int32 Hash = ZoneHash(ZonePos);
         FRandomStream rnd = FRandomStream();
         rnd.Initialize(Hash);
         rnd.Reset();
@@ -458,6 +463,11 @@ public:
 
                 for (auto& Elem : Controller->FoliageMap) {
                     FSandboxFoliage FoliageType = Elem.Value;
+
+					if (FoliageType.Type == ESandboxFoliageType::Cave || FoliageType.Type == ESandboxFoliageType::Custom) {
+						continue;
+					}
+
                     int32 FoliageTypeId = Elem.Key;
 
                     if ((int)x % (int)FoliageType.SpawnStep == 0 && (int)y % (int)FoliageType.SpawnStep == 0) {
@@ -522,6 +532,50 @@ public:
             }
         }
     }
+
+	void GenerateNewFoliageCustom(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) {
+		if (Controller->FoliageMap.Num() == 0) {
+			return;
+		}
+
+		if (!Controller->GeneratorUseCustomFoliage(Index)) {
+			return;
+		}
+
+		FVector ZonePos = Controller->GetZonePos(Index);
+		int32 Hash = ZoneHash(ZonePos);
+		FRandomStream rnd = FRandomStream();
+		rnd.Initialize(Hash);
+		rnd.Reset();
+
+
+		for (auto& Elem : Controller->FoliageMap) {
+			FSandboxFoliage FoliageType = Elem.Value;
+
+			if (FoliageType.Type != ESandboxFoliageType::Custom) {
+				continue;
+			}
+
+			Vd->forEachCacheItem(0, [&](const TSubstanceCacheItem& itm) {
+				FVector WorldPos = Vd->voxelIndexToVector(itm.x, itm.y, itm.z) + Vd->getOrigin();
+				int32 FoliageTypeId = Elem.Key;
+
+				FTransform Transform;
+				bool bSpawn = Controller->GeneratorSpawnCustomFoliage(Index, WorldPos, FoliageTypeId, FoliageType, rnd, Transform);
+				if (bSpawn) {
+					FTerrainInstancedMeshType MeshType;
+					MeshType.MeshTypeId = FoliageTypeId;
+					MeshType.Mesh = FoliageType.Mesh;
+					MeshType.StartCullDistance = FoliageType.StartCullDistance;
+					MeshType.EndCullDistance = FoliageType.EndCullDistance;
+
+					auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(FoliageTypeId);
+					InstanceMeshContainer.MeshType = MeshType;
+					InstanceMeshContainer.TransformArray.Add(Transform);
+				}
+			});
+		}
+	}
 
     void Clean(){
 		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);

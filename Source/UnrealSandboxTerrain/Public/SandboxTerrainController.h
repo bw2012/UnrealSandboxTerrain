@@ -75,6 +75,8 @@ UENUM(BlueprintType)
 enum class ESandboxFoliageType : uint8 {
 	Grass = 0	UMETA(DisplayName = "Grass"),
 	Tree = 1   UMETA(DisplayName = "Tree"),
+	Cave = 2   UMETA(DisplayName = "Cave foliage"),
+	Custom = 3   UMETA(DisplayName = "Custom"),
 };
 
 
@@ -421,6 +423,8 @@ public:
 
 private:
     
+	void GenerateNewZoneVd(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, const TVoxelIndex& Index);
+
 	void StartPostLoadTimers();
 
     TCheckAreaMap* CheckAreaMap;
@@ -592,10 +596,20 @@ protected:
 
 	virtual FSandboxFoliage GeneratorFoliageOverride(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
 
+	virtual bool GeneratorUseCustomFoliage(const TVoxelIndex& Index);
+
+	virtual bool GeneratorSpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
+
 	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
 
 	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
 	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
+
+	virtual void OnFinishGenerateNewZone(const TVoxelIndex& Index);
+
+	//virtual void OnFinishGenerateNewVd(const TVoxelIndex& Index, TVoxelData* Vd);
+
+	//virtual void GeneratorEachSubstanceCell(const TVoxelIndex& Index, const FVector& WorldPos);
 	
 };

@@ -84,7 +84,7 @@ public:
 
 	void forEach(std::function<void(int x, int y, int z)> func);
 	void forEachWithCache(std::function<void(int x, int y, int z)> func, bool enableLOD);
-	void forEachCacheItem(std::function<void(const TSubstanceCacheItem& itm)> func) const;
+	void forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func);
 
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;

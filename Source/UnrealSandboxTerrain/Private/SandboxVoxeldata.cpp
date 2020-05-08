@@ -695,8 +695,7 @@ public:
         extractAllTransitionCell(d, x, y, z);
     }
 
-	FORCEINLINE void generateCell
- (const TSubstanceCacheItem& cacheItm) {
+	FORCEINLINE void generateCell (const TSubstanceCacheItem& cacheItm) {
 		const int x = cacheItm.x;
 		const int y = cacheItm.y;
 		const int z = cacheItm.z;

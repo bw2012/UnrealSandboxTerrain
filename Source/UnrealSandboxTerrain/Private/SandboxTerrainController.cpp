@@ -583,15 +583,7 @@ int ASandboxTerrainController::GeneratePipeline(const TVoxelIndex& Index) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
 		// generate new voxel data
-		VdInfoPtr->Vd = NewVoxelData();
-		VdInfoPtr->Vd->setOrigin(Pos);
-		Generator->GenerateVoxelTerrain(*VdInfoPtr->Vd);
-		VdInfoPtr->DataState = TVoxelDataState::GENERATED;
-		VdInfoPtr->SetChanged();
-		VdInfoPtr->Vd->setCacheToValid();
-
-		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(Index);
-		Generator->GenerateNewFoliage(Index, ZoneInstanceObjectMap);
+		GenerateNewZoneVd(VdInfoPtr, Index);
 
 		if (VdInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 			TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
@@ -605,12 +597,26 @@ int ASandboxTerrainController::GeneratePipeline(const TVoxelIndex& Index) {
 	return TZoneSpawnResult::None;
 }
 
+void ASandboxTerrainController::GenerateNewZoneVd(TVoxelDataInfoPtr VdInfoPtr, const TVoxelIndex& Index) {
+	// generate new voxel data
+	const FVector Pos = GetZonePos(Index);
+	VdInfoPtr->Vd = NewVoxelData();
+	VdInfoPtr->Vd->setOrigin(Pos);
+	Generator->GenerateVoxelTerrain(*VdInfoPtr->Vd);
+	VdInfoPtr->DataState = TVoxelDataState::GENERATED;
+	VdInfoPtr->SetChanged();
+	VdInfoPtr->Vd->setCacheToValid();
+
+	TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(Index);
+	Generator->GenerateNewFoliageLandscape(Index, ZoneInstanceObjectMap);
+	Generator->GenerateNewFoliageCustom(Index, VdInfoPtr->Vd, ZoneInstanceObjectMap);
+}
+
 
 // load or generate new zone voxel data and mesh
 int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
 	//UE_LOG(LogTemp, Log, TEXT("SpawnZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
-	FVector Pos = GetZonePos(Index);
-
+	
     bool bMeshExist = false;
     auto ExistingZone = GetZoneByVectorIndex(Index);
     if(ExistingZone){
@@ -633,12 +639,7 @@ int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const
 			VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
 		} else {
 			// generate new voxel data
-			VdInfoPtr->Vd = NewVoxelData();
-			VdInfoPtr->Vd->setOrigin(Pos);
-			Generator->GenerateVoxelTerrain(*VdInfoPtr->Vd);
-			VdInfoPtr->DataState = TVoxelDataState::GENERATED;
-			VdInfoPtr->SetChanged();
-			VdInfoPtr->Vd->setCacheToValid();
+			GenerateNewZoneVd(VdInfoPtr, Index);
 			bNewVdGenerated = true;
 			TerrainData->AddSaveIndex(Index);
 		}
@@ -1224,11 +1225,15 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 
 void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone) {
     if (FoliageDataAsset) {
-		TInstanceMeshTypeMap ZoneInstanceMeshMap;
-        Generator->GenerateNewFoliage(Index, ZoneInstanceMeshMap);
-		Zone->SpawnAll(ZoneInstanceMeshMap);
+		//TInstanceMeshTypeMap ZoneInstanceMeshMap;
+        //Generator->GenerateNewFoliage(Index, ZoneInstanceMeshMap);
+
+		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(Index);
+		Zone->SpawnAll(ZoneInstanceObjectMap);
 		Zone->SetNeedSave();
 		TerrainData->AddSaveIndex(Index);
+
+		OnFinishGenerateNewZone(Index);
     }
 }
 
@@ -1287,6 +1292,17 @@ FORCEINLINE FSandboxFoliage ASandboxTerrainController::GeneratorFoliageOverride(
 	return FoliageType;
 }
 
+FORCEINLINE void ASandboxTerrainController::OnFinishGenerateNewZone(const TVoxelIndex& Index) {
+
+}
+
+FORCEINLINE bool  ASandboxTerrainController::GeneratorUseCustomFoliage(const TVoxelIndex& Index) {
+	return false;
+}
+
+FORCEINLINE bool ASandboxTerrainController::GeneratorSpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform) {
+	return false;
+}
 
 //======================================================================================================================================================================
 // Perlin noise according seed
@@ -1334,7 +1350,6 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 
 	if (!RegularMaterialCache.Contains(MaterialId)) {
 		UE_LOG(LogTemp, Warning, TEXT("create new regular terrain material instance ----> id: %d"), MaterialId);
-
 		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(RegularMaterial, this);
 
 		if (MaterialMap.Contains(MaterialId)) {
