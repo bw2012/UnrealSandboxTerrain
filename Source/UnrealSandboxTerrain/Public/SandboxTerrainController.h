@@ -134,16 +134,23 @@ struct FSandboxTerrainMaterial {
 	float RockHardness;
 
 	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideMicro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideMacro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideNormal;
+
+	UPROPERTY(EditAnywhere)
 	UTexture* TextureTopMicro;
 
-	//UPROPERTY(EditAnywhere)
-	//UTexture* TextureSideMicro;
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureTopMacro;
 
 	UPROPERTY(EditAnywhere)
-	UTexture* TextureMacro;
+	UTexture* TextureTopNormal;
 
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureNormal;
 };
 
 USTRUCT()
