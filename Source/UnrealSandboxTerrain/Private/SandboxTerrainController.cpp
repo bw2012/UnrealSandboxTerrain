@@ -1344,7 +1344,7 @@ void ASandboxTerrainController::LoadFoliage(UTerrainZoneComponent* Zone) {
 //======================================================================================================================================================================
 
 bool ASandboxTerrainController::GetTerrainMaterialInfoById(uint16 MaterialId, FSandboxTerrainMaterial& MaterialInfo) {
-	if (!MaterialMap.Contains(MaterialId)) {
+	if (MaterialMap.Contains(MaterialId)) {
 		MaterialInfo = MaterialMap[MaterialId];
 		return true;
 	}

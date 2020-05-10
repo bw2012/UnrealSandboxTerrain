@@ -125,8 +125,8 @@ public:
 
 UENUM(BlueprintType)
 enum class FSandboxTerrainMaterialType : uint8 {
-	SOIL = 0	UMETA(DisplayName = "Soil"),
-	ROCK = 1	UMETA(DisplayName = "Rock"),
+	Soil = 0	UMETA(DisplayName = "Soil"),
+	Rock = 1	UMETA(DisplayName = "Rock"),
 };
 
 USTRUCT()
