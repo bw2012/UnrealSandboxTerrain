@@ -123,12 +123,21 @@ public:
 };
 
 
+UENUM(BlueprintType)
+enum class FSandboxTerrainMaterialType : uint8 {
+	SOIL = 0	UMETA(DisplayName = "Soil"),
+	ROCK = 1	UMETA(DisplayName = "Rock"),
+};
+
 USTRUCT()
 struct FSandboxTerrainMaterial {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
 	FString Name;
+
+	UPROPERTY(EditAnywhere)
+	FSandboxTerrainMaterialType Type;
 
 	UPROPERTY(EditAnywhere)
 	float RockHardness;
@@ -409,6 +418,8 @@ public:
 
 	template<class H>
 	void EditTerrain(const H& ZoneHandler);
+
+	bool GetTerrainMaterialInfoById(uint16 MaterialId, FSandboxTerrainMaterial& MaterialInfo);
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
