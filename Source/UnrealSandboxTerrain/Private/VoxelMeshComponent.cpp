@@ -385,32 +385,38 @@ public:
 		}
 	}
 
+	//================================================================================================
+	// Draw as static mesh (not used because no significant performance impact)
+	//================================================================================================
 
-	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, FMaterialRenderProxy* Material, FTerrainMeshBatchInfo* TerrainMeshBatchInfo) {
-		// Draw the mesh.
+	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, int32 LODIndex) {
+		FMaterialRenderProxy* MaterialInstance = Section->Material->GetRenderProxy();
+
 		FMeshBatch Mesh;
-		FMeshBatchElement& BatchElement = Mesh.Elements[0];
-		BatchElement.IndexBuffer = &Section->IndexBuffer;
 		Mesh.bWireframe = false;
 		Mesh.VertexFactory = &Section->VertexFactory;
-		Mesh.MaterialRenderProxy = Material;
-		BatchElement.FirstIndex = 0;
-		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
-		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
+		Mesh.MaterialRenderProxy = MaterialInstance;
 		Mesh.bDitheredLODTransition = true;
 		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 		Mesh.Type = PT_TriangleList;
 		Mesh.DepthPriorityGroup = SDPG_World;
 		Mesh.bCanApplyViewModeOverrides = false;
-
-		// Set LOD information
-		Mesh.LODIndex = 0;
+		Mesh.LODIndex = LODIndex;
 		Mesh.bDitheredLODTransition = false;
+
+		FMeshBatchElement& BatchElement = Mesh.Elements[0];
+		BatchElement.IndexBuffer = &Section->IndexBuffer;
+		BatchElement.FirstIndex = 0;
+		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
+		BatchElement.MinVertexIndex = 0;
+		BatchElement.MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
 		//BatchElement.MinScreenSize = LODResource.LODInfo.MinScreenSize;
 		//BatchElement.MaxScreenSize = LODResource.LODInfo.MaxScreenSize;
 
-		PDI->DrawMesh(Mesh, MAX_FLT); // ok
+		static const float LodScreenSizeArray[LOD_ARRAY_SIZE] = {MAX_FLT, .8f, .43f, .19f, .15f, .12f, .1f};
+		const float ScreenSize = LodScreenSizeArray[LODIndex];
+		//PDI->DrawMesh(Mesh, MAX_FLT); // ok
+		PDI->DrawMesh(Mesh, ScreenSize); // ok
 	}
 
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {
@@ -421,8 +427,7 @@ public:
 				LodSectionProxy->TerrainMeshBatchInfo.ZoneOriginPtr = &ZoneOrigin;
 				for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
 					if (MatSection != nullptr) {
-						FMaterialRenderProxy* MaterialInstance = MatSection->Material->GetRenderProxy();
-						DrawStaticMeshSection(PDI, MatSection, MaterialInstance, &LodSectionProxy->TerrainMeshBatchInfo);
+						DrawStaticMeshSection(PDI, MatSection, LodSectionIdx);
 					}
 				}
 			}
