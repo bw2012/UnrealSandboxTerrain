@@ -66,7 +66,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	}
 
 	if (MeshDataTimeStamp > MeshDataPtr->TimeStamp) {
-		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread-> %f"), MeshDataPtr->TimeStamp);
+		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
 	}
 
 	MeshDataTimeStamp = MeshDataPtr->TimeStamp;

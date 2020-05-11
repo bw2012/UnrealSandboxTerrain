@@ -1053,6 +1053,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
+					//UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
 						UE_LOG(LogTemp, Warning, TEXT("Invalid zone vd state"));
 						bIsValid = false;
@@ -1066,7 +1067,6 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 	if (!bIsValid) {
 		return;
 	}
-
 
 	for (float x : V) {
 		for (float y : V) {
@@ -1112,7 +1112,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
+	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
 }
 
 //======================================================================================================================================================================
@@ -1453,7 +1453,12 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(cons
 std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* Vd) {
 	double Start = FPlatformTime::Seconds();
 
-	if (!Vd|| Vd->getDensityFillState() == TVoxelDataFillState::ZERO ||	Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
+	if (!Vd) {
+		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::GenerateMesh - NULL voxel data!"));
+		return nullptr;
+	}
+
+	if (Vd->getDensityFillState() == TVoxelDataFillState::ZERO || Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
 		return nullptr;
 	}
 

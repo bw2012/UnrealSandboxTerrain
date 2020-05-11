@@ -587,6 +587,7 @@ public:
     }
 
 	void Clean(TVoxelIndex& Index) {
+		/*
 		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
 
 		if (ZoneHeightMapCollection.find(Index) != ZoneHeightMapCollection.end()) {
@@ -595,6 +596,7 @@ public:
 			ZoneHeightMapCollection.erase(Index);
 			//UE_LOG(LogTemp, Warning, TEXT("Clean ZoneHeightMap ----> %d %d %d "), Index.X, Index.Y, Index.Z);
 		} 
+		*/
 	}
         
 };
