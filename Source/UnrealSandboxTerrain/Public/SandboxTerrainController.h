@@ -401,6 +401,8 @@ public:
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
+	void DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator = FRotator(0));
+
 	void DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator = FRotator(0));
 
 	void FillTerrainCube(const FVector& Origin, float Extend, int MatId);

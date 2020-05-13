@@ -891,6 +891,52 @@ void ASandboxTerrainController::DigTerrainRoundHole_Internal(const FVector& Orig
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
+void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator) {
+	if (!GetWorld()->IsServer()) return;
+
+	struct ZoneHandler : TZoneEditHandler {
+		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
+		FRotator Rotator;
+		FBox Box;
+
+		bool operator()(TVoxelData* vd) {
+			changed = false;
+
+			bool bIsRotator = !Rotator.IsZero();
+			vd->forEachWithCache([&](int x, int y, int z) {
+				FVector o = vd->voxelIndexToVector(x, y, z);
+				o += vd->getOrigin();
+				o -= Pos;
+
+				if (bIsRotator) {
+					o = Rotator.RotateVector(o);
+				}
+
+				bool bIsIntersect = FMath::PointBoxIntersection(o, Box);
+				if (bIsIntersect) {
+					unsigned short  MatId = vd->getMaterial(x, y, z);
+					FSandboxTerrainMaterial& Mat = MaterialMapPtr->FindOrAdd(MatId);
+					if (Mat.RockHardness < USBT_MAX_MATERIAL_HARDNESS) {
+						vd->setDensity(x, y, z, 0);
+						changed = true;
+					}
+				}
+			}, enableLOD);
+
+			return changed;
+		}
+	} Zh;
+
+	Zh.enableLOD = bEnableLOD;
+	Zh.MaterialMapPtr = &MaterialMap;
+	Zh.Pos = Origin;
+	Zh.Extend = Extend;
+	Zh.Rotator = Rotator;
+	Zh.Box = Box;
+
+	ASandboxTerrainController::PerformTerrainChange(Zh);
+}
+
 
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator) {
 	if (!GetWorld()->IsServer()) return;
