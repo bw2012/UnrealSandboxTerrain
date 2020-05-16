@@ -891,6 +891,63 @@ void ASandboxTerrainController::DigTerrainRoundHole_Internal(const FVector& Orig
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
+void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator, const float Strength) {
+	struct ZoneHandler : TZoneEditHandler {
+		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
+		float Length;
+		float Radius;
+		FRotator Rotator;
+		TTerrainGenerator* Generator;
+
+
+		bool operator()(TVoxelData* vd) {
+			changed = false;
+			bool bIsRotator = !Rotator.IsZero();
+			Rotator = Rotator.GetInverse();
+
+			vd->forEachWithCache([&](int x, int y, int z) {
+				float density = vd->getDensity(x, y, z);
+				FVector o = vd->voxelIndexToVector(x, y, z);
+				o += vd->getOrigin();
+				o -= Pos;
+				if (bIsRotator) {
+					o = Rotator.RotateVector(o);
+				}
+
+				static const float scale1 = 0.02f; // small
+				const float Noise = Generator->PerlinNoise(o.X * scale1, o.Y * scale1, o.Z * scale1) * 0.075f;
+				const float R = std::sqrt(o.X * o.X + o.Y * o.Y);
+
+				if (R < Extend + 20 && o.Z < Length && o.Z > -Length) {
+					float OldDensity = vd->getDensity(x, y, z);
+					const float MaxR = Radius;
+					float t = exp(-pow(R, 2) / (MaxR * 100));
+					float Density = (1 - t) + Noise;
+					if (OldDensity > Density) {
+						vd->setDensity(x, y, z, Density);
+					}
+
+					changed = true;
+				}
+			}, enableLOD);
+			
+			return changed;
+		}
+	} Zh;
+
+	Zh.MaterialMapPtr = &MaterialMap;
+	Zh.enableLOD = bEnableLOD;
+	Zh.Strength = Strength;
+	Zh.Pos = Origin;
+	Zh.Extend = Radius;
+	Zh.Radius = Radius;
+	Zh.Length = Length;
+	Zh.Rotator = Rotator;
+	Zh.Generator = this->Generator;
+	ASandboxTerrainController::PerformTerrainChange(Zh);
+}
+
+
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator) {
 	if (!GetWorld()->IsServer()) return;
 
@@ -901,8 +958,8 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, const 
 
 		bool operator()(TVoxelData* vd) {
 			changed = false;
-
 			bool bIsRotator = !Rotator.IsZero();
+
 			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();

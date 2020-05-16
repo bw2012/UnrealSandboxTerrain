@@ -401,6 +401,8 @@ public:
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
+	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const float Strength = 1.f);
+
 	void DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator = FRotator(0));
 
 	void DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator = FRotator(0));
