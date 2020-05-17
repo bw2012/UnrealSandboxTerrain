@@ -7,22 +7,22 @@ struct TZoneEditHandler {
 	bool bNoise = false;
 	float Strength;
 
-	FVector Pos;
+	FVector Origin;
 	FRotator Rotator;
 
 	TTerrainGenerator* Generator;
 
-	static FVector GetVoxelRelativePos(const TVoxelData* Vd, const FVector& Pos, const int X, const int Y, const int Z) {
-		FVector WorldPos = Vd->voxelIndexToVector(X, Y, Z);
-		WorldPos += Vd->getOrigin();
-		WorldPos -= Pos;
-		return WorldPos;
+	static FVector GetVoxelRelativePos(const TVoxelData* Vd, const FVector& Origin, const int X, const int Y, const int Z) {
+		FVector Pos = Vd->voxelIndexToVector(X, Y, Z);
+		Pos += Vd->getOrigin();
+		Pos -= Origin;
+		return Pos;
 	}
 
-	float Noise(const FVector& WorldPos) {
+	float Noise(const FVector& Pos) {
 		static const float NoisePositionScale = 0.01f;
 		static const float NoiseValueScale = 0.2f;
-		const float Noise = Generator->PerlinNoise(WorldPos, NoisePositionScale, NoiseValueScale);
+		const float Noise = Generator->PerlinNoise(Pos, NoisePositionScale, NoiseValueScale);
 		return Noise;
 	}
 
@@ -44,20 +44,20 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 			Rotator = Rotator.GetInverse();
 
 			Vd->forEachWithCache([&](int X, int Y, int Z) {
-				FVector Pos = TZoneEditHandler::GetVoxelRelativePos(Vd, Pos, X, Y, Z);
+				FVector V = TZoneEditHandler::GetVoxelRelativePos(Vd, Origin, X, Y, Z);
 				if (bIsRotator) {
-					Pos = Rotator.RotateVector(Pos);
+					V = Rotator.RotateVector(V);
 				}
 
-				const float R = std::sqrt(Pos.X * Pos.X + Pos.Y * Pos.Y);
+				const float R = std::sqrt(V.X * V.X + V.Y * V.Y);
 
-				if (R < Extend + 20 && Pos.Z < Length && Pos.Z > -Length) {
+				if (R < Extend + 20 && V.Z < Length && V.Z > -Length) {
 					float OldDensity = Vd->getDensity(X, Y, Z);
 					float Density = 1 / (1 + exp((Radius - R) / 10));
 					//float Density = 1 - exp(-pow(R, 2) / (Radius * 100));
 
 					if (bNoise) {
-						Density += Noise(Pos);
+						Density += Noise(V);
 					}
 
 					if (OldDensity > Density) {
@@ -75,7 +75,7 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 	Zh.MaterialMapPtr = &MaterialMap;
 	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = Strength;
-	Zh.Pos = Origin;
+	Zh.Origin = Origin;
 	Zh.Extend = Radius;
 	Zh.Radius = Radius;
 	Zh.Rotator = Rotator;
@@ -108,7 +108,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 				float density = vd->getDensity(x, y, z);
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
-				o -= Pos;
+				o -= Origin;
 
 				float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
 				if (rl < Extend) {
@@ -134,7 +134,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 	Zh.MaterialMapPtr = &MaterialMap;
 	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = Strength;
-	Zh.Pos = Origin;
+	Zh.Origin = Origin;
 	Zh.Extend = Radius;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 
@@ -155,7 +155,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, const 
 			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
-				o -= Pos;
+				o -= Origin;
 
 				if (bIsRotator) {
 					o = Rotator.RotateVector(o);
@@ -180,7 +180,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, const 
 
 	Zh.enableLOD = bEnableLOD;
 	Zh.MaterialMapPtr = &MaterialMap;
-	Zh.Pos = Origin;
+	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	Zh.Rotator = Rotator;
 	Zh.Box = Box;
@@ -204,7 +204,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
-				o -= Pos;
+				o -= Origin;
 
 				if (bIsRotator) {
 					o = Rotator.RotateVector(o);
@@ -239,7 +239,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 
 	Zh.enableLOD = bEnableLOD;
 	Zh.MaterialMapPtr = &MaterialMap;
-	Zh.Pos = Origin;
+	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	Zh.Rotator = Rotator;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
@@ -256,7 +256,7 @@ void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Ext
 			vd->forEachWithCache([&](int x, int y, int z) {
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
-				o -= Pos;
+				o -= Origin;
 				if (o.X < Extend && o.X > -Extend && o.Y < Extend && o.Y > -Extend && o.Z < Extend && o.Z > -Extend) {
 					vd->setDensity(x, y, z, 1);
 					changed = true;
@@ -274,7 +274,7 @@ void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Ext
 
 	Zh.newMaterialId = MatId;
 	Zh.enableLOD = bEnableLOD;
-	Zh.Pos = Origin;
+	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
@@ -293,7 +293,7 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 				float density = vd->getDensity(x, y, z);
 				FVector o = vd->voxelIndexToVector(x, y, z);
 				o += vd->getOrigin();
-				o -= Pos;
+				o -= Origin;
 
 				float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
 				if (rl < Extend) {
@@ -315,7 +315,7 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 	Zh.newMaterialId = MatId;
 	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = 5;
-	Zh.Pos = Origin;
+	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
@@ -346,10 +346,10 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	FRunnableThread* Thread = FRunnableThread::Create(EditThread, *ThreadName);
 	//FIXME delete thread after finish
 
-	FVector TestPoint(Handler.Pos);
+	FVector TestPoint(Handler.Origin);
 	TestPoint.Z -= 10;
 	TArray<struct FHitResult> OutHits;
-	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Handler.Pos, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Handler.Extend)); // ECC_Visibility
+	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Handler.Origin, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Handler.Extend)); // ECC_Visibility
 	if (bIsOverlap) {
 		for (FHitResult& Overlap : OutHits) {
 			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
@@ -368,7 +368,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 				}
 			}
 			else {
-				OnOverlapActorDuringTerrainEdit(Overlap, Handler.Pos);
+				OnOverlapActorDuringTerrainEdit(Overlap, Handler.Origin);
 			}
 		}
 	}
@@ -402,7 +402,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 	double Start = FPlatformTime::Seconds();
 
 	static float ZoneVolumeSize = USBT_ZONE_SIZE / 2;
-	TVoxelIndex BaseZoneIndex = GetZoneIndex(ZoneHandler.Pos);
+	TVoxelIndex BaseZoneIndex = GetZoneIndex(ZoneHandler.Origin);
 
 	bool bIsValid = true;
 
@@ -419,7 +419,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
-				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
+				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					//UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
 						UE_LOG(LogTemp, Warning, TEXT("Invalid zone vd state"));
@@ -447,7 +447,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Upper(ZoneOrigin.X + ZoneVolumeSize, ZoneOrigin.Y + ZoneVolumeSize, ZoneOrigin.Z + ZoneVolumeSize);
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
-				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Pos, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
+				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
 						UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
 						continue;
