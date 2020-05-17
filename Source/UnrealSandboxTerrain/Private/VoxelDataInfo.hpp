@@ -40,6 +40,10 @@ public:
     
     TVoxelDataInfo() {
 		VdMutexPtr = std::make_shared<std::mutex>();
+		LastChange = 0;
+		LastSave = 0;
+		LastMeshGeneration = 0;
+		LastCacheCheck = 0;
     }
     
     ~TVoxelDataInfo() { 

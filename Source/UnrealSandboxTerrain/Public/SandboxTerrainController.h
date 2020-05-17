@@ -13,6 +13,8 @@
 #include "VoxelData.h"
 #include "SandboxTerrainController.generated.h"
 
+#define USBT_MAX_MATERIAL_HARDNESS 99999.9f
+
 struct TMeshData;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
@@ -401,7 +403,7 @@ public:
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
-	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const float Strength = 1.f);
+	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const float Strength = 1.f, const bool bNoise = true);
 
 	void DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator = FRotator(0));
 
@@ -458,8 +460,6 @@ private:
     void StartCheckArea();
     
 	void BeginClient();
-
-	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
 
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete);

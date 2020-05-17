@@ -112,6 +112,10 @@ public:
 		return Pn.noise(X, Y, Z);
 	}
 
+	float PerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) {
+		return Pn.noise(Pos.X * PositionScale, Pos.Y * PositionScale, Pos.Z * PositionScale) * ValueScale;
+	}
+
     void OnBeginPlay(){
         UndergroundLayersTmp.Empty();
         
