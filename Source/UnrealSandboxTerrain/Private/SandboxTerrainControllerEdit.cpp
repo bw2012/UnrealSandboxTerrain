@@ -21,7 +21,7 @@ struct TZoneEditHandler {
 
 	float Noise(const FVector& Pos) {
 		static const float NoisePositionScale = 0.01f;
-		static const float NoiseValueScale = 0.2f;
+		static const float NoiseValueScale = 0.5f;
 		const float Noise = Generator->PerlinNoise(Pos, NoisePositionScale, NoiseValueScale);
 		return Noise;
 	}
