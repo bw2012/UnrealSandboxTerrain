@@ -24,14 +24,51 @@ enum TVoxelDataFillState : uint8 {
 
 typedef struct TSubstanceCacheItem {
 	uint32 index = 0;
-	unsigned long caseCode = 0;
-	uint32 x = 0;
-	uint32 y = 0;
-	uint32 z = 0;
+	//unsigned long caseCode = 0;
+	//uint32 x = 0;
+	//uint32 y = 0;
+	//uint32 z = 0;
 } TSubstanceCacheItem;
 
-typedef struct TSubstanceCache {
-	std::list<TSubstanceCacheItem> cellList;
+typedef class TSubstanceCache {
+
+private:
+	//std::list<TSubstanceCacheItem> cellList;
+	std::vector<TSubstanceCacheItem> cellArray;
+	int32 idx = 0;
+
+public:
+
+	TSubstanceCache() {
+		// FIXME
+		cellArray.resize(65 * 65 * 65);
+	}
+
+	void add(const TSubstanceCacheItem& itm) {
+		//cellList.push_back(itm);
+		cellArray[idx] = itm;
+		idx++;
+	}
+
+	TSubstanceCacheItem* add2() {
+		TSubstanceCacheItem* res = &cellArray.data()[idx];
+		idx++;
+		return res;
+	}
+
+	void clear() {
+		//cellList.clear();
+		idx = 0;
+	}
+
+	void forEach(std::function<void(const TSubstanceCacheItem& itm)> func) const {
+		//for (const auto& itm : cellList) {
+		for (int i = 0; i < idx; i++) {
+			func(cellArray[i]);
+		}
+	}
+
+
 } TSubstanceCache;
 
 // POD structure. used in fast serialization
@@ -130,7 +167,7 @@ public:
 	virtual void makeSubstanceCache();
 	void clearSubstanceCache() {
 		for (TSubstanceCache& lodCache : substanceCacheLOD) {
-			lodCache.cellList.clear();
+			lodCache.clear();
 		}
 
 		last_cache_check = -1;

@@ -365,7 +365,6 @@ void ASandboxTerrainController::Save() {
 			VdInfoPtr->VdMutexPtr->lock();
 			if (VdInfoPtr->IsChanged()) {
 				//TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("save vd: %d %d %d"), Index.X, Index.Y, Index.Z);
 				auto Data = VdInfoPtr->Vd->serialize();
 				VdFile.save(Index, *Data);
 				VdInfoPtr->ResetLastSave();
@@ -686,7 +685,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 	TSet<FVector> InitialZoneSet;
 
 	if (s > 0) {
-		for (auto z = -5; z <= 5; z++) {
+		for (auto z = 5; z >= -5; z--) {
 			for (auto x = -s; x <= s; x++) {
 				for (auto y = -s; y <= s; y++) {
 					SpawnZonePipeline(TVoxelIndex(x, y, z));
@@ -971,8 +970,9 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 
 	TVoxelDataParam Vdp;
     
-    Vdp.bZCut = true;
-    Vdp.ZCutLevel = -100;
+	// test
+    //Vdp.bZCut = true;
+    //Vdp.ZCutLevel = -100;
 
 	if (bEnableLOD) {
 		Vdp.bGenerateLOD = true;

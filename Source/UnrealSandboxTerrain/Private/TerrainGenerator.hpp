@@ -17,6 +17,7 @@
 #include "perlin.hpp"
 #include <algorithm>
 #include <math.h>
+#include <cstring> 
 
 class ASandboxTerrainController;
 class TVoxelData;
@@ -47,10 +48,14 @@ public:
     ~TZoneHeightMapData(){
         delete[] HeightLevelArray;
     }
+
+	float const* const GetHeightLevelArrayPtr() const {
+		return HeightLevelArray;
+	}
     
-    FORCEINLINE void SetHeightLevel(TVoxelIndex VoxelIndex, float HeightLevel){
-        if(VoxelIndex.X < Size && VoxelIndex.Y < Size && VoxelIndex.Z < Size){
-            int Index = VoxelIndex.X * Size * Size + VoxelIndex.Y * Size + VoxelIndex.Z;
+    FORCEINLINE void SetHeightLevel(const int X, const int Y, float HeightLevel){
+        if(X < Size && Y < Size){
+            int Index = X * Size + Y;
             HeightLevelArray[Index] = HeightLevel;
             
             if(HeightLevel > this->MaxHeightLevel){
@@ -63,9 +68,9 @@ public:
         }
     }
     
-    FORCEINLINE float GetHeightLevel(TVoxelIndex VoxelIndex) const{
-        if(VoxelIndex.X < Size && VoxelIndex.Y < Size && VoxelIndex.Z < Size){
-            int Index = VoxelIndex.X * Size * Size + VoxelIndex.Y * Size + VoxelIndex.Z;
+    FORCEINLINE float GetHeightLevel(const int X, const int Y) const{
+        if(X < Size && Y < Size){
+			int Index = X * Size + Y;
             return HeightLevelArray[Index];
         } else {
             return 0;
@@ -84,6 +89,9 @@ public:
 };
 
 
+#define VdLinearSize 65 * 65 * 65
+
+
 class TTerrainGenerator {
 
 private:
@@ -94,12 +102,12 @@ private:
 	std::mutex ZoneHeightMapMutex;
     std::unordered_map<TVoxelIndex, TZoneHeightMapData*> ZoneHeightMapCollection;
 
+	TVoxelData* VdTmp = nullptr;
+
 	struct TTerrainGeneratorPrebuiltData {
 		TVoxelIndex Index;
 		FVector LocalPos;
 	};
-
-	std::list<TTerrainGeneratorPrebuiltData> PrebuiltDataCache2D;
 
     
 public:
@@ -135,58 +143,47 @@ public:
         LastLayer.Name = TEXT("");
         UndergroundLayersTmp.Add(LastLayer);
 
-
-		TVoxelData* VdTmp = this->Controller->NewVoxelData();
-		for (int X = 0; X < VdTmp->num(); X++) {
-			for (int Y = 0; Y < VdTmp->num(); Y++) {
-				TTerrainGeneratorPrebuiltData PrebuiltData;
-				PrebuiltData.LocalPos = VdTmp->voxelIndexToVector(X, Y, 0);
-				PrebuiltData.Index = TVoxelIndex(X, Y, 0);
-				PrebuiltDataCache2D.push_back(PrebuiltData);
-			}
-		}
-
+		this->VdTmp = this->Controller->NewVoxelData();
 		this->VdNum = VdTmp->num();
-		delete VdTmp;
     }
     
+	~TTerrainGenerator() {
+		if (this->VdTmp) {
+			delete VdTmp;
+		}
+	}
+
 private:
     
     FORCEINLINE float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const {
-        float val = 1;
-        float gl = GroundLevel - USBT_VGEN_GROUND_LEVEL_OFFSET;
+		const float Z = V.Z;
+		const float D = Z - GroundLevel;
 
-        if (V.Z > gl + USBT_VGEN_GRADIENT_THRESHOLD) {
-            return 0;
-        } else if (V.Z > gl) {
-            float d = (1 / (V.Z - gl)) * 100;
-            val = d;
-        }
+		if (D > 500) {
+			return 0.f;
+		}
 
-        if (val > 1) {
-            return 1;
-        }
+		if (D < -500) {
+			return 1.f;
+		}
 
-        if (val < USBT_VD_MIN_DENSITY) { // minimal density = 1f/255
-            return 0;
-        }
-
-        return val;
+		float DensityByGroundLevel = 1 - (1 / (1 + exp(-(Z - GroundLevel)/20)));
+		return DensityByGroundLevel;
     }
 
-    float DensityFunc(TVoxelDensityFunctionData& FunctionData){
+    FORCEINLINE float DensityFunc(TVoxelDensityFunctionData& FunctionData){
         return Controller->GeneratorDensityFunc(FunctionData);
     }
 
-    unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel){
-        FVector test = FVector(WorldPos);
-        test.Z += 30;
+	FORCEINLINE unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel){
+		const float DeltaZ = WorldPos.Z - GroundLevel;
 
-        float densityUpper = ClcDensityByGroundLevel(test, GroundLevel);
+        //FVector test = FVector(WorldPos);
+        //test.Z += 30;
+        //float densityUpper = ClcDensityByGroundLevel(test, GroundLevel);
 
         unsigned char mat = 0;
-
-        if (densityUpper < 0.5) {
+        if (abs(DeltaZ) < 25) {
             mat = 2; // grass
         } else {
             FTerrainUndergroundLayer* Layer = GetUndergroundMaterialLayer(WorldPos.Z, GroundLevel);
@@ -198,38 +195,137 @@ private:
         return mat;
     }
 
+//#include "simd.h"
+
     void GenerateZoneVolume(TVoxelIndex& ZoneIndex, TVoxelData& VoxelData, const TZoneHeightMapData* ZoneHeightMapData){
-        TSet<unsigned char> material_list;
-        int zc = 0; int fc = 0;
+        //TSet<unsigned char> material_list;
+		//std::set<int> MaterialSet;
+        int zc = 0; 
+		int fc = 0;
 
-        for (int x = 0; x < VoxelData.num(); x++) {
-            for (int y = 0; y < VoxelData.num(); y++) {
-                for (int z = 0; z < VoxelData.num(); z++) {
-                    FVector LocalPos = VoxelData.voxelIndexToVector(x, y, z);
-                    FVector WorldPos = LocalPos + VoxelData.getOrigin();
-                    float GroundLevel = ZoneHeightMapData->GetHeightLevel(TVoxelIndex(x, y, 0));
-                    //float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
-                    
-                    TVoxelDensityFunctionData FunctionData;
-                    FunctionData.Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
-                    FunctionData.ZoneIndex = ZoneIndex;
-                    FunctionData.WorldPos = WorldPos;
-                    FunctionData.LocalPos = LocalPos;
-                    
-                    float Density = DensityFunc(FunctionData);
-                    unsigned char MaterialId = MaterialFunc(LocalPos, WorldPos, GroundLevel);
+		// avx test
+		// =================================================================================================================================================
+		/*
+		{
+			const int size = 65 * 65 * 65;
+			const int array_size = 274632;
+			float* gl = new float[array_size];
+			float* density = new float[array_size];
 
-                    VoxelData.setDensity(x, y, z, Density);
-                    VoxelData.setMaterial(x, y, z, MaterialId);
 
-                    VoxelData.performSubstanceCacheLOD(x, y, z);
+			float* z = new float[array_size];
+			//-------------------------------------------------------------------------
+			int i = 0;
+			for (const auto& PrebuiltData : PrebuiltDataCache3D) {
+				const FVector& LocalPos = PrebuiltData.LocalPos;
+				const TVoxelIndex& Index = PrebuiltData.Index;
+				FVector WorldPos = LocalPos + VoxelData.getOrigin();
+				z[i] = WorldPos.Z;
+				i++;
+			}
+			//-------------------------------------------------------------------------
 
-                    if (Density == 0) zc++;
-                    if (Density == 1) fc++;
-                    material_list.Add(MaterialId);
-                }
-            }
-        }
+			double Start = FPlatformTime::Seconds();
+
+			int idx = 0;
+			for (auto i = 0; i < 65; i++) {
+				memcpy(&gl[i], ZoneHeightMapData->GetHeightLevelArrayPtr(), 65*65);
+				i += 65 * 65;
+			}
+
+
+
+			float GroundLevel = 0;
+			//const __m256 gl = _mm256_set1_ps(GroundLevel);
+			const __m256 c20 = _mm256_set1_ps(20);
+			const __m256 cn1 = _mm256_set1_ps(-1);
+			const __m256 c1 = _mm256_set1_ps(1);
+
+			for (auto i = 0; i < array_size; i += 8) {
+				uSIMD u;
+				memcpy(&u.a[0], &z[i], sizeof(float) * 8);
+
+				uSIMD gl_;
+				memcpy(&gl_.a[0], &gl[i], sizeof(float) * 8);
+
+				uSIMD r;
+				__m256 a = _mm256_sub_ps(u.m, gl_.m);
+				a = _mm256_div_ps(a, c20);
+				a = _mm256_mul_ps(a, cn1);
+				__m256 b = faster_more_accurate_exp_avx2(a);
+				b = _mm256_add_ps(b, c1);
+				__m256 c = _mm256_div_ps(c1, b);
+				r.m = _mm256_sub_ps(c1, c);
+
+				memcpy(&density[i], &r.a, sizeof(float) * 8);
+			}
+
+
+
+			double End = FPlatformTime::Seconds();
+			double Time = (End - Start) * 1000;
+			UE_LOG(LogTemp, Warning, TEXT("TEST ----> %f ms --  %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+		}
+		*/
+		// =================================================================================================================================================
+
+
+		double Start = FPlatformTime::Seconds();
+
+		//int i = 0;
+		//unsigned char M = 0;
+		bool bContainsMoreOneMaterial = false;
+		unsigned char BaseMaterialId = 0;
+
+		for (int X = 0; X < VdTmp->num(); X++) {
+			for (int Y = 0; Y < VdTmp->num(); Y++) {
+				for (int Z = 0; Z < VdTmp->num(); Z++) {
+					const FVector& LocalPos = VdTmp->voxelIndexToVector(X, Y, Z);
+					const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
+
+					FVector WorldPos = LocalPos + VoxelData.getOrigin();
+					float GroundLevel = ZoneHeightMapData->GetHeightLevel(Index.X, Index.Y);
+
+					TVoxelDensityFunctionData FunctionData;
+					FunctionData.Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+					//FunctionData.Density = density[i];
+					FunctionData.ZoneIndex = ZoneIndex;
+					FunctionData.WorldPos = WorldPos;
+					FunctionData.LocalPos = LocalPos;
+
+					float Density = DensityFunc(FunctionData);
+					unsigned char MaterialId = MaterialFunc(LocalPos, WorldPos, GroundLevel);
+
+					VoxelData.setDensity(Index.X, Index.Y, Index.Z, Density);
+					VoxelData.setMaterial(Index.X, Index.Y, Index.Z, MaterialId);
+
+					VoxelData.performSubstanceCacheLOD(Index.X, Index.Y, Index.Z);
+
+					if (Density == 0) {
+						zc++;
+					}
+
+					if (Density == 1) {
+						fc++;
+					}
+
+					if (!BaseMaterialId) {
+						BaseMaterialId = MaterialId;
+					} else {
+						if (BaseMaterialId != MaterialId) {
+							bContainsMoreOneMaterial = true;
+						}
+					}
+
+					BaseMaterialId = MaterialId;
+				}
+			}
+		}
+
+		double End = FPlatformTime::Seconds();
+		double Time = (End - Start) * 1000;
+		UE_LOG(LogTemp, Warning, TEXT("GenerateZoneVolume 1 ----> %f ms --  %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
 
         int s = VoxelData.num() * VoxelData.num() * VoxelData.num();
 
@@ -241,14 +337,10 @@ private:
             VoxelData.deinitializeDensity(TVoxelDataFillState::FULL);
         }
 
-        if (material_list.Num() == 1) {
-            unsigned char base_mat = 0;
-            for (auto m : material_list) {
-                base_mat = m;
-                break;
-            }
-            VoxelData.deinitializeMaterial(base_mat);
-        }
+		if (!bContainsMoreOneMaterial) {
+			VoxelData.deinitializeMaterial(BaseMaterialId);
+		}
+
     }
 
     FTerrainUndergroundLayer* GetUndergroundMaterialLayer(float Z, float RealGroundLevel){
@@ -304,6 +396,7 @@ private:
     
 	TZoneHeightMapData* GetZoneHeightMap(int X, int Y) {
 		const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
+
 		TVoxelIndex Index(X, Y, 0);
 		TZoneHeightMapData* ZoneHeightMapData = nullptr;
 
@@ -311,15 +404,22 @@ private:
 			ZoneHeightMapData = new TZoneHeightMapData(VdNum);
 			ZoneHeightMapCollection.insert({ Index, ZoneHeightMapData });
 
-			for (const auto& PrebuiltData : PrebuiltDataCache2D) {
-				const FVector& LocalPos = PrebuiltData.LocalPos;
-				FVector WorldPos = LocalPos + Controller->GetZonePos(Index);
-				int X = PrebuiltData.Index.X;
-				int Y = PrebuiltData.Index.Y;
 
-				float GroundLevel = GroundLevelFunc(Index, WorldPos);
-				ZoneHeightMapData->SetHeightLevel(TVoxelIndex(X, Y, 0), GroundLevel);
+			double Start = FPlatformTime::Seconds();
+
+			for (int X = 0; X < VdTmp->num(); X++) {
+				for (int Y = 0; Y < VdTmp->num(); Y++) {
+					const FVector& LocalPos = VdTmp->voxelIndexToVector(X, Y, 0);
+					FVector WorldPos = LocalPos + Controller->GetZonePos(Index);
+					float GroundLevel = GroundLevelFunc(Index, WorldPos);
+					ZoneHeightMapData->SetHeightLevel(X, Y, GroundLevel);
+				}
 			}
+
+			double End = FPlatformTime::Seconds();
+			double Time = (End - Start) * 1000;
+			UE_LOG(LogTemp, Warning, TEXT("generate height map  ----> %f ms --  %d %d"), Time, X, Y);
+
 		} else {
 			ZoneHeightMapData = ZoneHeightMapCollection[Index];
 		}
@@ -359,7 +459,7 @@ public:
 	}
 
    
-    void GenerateVoxelTerrain (TVoxelData &VoxelData){
+    void GenerateVoxelTerrain(TVoxelData& VoxelData){
         double start = FPlatformTime::Seconds();
 
         TVoxelIndex ZoneIndex = Controller->GetZoneIndex(VoxelData.getOrigin());
@@ -561,7 +661,12 @@ public:
 			}
 
 			Vd->forEachCacheItem(0, [&](const TSubstanceCacheItem& itm) {
-				FVector WorldPos = Vd->voxelIndexToVector(itm.x, itm.y, itm.z) + Vd->getOrigin();
+				uint32 x; 
+				uint32 y; 
+				uint32 z;
+
+				Vd->clcVoxelIndex(itm.index, x, y, z);
+				FVector WorldPos = Vd->voxelIndexToVector(x, y, z) + Vd->getOrigin();
 				int32 FoliageTypeId = Elem.Key;
 
 				FTransform Transform;

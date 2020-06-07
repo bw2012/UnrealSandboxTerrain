@@ -307,6 +307,16 @@ FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 	if (caseCode == 0 || caseCode == 255) return false;
 
 	int index = clcLinearIndex(x - step, y - step, z - step);
+
+	TSubstanceCache& lodCache = substanceCacheLOD[lod];
+	TSubstanceCacheItem* cacheItm = lodCache.add2();
+	//cacheItm->caseCode = caseCode;
+	cacheItm->index = index;
+	//cacheItm->x = x - step;
+	//cacheItm->y = y - step;
+	//cacheItm->z = z - step;
+
+	/*
 	TSubstanceCache& lodCache = substanceCacheLOD[lod];
 	TSubstanceCacheItem cacheItm;
 	cacheItm.caseCode = caseCode;
@@ -314,7 +324,9 @@ FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 	cacheItm.x = x - step;
 	cacheItm.y = y - step;
 	cacheItm.z = z - step;
-	lodCache.cellList.push_back(cacheItm);
+	lodCache.add(cacheItm);
+	*/
+
 	return true;
 }
 
@@ -369,13 +381,13 @@ void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func,
 }
 
 void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func) {
-	for (const auto& itm : substanceCacheLOD[lod].cellList) {
+	substanceCacheLOD[lod].forEach([=](const TSubstanceCacheItem& itm) {
 		func(itm);
 		//const int index = itm.index;
 		//const int x = index / (vd.num() * vd.num());
 		//const int y = (index / vd.num()) % vd.num();
 		//const int z = index % vd.num();
-	}
+	});
 }
 
 FORCEINLINE int TVoxelData::clcLinearIndex(int x, int y, int z) const {
