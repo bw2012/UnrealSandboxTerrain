@@ -19,7 +19,7 @@ UVdClientComponent::UVdClientComponent(const FObjectInitializer& ObjectInitializ
 		Data << Radius;
 		Data << Strength;
 
-		GetTerrainController()->DigTerrainRoundHole_Internal(Origin, Radius, Strength);
+		//GetTerrainController()->DigTerrainRoundHole_Internal(Origin, Radius, Strength);
 	});
 }
 

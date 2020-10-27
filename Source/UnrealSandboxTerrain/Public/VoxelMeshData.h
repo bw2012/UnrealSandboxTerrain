@@ -41,12 +41,15 @@ typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 
 	static uint64 GenerateTransitionCode(const std::set<unsigned short>& MaterialIdSet) {
 		TTransitionMaterialCode TransMat;
-		for (int i = 0; i < 4; i++) { TransMat.TriangleMatId[i] = 0; }
+		for (int i = 0; i < 4; i++) { 
+			TransMat.TriangleMatId[i] = 0; 
+		}
 
 		int i = 0;
 		for (unsigned short MaterialId : MaterialIdSet) {
 			TransMat.TriangleMatId[i] = MaterialId;
-			i++; if (i == 4) break;
+			i++; 
+			if (i == 4) break;
 		}
 
 		return TransMat.Code;

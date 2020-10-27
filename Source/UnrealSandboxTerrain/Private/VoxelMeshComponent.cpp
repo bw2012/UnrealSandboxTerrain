@@ -385,35 +385,38 @@ public:
 		}
 	}
 
+	//================================================================================================
+	// Draw as static mesh (not used because no significant performance impact)
+	//================================================================================================
 
-	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, FMaterialRenderProxy* Material, FTerrainMeshBatchInfo* TerrainMeshBatchInfo) {
-		FMeshBatch MeshBatch;
-		MeshBatch.Elements.Empty(1);
+	void DrawStaticMeshSection(FStaticPrimitiveDrawInterface* PDI, FProcMeshProxySection* Section, int32 LODIndex) {
+		FMaterialRenderProxy* MaterialInstance = Section->Material->GetRenderProxy();
 
-		//MeshBatch.PreparePrimitiveUniformBuffer()
-		MeshBatch.bWireframe = false;
-		MeshBatch.VertexFactory = &Section->VertexFactory;
-		MeshBatch.MaterialRenderProxy = Material;
-		MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
-		MeshBatch.Type = PT_TriangleList;
-		MeshBatch.DepthPriorityGroup = SDPG_World;
-		MeshBatch.bCanApplyViewModeOverrides = false;
-		MeshBatch.bDitheredLODTransition = false;
-		//MeshBatch.bRequiresPerElementVisibility = true;
+		FMeshBatch Mesh;
+		Mesh.bWireframe = false;
+		Mesh.VertexFactory = &Section->VertexFactory;
+		Mesh.MaterialRenderProxy = MaterialInstance;
+		Mesh.bDitheredLODTransition = true;
+		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+		Mesh.Type = PT_TriangleList;
+		Mesh.DepthPriorityGroup = SDPG_World;
+		Mesh.bCanApplyViewModeOverrides = false;
+		Mesh.LODIndex = LODIndex;
+		Mesh.bDitheredLODTransition = false;
 
-		FMeshBatchElement* BatchElement = new(MeshBatch.Elements) FMeshBatchElement;
-		BatchElement->IndexBuffer = &Section->IndexBuffer;
-		FBoxSphereBounds PreSkinnedLocalBounds;
-		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
-		BatchElement->PrimitiveUniformBuffer = 0;// CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), PreSkinnedLocalBounds, true, DrawsVelocity());
-		//BatchElement->PrimitiveUniformBufferResource =  GetUniformBuffer();
-		BatchElement->FirstIndex = 0;
-		BatchElement->NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
-		BatchElement->MinVertexIndex = 0;
-		BatchElement->MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
-		BatchElement->UserData = TerrainMeshBatchInfo;
-		
-		PDI->DrawMesh(MeshBatch, FLT_MAX);
+		FMeshBatchElement& BatchElement = Mesh.Elements[0];
+		BatchElement.IndexBuffer = &Section->IndexBuffer;
+		BatchElement.FirstIndex = 0;
+		BatchElement.NumPrimitives = Section->IndexBuffer.Indices.Num() / 3;
+		BatchElement.MinVertexIndex = 0;
+		BatchElement.MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
+		//BatchElement.MinScreenSize = LODResource.LODInfo.MinScreenSize;
+		//BatchElement.MaxScreenSize = LODResource.LODInfo.MaxScreenSize;
+
+		static const float LodScreenSizeArray[LOD_ARRAY_SIZE] = {MAX_FLT, .8f, .43f, .19f, .15f, .12f, .1f};
+		const float ScreenSize = LodScreenSizeArray[LODIndex];
+		//PDI->DrawMesh(Mesh, MAX_FLT); // ok
+		PDI->DrawMesh(Mesh, ScreenSize); // ok
 	}
 
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {
@@ -424,8 +427,7 @@ public:
 				LodSectionProxy->TerrainMeshBatchInfo.ZoneOriginPtr = &ZoneOrigin;
 				for (FProcMeshProxySection* MatSection : LodSectionProxy->MaterialMeshPtrArray) {
 					if (MatSection != nullptr) {
-						FMaterialRenderProxy* MaterialInstance = MatSection->Material->GetRenderProxy(/*IsSelected()*/);
-						DrawStaticMeshSection(PDI, MatSection, MaterialInstance, &LodSectionProxy->TerrainMeshBatchInfo);
+						DrawStaticMeshSection(PDI, MatSection, LodSectionIdx);
 					}
 				}
 			}
@@ -434,6 +436,15 @@ public:
 
 
 	FORCENOINLINE virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override {
+		/*
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
+			FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
+			auto Box = FBox{ ZoneOrigin - FVector(1.f, 1.f, 1.f) * 500.f, ZoneOrigin + FVector(1.f, 1.f, 1.f) * 500.f };
+			auto Color = FLinearColor::Blue;
+			DrawWireBox(PDI, Box, Color, SDPG_World, 2.f, 0.f, false);
+		}
+		*/
+
 		if (LodSectionArray.Num() == 0) {
 			return;
 		}
@@ -558,18 +569,19 @@ public:
 };
 
 
-
-
+// ================================================================================================================================================
+// UVoxelMeshComponent
 // ================================================================================================================================================
 
 UVoxelMeshComponent::UVoxelMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	bLodFlag = false;
 	bUseComplexAsSimpleCollision = true;
-	//test = NewObject<UZoneMeshCollisionData>(this, FName(TEXT("test")));
 }
 
 FPrimitiveSceneProxy* UVoxelMeshComponent::CreateSceneProxy() {
-	return new FVoxelMeshSceneProxy(this);
+	FVoxelMeshSceneProxy* NewProxy = new FVoxelMeshSceneProxy(this);
+	MeshSectionLodArray.Empty(); // clear mesh data to reduce memory usage
+	return NewProxy;
 }
 
 void UVoxelMeshComponent::PostLoad() {
@@ -659,9 +671,33 @@ FBoxSphereBounds UVoxelMeshComponent::CalcBounds(const FTransform& LocalToWorld)
 // collision 
 // ======================================================================
 
+void UVoxelMeshComponent::AddCollisionSection(struct FTriMeshCollisionData* CollisionData, const FProcMeshSection& MeshSection, const int32 MatId, const int32 VertexBase) {
 
-bool UZoneMeshCollisionData::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
-	return ((UVoxelMeshComponent*)GetOuter())->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
+	// Copy vert data
+	for (int32 VertIdx = 0; VertIdx < MeshSection.ProcVertexBuffer.Num(); VertIdx++) {
+		FProcMeshVertex Vertex = MeshSection.ProcVertexBuffer[VertIdx];
+		FVector Position(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
+		CollisionData->Vertices.Add(Position);
+
+		// Copy UV if desired
+		//if (bCopyUVs) {
+		//	CollisionData->UVs[0].Add(TriMeshData.ProcVertexBuffer[VertIdx].UV0);
+		//}
+	}
+
+	// Copy triangle data
+	const int32 NumTriangles = MeshSection.ProcIndexBuffer.Num() / 3;
+	for (int32 TriIdx = 0; TriIdx < NumTriangles; TriIdx++) {
+		// Need to add base offset for indices
+		FTriIndices Triangle;
+		Triangle.v0 = MeshSection.ProcIndexBuffer[(TriIdx * 3) + 0] + VertexBase;
+		Triangle.v1 = MeshSection.ProcIndexBuffer[(TriIdx * 3) + 1] + VertexBase;
+		Triangle.v2 = MeshSection.ProcIndexBuffer[(TriIdx * 3) + 2] + VertexBase;
+		CollisionData->Indices.Add(Triangle);
+
+		// Also store material info
+		CollisionData->MaterialIndices.Add(MatId);
+	}
 }
 
 bool UVoxelMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) {
@@ -672,38 +708,30 @@ bool UVoxelMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Co
 		CollisionData->UVs.AddZeroed(1); // only one UV channel
 	}
 
-	if (TriMeshData.ProcVertexBuffer.Num() == 0) return false;
+	const TMeshLodSection& CollisionSection = CollisionLodSection;
+	for (const auto& Elem : CollisionSection.RegularMeshContainer.MaterialSectionMap) {
+		int32 MatId = (int32)Elem.Key;
+		const TMeshMaterialSection& MaterialSection = Elem.Value;
+		const FProcMeshSection& MeshSection = MaterialSection.MaterialMesh;
+		AddCollisionSection(CollisionData, MeshSection, MatId, VertexBase);
 
-	// Copy vert data
-	for (int32 VertIdx = 0; VertIdx < TriMeshData.ProcVertexBuffer.Num(); VertIdx++) {
-		FProcMeshVertex Vertex = TriMeshData.ProcVertexBuffer[VertIdx];
-		FVector Position(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
-		CollisionData->Vertices.Add(Position);
-
-		// Copy UV if desired
-		if (bCopyUVs) {
-			//CollisionData->UVs[0].Add(TriMeshData.ProcVertexBuffer[VertIdx].UV0);
-		}
+		// Remember the base index that new verts will be added from in next section
+		VertexBase = CollisionData->Vertices.Num();
 	}
 
-	// Copy triangle data
-	const int32 NumTriangles = TriMeshData.ProcIndexBuffer.Num() / 3;
-	for (int32 TriIdx = 0; TriIdx < NumTriangles; TriIdx++) {
-		// Need to add base offset for indices
-		FTriIndices Triangle;
-		Triangle.v0 = TriMeshData.ProcIndexBuffer[(TriIdx * 3) + 0] + VertexBase;
-		Triangle.v1 = TriMeshData.ProcIndexBuffer[(TriIdx * 3) + 1] + VertexBase;
-		Triangle.v2 = TriMeshData.ProcIndexBuffer[(TriIdx * 3) + 2] + VertexBase;
-		CollisionData->Indices.Add(Triangle);
+	for (const auto& Elem : CollisionSection.RegularMeshContainer.MaterialTransitionSectionMap) {
+		int32 MatId = (int32)Elem.Key;
+		const TMeshMaterialTransitionSection& MaterialSection = Elem.Value;
+		const FProcMeshSection& MeshSection = MaterialSection.MaterialMesh;
+		AddCollisionSection(CollisionData, MeshSection, MatId, VertexBase);
 
-		// Also store material info
-		CollisionData->MaterialIndices.Add(0);
+		// Remember the base index that new verts will be added from in next section
+		VertexBase = CollisionData->Vertices.Num();
 	}
-
-	// Remember the base index that new verts will be added from in next section
-	VertexBase = CollisionData->Vertices.Num();
 
 	CollisionData->bFlipNormals = true;
+	CollisionData->bDeformableMesh = true;
+	CollisionData->bFastCook = true;
 	return true;
 }
 
@@ -723,12 +751,9 @@ void UVoxelMeshComponent::UpdateLocalBounds() {
 	MarkRenderTransformDirty();
 }
 
-bool UZoneMeshCollisionData::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
-	return ((UVoxelMeshComponent*)GetOuter())->ContainsPhysicsTriMeshData(InUseAllTriData);
-}
 
 bool UVoxelMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const {
-	if (TriMeshData.ProcVertexBuffer.Num() == 0) {
+	if (CollisionLodSection.RegularMeshContainer.MaterialSectionMap.Num() == 0) {
 		return false;
 	}
 
@@ -736,16 +761,16 @@ bool UVoxelMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const
 }
 
 void UVoxelMeshComponent::CreateProcMeshBodySetup() {
-	if (ProcMeshBodySetup == NULL) {
+	if (!ProcMeshBodySetup) {
 		// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
 		ProcMeshBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
 		ProcMeshBodySetup->BodySetupGuid = FGuid::NewGuid();
-
 		ProcMeshBodySetup->bGenerateMirroredCollision = false;
 		ProcMeshBodySetup->bDoubleSidedGeometry = true;
 		ProcMeshBodySetup->CollisionTraceFlag = bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
 	}
 }
+
 
 void UVoxelMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts) {
 	if (ConvexVerts.Num() >= 4) {
@@ -761,6 +786,7 @@ void UVoxelMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVerts) {
 		UpdateCollision();
 	}
 }
+
 
 UBodySetup* UVoxelMeshComponent::CreateBodySetupHelper() {
 	// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
@@ -797,8 +823,11 @@ void UVoxelMeshComponent::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* Fini
 	}
 
 	UpdateNavigationData();
+	//CollisionLodSection = TMeshLodSection(); //clear to reduce memory usage
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
-	TerrainController->OnFinishAsyncPhysicsCook(ZoneIndex);
+	if (TerrainController) {
+		TerrainController->OnFinishAsyncPhysicsCook(ZoneIndex);
+	}
 }
 
 void UVoxelMeshComponent::UpdateCollision() {
@@ -862,11 +891,30 @@ UBodySetup* UVoxelMeshComponent::GetBodySetup() {
 }
 
 void UVoxelMeshComponent::SetCollisionMeshData(TMeshDataPtr MeshDataPtr) {
-	TriMeshData.Reset();
-	TriMeshData.ProcIndexBuffer = MeshDataPtr->CollisionMeshPtr->ProcIndexBuffer;
-	TriMeshData.ProcVertexBuffer = MeshDataPtr->CollisionMeshPtr->ProcVertexBuffer;
-	TriMeshData.SectionLocalBox = MeshDataPtr->CollisionMeshPtr->SectionLocalBox;
-
+	CollisionLodSection = MeshSectionLodArray[0]; //FIXME use real collision section id in terrain controller
 	UpdateLocalBounds();
 	UpdateCollision();
+}
+
+
+TMaterialId UVoxelMeshComponent::GetMaterialIdFromCollisionFaceIndex(int32 FaceIndex) const {
+	if (FaceIndex >= 0) {
+		int32 TotalFaceCount = 0;
+		const TMeshLodSection& CollisionSection = CollisionLodSection;
+		for (const auto& Elem : CollisionSection.RegularMeshContainer.MaterialSectionMap) {
+			int32 MatId = (int32)Elem.Key;
+			const TMeshMaterialSection& MaterialSection = Elem.Value;
+			const FProcMeshSection& MeshSection = MaterialSection.MaterialMesh;
+
+			int32 NumFaces = MeshSection.ProcIndexBuffer.Num() / 3;
+			TotalFaceCount += NumFaces;
+
+			if (FaceIndex < TotalFaceCount) {
+				return MaterialSection.MaterialId;
+			}
+
+		}
+	}
+
+	return 0;
 }

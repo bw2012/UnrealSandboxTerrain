@@ -13,6 +13,8 @@
 #include "VoxelData.h"
 #include "SandboxTerrainController.generated.h"
 
+#define USBT_MAX_MATERIAL_HARDNESS 99999.9f
+
 struct TMeshData;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
@@ -75,6 +77,8 @@ UENUM(BlueprintType)
 enum class ESandboxFoliageType : uint8 {
 	Grass = 0	UMETA(DisplayName = "Grass"),
 	Tree = 1   UMETA(DisplayName = "Tree"),
+	Cave = 2   UMETA(DisplayName = "Cave foliage"),
+	Custom = 3   UMETA(DisplayName = "Custom"),
 };
 
 
@@ -121,6 +125,12 @@ public:
 };
 
 
+UENUM(BlueprintType)
+enum class FSandboxTerrainMaterialType : uint8 {
+	Soil = 0	UMETA(DisplayName = "Soil"),
+	Rock = 1	UMETA(DisplayName = "Rock"),
+};
+
 USTRUCT()
 struct FSandboxTerrainMaterial {
 	GENERATED_BODY()
@@ -129,19 +139,29 @@ struct FSandboxTerrainMaterial {
 	FString Name;
 
 	UPROPERTY(EditAnywhere)
+	FSandboxTerrainMaterialType Type;
+
+	UPROPERTY(EditAnywhere)
 	float RockHardness;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideMicro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideMacro;
+
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureSideNormal;
 
 	UPROPERTY(EditAnywhere)
 	UTexture* TextureTopMicro;
 
-	//UPROPERTY(EditAnywhere)
-	//UTexture* TextureSideMicro;
+	UPROPERTY(EditAnywhere)
+	UTexture* TextureTopMacro;
 
 	UPROPERTY(EditAnywhere)
-	UTexture* TextureMacro;
+	UTexture* TextureTopNormal;
 
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureNormal;
 };
 
 USTRUCT()
@@ -383,7 +403,11 @@ public:
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
-	void DigTerrainCubeHole(const FVector& Origin, float Extend);
+	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const float Strength = 1.f, const bool bNoise = true);
+
+	void DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator = FRotator(0));
+
+	void DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator = FRotator(0));
 
 	void FillTerrainCube(const FVector& Origin, float Extend, int MatId);
 
@@ -400,6 +424,8 @@ public:
 
 	template<class H>
 	void EditTerrain(const H& ZoneHandler);
+
+	bool GetTerrainMaterialInfoById(uint16 MaterialId, FSandboxTerrainMaterial& MaterialInfo);
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
@@ -421,6 +447,8 @@ public:
 
 private:
     
+	void GenerateNewZoneVd(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, const TVoxelIndex& Index);
+
 	void StartPostLoadTimers();
 
     TCheckAreaMap* CheckAreaMap;
@@ -433,10 +461,8 @@ private:
     
 	void BeginClient();
 
-	void DigTerrainRoundHole_Internal(const FVector& Origin, float Radius, float Strength);
-
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(TVoxelDataInfo* VdInfo, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
 
@@ -502,13 +528,9 @@ private:
 
 	TKvFile ObjFile;
 
-	TVoxelData* GetVoxelDataByPos(const FVector& Pos);
+	//TVoxelData* GetVoxelDataByPos(const FVector& Pos);
 
-	TVoxelData* GetVoxelDataByIndex(const TVoxelIndex& Index);
-
-	bool HasVoxelData(const TVoxelIndex& Index);
-
-	TVoxelDataInfo* GetVoxelDataInfo(const TVoxelIndex& Index);
+	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
 
@@ -596,10 +618,20 @@ protected:
 
 	virtual FSandboxFoliage GeneratorFoliageOverride(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
 
+	virtual bool GeneratorUseCustomFoliage(const TVoxelIndex& Index);
+
+	virtual bool GeneratorSpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
+
 	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
 
 	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
 	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
+
+	virtual void OnFinishGenerateNewZone(const TVoxelIndex& Index);
+
+	//virtual void OnFinishGenerateNewVd(const TVoxelIndex& Index, TVoxelData* Vd);
+
+	//virtual void GeneratorEachSubstanceCell(const TVoxelIndex& Index, const FVector& WorldPos);
 	
 };

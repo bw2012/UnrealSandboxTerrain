@@ -695,8 +695,8 @@ public:
         extractAllTransitionCell(d, x, y, z);
     }
 
-	FORCEINLINE void generateCell
- (const TSubstanceCacheItem& cacheItm) {
+	/*
+	FORCEINLINE void generateCell (const TSubstanceCacheItem& cacheItm) {
 		const int x = cacheItm.x;
 		const int y = cacheItm.y;
 		const int z = cacheItm.z;
@@ -706,6 +706,7 @@ public:
 		extractRegularCell(d, cacheItm.caseCode);
         extractAllTransitionCell(d, x, y, z);
     }
+	*/
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
@@ -715,38 +716,44 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
-	for (const auto& itm : vd.substanceCacheLOD[0].cellList) { mesh_extractor_ptr->generateCell(itm); }
+
+	const int n = vd.num();
+	vd.substanceCacheLOD[0].forEach([=](const TSubstanceCacheItem& itm) {
+		const int index = itm.index;
+		const int x = index / (n * n);
+		const int y = (index / n) % n;
+		const int z = index % n;
+		mesh_extractor_ptr->generateCell(x, y, z);
+	});
+
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 	return TMeshDataPtr(mesh_data);
 }
 
 
 TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
-	TMeshData* mesh_data = new TMeshData();
+	TMeshDataPtr mesh_data_ptr = std::make_shared<TMeshData>();
 	static const int max_lod = LOD_ARRAY_SIZE;
 
 	// create mesh extractor for each LOD
 	for (auto lod = 0; lod < max_lod; lod++) {
 		TVoxelDataGenerationParam me_vdp = vdp;
 		me_vdp.lod = lod;
-		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[lod], vd, me_vdp));
+		VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data_ptr->MeshSectionLodArray[lod], vd, me_vdp));
 		int step = me_vdp.step();
-		for (const auto& itm : vd.substanceCacheLOD[lod].cellList) { 
 
-#if USBT_USE_VD_PREBUILD_DATA == 1
-			mesh_extractor_ptr->generateCell(itm);
-#else
+		const int n = vd.num();
+		vd.substanceCacheLOD[lod].forEach([=](const TSubstanceCacheItem& itm) {
 			const int index = itm.index;
-			const int x = index / (vd.num() * vd.num());
-			const int y = (index / vd.num()) % vd.num();
-			const int z = index % vd.num();
+			const int x = index / (n * n);
+			const int y = (index / n) % n;
+			const int z = index % n;
 			mesh_extractor_ptr->generateCell(x, y, z);
-#endif
-		}
+		});
 	}
 
-	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
-	return TMeshDataPtr(mesh_data);
+	mesh_data_ptr->CollisionMeshPtr = &mesh_data_ptr->MeshSectionLodArray[vdp.collisionLOD].WholeMesh;
+	return mesh_data_ptr;
 }
 
 

@@ -12,15 +12,6 @@
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 
-UCLASS()
-class UNREALSANDBOXTERRAIN_API UZoneMeshCollisionData : public UObject, public IInterface_CollisionDataProvider {
-	GENERATED_BODY()
-
-	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
-	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
-	virtual bool WantsNegXTriMesh() override { return false; }
-};
-
 /**
 *
 */
@@ -28,8 +19,6 @@ UCLASS()
 class UNREALSANDBOXTERRAIN_API UVoxelMeshComponent : public UMeshComponent, public IInterface_CollisionDataProvider
 {
 	GENERATED_UCLASS_BODY()
-
-	friend class UZoneMeshCollisionData;
 
 public:
 
@@ -76,12 +65,11 @@ public:
 	UPROPERTY(Instanced)
 	class UBodySetup* ProcMeshBodySetup;
 
-	//UPROPERTY()
-	//class UZoneMeshCollisionData* test;
-
 	void SetCollisionMeshData(TMeshDataPtr MeshDataPtr);
 
 	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
+
+	TMaterialId GetMaterialIdFromCollisionFaceIndex(int32 FaceIndex) const;
 
 private:
 
@@ -116,7 +104,10 @@ private:
 	// collision 
 	// ======================================================================
 
-	FProcMeshSection TriMeshData;
+	void AddCollisionSection(struct FTriMeshCollisionData* CollisionData, const FProcMeshSection& MeshSection, const int32 MatId, const int32 VertexBase);
+
+	//FProcMeshSection TriMeshData;
+	TMeshLodSection CollisionLodSection;
 
 	void CreateProcMeshBodySetup();
 
