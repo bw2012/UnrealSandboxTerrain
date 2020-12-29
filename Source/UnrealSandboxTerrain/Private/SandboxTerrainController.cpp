@@ -873,6 +873,11 @@ void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& Zone
      */
 }
 
+
+FORCEINLINE float ASandboxTerrainController::ClcGroundLevel(const FVector& V) {
+	return Generator->GroundLevelFuncLocal(V);
+}
+
 //======================================================================================================================================================================
 // virtual functions
 //======================================================================================================================================================================

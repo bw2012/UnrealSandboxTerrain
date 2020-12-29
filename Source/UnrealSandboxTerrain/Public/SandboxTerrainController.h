@@ -208,13 +208,13 @@ struct FSandboxTerrainLODDistance {
     float Distance3 = 6000;
     
     UPROPERTY(EditAnywhere)
-    float Distance4 = 8000;
+    float Distance4 = 12000;
     
     UPROPERTY(EditAnywhere)
-    float Distance5 = 10000;
+    float Distance5 = 16000;
     
     UPROPERTY(EditAnywhere)
-    float Distance6 = 12000;
+    float Distance6 = 20000;
 };
 
 typedef uint8 TTerrainLodMask;
@@ -445,6 +445,8 @@ public:
 
 	void NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData);
 
+	float ClcGroundLevel(const FVector& V);
+
 private:
     
 	void GenerateNewZoneVd(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, const TVoxelIndex& Index);
@@ -605,7 +607,7 @@ protected:
 	float PerlinNoise(const FVector& Pos) const;
 
 	float NormalizedPerlinNoise(const FVector& Pos) const;
-       
+      
     //===============================================================================
     // virtual functions
     //===============================================================================

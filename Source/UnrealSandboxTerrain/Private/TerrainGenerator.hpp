@@ -167,7 +167,7 @@ private:
 			return 1.f;
 		}
 
-		float DensityByGroundLevel = 1 - (1 / (1 + exp(-(Z - GroundLevel)/20)));
+		float DensityByGroundLevel = 1 - (1 / (1 + exp(-(Z - GroundLevel) / 20)));
 		return DensityByGroundLevel;
     }
 
@@ -178,12 +178,8 @@ private:
 	FORCEINLINE unsigned char MaterialFunc(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel){
 		const float DeltaZ = WorldPos.Z - GroundLevel;
 
-        //FVector test = FVector(WorldPos);
-        //test.Z += 30;
-        //float densityUpper = ClcDensityByGroundLevel(test, GroundLevel);
-
         unsigned char mat = 0;
-        if (abs(DeltaZ) < 25) {
+        if (DeltaZ >= -70) {
             mat = 2; // grass
         } else {
             FTerrainUndergroundLayer* Layer = GetUndergroundMaterialLayer(WorldPos.Z, GroundLevel);
