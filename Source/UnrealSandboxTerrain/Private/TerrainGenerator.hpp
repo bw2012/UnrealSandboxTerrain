@@ -95,14 +95,14 @@ public:
 class TTerrainGenerator {
 
 private:
-	int VdNum;
+	int VdNum = USBT_ZONE_DIMENSION;
     PerlinNoise Pn;
     ASandboxTerrainController* Controller;
     TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
 	std::mutex ZoneHeightMapMutex;
     std::unordered_map<TVoxelIndex, TZoneHeightMapData*> ZoneHeightMapCollection;
 
-	TVoxelData* VdTmp = nullptr;
+	TVoxelData* VdTmp = new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 
 	struct TTerrainGeneratorPrebuiltData {
 		TVoxelIndex Index;

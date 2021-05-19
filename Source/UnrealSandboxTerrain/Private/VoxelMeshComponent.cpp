@@ -262,7 +262,7 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE void CopyMaterialMesh(UVoxelMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, TMeshPtrArray& TargetMeshPtrArray, std::function<UMaterialInterface*(T)> GetMaterial) {
+	void CopyMaterialMesh(UVoxelMeshComponent* Component, TMap<unsigned short, T>& MaterialMap, TMeshPtrArray& TargetMeshPtrArray, std::function<UMaterialInterface*(T)> GetMaterial) {
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
 		for (auto& Element : MaterialMap) {
@@ -277,7 +277,7 @@ public:
 			if (Material == nullptr) {
                 Material = DefaultMaterial;
             }
-            
+
 			FProcMeshProxySection* NewMaterialProxySection = new FProcMeshProxySection(GetScene().GetFeatureLevel());
 			NewMaterialProxySection->Material = Material;
 

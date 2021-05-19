@@ -172,7 +172,7 @@ FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
 	const float s = -size() / 2;
 	FVector v(s, s, s);
 	FVector a(x * step, y * step, z * step);
-	v = v + a;
+	v += a;
 	return v;
 }
 
