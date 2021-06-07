@@ -3,6 +3,8 @@
 #include "VoxelData.h"
 #include "serialization.hpp"
 
+#include <string.h> // memcpy
+
 //====================================================================================
 // Voxel data impl
 //====================================================================================
@@ -30,6 +32,40 @@ TVoxelData::~TVoxelData() {
 	if (material_data != nullptr) delete[] material_data;
 }
 
+void TVoxelData::initCache() {
+	for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
+		int n = (voxel_num - 1) >> lod;
+		int s = n * n * 4; //  n * n * n;
+		substanceCacheLOD[lod].resize(s);
+	}
+}
+
+void TVoxelData::copyDataUnsafe(const TDensityVal* src_density_data, const TMaterialId* src_material_data) {
+	const int s = voxel_num * voxel_num * voxel_num;
+	density_data = new TDensityVal[s];
+	material_data = new TMaterialId[s];
+
+	memcpy(density_data, src_density_data, s * sizeof(TDensityVal));
+	memcpy(material_data, src_material_data, s * sizeof(TMaterialId));
+
+	density_state = TVoxelDataFillState::MIXED;
+}
+
+void TVoxelData::copyCacheUnsafe(const int* cache_data, const int* len) {
+	clearSubstanceCache();
+
+	int offset = 0;
+	for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
+		int n = (num() - 1) >> lod;
+		int l = len[lod];
+		//UE_LOG(LogTemp, Warning, TEXT("test ----> %d"), l);
+		substanceCacheLOD[lod].copy(offset + cache_data, l);
+		offset += n * n * n;
+	}
+
+	setCacheToValid();
+}
+
 FORCEINLINE void TVoxelData::initializeDensity() {
 	const int s = voxel_num * voxel_num * voxel_num;
 	density_data = new TDensityVal[s];
@@ -50,7 +86,7 @@ FORCEINLINE void TVoxelData::initializeDensity() {
 
 FORCEINLINE void TVoxelData::initializeMaterial() {
 	const int s = voxel_num * voxel_num * voxel_num;
-	material_data = new unsigned short[s];
+	material_data = new TMaterialId[s];
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
 			for (auto z = 0; z < voxel_num; z++) {
@@ -81,7 +117,6 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 		if (density > 1) density = 1;
 
 		TDensityVal d = 255 * density;
-
 		density_data[index] = d;
 	}
 }
@@ -100,8 +135,7 @@ FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 
 		float d = (float)density_data[index] / 255.0f;
 		return d;
-	}
-	else {
+	} else {
 		return 0;
 	}
 }
@@ -280,19 +314,20 @@ FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 }
 
  bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
-	TDensityVal density[8];
-	density[7] = getRawDensityUnsafe(x, y - step, z);
-	density[6] = getRawDensityUnsafe(x, y, z);
-	density[5] = getRawDensityUnsafe(x - step, y - step, z);
-	density[4] = getRawDensityUnsafe(x - step, y, z);
-	density[3] = getRawDensityUnsafe(x, y - step, z - step);
-	density[2] = getRawDensityUnsafe(x, y, z - step);
-	density[1] = getRawDensityUnsafe(x - step, y - step, z - step);
-	density[0] = getRawDensityUnsafe(x - step, y, z - step);
+	uint32 index[8];
+	index[7] = clcLinearIndex(x, y - step, z);
+	index[6] = clcLinearIndex(x, y, z);
+	index[5] = clcLinearIndex(x - step, y - step, z);
+	index[4] = clcLinearIndex(x - step, y, z);
+	index[3] = clcLinearIndex(x, y - step, z - step);
+	index[2] = clcLinearIndex(x, y, z - step);
+	index[1] = clcLinearIndex(x - step, y - step, z - step);
+	index[0] = clcLinearIndex(x - step, y, z - step);
+
 
 	int8 corner[8];
 	for (auto i = 0; i < 8; i++) {
-		corner[i] = (density[i] <= 127) ? -127 : 0;
+		corner[i] = (density_data[index[i]] <= 127) ? -127 : 0;
 	}
 
 	unsigned long caseCode = ((corner[0] >> 7) & 0x01)
@@ -306,26 +341,15 @@ FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 
 	if (caseCode == 0 || caseCode == 255) return false;
 
-	int index = clcLinearIndex(x - step, y - step, z - step);
+	//int index = clcLinearIndex(x - step, y - step, z - step);
 
 	TSubstanceCache& lodCache = substanceCacheLOD[lod];
-	TSubstanceCacheItem* cacheItm = lodCache.add2();
+	TSubstanceCacheItem* cacheItm = lodCache.emplace();
 	//cacheItm->caseCode = caseCode;
-	cacheItm->index = index;
+	cacheItm->index = index[1];
 	//cacheItm->x = x - step;
 	//cacheItm->y = y - step;
 	//cacheItm->z = z - step;
-
-	/*
-	TSubstanceCache& lodCache = substanceCacheLOD[lod];
-	TSubstanceCacheItem cacheItm;
-	cacheItm.caseCode = caseCode;
-	cacheItm.index = index;
-	cacheItm.x = x - step;
-	cacheItm.y = y - step;
-	cacheItm.z = z - step;
-	lodCache.add(cacheItm);
-	*/
 
 	return true;
 }
@@ -363,6 +387,7 @@ void TVoxelData::forEach(std::function<void(int x, int y, int z)> func) {
 
 void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func, bool LOD) {
 	clearSubstanceCache();
+	initCache();
 
 	for (int x = 0; x < num(); x++) {
 		for (int y = 0; y < num(); y++) {
@@ -380,7 +405,7 @@ void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func,
 	}
 }
 
-void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func) {
+void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func) const{
 	substanceCacheLOD[lod].forEach([=](const TSubstanceCacheItem& itm) {
 		func(itm);
 		//const int index = itm.index;
@@ -401,6 +426,9 @@ FORCEINLINE void TVoxelData::clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uin
 };
 
 void TVoxelData::makeSubstanceCache() {
+	clearSubstanceCache();
+	initCache();
+
 	/*
 	const int s = num() * num() * num();
 	for (int i = 0; i < s; i++) {
@@ -475,4 +503,65 @@ std::shared_ptr<std::vector<uint8>> TVoxelData::serialize() {
 
 	serializer << (uint32)DATA_END_MARKER;
 	return serializer.data();
+}
+
+
+bool TVoxelData::isSubstanceCacheValid() const {
+	return cache_state >= 0;
+}
+
+void TVoxelData::setCacheToValid() {
+	cache_state = 0;
+}
+
+void TVoxelData::clearSubstanceCache() {
+	for (TSubstanceCache& lodCache : substanceCacheLOD) {
+		lodCache.clear();
+	}
+
+	cache_state = -1;
+};
+
+TSubstanceCache::TSubstanceCache() {
+	// FIXME
+	//cellArray.resize(65 * 65 * 65);
+	//cellArray.resize(16 * 16 * 16);
+}
+
+TSubstanceCacheItem* TSubstanceCache::emplace() {
+	auto s = cellArray.size();
+	if (s == idx) {
+		UE_LOG(LogTemp, Warning, TEXT("resize -> %d"), cellArray.size());
+		cellArray.resize(s + s / 2 + 1);
+	}
+
+	TSubstanceCacheItem* res = &cellArray.data()[idx];
+	idx++;
+	return res;
+}
+
+void TSubstanceCache::resize(uint32 s) {
+	if (s > 1) {
+		cellArray.resize(s);
+	} else {
+		cellArray.resize(2);
+	}
+}
+
+void TSubstanceCache::clear() {
+	//cellList.clear();
+	idx = 0;
+}
+
+void TSubstanceCache::forEach(std::function<void(const TSubstanceCacheItem& itm)> func) const {
+	//for (const auto& itm : cellList) {
+	for (int i = 0; i < idx; i++) {
+		func(cellArray[i]);
+	}
+}
+
+void TSubstanceCache::copy(const int* cache_data, const int len) {
+	cellArray.resize(len);
+	memcpy(cellArray.data(), cache_data, len * sizeof(TSubstanceCacheItem));
+	idx = len;
 }

@@ -14,7 +14,8 @@ enum TVoxelDataState : uint32 {
     UNDEFINED = 0,
     GENERATED = 1,
     LOADED = 2,
-    READY_TO_LOAD = 3
+    READY_TO_LOAD = 3, 
+    GENERATION_IN_PROGRESS = 4
 };
 
 class TVoxelDataInfo {
@@ -35,7 +36,7 @@ private:
 
 public:
     TVoxelData* Vd = nullptr;
-    TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
+    volatile TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
     std::shared_ptr<std::mutex> VdMutexPtr;
     
     TVoxelDataInfo() {

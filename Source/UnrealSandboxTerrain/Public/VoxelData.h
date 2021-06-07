@@ -22,6 +22,8 @@ enum TVoxelDataFillState : uint8 {
 	MIXED = 2		// mixed state, any value in any point
 };
 
+
+
 typedef struct TSubstanceCacheItem {
 	uint32 index = 0;
 	//unsigned long caseCode = 0;
@@ -39,37 +41,17 @@ private:
 
 public:
 
-	TSubstanceCache() {
-		// FIXME
-		cellArray.resize(65 * 65 * 65);
-	}
+	TSubstanceCache();
 
-	void add(const TSubstanceCacheItem& itm) {
-		//cellList.push_back(itm);
-		cellArray[idx] = itm;
-		idx++;
-	}
-
-	TSubstanceCacheItem* add2() {
-		TSubstanceCacheItem* res = &cellArray.data()[idx];
-		idx++;
-		return res;
-	}
-
-	void clear() {
-		//cellList.clear();
-		idx = 0;
-	}
-
-	void forEach(std::function<void(const TSubstanceCacheItem& itm)> func) const {
-		//for (const auto& itm : cellList) {
-		for (int i = 0; i < idx; i++) {
-			func(cellArray[i]);
-		}
-	}
-
+	TSubstanceCacheItem* emplace();
+	void resize(uint32 s);
+	void clear();
+	void forEach(std::function<void(const TSubstanceCacheItem& itm)> func) const;
+	void copy(const int* cache_data, const int len);
 
 } TSubstanceCache;
+
+
 
 // POD structure. used in fast serialization
 typedef struct TVoxelDataHeader {
@@ -80,10 +62,12 @@ typedef struct TVoxelDataHeader {
 	TMaterialId base_fill_mat;
 } TVoxelDataHeader;
 
+
+
 class TVoxelData;
 typedef std::shared_ptr<TVoxelData> TVoxelDataPtr;
 
-class TVoxelData {
+class UNREALSANDBOXTERRAIN_API TVoxelData {
 
 private:
 	TVoxelDataFillState density_state;
@@ -92,13 +76,10 @@ private:
 	int voxel_num;
 	float volume_size;
 	TDensityVal* density_data;
-	unsigned short* material_data;
+	TMaterialId* material_data;
 	std::vector<FVector> normal_data;
 
-	volatile double last_change;
-	volatile double last_save;
-	volatile double last_mesh_generation;
-	volatile double last_cache_check;
+	volatile int cache_state = -1;
 
 	FVector origin = FVector(0.0f, 0.0f, 0.0f);
 	FVector lower = FVector(0.0f, 0.0f, 0.0f);
@@ -107,21 +88,27 @@ private:
 	void initializeDensity();
 	void initializeMaterial();
 
+	std::array<TSubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
+
 	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
 
 public:
-	std::array<TSubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
 	TVoxelData();
 	TVoxelData(int, float);
 	~TVoxelData();
+
+	void initCache();
+
+	void copyDataUnsafe(const TDensityVal* density_data, const TMaterialId* material_data);
+	void copyCacheUnsafe(const int* cache_data, const int* len);
 
 	FORCEINLINE int clcLinearIndex(int x, int y, int z) const;
 	FORCEINLINE void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
 
 	void forEach(std::function<void(int x, int y, int z)> func);
 	void forEachWithCache(std::function<void(int x, int y, int z)> func, bool enableLOD);
-	void forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func);
+	void forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func) const;
 
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;
@@ -161,17 +148,10 @@ public:
 	void deinitializeDensity(TVoxelDataFillState density_state);
 	void deinitializeMaterial(unsigned short base_mat);
 
-	bool isSubstanceCacheValid() const { return last_change <= last_cache_check; }
-	void setCacheToValid() { last_cache_check = FPlatformTime::Seconds(); }
-
-	virtual void makeSubstanceCache();
-	void clearSubstanceCache() {
-		for (TSubstanceCache& lodCache : substanceCacheLOD) {
-			lodCache.clear();
-		}
-
-		last_cache_check = -1;
-	};
+	bool isSubstanceCacheValid() const;
+	void setCacheToValid();
+	void makeSubstanceCache();
+	void clearSubstanceCache();
 
 	std::shared_ptr<std::vector<uint8>> serialize();
 

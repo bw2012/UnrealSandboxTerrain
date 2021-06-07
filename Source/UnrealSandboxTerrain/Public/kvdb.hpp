@@ -409,7 +409,7 @@ namespace kvdb {
 			tableList.clear();
 		}
 
-		bool isOpen() {
+		bool isOpen() const {
 			return filePtr && filePtr->is_open();
 		}
 

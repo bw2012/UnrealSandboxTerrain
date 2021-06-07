@@ -718,6 +718,16 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
 
 	const int n = vd.num();
+
+	vd.forEachCacheItem(0, [=](const TSubstanceCacheItem& itm) {
+		const int index = itm.index;
+		const int x = index / (n * n);
+		const int y = (index / n) % n;
+		const int z = index % n;
+		mesh_extractor_ptr->generateCell(x, y, z);
+		});
+
+	/*
 	vd.substanceCacheLOD[0].forEach([=](const TSubstanceCacheItem& itm) {
 		const int index = itm.index;
 		const int x = index / (n * n);
@@ -725,6 +735,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 		const int z = index % n;
 		mesh_extractor_ptr->generateCell(x, y, z);
 	});
+	*/
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 	return TMeshDataPtr(mesh_data);
@@ -743,7 +754,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheLOD(const TVoxelData &vd, const TVoxelD
 		int step = me_vdp.step();
 
 		const int n = vd.num();
-		vd.substanceCacheLOD[lod].forEach([=](const TSubstanceCacheItem& itm) {
+		vd.forEachCacheItem(lod, [=](const TSubstanceCacheItem& itm) {
 			const int index = itm.index;
 			const int x = index / (n * n);
 			const int y = (index / n) % n;

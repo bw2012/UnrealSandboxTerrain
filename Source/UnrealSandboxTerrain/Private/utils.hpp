@@ -5,21 +5,17 @@
 #include <list>
 
 
-struct XY {
-	int x, y;
-	XY(int x_, int y_) : x(x_), y(y_) { };
-};
 
 //  https://www.geeksforgeeks.org/print-given-matrix-reverse-spiral-form/
 //	m - ending row index
 //	n - ending column index
-std::list<XY> ReverseSpiralWalkthrough(const unsigned int r) {
+std::list<TChunkIndex> ReverseSpiralWalkthrough(const unsigned int r) {
 
     auto r2 = r * 2 + 1;
     int m = r2;
     int n = r2;
     
-	std::list<XY> list;
+	std::list<TChunkIndex> list;
 
 	/* k - starting row index
 	l - starting column index*/
@@ -37,7 +33,7 @@ std::list<XY> ReverseSpiralWalkthrough(const unsigned int r) {
 		for (i = l; i < n; ++i) {
 			// printf("%d ", a[k][i]); 
 			//Function(k, i);
-			list.push_front(XY(k - r, i - r));
+			list.push_front(TChunkIndex(k - r, i - r));
 			++z;
 		}
 		k++;
@@ -46,7 +42,7 @@ std::list<XY> ReverseSpiralWalkthrough(const unsigned int r) {
 		for (i = k; i < m; ++i) {
 			// printf("%d ", a[i][n-1]); 
 			//Function(i, n - 1);
-			list.push_front(XY(i - r, n - 1 - r));
+			list.push_front(TChunkIndex(i - r, n - 1 - r));
 			++z;
 		}
 		n--;
@@ -56,7 +52,7 @@ std::list<XY> ReverseSpiralWalkthrough(const unsigned int r) {
 			for (i = n - 1; i >= l; --i) {
 				// printf("%d ", a[m-1][i]); 
 				//Function(m - 1, i);
-				list.push_front(XY(m - 1 - r, i - r));
+				list.push_front(TChunkIndex(m - 1 - r, i - r));
 				++z;
 			}
 			m--;
@@ -67,7 +63,7 @@ std::list<XY> ReverseSpiralWalkthrough(const unsigned int r) {
 			for (i = m - 1; i >= k; --i) {
 				// printf("%d ", a[i][l]); 
 				//Function(i, l);
-				list.push_front(XY(i - r, l - r));
+				list.push_front(TChunkIndex(i - r, l - r));
 				++z;
 			}
 			l++;

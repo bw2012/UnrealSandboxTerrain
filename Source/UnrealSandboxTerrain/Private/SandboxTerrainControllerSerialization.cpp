@@ -1,6 +1,9 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 
+#define USBT_COMPRESS_FILE_VD 1
+
+
 //======================================================================================================================================================================
 // mesh data de/serealization
 //======================================================================================================================================================================
@@ -60,7 +63,6 @@ TValueDataPtr Compress(TValueDataPtr CompressedDataPtr) {
 
 	return Result;
 }
-
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr) {
 	FastUnsafeSerializer Serializer;
@@ -189,7 +191,6 @@ TValueDataPtr Decompress(TValueDataPtr CompressedDataPtr) {
 	return Result;
 }
 
-
 TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& Index) {
 	double Start = FPlatformTime::Seconds();
 	TMeshDataPtr MeshDataPtr = nullptr;
@@ -237,7 +238,22 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	Vd->setOrigin(GetZonePos(Index));
 
 	bool bIsLoaded = LoadDataFromKvFile(VdFile, Index, [=](TValueDataPtr DataPtr) {
-		deserializeVoxelData(Vd, *DataPtr);
+
+#ifdef USBT_COMPRESS_FILE_VD
+
+		size_t TTT = sizeof(TVoxelDataHeader) + sizeof(uint32);
+		if (DataPtr->size() > TTT) {
+			auto DecompressedDataPtr = Decompress(DataPtr);
+			deserializeVoxelData(Vd, *DecompressedDataPtr);
+		} else {
+			deserializeVoxelData(Vd, *DataPtr);
+		}
+
+		return;
+
+#endif /* USBT_COMPRESS_FILE_VD */
+
+		//deserializeVoxelData(Vd, *DataPtr);
 	});
 
 	double End = FPlatformTime::Seconds();
@@ -256,4 +272,27 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	}
 
 	return Vd;
+}
+
+//======================================================================================================================================================================
+// save vd
+//======================================================================================================================================================================
+
+TValueDataPtr ASandboxTerrainController::SerializeVd(TVoxelData* Vd) {
+	TValueDataPtr Data = Vd->serialize();
+	size_t DataSize = Data->size();
+	
+#ifdef USBT_COMPRESS_FILE_VD
+
+	size_t TTT = sizeof(TVoxelDataHeader) + sizeof(uint32);
+	if (DataSize > TTT) {
+		TValueDataPtr CompressedData = Compress(Data);
+		//UE_LOG(LogTemp, Log, TEXT("SerializeVd -> %d compressed bytes "), CompressedData->size());
+		return CompressedData;
+	}
+
+#endif /* USBT_COMPRESS_FILE_VD */
+
+
+	return Data;
 }
