@@ -2,6 +2,8 @@
 
 #include "Engine.h"
 #include "Runtime/Engine/Classes/Engine/DataAsset.h"
+#include "SandboxTerrainCommon.h"
+#include "SandboxTerrainGenerator.h"
 #include <memory>
 #include <queue>
 #include <mutex>
@@ -22,11 +24,14 @@ struct TInstanceMeshArray;
 class UVdClientComponent;
 class TTerrainData;
 class TCheckAreaMap;
-class TTerrainGenerator;
+
+//TODO refactor
+class TBaseTerrainGenerator;
+class TDefaultTerrainGenerator;
+
 class TVoxelDataInfo;
 class TTerrainAreaPipeline;
 class TTerrainLoadPipeline;
-class TTerrainGeneratorPipeline;
 
 typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -71,47 +76,6 @@ struct FTerrainInstancedMeshType {
 
 	UPROPERTY()
 	int32 EndCullDistance;
-};
-
-UENUM(BlueprintType)
-enum class ESandboxFoliageType : uint8 {
-	Grass = 0	UMETA(DisplayName = "Grass"),
-	Tree = 1   UMETA(DisplayName = "Tree"),
-	Cave = 2   UMETA(DisplayName = "Cave foliage"),
-	Custom = 3   UMETA(DisplayName = "Custom"),
-};
-
-
-USTRUCT()
-struct FSandboxFoliage {
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere)
-	ESandboxFoliageType Type;
-
-	UPROPERTY(EditAnywhere)
-	UStaticMesh* Mesh;
-
-	UPROPERTY(EditAnywhere)
-	int32 SpawnStep = 25;
-
-	UPROPERTY(EditAnywhere)
-	float Probability = 1;
-
-	UPROPERTY(EditAnywhere)
-	int32 StartCullDistance = 100;
-
-	UPROPERTY(EditAnywhere)
-	int32 EndCullDistance = 500;
-
-	UPROPERTY(EditAnywhere)
-	float OffsetRange = 10.0f;
-
-	UPROPERTY(EditAnywhere)
-	float ScaleMinZ = 0.5f;
-
-	UPROPERTY(EditAnywhere)
-	float ScaleMaxZ = 1.0f;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -164,20 +128,6 @@ struct FSandboxTerrainMaterial {
 
 };
 
-USTRUCT()
-struct FTerrainUndergroundLayer {
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere)
-    int32 MatId;
-
-    UPROPERTY(EditAnywhere)
-    float StartDepth;
-
-    UPROPERTY(EditAnywhere)
-    FString Name;
-};
-
 UCLASS(Blueprintable)
 class UNREALSANDBOXTERRAIN_API USandboxTerrainParameters : public UDataAsset {
 	GENERATED_BODY()
@@ -217,8 +167,6 @@ struct FSandboxTerrainLODDistance {
     float Distance6 = 20000;
 };
 
-typedef uint8 TTerrainLodMask;
-
 UENUM(BlueprintType)
 enum class ETerrainLodMaskPreset : uint8 {
     All      = 0            UMETA(DisplayName = "Show all"),
@@ -243,15 +191,12 @@ struct FTerrainSwapAreaParams {
     int TerrainSizeMaxZ = 5;
 };
 
+typedef struct TChunkIndex {
+	int X, Y;
 
-typedef struct TVoxelDensityFunctionData {
-    float Density;
-    float GroundLelel;
-    FVector WorldPos;
-    FVector LocalPos;
-    TVoxelIndex ZoneIndex;
-} TVoxelDensityFunctionData;
+	TChunkIndex(int x, int y) : X(x), Y(y) { };
 
+} TChunkIndex;
 
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
@@ -261,11 +206,13 @@ public:
     ASandboxTerrainController();
     
     friend UTerrainZoneComponent;
-	friend TTerrainGenerator;
+
+	//TODO refactor
+	friend TDefaultTerrainGenerator;
+
 	friend UVdClientComponent;
 	friend TTerrainAreaPipeline;
 	friend TTerrainLoadPipeline;
-	friend TTerrainGeneratorPipeline;
 
 	virtual void BeginPlay() override;
 
@@ -357,7 +304,7 @@ public:
     int32 AutoSavePeriod;
     
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 SaveGeneratedZones;
+	int32 SaveGeneratedZones; // TODO refactor
 
 	//========================================================================================
 	// materials
@@ -396,10 +343,8 @@ public:
     uint32 ServerPort;
 
 	//========================================================================================
-	
-	//static bool CheckZoneBounds(FVector Origin, float Size);
 
-	//========================================================================================
+	TBaseTerrainGenerator* GetTerrainGenerator();
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
@@ -449,7 +394,7 @@ public:
 
 private:
     
-	void GenerateNewZoneVd(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, const TVoxelIndex& Index);
+	//void GenerateNewZoneVd(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, const TVoxelIndex& Index);
 
 	void StartPostLoadTimers();
 
@@ -467,8 +412,6 @@ private:
 	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
-
-	bool IsWorkFinished() { return bIsWorkFinished; };
 
 	//===============================================================================
 	// save/load
@@ -490,15 +433,7 @@ private:
 	
 	void SpawnInitialZone();
 
-	//===============================================================================
-	// pipeline
-	//===============================================================================
-
-	int GeneratePipeline(const TVoxelIndex& Index);
-
-	int SpawnZonePipeline(const TVoxelIndex& pos, const TTerrainLodMask TerrainLodMask = 0);
-
-	UTerrainZoneComponent* AddTerrainZone(FVector pos);
+	TValueDataPtr SerializeVd(TVoxelData* Vd);
 
 	//===============================================================================
 	// async tasks
@@ -520,7 +455,7 @@ private:
 	// voxel data storage
 	//===============================================================================
     
-    TTerrainGenerator* Generator;
+    TBaseTerrainGenerator* Generator;
     
     TTerrainData* TerrainData;
 
@@ -530,13 +465,9 @@ private:
 
 	TKvFile ObjFile;
 
-	//TVoxelData* GetVoxelDataByPos(const FVector& Pos);
-
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);
-
-	std::shared_ptr<TMeshData> GenerateMesh(TVoxelData* Vd);
 
 	//===============================================================================
 	// mesh data storage
@@ -583,20 +514,18 @@ private:
     void OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
 
     void OnLoadZone(UTerrainZoneComponent* Zone);
-       
-    TVoxelData* NewVoxelData();
     
+	//===============================================================================
+	// pipeline
+	//===============================================================================
+
+	int SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
+
+	UTerrainZoneComponent* AddTerrainZone(FVector pos);
+
 protected:
 
 	FMapInfo MapInfo;
-
-	void RunGenerateTerrainPipeline(std::function<void()> OnFinish = nullptr, std::function<void(uint32, uint32)> OnProgress = nullptr);
-
-	bool LoadJson();
-
-	bool OpenFile();
-
-	void CloseFile();
 
 	virtual void BeginTerrainLoad();
 
@@ -604,36 +533,69 @@ protected:
 
 	virtual void BeginPlayServer();
 
+	bool IsWorkFinished() { return bIsWorkFinished; };
+
+	//===============================================================================
+	// save/load
+	//===============================================================================
+
+	bool LoadJson();
+
+	bool OpenFile();
+
+	void CloseFile();
+
+	void ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxelData* Vd);
+
+	void ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr);
+
+	void ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap);
+
+	//===============================================================================
+	// voxel data storage
+	//===============================================================================
+
+	bool IsVdExistsInFile(const TVoxelIndex& ZoneIndex);
+
+	std::shared_ptr<TMeshData> GenerateMesh(TVoxelData* Vd);
+
+	//===============================================================================
+	// perlin noise
+	//===============================================================================
+
 	float PerlinNoise(const FVector& Pos) const;
 
 	float NormalizedPerlinNoise(const FVector& Pos) const;
+
+	//===============================================================================
+	// NewVoxelData
+	//===============================================================================
       
+	TVoxelData* NewVoxelData();
+
     //===============================================================================
     // virtual functions
     //===============================================================================
+
+	virtual TBaseTerrainGenerator* NewTerrainGenerator();
     
-    virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
-    
-    virtual float GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData);
-    
-    virtual bool GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex);
-
-	virtual FSandboxFoliage GeneratorFoliageOverride(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
-
-	virtual bool GeneratorUseCustomFoliage(const TVoxelIndex& Index);
-
-	virtual bool GeneratorSpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
-
-	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
-
-	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
-
 	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
 
 	virtual void OnFinishGenerateNewZone(const TVoxelIndex& Index);
 
-	//virtual void OnFinishGenerateNewVd(const TVoxelIndex& Index, TVoxelData* Vd);
+	//===============================================================================
+	// pipeline
+	//===============================================================================
 
-	//virtual void GeneratorEachSubstanceCell(const TVoxelIndex& Index, const FVector& WorldPos);
+	//int GeneratePipeline(const TVoxelIndex& Index);
+
+	void BatchSpawnZone(const TArray<TSpawnZoneParam>& SpawnZoneParamArray);
+
+	void BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
+
+	virtual void BatchGenerateNewVd(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray);
+
+	std::list<TChunkIndex> MakeChunkListByAreaSize(const uint32 AreaRadius);
+	
 	
 };

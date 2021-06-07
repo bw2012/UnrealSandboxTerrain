@@ -10,7 +10,7 @@ struct TZoneEditHandler {
 	FVector Origin;
 	FRotator Rotator;
 
-	TTerrainGenerator* Generator;
+	//TTerrainGenerator* Generator;
 
 	static FVector GetVoxelRelativePos(const TVoxelData* Vd, const FVector& Origin, const int X, const int Y, const int Z) {
 		FVector Pos = Vd->voxelIndexToVector(X, Y, Z);
@@ -22,7 +22,8 @@ struct TZoneEditHandler {
 	float Noise(const FVector& Pos) {
 		static const float NoisePositionScale = 0.01f;
 		static const float NoiseValueScale = 0.5f;
-		const float Noise = Generator->PerlinNoise(Pos, NoisePositionScale, NoiseValueScale);
+		//const float Noise = Generator->PerlinNoise(Pos, NoisePositionScale, NoiseValueScale);
+		const float Noise = 0;
 		return Noise;
 	}
 
@@ -80,7 +81,7 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 	Zh.Radius = Radius;
 	Zh.Rotator = Rotator;
 	Zh.Length = Length;
-	Zh.Generator = this->Generator;
+	//Zh.Generator = this->Generator;
 	Zh.bNoise = bNoise;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
@@ -454,22 +455,24 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 					}
 
 					VoxelDataInfo->VdMutexPtr->lock();
+
 					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
 						VoxelDataInfo->Vd = LoadVoxelDataByIndex(ZoneIndex);
 						VoxelDataInfo->DataState = TVoxelDataState::LOADED;
 					}
 
-					if (Zone == nullptr) {
-						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
-							TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
-							ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr);
-						});
-					}
-					else {
-						PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
-							TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
-							ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr);
-						});
+					if (VoxelDataInfo->DataState == TVoxelDataState::LOADED || VoxelDataInfo->DataState == TVoxelDataState::GENERATED) {
+						if (Zone == nullptr) {
+							PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
+								TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
+								ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr);
+								});
+						} else {
+							PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
+								TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
+								ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr);
+								});
+						}
 					}
 
 					VoxelDataInfo->VdMutexPtr->unlock();

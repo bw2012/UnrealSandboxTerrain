@@ -62,10 +62,8 @@ protected:
 	}
 
 	virtual void EndChunk(int x, int y) {
-		//Controller->TerrainGeneratorComponent->Clean();
-		//Controller->TerrainGenerator->Clean(Index);
 		TVoxelIndex Index(x, y, 0);
-		Controller->Generator->Clean(Index);
+		//Controller->Generator->Clean(Index);
 	}
 
 	virtual void BeginChunk(int x, int y) {
@@ -104,8 +102,8 @@ private:
 		Total = (AreaRadius * 2 + 1) * (AreaRadius * 2 + 1) * (Params.TerrainSizeMinZ + Params.TerrainSizeMaxZ + 1);
 		auto List = ReverseSpiralWalkthrough(AreaRadius);
 		for (auto& Itm : List) {
-			int x = Itm.x;
-			int y = Itm.y;
+			int x = Itm.X;
+			int y = Itm.Y;
 
 			BeginChunk(x, y);
 			PerformChunk(x, y);
@@ -115,7 +113,6 @@ private:
 				return;
 			}
 		}
-
 
 		if (bIsStopped) {
 			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
@@ -176,51 +173,25 @@ protected :
 		}
 
 		double Start = FPlatformTime::Seconds();
-		auto Res = Controller->SpawnZonePipeline(Index, TerrainLodMask);
+
+		TArray<TSpawnZoneParam> SpawnList;
+		TSpawnZoneParam SpawnZoneParam;
+		SpawnZoneParam.Index = Index;
+		SpawnZoneParam.TerrainLodMask = TerrainLodMask;
+		SpawnList.Add(SpawnZoneParam);
+
+		// batch with one zone. CPU only
+		Controller->BatchSpawnZone(SpawnList);
+
+		//auto Res = Controller->SpawnZonePipeline(Index, TerrainLodMask);
+
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
-		return Res;
+		//return Res;
+
+		return 0;
 	}
 };
-
-class TTerrainGeneratorPipeline : public TTerrainAreaPipeline {
-
-public:
-
-	using TTerrainAreaPipeline::TTerrainAreaPipeline;
-
-protected:
-
-	virtual void BeginChunk(int x, int y) {
-		double Start = FPlatformTime::Seconds();
-		auto IndexList = Controller->Generator->GetLandscapeZones(x, y);
-
-		for(const auto& Index : IndexList) {
-			Controller->GeneratePipeline(Index);
-		}
-		
-		double End = FPlatformTime::Seconds();
-		double Time = (End - Start) * 1000;
-
-		UE_LOG(LogTemp, Warning, TEXT("GenerateTerrainPipeline chunk -> %d %d --> %f ms"), x, y, Time);
-	}
-
-	virtual int PerformZone(const TVoxelIndex& Index) override {
-
-		/*
-		double Start = FPlatformTime::Seconds();
-		auto Res = Controller->GeneratePipeline(Index);
-		double End = FPlatformTime::Seconds();
-		double Time = (End - Start) * 1000;
-		//UE_LOG(LogTemp, Warning, TEXT("GenerateTerrainPipeline -> %d %d %d --> %f ms"), Index.X, Index.Y, Index.Z, Time);
-		return Res;
-		*/
-
-		return TZoneSpawnResult::None;
-
-	}
-};
-
 
 class TCheckAreaMap {
 public:

@@ -19,10 +19,11 @@
 #include "serialization.hpp"
 #include "utils.hpp"
 #include "VoxelDataInfo.hpp"
-#include "TerrainGenerator.hpp"
 #include "TerrainData.hpp"
 #include "TerrainAreaPipeline.hpp"
 #include "TerrainEdit.hpp"
+
+#include "SandboxTerrainGenerator.h"
 
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
@@ -36,6 +37,7 @@ bool bIsGameShutdown;
 // Terrain Controller
 //======================================================================================================================================================================
 
+
 void ASandboxTerrainController::InitializeTerrainController() {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
@@ -45,7 +47,6 @@ void ASandboxTerrainController::InitializeTerrainController() {
     AutoSavePeriod = 20;
     TerrainData = new TTerrainData();
     CheckAreaMap = new TCheckAreaMap();
-    Generator = new TTerrainGenerator(this);
     
     //FString SaveDir = FPaths::ProjectSavedDir() + TEXT("/Map/") + MapName + TEXT("/");
     //CheckSaveDir(SaveDir);
@@ -53,12 +54,7 @@ void ASandboxTerrainController::InitializeTerrainController() {
 
 void ASandboxTerrainController::BeginDestroy() {
     Super::BeginDestroy();
-
 	bIsGameShutdown = true;
-
-    //delete TerrainData;
-    //delete CheckAreaMap;
-    //delete Generator;
 }
 
 void ASandboxTerrainController::FinishDestroy() {
@@ -66,7 +62,6 @@ void ASandboxTerrainController::FinishDestroy() {
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::FinishDestroy()"));
 	delete TerrainData;
 	delete CheckAreaMap;
-	delete Generator;
 }
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
@@ -89,9 +84,19 @@ void ASandboxTerrainController::PostLoad() {
 
 }
 
+TBaseTerrainGenerator* ASandboxTerrainController::NewTerrainGenerator() {
+	return new TDefaultTerrainGenerator(this);
+}
+
+TBaseTerrainGenerator* ASandboxTerrainController::GetTerrainGenerator() {
+	return this->Generator;
+}
+
 void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::BeginPlay()"));
+
+	Generator = NewTerrainGenerator();
     
     Generator->OnBeginPlay();
     
@@ -143,6 +148,10 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Save();
 	CloseFile();
     TerrainData->Clean();
+
+	if (Generator) {
+		delete Generator;
+	}
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
@@ -240,36 +249,21 @@ void ASandboxTerrainController::PerformCheckArea() {
 }
 
 //======================================================================================================================================================================
-// 
-//======================================================================================================================================================================
-
-
-void ASandboxTerrainController::RunGenerateTerrainPipeline(std::function<void()> OnFinish, std::function<void(uint32, uint32)> OnProgress) {
-	RunThread([=]() {
-
-		TTerrainAreaPipelineParams Params;
-		Params.FullLodDistance = InitialLoadArea.FullLodDistance;
-		Params.Radius = InitialLoadArea.Radius;
-		Params.TerrainSizeMinZ = InitialLoadArea.TerrainSizeMinZ;
-		Params.TerrainSizeMaxZ = InitialLoadArea.TerrainSizeMaxZ;
-		Params.OnProgress = OnProgress;
-
-		TTerrainGeneratorPipeline GeneratorPipeline(TEXT("Generate_Terrain_Pipeline"), this, Params);
-		GeneratorPipeline.LoadArea(FVector(0));
-
-		if (OnFinish && !bIsWorkFinished) {
-			OnFinish();
-		}
-	});
-}
-
-//======================================================================================================================================================================
 // begin play
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::BeginPlayServer() {
 	if (!OpenFile()) {
 		return;
+	}
+
+	LoadJson();
+
+	if (bShowInitialArea) {
+		static const float Len = 5000;
+		DrawDebugCylinder(GetWorld(), FVector(0, 0, Len), FVector(0, 0, -Len), InitialLoadArea.FullLodDistance, 128, FColor(255, 255, 255, 0), true);
+		DrawDebugCylinder(GetWorld(), FVector(0, 0, Len), FVector(0, 0, -Len), InitialLoadArea.FullLodDistance + LodDistance.Distance2, 128, FColor(255, 255, 255, 0), true);
+		DrawDebugCylinder(GetWorld(), FVector(0, 0, Len), FVector(0, 0, -Len), InitialLoadArea.FullLodDistance + LodDistance.Distance5, 128, FColor(255, 255, 255, 0), true);
 	}
 
 	BeginTerrainLoad();
@@ -280,17 +274,8 @@ void ASandboxTerrainController::BeginPlayServer() {
 }
 
 void ASandboxTerrainController::BeginTerrainLoad() {
-	LoadJson();
-
 	SpawnInitialZone();
     
-    if(bShowInitialArea){
-        static const float Len = 5000;
-        DrawDebugCylinder(GetWorld(), FVector(0, 0, Len), FVector(0, 0, -Len), InitialLoadArea.FullLodDistance, 128, FColor(255, 255, 255, 0), true);
-        DrawDebugCylinder(GetWorld(), FVector(0, 0, Len), FVector(0, 0, -Len), InitialLoadArea.FullLodDistance + LodDistance.Distance2, 128, FColor(255, 255, 255, 0), true);
-        DrawDebugCylinder(GetWorld(), FVector(0, 0, Len), FVector(0, 0, -Len), InitialLoadArea.FullLodDistance + LodDistance.Distance5, 128, FColor(255, 255, 255, 0), true);
-    }
-
     if (!bGenerateOnlySmallSpawnPoint) {
         // async loading other zones
         RunThread([&]() {
@@ -340,6 +325,31 @@ void ASandboxTerrainController::NetworkSerializeVd(FBufferArchive& Buffer, const
 // save
 //======================================================================================================================================================================
 
+void ASandboxTerrainController::ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxelData* Vd) {
+	if (Vd && VdFile.isOpen()) {
+		auto Data = SerializeVd(Vd); 
+		VdFile.save(ZoneIndex, *Data);
+	}
+}
+
+void ASandboxTerrainController::ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr) {
+	if (MeshDataPtr && MdFile.isOpen()) {
+		TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
+		if (DataPtr) {
+			MdFile.save(ZoneIndex, *DataPtr);
+		}
+	}
+}
+
+void ASandboxTerrainController::ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap) {
+	if (InstanceObjectMap.Num() > 0 && ObjFile.isOpen()) {
+		TValueDataPtr DataPtr = UTerrainZoneComponent::SerializeInstancedMesh(InstanceObjectMap);
+		if (DataPtr) {
+			ObjFile.save(ZoneIndex, *DataPtr);
+		}
+	}
+}
+
 void ASandboxTerrainController::FastSave() {
     const std::lock_guard<std::mutex> lock(FastSaveMutex);
 	Save();
@@ -365,7 +375,8 @@ void ASandboxTerrainController::Save() {
 			VdInfoPtr->VdMutexPtr->lock();
 			if (VdInfoPtr->IsChanged()) {
 				//TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
-				auto Data = VdInfoPtr->Vd->serialize();
+				//auto Data = VdInfoPtr->Vd->serialize();
+				auto Data = SerializeVd(VdInfoPtr->Vd);
 				VdFile.save(Index, *Data);
 				VdInfoPtr->ResetLastSave();
 				SavedVd++;
@@ -558,6 +569,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 	VdInfo.Vd->setCacheToValid();
 
     //TerrainData->RegisterVoxelData(VdInfo, Index);
+    //TerrainData->RegisterVoxelData(VdInfo, Index);
 
 	if (VdInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfo.Vd);
@@ -574,92 +586,61 @@ TVoxelData* ASandboxTerrainController::NewVoxelData() {
 	return new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
 }
 
-int ASandboxTerrainController::GeneratePipeline(const TVoxelIndex& Index) {
-	if (!VdFile.isExist(Index)) {
-		FVector Pos = GetZonePos(Index);
-		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
+std::list<TChunkIndex> ASandboxTerrainController::MakeChunkListByAreaSize(const uint32 AreaRadius) {
+	return ReverseSpiralWalkthrough(AreaRadius);
+}
 
-		// generate new voxel data
-		GenerateNewZoneVd(VdInfoPtr, Index);
-
-		if (VdInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
-			TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
-			TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
-		}
-
-		TerrainData->AddSaveIndex(Index);
-		return TZoneSpawnResult::GeneratedNewVd;
+bool ASandboxTerrainController::IsVdExistsInFile(const TVoxelIndex& ZoneIndex) {
+	if (VdFile.isOpen()) {
+		return VdFile.isExist(ZoneIndex);
 	}
 
-	return TZoneSpawnResult::None;
+	return false;
 }
 
-void ASandboxTerrainController::GenerateNewZoneVd(TVoxelDataInfoPtr VdInfoPtr, const TVoxelIndex& Index) {
-	// generate new voxel data
-	const FVector Pos = GetZonePos(Index);
-	VdInfoPtr->Vd = NewVoxelData();
-	VdInfoPtr->Vd->setOrigin(Pos);
-	Generator->GenerateVoxelTerrain(*VdInfoPtr->Vd);
-	VdInfoPtr->DataState = TVoxelDataState::GENERATED;
-	VdInfoPtr->SetChanged();
-	VdInfoPtr->Vd->setCacheToValid();
-
-	TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(Index);
-	Generator->GenerateNewFoliageLandscape(Index, ZoneInstanceObjectMap);
-	Generator->GenerateNewFoliageCustom(Index, VdInfoPtr->Vd, ZoneInstanceObjectMap);
-}
-
-
-// load or generate new zone voxel data and mesh
-int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
+int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
 	//UE_LOG(LogTemp, Log, TEXT("SpawnZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
-	
-    bool bMeshExist = false;
-    auto ExistingZone = GetZoneByVectorIndex(Index);
-    if(ExistingZone){
+
+	bool bMeshExist = false;
+	auto ExistingZone = GetZoneByVectorIndex(Index);
+	if (ExistingZone) {
 		//UE_LOG(LogTemp, Log, TEXT("ExistingZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
-        if(ExistingZone->GetTerrainLodMask() <= TerrainLodMask){
-            return TZoneSpawnResult::None;
-        } else {
-            bMeshExist = true;
-        }
-    }
-    
-    //if no voxel data in memory
-	TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
-	bool bNewVdGenerated = false;
-	VdInfoPtr->VdMutexPtr->lock();
-	if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
-		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
-		// if voxel data exist in file
-		if (VdFile.isExist(Index)) {
-			VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
+		if (ExistingZone->GetTerrainLodMask() <= TerrainLodMask) {
+			return TZoneSpawnResult::None;
 		} else {
-			// generate new voxel data
-			GenerateNewZoneVd(VdInfoPtr, Index);
-			bNewVdGenerated = true;
-			TerrainData->AddSaveIndex(Index);
+			bMeshExist = true;
 		}
 	}
-	VdInfoPtr->VdMutexPtr->unlock();
-
-	// voxel data must exist in this point
-	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
 
 	// if mesh data exist in file - load, apply and return
 	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(Index);
 	if (MeshDataPtr) {
-        if(bMeshExist){
-            // just change lod mask
+		if (bMeshExist) {
+			// just change lod mask
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
-            return (int)TZoneSpawnResult::ChangeLodMask;
-        } else {
-            // spawn new zone with mesh
+			return (int)TZoneSpawnResult::ChangeLodMask;
+		} else {
+			// spawn new zone with mesh
 			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask, TVoxelDataState::LOADED);
-            return (int)TZoneSpawnResult::SpawnMesh;
-        }
-    } 
-    
+			return (int)TZoneSpawnResult::SpawnMesh;
+		}
+	}
+
+	// voxel data must exist in this point
+	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
+
+	// mesh data not found, but vd exists
+	/*
+	if (VoxelDataInfoPtr->DataState == TVoxelDataState::READY_TO_LOAD) {
+		VoxelDataInfoPtr->VdMutexPtr->lock();
+		if (VoxelDataInfoPtr->DataState == TVoxelDataState::READY_TO_LOAD) {
+			VoxelDataInfoPtr->Vd = LoadVoxelDataByIndex(Index);
+			VoxelDataInfoPtr->DataState = TVoxelDataState::LOADED;
+		}
+		VoxelDataInfoPtr->VdMutexPtr->unlock();
+	}
+	*/
+
 	// if no mesh data in file - generate mesh from voxel data
 	if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		VoxelDataInfoPtr->VdMutexPtr->lock();
@@ -671,33 +652,113 @@ int ASandboxTerrainController::SpawnZonePipeline(const TVoxelIndex& Index, const
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
 		}
 
-        TVoxelDataState State = VoxelDataInfoPtr->DataState;
+		TVoxelDataState State = VoxelDataInfoPtr->DataState;
 		TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 		ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask, State);
+
+		return (int)TZoneSpawnResult::SpawnMesh;
 	}
 
-	//UE_LOG(LogTemp, Log, TEXT("None -> %d %d %d "), Index.X, Index.Y, Index.Z);
-	return bNewVdGenerated ? TZoneSpawnResult::GeneratedNewVd : TZoneSpawnResult::None;
+	return TZoneSpawnResult::None;
+}
+
+void ASandboxTerrainController::BatchGenerateNewVd(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray) {
+	GetTerrainGenerator()->BatchGenerateVoxelTerrain(GenerationList, NewVdArray);
+}
+
+void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList) {
+	TArray<TVoxelData*> NewVdArray;
+	BatchGenerateNewVd(GenerationList, NewVdArray);
+
+	int Idx = 0;
+	for (const auto& P : GenerationList) {
+		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(P.Index);
+		VdInfoPtr->VdMutexPtr->lock();
+
+		VdInfoPtr->Vd = NewVdArray[Idx];
+		VdInfoPtr->DataState = TVoxelDataState::GENERATED;
+		VdInfoPtr->SetChanged();
+
+		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(P.Index);
+		Generator->GenerateInstanceObjects(P.Index, VdInfoPtr->Vd, ZoneInstanceObjectMap);
+
+		TerrainData->AddSaveIndex(P.Index);
+		VdInfoPtr->VdMutexPtr->unlock();
+
+		Idx++;
+	}
+}
+
+void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& SpawnZoneParamArray) {
+	TArray<TSpawnZoneParam> GenerationList;
+	TArray<TSpawnZoneParam> LoadList;
+
+	for (const auto& SpawnZoneParam : SpawnZoneParamArray) {
+		const TVoxelIndex Index = SpawnZoneParam.Index;
+		const TTerrainLodMask TerrainLodMask = SpawnZoneParam.TerrainLodMask;
+
+		//check voxel data in memory
+		bool bNewVdGeneration = false;
+		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
+		VdInfoPtr->VdMutexPtr->lock();
+		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
+			if (VdFile.isExist(Index)) {
+				//voxel data exist in file
+				VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
+			} else {
+				// generate new voxel data
+				VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
+				bNewVdGeneration = true;
+			}
+		}
+		VdInfoPtr->VdMutexPtr->unlock();
+
+		if (bNewVdGeneration) {
+			GenerationList.Add(SpawnZoneParam);
+		} else {
+			LoadList.Add(SpawnZoneParam);
+		}
+	}
+
+	for (const auto& P  : LoadList) {
+		SpawnZone(P.Index, P.TerrainLodMask);
+	}
+
+	if (GenerationList.Num() > 0) {
+		BatchGenerateZone(GenerationList);
+	}
+
+
+	for (const auto& P : GenerationList) {
+		SpawnZone(P.Index, P.TerrainLodMask);
+	}
 }
 
 void ASandboxTerrainController::SpawnInitialZone() {
 	const int s = static_cast<int>(TerrainInitialArea);
-	TSet<FVector> InitialZoneSet;
+
+	TArray<TSpawnZoneParam> SpawnList;
 
 	if (s > 0) {
 		for (auto z = 5; z >= -5; z--) {
 			for (auto x = -s; x <= s; x++) {
 				for (auto y = -s; y <= s; y++) {
-					SpawnZonePipeline(TVoxelIndex(x, y, z));
+					TSpawnZoneParam SpawnZoneParam;
+					SpawnZoneParam.Index = TVoxelIndex(x, y, z);
+					SpawnZoneParam.TerrainLodMask = 0;
+					SpawnList.Add(SpawnZoneParam);
 				}
 			}
-			//TerrainGeneratorComponent->Clean();
 		}
 	} else {
-		FVector Pos = FVector(0);
-		SpawnZonePipeline(TVoxelIndex(0, 0, 0));
-		InitialZoneSet.Add(Pos);
+		TSpawnZoneParam SpawnZoneParam;
+		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
+		SpawnZoneParam.TerrainLodMask = 0;
+		SpawnList.Add(SpawnZoneParam);
 	}
+
+
+	BatchSpawnZone(SpawnList);
 }
 
 // always in game thread
@@ -875,52 +936,24 @@ void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& Zone
 
 
 FORCEINLINE float ASandboxTerrainController::ClcGroundLevel(const FVector& V) {
-	return Generator->GroundLevelFuncLocal(V);
+	//return Generator->GroundLevelFuncLocal(V);
+	return 0;
 }
 
 //======================================================================================================================================================================
 // virtual functions
 //======================================================================================================================================================================
 
-FORCEINLINE bool ASandboxTerrainController::OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale) {
-    return true;
-}
 
-FORCEINLINE float ASandboxTerrainController::GeneratorDensityFunc(const TVoxelDensityFunctionData& FunctionData) {
-    return FunctionData.Density;
-}
-
-FORCEINLINE bool ASandboxTerrainController::IsOverrideGroundLevel(const TVoxelIndex& Index) {
-	return false;
-}
-
-FORCEINLINE float ASandboxTerrainController::GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel) {
-	return GroundLevel;
-}
-
-FORCEINLINE bool ASandboxTerrainController::GeneratorForcePerformZone(const TVoxelIndex& ZoneIndex) {
-    return false;
-}
 
 FORCEINLINE void ASandboxTerrainController::OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos) {
 
-}
-
-FORCEINLINE FSandboxFoliage ASandboxTerrainController::GeneratorFoliageOverride(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos) {
-	return FoliageType;
 }
 
 FORCEINLINE void ASandboxTerrainController::OnFinishGenerateNewZone(const TVoxelIndex& Index) {
 
 }
 
-FORCEINLINE bool  ASandboxTerrainController::GeneratorUseCustomFoliage(const TVoxelIndex& Index) {
-	return false;
-}
-
-FORCEINLINE bool ASandboxTerrainController::GeneratorSpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform) {
-	return false;
-}
 
 //======================================================================================================================================================================
 // Perlin noise according seed
