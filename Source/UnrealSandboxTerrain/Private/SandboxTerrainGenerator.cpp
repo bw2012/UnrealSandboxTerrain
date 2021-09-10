@@ -299,20 +299,21 @@ FORCEINLINE bool TDefaultTerrainGenerator::IsZoneOnGroundLevel(TChunkHeightMapDa
 // Generator
 //======================================================================================================================================================================
 
-void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData) const {
+void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData, const int LOD) const {
     int zc = 0;
     int fc = 0;
 
     double Start = FPlatformTime::Seconds();
 
+    const int S = 1 << LOD;
     bool bContainsMoreOneMaterial = false;
-    unsigned char BaseMaterialId = 0;
+    TMaterialId BaseMaterialId = 0;
 
     VoxelData->initCache();
 
-    for (int X = 0; X < USBT_ZONE_DIMENSION; X++) {
-        for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y++) {
-            for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z++) {
+    for (int X = 0; X < USBT_ZONE_DIMENSION; X += S) {
+        for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y += S) {
+            for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z += S) {
                 const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
                 const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
 
@@ -321,12 +322,17 @@ void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, 
 
                 float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
                 Density = DensityFunctionExt(Density, ZoneIndex, WorldPos, LocalPos);
-                unsigned char MaterialId = MaterialFuncion(LocalPos, WorldPos, GroundLevel);
+                TMaterialId MaterialId = MaterialFuncion(LocalPos, WorldPos, GroundLevel);
+
+                if (LOD > 0) {
+                    MaterialId = 2;
+                }
+
 
                 VoxelData->setDensity(Index.X, Index.Y, Index.Z, Density);
                 VoxelData->setMaterial(Index.X, Index.Y, Index.Z, MaterialId);
 
-                VoxelData->performSubstanceCacheLOD(Index.X, Index.Y, Index.Z);
+                VoxelData->performSubstanceCacheLOD(Index.X, Index.Y, Index.Z, LOD);
 
                 if (Density == 0) {
                     zc++;
@@ -344,14 +350,14 @@ void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, 
                     }
                 }
 
-                BaseMaterialId = MaterialId;
+               // BaseMaterialId = MaterialId;
             }
         }
     }
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    //UE_LOG(LogTemp, Warning, TEXT("TDefaultTerrainGenerator::GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    UE_LOG(LogTemp, Warning, TEXT("TDefaultTerrainGenerator::GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;
@@ -367,13 +373,15 @@ void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, 
     if (!bContainsMoreOneMaterial) {
         VoxelData->deinitializeMaterial(BaseMaterialId);
     }
+
+    VoxelData->setCacheToValid();
 }
 
-void TDefaultTerrainGenerator::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& GenPass2List) {
+void TDefaultTerrainGenerator::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& SecondPassList) {
     double Start1 = FPlatformTime::Seconds();
 
-    for (const auto& Pass2Itm : GenPass2List) {
-        GenerateZoneVolume(Pass2Itm.ZoneIndex, Pass2Itm.Vd, Pass2Itm.ChunkData);
+    for (const auto& SecondPassItm : SecondPassList) {
+        GenerateZoneVolume(SecondPassItm.ZoneIndex, SecondPassItm.Vd, SecondPassItm.ChunkData, SecondPassItm.GenerationLOD);
     }
 
     double End1 = FPlatformTime::Seconds();
@@ -381,7 +389,7 @@ void TDefaultTerrainGenerator::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>
     //UE_LOG(LogTemp, Warning, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
 }
 
-int TDefaultTerrainGenerator::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr) {
+TVoxelDataFillState TDefaultTerrainGenerator::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr) {
     FVector ZoneIndexTmp(ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
     // get heightmap data
     TChunkHeightMapData* ChunkHeightMapData = GetChunkHeightMap(ZoneIndex.X, ZoneIndex.Y);
@@ -393,7 +401,7 @@ int TDefaultTerrainGenerator::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVo
     bool bForcePerformZone = ForcePerformZone(ZoneIndex);
     if (bForcePerformZone) {
         //GenerateZoneVolume(ZoneIndex, VoxelData, ChunkHeightMapData);
-        return 2;
+        return TVoxelDataFillState::MIXED;
     } else {
         if (!IsZoneOverGroundLevel(ChunkHeightMapData, Origin)) {
             TArray<FTerrainUndergroundLayer> LayerList;
@@ -403,16 +411,16 @@ int TDefaultTerrainGenerator::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVo
                 // only one material
                 VoxelData->deinitializeDensity(TVoxelDataFillState::FULL);
                 VoxelData->deinitializeMaterial(LayerList[0].MatId);
-                return 1;
+                return TVoxelDataFillState::FULL;
             } else {
                 //GenerateZoneVolume(ZoneIndex, VoxelData, ChunkHeightMapData);
-                return 2;
+                return TVoxelDataFillState::MIXED;
             }
         } else {
             // air only
             VoxelData->deinitializeDensity(TVoxelDataFillState::ZERO);
             VoxelData->deinitializeMaterial(0);
-            return 0;
+            return TVoxelDataFillState::ZERO;
         }
     }
 }
@@ -421,7 +429,7 @@ void TDefaultTerrainGenerator::BatchGenerateVoxelTerrain(const TArray<TSpawnZone
     NewVdArray.Empty();
     NewVdArray.SetNumZeroed(BatchList.Num());
 
-    TArray<TGenerateVdTempItm> GenPass2List;
+    TArray<TGenerateVdTempItm> SecondPassList;
 
     double Start = FPlatformTime::Seconds();
 
@@ -432,15 +440,20 @@ void TDefaultTerrainGenerator::BatchGenerateVoxelTerrain(const TArray<TSpawnZone
         NewVd->setOrigin(Pos);
 
         TChunkHeightMapData* ChunkDataPtr = nullptr;
-        const int Res = GenerateSimpleVd(P.Index, NewVd, &ChunkDataPtr);
+        const TVoxelDataFillState Res = GenerateSimpleVd(P.Index, NewVd, &ChunkDataPtr);
 
-        if (Res == 2) {
-            TGenerateVdTempItm Pass2Itm;
-            Pass2Itm.Idx = Idx;
-            Pass2Itm.ZoneIndex = P.Index;
-            Pass2Itm.Vd = NewVd;
-            Pass2Itm.ChunkData = ChunkDataPtr;
-            GenPass2List.Add(Pass2Itm);
+        if (Res == TVoxelDataFillState::MIXED) {
+            TGenerateVdTempItm SecondPassItm;
+            SecondPassItm.Idx = Idx;
+            SecondPassItm.ZoneIndex = P.Index;
+            SecondPassItm.Vd = NewVd;
+            SecondPassItm.ChunkData = ChunkDataPtr;
+
+            if (P.TerrainLodMask > 0) {
+                SecondPassItm.GenerationLOD = USBT_VD_UNGENERATED_LOD;
+            }
+
+            SecondPassList.Add(SecondPassItm);
         } else {
             NewVd->setCacheToValid();
         }
@@ -453,8 +466,8 @@ void TDefaultTerrainGenerator::BatchGenerateVoxelTerrain(const TArray<TSpawnZone
     double Time = (End - Start) * 1000;
     //UE_LOG(LogTemp, Warning, TEXT("GenerateVd Pass1 -> %f ms"), Time);
 
-    if (GenPass2List.Num() > 0) {
-        BatchGenerateComplexVd(GenPass2List);
+    if (SecondPassList.Num() > 0) {
+        BatchGenerateComplexVd(SecondPassList);
     }
 
     OnBatchGenerationFinished();

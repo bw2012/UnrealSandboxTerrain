@@ -15,7 +15,8 @@ enum TVoxelDataState : uint32 {
     GENERATED = 1,
     LOADED = 2,
     READY_TO_LOAD = 3, 
-    GENERATION_IN_PROGRESS = 4
+    GENERATION_IN_PROGRESS = 4,
+    UNGENERATED = 5
 };
 
 class TVoxelDataInfo {
@@ -89,6 +90,15 @@ public:
             Vd = nullptr;
         }
         DataState = TVoxelDataState::READY_TO_LOAD;
+    }
+
+    void HandleUngenerated() {
+        if (DataState == TVoxelDataState::UNGENERATED) {
+            if (Vd != nullptr) {
+                delete Vd;
+                Vd = nullptr;
+            }
+        }
     }
 
 	void PushMeshDataCache(TMeshDataPtr MeshDataPtr) {

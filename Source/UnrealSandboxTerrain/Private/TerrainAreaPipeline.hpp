@@ -183,11 +183,10 @@ protected :
 		// batch with one zone. CPU only
 		Controller->BatchSpawnZone(SpawnList);
 
-		//auto Res = Controller->SpawnZonePipeline(Index, TerrainLodMask);
-
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
-		//return Res;
+		//UE_LOG(LogTemp, Warning, TEXT("BatchSpawnZone -> %f ms - %d %d %d"), Time, Index.X, Index.Y, Index.Z);
+
 
 		return 0;
 	}

@@ -93,11 +93,18 @@ protected:
 };
 
 typedef struct TGenerateVdTempItm {
+
 	int Idx = 0;
+
 	TVoxelIndex ZoneIndex;
 	TVoxelData* Vd;
+
 	TChunkHeightMapData* ChunkData;
-}TGenerateVdTempItm;
+
+	// partial generation
+	int GenerationLOD = 0;
+
+} TGenerateVdTempItm;
 
 
 class UNREALSANDBOXTERRAIN_API TDefaultTerrainGenerator : public TBaseTerrainGenerator {
@@ -152,7 +159,7 @@ private:
 
 	TChunkHeightMapData* GetChunkHeightMap(int X, int Y);
 
-	virtual int GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr);
+	virtual TVoxelDataFillState GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr);
 
 	bool IsZoneOverGroundLevel(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin) const;
 
@@ -160,7 +167,7 @@ private:
 
 	float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const;
 
-	void GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData) const;
+	void GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData, const int LOD = 0) const;
 
 	FORCEINLINE TMaterialId MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const;
 

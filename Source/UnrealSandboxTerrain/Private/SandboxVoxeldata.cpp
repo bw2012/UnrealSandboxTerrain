@@ -453,6 +453,8 @@ private:
 
 		ret.v = vertexInterpolation(point1.pos, point2.pos, point1.density, point2.density);
 
+		//selectMaterialLOD0(ret, point1, point2);
+
 		if (voxel_data_param.lod == 0) {
 			selectMaterialLOD0(ret, point1, point2);
 		} else if (voxel_data_param.lod > 0 && voxel_data_param.lod < 5) {
@@ -834,6 +836,7 @@ TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataPara
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 

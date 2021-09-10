@@ -140,7 +140,7 @@ public:
 	void setVoxelPointMaterial(int x, int y, int z, unsigned short material);
 
 	void performSubstanceCacheNoLOD(int x, int y, int z);
-	void performSubstanceCacheLOD(int x, int y, int z);
+	void performSubstanceCacheLOD(int x, int y, int z, int initial_lod = 0);
 
 	TVoxelDataFillState getDensityFillState() const;
 	//VoxelDataFillState getMaterialFillState() const; 

@@ -96,8 +96,9 @@ void ASandboxTerrainController::BeginPlay() {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::BeginPlay()"));
 
+	bIsGameShutdown = false;
+
 	Generator = NewTerrainGenerator();
-    
     Generator->OnBeginPlay();
     
     GlobalTerrainZoneLOD[0] = 0;
@@ -371,6 +372,7 @@ void ASandboxTerrainController::Save() {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
 		//save voxel data
+		//FIXME double-check locking?
 		if (VdInfoPtr->Vd) {
 			VdInfoPtr->VdMutexPtr->lock();
 			if (VdInfoPtr->IsChanged()) {
@@ -612,9 +614,12 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 		}
 	}
 
+	// voxel data must exist in this point
+	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
+
 	// if mesh data exist in file - load, apply and return
 	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(Index);
-	if (MeshDataPtr) {
+	if (MeshDataPtr && VoxelDataInfoPtr->DataState != TVoxelDataState::GENERATED) {
 		if (bMeshExist) {
 			// just change lod mask
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
@@ -626,8 +631,6 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 		}
 	}
 
-	// voxel data must exist in this point
-	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
 
 	// mesh data not found, but vd exists
 	/*
@@ -645,6 +648,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		VoxelDataInfoPtr->VdMutexPtr->lock();
 		MeshDataPtr = GenerateMesh(VoxelDataInfoPtr->Vd);
+		VoxelDataInfoPtr->HandleUngenerated();
 		VoxelDataInfoPtr->VdMutexPtr->unlock();
 
 		if (ExistingZone) {
@@ -676,7 +680,13 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 		VdInfoPtr->VdMutexPtr->lock();
 
 		VdInfoPtr->Vd = NewVdArray[Idx];
-		VdInfoPtr->DataState = TVoxelDataState::GENERATED;
+
+		if (P.TerrainLodMask == 0) {
+			VdInfoPtr->DataState = TVoxelDataState::GENERATED;
+		} else {
+			VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
+		}
+
 		VdInfoPtr->SetChanged();
 
 		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(P.Index);
@@ -711,6 +721,12 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 				bNewVdGeneration = true;
 			}
 		}
+
+		if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED) {
+			VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
+			bNewVdGeneration = true;
+		}
+
 		VdInfoPtr->VdMutexPtr->unlock();
 
 		if (bNewVdGeneration) {
@@ -727,7 +743,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 	if (GenerationList.Num() > 0) {
 		BatchGenerateZone(GenerationList);
 	}
-
 
 	for (const auto& P : GenerationList) {
 		SpawnZone(P.Index, P.TerrainLodMask);
@@ -1027,7 +1042,8 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 
 	MeshDataPtr->TimeStamp = End;
 
-	//UE_LOG(LogTemp, Warning, TEXT("generateMesh -------------> %f %f %f --> %f ms"), Vd->getOrigin().X, Vd->getOrigin().Y, Vd->getOrigin().Z, Time);
+	UE_LOG(LogTemp, Warning, TEXT("generateMesh -------------> %f %f %f --> %f ms"), Vd->getOrigin().X, Vd->getOrigin().Y, Vd->getOrigin().Z, Time);
+
 	return MeshDataPtr;
 }
 

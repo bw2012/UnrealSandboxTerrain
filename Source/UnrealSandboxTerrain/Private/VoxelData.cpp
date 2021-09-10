@@ -363,12 +363,12 @@ FORCEINLINE void TVoxelData::performSubstanceCacheNoLOD(int x, int y, int z) {
 	performCellSubstanceCaching(x, y, z, 0, 1);
 }
 
-void TVoxelData::performSubstanceCacheLOD(int x, int y, int z) {
+void TVoxelData::performSubstanceCacheLOD(int x, int y, int z, int initial_lod) {
 	if (density_data == NULL) {
 		return;
 	}
 
-	for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
+	for (auto lod = initial_lod; lod < LOD_ARRAY_SIZE; lod++) {
 		int s = 1 << lod;
 		if (x >= s && y >= s && z >= s) {
 			if (x % s == 0 && y % s == 0 && z % s == 0) {
