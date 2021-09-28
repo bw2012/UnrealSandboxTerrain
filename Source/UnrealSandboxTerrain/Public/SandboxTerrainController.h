@@ -198,6 +198,13 @@ typedef struct TChunkIndex {
 
 } TChunkIndex;
 
+typedef struct TKvFileZodeData {
+	uint64 Flags = 0x0;
+	uint32 LenMd = 0;
+	uint32 LenVd = 0;
+	uint32 LenObj = 0;
+} TKvFileZodeData;
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -458,6 +465,8 @@ private:
     TBaseTerrainGenerator* Generator;
     
     TTerrainData* TerrainData;
+
+	TKvFile TdFile;
 
 	TKvFile VdFile;
 

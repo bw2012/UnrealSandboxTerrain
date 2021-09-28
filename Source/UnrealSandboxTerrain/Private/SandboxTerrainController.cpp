@@ -363,6 +363,7 @@ void ASandboxTerrainController::Save() {
 
 	double Start = FPlatformTime::Seconds();
 
+	uint32 SavedCount = 0;
 	uint32 SavedVd = 0;
 	uint32 SavedMd = 0;
 	uint32 SavedObj = 0;
@@ -371,6 +372,49 @@ void ASandboxTerrainController::Save() {
 	for (const TVoxelIndex& Index : SaveIndexSet) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
+		TKvFileZodeData ZoneHeader;
+		FastUnsafeSerializer ZoneSerializer;
+		TValueDataPtr DataVd = nullptr;
+		TValueDataPtr DataMd = nullptr;
+		TValueDataPtr DataObj = nullptr;
+
+		VdInfoPtr->VdMutexPtr->lock();
+		if (VdInfoPtr->IsChanged()) {
+
+			if (VdInfoPtr->Vd) {
+				DataVd = SerializeVd(VdInfoPtr->Vd);
+				ZoneHeader.LenVd = DataVd->size();
+			}
+
+			auto MeshDataPtr = VdInfoPtr->PopMeshDataCache();
+			if (MeshDataPtr) {
+				DataMd = SerializeMeshData(MeshDataPtr);
+				ZoneHeader.LenMd = DataMd->size();
+			}
+
+			ZoneSerializer << ZoneHeader;
+		
+			if (DataMd) {
+				UE_LOG(LogSandboxTerrain, Warning, TEXT("DataMd->size() = %d "), DataMd->size());
+				ZoneSerializer.write(DataMd->data(), DataMd->size());
+			}
+
+			if (DataVd) {
+				UE_LOG(LogSandboxTerrain, Warning, TEXT("DataVd->size() = %d "), DataVd->size());
+				ZoneSerializer.write(DataVd->data(), DataVd->size());
+			}
+
+			auto DataPtr = ZoneSerializer.data();
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("total size2  = %d "), DataPtr->size());
+
+			TdFile.save(Index, *DataPtr);
+			SavedCount++;
+			VdInfoPtr->ResetLastSave();
+		}
+		VdInfoPtr->Unload();
+		VdInfoPtr->VdMutexPtr->unlock();
+
+		/*
 		//save voxel data
 		//FIXME double-check locking?
 		if (VdInfoPtr->Vd) {
@@ -378,23 +422,36 @@ void ASandboxTerrainController::Save() {
 			if (VdInfoPtr->IsChanged()) {
 				//TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
 				//auto Data = VdInfoPtr->Vd->serialize();
-				auto Data = SerializeVd(VdInfoPtr->Vd);
-				VdFile.save(Index, *Data);
+				auto DataVd = SerializeVd(VdInfoPtr->Vd);
+				VdFile.save(Index, *DataVd);
 				VdInfoPtr->ResetLastSave();
 				SavedVd++;
 			}
 			VdInfoPtr->Unload();
 			VdInfoPtr->VdMutexPtr->unlock();
 		}
+		*/
 
+		if (DataVd) {
+			VdFile.save(Index, *DataVd);
+			SavedVd++;
+		}
+
+		/*
 		//save mesh data
 		auto MeshDataPtr = VdInfoPtr->PopMeshDataCache();
-		if (MeshDataPtr) {
+		if (DataMd) {
 			TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
-			if (DataPtr) {
-				MdFile.save(Index, *DataPtr);
+			if (DataMd) {
+				MdFile.save(Index, *DataMd);
 				SavedMd++;
 			}
+		}
+		*/
+
+		if (DataMd) {
+			//MdFile.save(Index, *DataMd);
+			//SavedMd++;
 		}
 
 		if (FoliageDataAsset) {
@@ -422,6 +479,7 @@ void ASandboxTerrainController::Save() {
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
     UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain saved: vd/md/obj -> %d/%d/%d  -> %f ms "), SavedVd, SavedMd, SavedObj, Time);
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("Save terrain data: %d zones saved -> %f ms "), SavedCount, Time);
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
@@ -486,6 +544,7 @@ bool CheckSaveDir(FString SaveDir){
 
 bool ASandboxTerrainController::OpenFile() {
 	// open vd file 	
+	FString FileNameTd = TEXT("terrain.dat");
 	FString FileNameVd = TEXT("terrain_voxeldata.dat");
 	FString FileNameMd = TEXT("terrain_mesh.dat");
 	FString FileNameObj = TEXT("terrain_objects.dat");
@@ -500,6 +559,10 @@ bool ASandboxTerrainController::OpenFile() {
     if(!CheckSaveDir(SaveDir)){
         return false;
     }
+
+	if (!OpenKvFile(TdFile, FileNameTd, SaveDir)) {
+		return false;
+	}
 
 	if (!OpenKvFile(VdFile, FileNameVd, SaveDir)) {
 		return false;
@@ -517,6 +580,7 @@ bool ASandboxTerrainController::OpenFile() {
 }
 
 void ASandboxTerrainController::CloseFile() {
+	TdFile.close();
 	VdFile.close();
 	MdFile.close();
 	ObjFile.close();

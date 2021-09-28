@@ -40,7 +40,9 @@ private:
 	std::shared_ptr<std::vector<uint8>> dataBuffer;
 
 public:
-	FastUnsafeSerializer() { dataBuffer = std::make_shared<std::vector<uint8>>(); }
+	FastUnsafeSerializer() { 
+		dataBuffer = std::make_shared<std::vector<uint8>>(); 
+	}
 
 	template <typename T>
 	void writeObj(const T& obj) {

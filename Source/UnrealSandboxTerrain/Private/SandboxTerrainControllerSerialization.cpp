@@ -93,11 +93,11 @@ TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr) {
 void DeserializeMeshContainerFast(TMeshContainer& MeshContainer, FastUnsafeDeserializer& Deserializer) {
 	// regular materials
 	int32 LodSectionRegularMatNum;
-	Deserializer.readObj(LodSectionRegularMatNum);
+	Deserializer >> LodSectionRegularMatNum;
 
 	for (int RMatIdx = 0; RMatIdx < LodSectionRegularMatNum; RMatIdx++) {
 		unsigned short MatId;
-		Deserializer.readObj(MatId);
+		Deserializer >> MatId;
 
 		TMeshMaterialSection& MatSection = MeshContainer.MaterialSectionMap.FindOrAdd(MatId);
 		MatSection.MaterialId = MatId;
@@ -107,19 +107,19 @@ void DeserializeMeshContainerFast(TMeshContainer& MeshContainer, FastUnsafeDeser
 
 	// transition materials
 	int32 LodSectionTransitionMatNum;
-	Deserializer.readObj(LodSectionTransitionMatNum);
+	Deserializer >> LodSectionTransitionMatNum;
 
 	for (int TMatIdx = 0; TMatIdx < LodSectionTransitionMatNum; TMatIdx++) {
 		unsigned short MatId;
-		Deserializer.readObj(MatId);
+		Deserializer >> MatId;
 
 		int MatSetSize;
-		Deserializer.readObj(MatSetSize);
+		Deserializer >> MatSetSize;
 
 		std::set<unsigned short> MatSet;
 		for (int MatSetIdx = 0; MatSetIdx < MatSetSize; MatSetIdx++) {
 			unsigned short MatSetElement;
-			Deserializer.readObj(MatSetElement);
+			Deserializer >> MatSetElement;
 
 			MatSet.insert(MatSetElement);
 		}
@@ -137,11 +137,11 @@ TMeshDataPtr DeserializeMeshDataFast(const std::vector<uint8>& Data, uint32 Coll
 	FastUnsafeDeserializer Deserializer(Data.data());
 
 	int32 LodArraySize;
-	Deserializer.readObj(LodArraySize);
+	Deserializer >> LodArraySize;
 
 	for (int LodIdx = 0; LodIdx < LodArraySize; LodIdx++) {
 		int32 LodIndex;
-		Deserializer.readObj(LodIndex);
+		Deserializer >> LodIndex;
 
 		// whole mesh
 		MeshDataPtr.get()->MeshSectionLodArray[LodIndex].WholeMesh.DeserializeMeshFast(Deserializer);
@@ -195,10 +195,32 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 	double Start = FPlatformTime::Seconds();
 	TMeshDataPtr MeshDataPtr = nullptr;
 
-	bool bIsLoaded = LoadDataFromKvFile(MdFile, Index, [&](TValueDataPtr DataPtr) {
-		auto DecompressedDataPtr = Decompress(DataPtr);
+	bool bIsLoaded = LoadDataFromKvFile(TdFile, Index, [&](TValueDataPtr DataPtr) {
+		FastUnsafeDeserializer Deserializer(DataPtr->data());
+		TKvFileZodeData ZoneHeader;
+		Deserializer >> ZoneHeader;
+
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("DataMd->size() = %d "), ZoneHeader.LenMd);
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("DataVd->size() = %d "), ZoneHeader.LenVd);
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("total size  = %d "), DataPtr->size());
+
+		TValueDataPtr CompressedMdPtr = std::make_shared<TValueData>(); //CompressedMd;
+		CompressedMdPtr->resize(ZoneHeader.LenMd);
+
+		Deserializer.read(CompressedMdPtr->data(), ZoneHeader.LenMd);
+
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("CompressedMdPtr->size() = %d "), CompressedMdPtr->size());
+
+		auto DecompressedDataPtr = Decompress(CompressedMdPtr);
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("DecompressedDataPtr->size() = %d "), DecompressedDataPtr->size());
+
 		MeshDataPtr = DeserializeMeshDataFast(*DecompressedDataPtr, GetCollisionMeshSectionLodIndex());
 	});
+
+	//bIsLoaded = LoadDataFromKvFile(MdFile, Index, [&](TValueDataPtr DataPtr) {
+		//auto DecompressedDataPtr = Decompress(DataPtr);
+		//MeshDataPtr = DeserializeMeshDataFast(*DecompressedDataPtr, GetCollisionMeshSectionLodIndex());
+	//});
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
