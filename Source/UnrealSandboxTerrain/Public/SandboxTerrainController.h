@@ -470,8 +470,6 @@ private:
 
 	TKvFile VdFile;
 
-	TKvFile MdFile;
-
 	TKvFile ObjFile;
 
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);

@@ -334,12 +334,12 @@ void ASandboxTerrainController::ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxel
 }
 
 void ASandboxTerrainController::ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr) {
-	if (MeshDataPtr && MdFile.isOpen()) {
-		TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
-		if (DataPtr) {
-			MdFile.save(ZoneIndex, *DataPtr);
-		}
-	}
+	//if (MeshDataPtr && MdFile.isOpen()) {
+	//	TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
+	//	if (DataPtr) {
+	//		MdFile.save(ZoneIndex, *DataPtr);
+	//	}
+	//}
 }
 
 void ASandboxTerrainController::ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap) {
@@ -357,16 +357,13 @@ void ASandboxTerrainController::FastSave() {
 }
 
 void ASandboxTerrainController::Save() {
-	if (!VdFile.isOpen() || !MdFile.isOpen() || !ObjFile.isOpen()) {
+	if (!VdFile.isOpen() || !TdFile.isOpen() || !ObjFile.isOpen()) {
 		return;
 	}
 
 	double Start = FPlatformTime::Seconds();
 
 	uint32 SavedCount = 0;
-	uint32 SavedVd = 0;
-	uint32 SavedMd = 0;
-	uint32 SavedObj = 0;
 
 	std::unordered_set<TVoxelIndex> SaveIndexSet = TerrainData->PopSaveIndexSet();
 	for (const TVoxelIndex& Index : SaveIndexSet) {
@@ -434,24 +431,6 @@ void ASandboxTerrainController::Save() {
 
 		if (DataVd) {
 			VdFile.save(Index, *DataVd);
-			SavedVd++;
-		}
-
-		/*
-		//save mesh data
-		auto MeshDataPtr = VdInfoPtr->PopMeshDataCache();
-		if (DataMd) {
-			TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
-			if (DataMd) {
-				MdFile.save(Index, *DataMd);
-				SavedMd++;
-			}
-		}
-		*/
-
-		if (DataMd) {
-			//MdFile.save(Index, *DataMd);
-			//SavedMd++;
 		}
 
 		if (FoliageDataAsset) {
@@ -460,7 +439,6 @@ void ASandboxTerrainController::Save() {
 				TValueDataPtr DataPtr = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
 				if (DataPtr) {
 					ObjFile.save(Index, *DataPtr);
-					SavedObj++;
 				}
 			}
 
@@ -468,7 +446,6 @@ void ASandboxTerrainController::Save() {
 			if (Zone && Zone->IsNeedSave()) {
 				auto Data = Zone->SerializeAndResetObjectData();
 				ObjFile.save(Index, *Data);
-				SavedObj++;
 			}
 		}
 
@@ -478,7 +455,6 @@ void ASandboxTerrainController::Save() {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-    UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain saved: vd/md/obj -> %d/%d/%d  -> %f ms "), SavedVd, SavedMd, SavedObj, Time);
 	UE_LOG(LogSandboxTerrain, Warning, TEXT("Save terrain data: %d zones saved -> %f ms "), SavedCount, Time);
 }
 
@@ -568,10 +544,6 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
-	if (!OpenKvFile(MdFile, FileNameMd, SaveDir)) {
-		return false;
-	}
-
 	if (!OpenKvFile(ObjFile, FileNameObj, SaveDir)) {
 		return false;
 	}
@@ -582,7 +554,6 @@ bool ASandboxTerrainController::OpenFile() {
 void ASandboxTerrainController::CloseFile() {
 	TdFile.close();
 	VdFile.close();
-	MdFile.close();
 	ObjFile.close();
 }
 

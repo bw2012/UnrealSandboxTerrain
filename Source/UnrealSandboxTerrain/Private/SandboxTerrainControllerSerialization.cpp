@@ -199,21 +199,10 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 		FastUnsafeDeserializer Deserializer(DataPtr->data());
 		TKvFileZodeData ZoneHeader;
 		Deserializer >> ZoneHeader;
-
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("DataMd->size() = %d "), ZoneHeader.LenMd);
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("DataVd->size() = %d "), ZoneHeader.LenVd);
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("total size  = %d "), DataPtr->size());
-
-		TValueDataPtr CompressedMdPtr = std::make_shared<TValueData>(); //CompressedMd;
+		TValueDataPtr CompressedMdPtr = std::make_shared<TValueData>(); 
 		CompressedMdPtr->resize(ZoneHeader.LenMd);
-
 		Deserializer.read(CompressedMdPtr->data(), ZoneHeader.LenMd);
-
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("CompressedMdPtr->size() = %d "), CompressedMdPtr->size());
-
 		auto DecompressedDataPtr = Decompress(CompressedMdPtr);
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("DecompressedDataPtr->size() = %d "), DecompressedDataPtr->size());
-
 		MeshDataPtr = DeserializeMeshDataFast(*DecompressedDataPtr, GetCollisionMeshSectionLodIndex());
 	});
 
