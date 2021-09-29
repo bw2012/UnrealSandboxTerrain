@@ -327,10 +327,10 @@ void ASandboxTerrainController::NetworkSerializeVd(FBufferArchive& Buffer, const
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxelData* Vd) {
-	if (Vd && VdFile.isOpen()) {
-		auto Data = SerializeVd(Vd); 
-		VdFile.save(ZoneIndex, *Data);
-	}
+	//if (Vd && VdFile.isOpen()) {
+	//	auto Data = SerializeVd(Vd); 
+	//	VdFile.save(ZoneIndex, *Data);
+	//}
 }
 
 void ASandboxTerrainController::ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr) {
@@ -357,7 +357,7 @@ void ASandboxTerrainController::FastSave() {
 }
 
 void ASandboxTerrainController::Save() {
-	if (!VdFile.isOpen() || !TdFile.isOpen() || !ObjFile.isOpen()) {
+	if (!TdFile.isOpen() || !ObjFile.isOpen()) {
 		return;
 	}
 
@@ -389,6 +389,20 @@ void ASandboxTerrainController::Save() {
 				ZoneHeader.LenMd = DataMd->size();
 			}
 
+			if (FoliageDataAsset) {
+				auto InstanceObjectMapPtr = VdInfoPtr->PopInstanceObjectMap();
+				if (InstanceObjectMapPtr) {
+					DataObj = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
+					ZoneHeader.LenObj = DataObj->size();
+				} else {
+					UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
+					if (Zone && Zone->IsNeedSave()) {
+						DataObj = Zone->SerializeAndResetObjectData();
+						ZoneHeader.LenObj = DataObj->size();
+					}
+				}
+			}
+
 			ZoneSerializer << ZoneHeader;
 		
 			if (DataMd) {
@@ -401,6 +415,11 @@ void ASandboxTerrainController::Save() {
 				ZoneSerializer.write(DataVd->data(), DataVd->size());
 			}
 
+			if (DataObj) {
+				UE_LOG(LogSandboxTerrain, Warning, TEXT("DataObj->size() = %d "), DataObj->size());
+				ZoneSerializer.write(DataObj->data(), DataObj->size());
+			}
+
 			auto DataPtr = ZoneSerializer.data();
 			UE_LOG(LogSandboxTerrain, Warning, TEXT("total size2  = %d "), DataPtr->size());
 
@@ -410,28 +429,6 @@ void ASandboxTerrainController::Save() {
 		}
 		VdInfoPtr->Unload();
 		VdInfoPtr->VdMutexPtr->unlock();
-
-		/*
-		//save voxel data
-		//FIXME double-check locking?
-		if (VdInfoPtr->Vd) {
-			VdInfoPtr->VdMutexPtr->lock();
-			if (VdInfoPtr->IsChanged()) {
-				//TVoxelIndex Index = GetZoneIndex(VdInfo.Vd->getOrigin());
-				//auto Data = VdInfoPtr->Vd->serialize();
-				auto DataVd = SerializeVd(VdInfoPtr->Vd);
-				VdFile.save(Index, *DataVd);
-				VdInfoPtr->ResetLastSave();
-				SavedVd++;
-			}
-			VdInfoPtr->Unload();
-			VdInfoPtr->VdMutexPtr->unlock();
-		}
-		*/
-
-		if (DataVd) {
-			VdFile.save(Index, *DataVd);
-		}
 
 		if (FoliageDataAsset) {
 			auto InstanceObjectMapPtr = VdInfoPtr->PopInstanceObjectMap();
@@ -540,10 +537,6 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
-	if (!OpenKvFile(VdFile, FileNameVd, SaveDir)) {
-		return false;
-	}
-
 	if (!OpenKvFile(ObjFile, FileNameObj, SaveDir)) {
 		return false;
 	}
@@ -553,7 +546,6 @@ bool ASandboxTerrainController::OpenFile() {
 
 void ASandboxTerrainController::CloseFile() {
 	TdFile.close();
-	VdFile.close();
 	ObjFile.close();
 }
 
@@ -627,9 +619,10 @@ std::list<TChunkIndex> ASandboxTerrainController::MakeChunkListByAreaSize(const 
 	return ReverseSpiralWalkthrough(AreaRadius);
 }
 
+//TODO: is it used?
 bool ASandboxTerrainController::IsVdExistsInFile(const TVoxelIndex& ZoneIndex) {
-	if (VdFile.isOpen()) {
-		return VdFile.isExist(ZoneIndex);
+	if (TdFile.isOpen()) {
+		return TdFile.isExist(ZoneIndex);
 	}
 
 	return false;
@@ -747,7 +740,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 		VdInfoPtr->VdMutexPtr->lock();
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
-			if (VdFile.isExist(Index)) {
+			if (TdFile.isExist(Index)) {
 				//voxel data exist in file
 				VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
 			} else {

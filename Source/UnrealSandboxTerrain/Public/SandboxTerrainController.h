@@ -468,8 +468,6 @@ private:
 
 	TKvFile TdFile;
 
-	TKvFile VdFile;
-
 	TKvFile ObjFile;
 
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);

@@ -1,9 +1,6 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 
-#define USBT_COMPRESS_FILE_VD 1
-
-
 //======================================================================================================================================================================
 // mesh data de/serealization
 //======================================================================================================================================================================
@@ -248,23 +245,27 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	TVoxelData* Vd = NewVoxelData();
 	Vd->setOrigin(GetZonePos(Index));
 
-	bool bIsLoaded = LoadDataFromKvFile(VdFile, Index, [=](TValueDataPtr DataPtr) {
+	bool bIsLoaded = LoadDataFromKvFile(TdFile, Index, [=](TValueDataPtr DataPtr) {
 
-#ifdef USBT_COMPRESS_FILE_VD
+		FastUnsafeDeserializer Deserializer(DataPtr->data());
+		TKvFileZodeData ZoneHeader;
+		Deserializer >> ZoneHeader;
+
+		auto CompressedMdPtr = std::make_shared<TValueData>();
+		CompressedMdPtr->resize(ZoneHeader.LenMd);
+		Deserializer.read(CompressedMdPtr->data(), ZoneHeader.LenMd);
+
+		auto VdPtr = std::make_shared<TValueData>();
+		VdPtr->resize(ZoneHeader.LenVd);
+		Deserializer.read(VdPtr->data(), ZoneHeader.LenVd);
 
 		size_t TTT = sizeof(TVoxelDataHeader) + sizeof(uint32);
-		if (DataPtr->size() > TTT) {
-			auto DecompressedDataPtr = Decompress(DataPtr);
+		if (VdPtr->size() > TTT) {
+			auto DecompressedDataPtr = Decompress(VdPtr);
 			deserializeVoxelData(Vd, *DecompressedDataPtr);
 		} else {
-			deserializeVoxelData(Vd, *DataPtr);
+			deserializeVoxelData(Vd, *VdPtr);
 		}
-
-		return;
-
-#endif /* USBT_COMPRESS_FILE_VD */
-
-		//deserializeVoxelData(Vd, *DataPtr);
 	});
 
 	double End = FPlatformTime::Seconds();
@@ -293,17 +294,12 @@ TValueDataPtr ASandboxTerrainController::SerializeVd(TVoxelData* Vd) {
 	TValueDataPtr Data = Vd->serialize();
 	size_t DataSize = Data->size();
 	
-#ifdef USBT_COMPRESS_FILE_VD
-
 	size_t TTT = sizeof(TVoxelDataHeader) + sizeof(uint32);
 	if (DataSize > TTT) {
 		TValueDataPtr CompressedData = Compress(Data);
 		//UE_LOG(LogTemp, Log, TEXT("SerializeVd -> %d compressed bytes "), CompressedData->size());
 		return CompressedData;
 	}
-
-#endif /* USBT_COMPRESS_FILE_VD */
-
 
 	return Data;
 }

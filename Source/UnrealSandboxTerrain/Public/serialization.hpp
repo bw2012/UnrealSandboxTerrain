@@ -26,6 +26,10 @@ public:
 		pos += len;
 	}
 
+	void skip(size_t bytes) {
+		pos += bytes;
+	}
+
 	template <typename T>
 	friend FastUnsafeDeserializer& operator >> (FastUnsafeDeserializer& in, T& obj) {
 		in.readObj(obj);
