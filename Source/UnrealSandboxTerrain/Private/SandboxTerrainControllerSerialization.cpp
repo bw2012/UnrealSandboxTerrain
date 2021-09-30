@@ -222,8 +222,27 @@ void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zon
 	double Start = FPlatformTime::Seconds();
 	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
 
-	bool bIsLoaded = LoadDataFromKvFile(ObjFile, Index, [&](TValueDataPtr DataPtr) {
-		Zone->DeserializeInstancedMeshes(*DataPtr, ZoneInstMeshMap);
+
+
+	bool bIsLoaded = LoadDataFromKvFile(TdFile, Index, [&](TValueDataPtr DataPtr) {
+
+		FastUnsafeDeserializer Deserializer(DataPtr->data());
+		TKvFileZodeData ZoneHeader;
+		Deserializer >> ZoneHeader;
+
+		auto CompressedMdPtr = std::make_shared<TValueData>();
+		CompressedMdPtr->resize(ZoneHeader.LenMd);
+		Deserializer.read(CompressedMdPtr->data(), ZoneHeader.LenMd);
+
+		auto VdPtr = std::make_shared<TValueData>();
+		VdPtr->resize(ZoneHeader.LenVd);
+		Deserializer.read(VdPtr->data(), ZoneHeader.LenVd);
+
+		auto ObjDataPtr = std::make_shared<TValueData>();
+		ObjDataPtr->resize(ZoneHeader.LenObj);
+		Deserializer.read(ObjDataPtr->data(), ZoneHeader.LenObj);
+
+		Zone->DeserializeInstancedMeshes(*ObjDataPtr, ZoneInstMeshMap);
 	});
 
 	double End = FPlatformTime::Seconds();

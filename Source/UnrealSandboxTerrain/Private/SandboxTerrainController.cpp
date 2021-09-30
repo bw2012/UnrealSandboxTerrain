@@ -343,12 +343,12 @@ void ASandboxTerrainController::ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshD
 }
 
 void ASandboxTerrainController::ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap) {
-	if (InstanceObjectMap.Num() > 0 && ObjFile.isOpen()) {
-		TValueDataPtr DataPtr = UTerrainZoneComponent::SerializeInstancedMesh(InstanceObjectMap);
-		if (DataPtr) {
-			ObjFile.save(ZoneIndex, *DataPtr);
-		}
-	}
+	//if (InstanceObjectMap.Num() > 0 && ObjFile.isOpen()) {
+	//	TValueDataPtr DataPtr = UTerrainZoneComponent::SerializeInstancedMesh(InstanceObjectMap);
+	//	if (DataPtr) {
+	//		ObjFile.save(ZoneIndex, *DataPtr);
+	//	}
+	//}
 }
 
 void ASandboxTerrainController::FastSave() {
@@ -357,7 +357,7 @@ void ASandboxTerrainController::FastSave() {
 }
 
 void ASandboxTerrainController::Save() {
-	if (!TdFile.isOpen() || !ObjFile.isOpen()) {
+	if (!TdFile.isOpen()) {
 		return;
 	}
 
@@ -406,46 +406,30 @@ void ASandboxTerrainController::Save() {
 			ZoneSerializer << ZoneHeader;
 		
 			if (DataMd) {
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("DataMd->size() = %d "), DataMd->size());
+				//UE_LOG(LogSandboxTerrain, Warning, TEXT("DataMd->size() = %d "), DataMd->size());
 				ZoneSerializer.write(DataMd->data(), DataMd->size());
 			}
 
 			if (DataVd) {
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("DataVd->size() = %d "), DataVd->size());
+				//UE_LOG(LogSandboxTerrain, Warning, TEXT("DataVd->size() = %d "), DataVd->size());
 				ZoneSerializer.write(DataVd->data(), DataVd->size());
 			}
 
 			if (DataObj) {
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("DataObj->size() = %d "), DataObj->size());
+				//UE_LOG(LogSandboxTerrain, Warning, TEXT("DataObj->size() = %d "), DataObj->size());
 				ZoneSerializer.write(DataObj->data(), DataObj->size());
 			}
 
 			auto DataPtr = ZoneSerializer.data();
-			UE_LOG(LogSandboxTerrain, Warning, TEXT("total size2  = %d "), DataPtr->size());
+			//UE_LOG(LogSandboxTerrain, Warning, TEXT("total size  = %d "), DataPtr->size());
 
 			TdFile.save(Index, *DataPtr);
 			SavedCount++;
 			VdInfoPtr->ResetLastSave();
 		}
+
 		VdInfoPtr->Unload();
 		VdInfoPtr->VdMutexPtr->unlock();
-
-		if (FoliageDataAsset) {
-			auto InstanceObjectMapPtr = VdInfoPtr->PopInstanceObjectMap();
-			if (InstanceObjectMapPtr) {
-				TValueDataPtr DataPtr = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
-				if (DataPtr) {
-					ObjFile.save(Index, *DataPtr);
-				}
-			}
-
-			UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
-			if (Zone && Zone->IsNeedSave()) {
-				auto Data = Zone->SerializeAndResetObjectData();
-				ObjFile.save(Index, *Data);
-			}
-		}
-
 	}
 
 	SaveJson();
@@ -537,16 +521,11 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
-	if (!OpenKvFile(ObjFile, FileNameObj, SaveDir)) {
-		return false;
-	}
-
 	return true;
 }
 
 void ASandboxTerrainController::CloseFile() {
 	TdFile.close();
-	ObjFile.close();
 }
 
 
