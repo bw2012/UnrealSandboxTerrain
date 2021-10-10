@@ -180,7 +180,6 @@ void ASandboxTerrainController::StartCheckArea() {
                 const auto Pawn = PlayerController->GetCharacter();
 				if (Pawn) {
 					const FVector Location = Pawn->GetActorLocation();
-					CheckAreaMap->PlayerSwapPosition.Add(PlayerId, Location);
 				}
             }
         }
@@ -201,24 +200,24 @@ void ASandboxTerrainController::PerformCheckArea() {
             const auto PlayerId = PlayerController->GetUniqueID();
             const auto Pawn = PlayerController->GetCharacter();
             const FVector Location = Pawn->GetActorLocation();
-            const FVector PrevLocation = CheckAreaMap->PlayerSwapPosition.FindOrAdd(PlayerId);
+            const FVector PrevLocation = CheckAreaMap->PlayerStreamingPosition.FindOrAdd(PlayerId);
             const float Distance = FVector::Distance(Location, PrevLocation);
             const float Threshold = PlayerLocationThreshold;
             if(Distance > Threshold) {
-                CheckAreaMap->PlayerSwapPosition[PlayerId] = Location;
+                CheckAreaMap->PlayerStreamingPosition[PlayerId] = Location;
                 TVoxelIndex LocationIndex = GetZoneIndex(Location);
                 FVector Tmp = GetZonePos(LocationIndex);
                                 
-                if(CheckAreaMap->PlayerSwapHandler.Contains(PlayerId)){
+                if(CheckAreaMap->PlayerStreamingHandler.Contains(PlayerId)){
                     // cancel old
-                    std::shared_ptr<TTerrainLoadPipeline> HandlerPtr2 = CheckAreaMap->PlayerSwapHandler[PlayerId];
+                    std::shared_ptr<TTerrainLoadPipeline> HandlerPtr2 = CheckAreaMap->PlayerStreamingHandler[PlayerId];
                     HandlerPtr2->Cancel();
-                    CheckAreaMap->PlayerSwapHandler.Remove(PlayerId);
+                    CheckAreaMap->PlayerStreamingHandler.Remove(PlayerId);
                 }
                 
                 // start new
                 std::shared_ptr<TTerrainLoadPipeline> HandlerPtr = std::make_shared<TTerrainLoadPipeline>();
-				CheckAreaMap->PlayerSwapHandler.Add(PlayerId, HandlerPtr);
+				CheckAreaMap->PlayerStreamingHandler.Add(PlayerId, HandlerPtr);
 
                 if(bShowStartSwapPos){
                     DrawDebugBox(GetWorld(), Location, FVector(100), FColor(255, 0, 255, 0), false, 15);
@@ -326,29 +325,8 @@ void ASandboxTerrainController::NetworkSerializeVd(FBufferArchive& Buffer, const
 // save
 //======================================================================================================================================================================
 
-void ASandboxTerrainController::ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxelData* Vd) {
-	//if (Vd && VdFile.isOpen()) {
-	//	auto Data = SerializeVd(Vd); 
-	//	VdFile.save(ZoneIndex, *Data);
-	//}
-}
+void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap) {
 
-void ASandboxTerrainController::ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr) {
-	//if (MeshDataPtr && MdFile.isOpen()) {
-	//	TValueDataPtr DataPtr = SerializeMeshData(MeshDataPtr);
-	//	if (DataPtr) {
-	//		MdFile.save(ZoneIndex, *DataPtr);
-	//	}
-	//}
-}
-
-void ASandboxTerrainController::ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap) {
-	//if (InstanceObjectMap.Num() > 0 && ObjFile.isOpen()) {
-	//	TValueDataPtr DataPtr = UTerrainZoneComponent::SerializeInstancedMesh(InstanceObjectMap);
-	//	if (DataPtr) {
-	//		ObjFile.save(ZoneIndex, *DataPtr);
-	//	}
-	//}
 }
 
 void ASandboxTerrainController::FastSave() {
@@ -369,6 +347,8 @@ void ASandboxTerrainController::Save() {
 	for (const TVoxelIndex& Index : SaveIndexSet) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Index = %d %d %d"), Index.X, Index.Y, Index.Z);
+
 		TKvFileZodeData ZoneHeader;
 		FastUnsafeSerializer ZoneSerializer;
 		TValueDataPtr DataVd = nullptr;
@@ -383,10 +363,16 @@ void ASandboxTerrainController::Save() {
 				ZoneHeader.LenVd = DataVd->size();
 			}
 
+			if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED) {
+				ZoneHeader.SetFlag((int)TZoneFlag::NoVoxelData);
+			}
+
 			auto MeshDataPtr = VdInfoPtr->PopMeshDataCache();
 			if (MeshDataPtr) {
 				DataMd = SerializeMeshData(MeshDataPtr);
 				ZoneHeader.LenMd = DataMd->size();
+			} else {
+				ZoneHeader.SetFlag((int)TZoneFlag::NoMesh);
 			}
 
 			if (FoliageDataAsset) {
@@ -655,7 +641,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		VoxelDataInfoPtr->VdMutexPtr->lock();
 		MeshDataPtr = GenerateMesh(VoxelDataInfoPtr->Vd);
-		VoxelDataInfoPtr->HandleUngenerated();
+		VoxelDataInfoPtr->HandleUngenerated(); //TODO refactor
 		VoxelDataInfoPtr->VdMutexPtr->unlock();
 
 		if (ExistingZone) {
@@ -714,14 +700,38 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		const TVoxelIndex Index = SpawnZoneParam.Index;
 		const TTerrainLodMask TerrainLodMask = SpawnZoneParam.TerrainLodMask;
 
+		bool bIsNoMesh = false;
+
 		//check voxel data in memory
 		bool bNewVdGeneration = false;
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 		VdInfoPtr->VdMutexPtr->lock();
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 			if (TdFile.isExist(Index)) {
-				//voxel data exist in file
-				VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
+
+				// TODO: refactor kvdb
+				TValueDataPtr DataPtr = TdFile.loadData(Index);
+				FastUnsafeDeserializer Deserializer(DataPtr->data());
+				TKvFileZodeData ZoneHeader;
+				Deserializer >> ZoneHeader;
+
+				bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
+
+				bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
+				if (bIsNoVd) {
+					UE_LOG(LogSandboxTerrain, Warning, TEXT("NoVoxelData"));
+					VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
+				} else {
+					//voxel data exist in file
+					VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
+				}
+
+				if (bIsNoMesh) {
+					//UE_LOG(LogSandboxTerrain, Warning, TEXT("NoMesh"));
+				} 
+
+				//UE_LOG(LogSandboxTerrain, Warning, TEXT("Test: %d"), ZoneHeader.LenMd);
+
 			} else {
 				// generate new voxel data
 				VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
@@ -729,8 +739,11 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 			}
 		}
 
-		if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED) {
+		if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED && TerrainLodMask == 0) {
 			VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
+
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("bNewVdGeneration"));
+
 			bNewVdGeneration = true;
 		}
 
@@ -739,7 +752,9 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		if (bNewVdGeneration) {
 			GenerationList.Add(SpawnZoneParam);
 		} else {
-			LoadList.Add(SpawnZoneParam);
+			if (!bIsNoMesh) {
+				LoadList.Add(SpawnZoneParam);
+			}
 		}
 	}
 

@@ -157,7 +157,9 @@ TMeshDataPtr DeserializeMeshDataFast(const std::vector<uint8>& Data, uint32 Coll
 
 bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TValueDataPtr)> Function) {
 	TValueDataPtr DataPtr = KvFile.loadData(Index);
-	if (DataPtr == nullptr || DataPtr->size() == 0) { return false; }
+	if (DataPtr == nullptr || DataPtr->size() == 0) {
+		return false; 
+	}
 	Function(DataPtr);
 	return true;
 }
@@ -196,11 +198,16 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 		FastUnsafeDeserializer Deserializer(DataPtr->data());
 		TKvFileZodeData ZoneHeader;
 		Deserializer >> ZoneHeader;
-		TValueDataPtr CompressedMdPtr = std::make_shared<TValueData>(); 
-		CompressedMdPtr->resize(ZoneHeader.LenMd);
-		Deserializer.read(CompressedMdPtr->data(), ZoneHeader.LenMd);
-		auto DecompressedDataPtr = Decompress(CompressedMdPtr);
-		MeshDataPtr = DeserializeMeshDataFast(*DecompressedDataPtr, GetCollisionMeshSectionLodIndex());
+
+		if (ZoneHeader.LenMd > 0) {
+			TValueDataPtr CompressedMdPtr = std::make_shared<TValueData>();
+			CompressedMdPtr->resize(ZoneHeader.LenMd);
+			Deserializer.read(CompressedMdPtr->data(), ZoneHeader.LenMd);
+			auto DecompressedDataPtr = Decompress(CompressedMdPtr);
+			MeshDataPtr = DeserializeMeshDataFast(*DecompressedDataPtr, GetCollisionMeshSectionLodIndex());
+		} else {
+			UE_LOG(LogTemp, Warning, TEXT("no mesh -> %d %d %d"), Index.X, Index.Y, Index.Z);
+		}
 	});
 
 	//bIsLoaded = LoadDataFromKvFile(MdFile, Index, [&](TValueDataPtr DataPtr) {
@@ -221,8 +228,6 @@ TMeshDataPtr ASandboxTerrainController::LoadMeshDataByIndex(const TVoxelIndex& I
 void ASandboxTerrainController::LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstanceMeshTypeMap& ZoneInstMeshMap) {
 	double Start = FPlatformTime::Seconds();
 	TVoxelIndex Index = GetZoneIndex(Zone->GetComponentLocation());
-
-
 
 	bool bIsLoaded = LoadDataFromKvFile(TdFile, Index, [&](TValueDataPtr DataPtr) {
 

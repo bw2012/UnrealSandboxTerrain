@@ -328,7 +328,6 @@ void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, 
                     MaterialId = 2;
                 }
 
-
                 VoxelData->setDensity(Index.X, Index.Y, Index.Z, Density);
                 VoxelData->setMaterial(Index.X, Index.Y, Index.Z, MaterialId);
 

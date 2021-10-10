@@ -198,11 +198,26 @@ typedef struct TChunkIndex {
 
 } TChunkIndex;
 
+enum class TZoneFlag : int {
+	Generated = 0,
+	NoMesh = 1,
+	NoVoxelData = 2,
+};
+
 typedef struct TKvFileZodeData {
-	uint64 Flags = 0x0;
+	uint32 Flags = 0x0;
 	uint32 LenMd = 0;
 	uint32 LenVd = 0;
 	uint32 LenObj = 0;
+
+	bool Is(TZoneFlag Flag) {
+		return (Flags >> (int)Flag) & 1U;
+	};
+
+	void SetFlag(int Flag) {
+		Flags |= 1UL << Flag;
+	};
+
 } TKvFileZodeData;
 
 UCLASS()
@@ -548,11 +563,7 @@ protected:
 
 	void CloseFile();
 
-	void ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxelData* Vd);
-
-	void ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr);
-
-	void ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap);
+	void ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap);
 
 	//===============================================================================
 	// voxel data storage

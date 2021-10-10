@@ -194,8 +194,8 @@ protected :
 
 class TCheckAreaMap {
 public:
-	TMap<uint32, std::shared_ptr<TTerrainLoadPipeline>> PlayerSwapHandler;
-	TMap<uint32, FVector> PlayerSwapPosition;
+	TMap<uint32, std::shared_ptr<TTerrainLoadPipeline>> PlayerStreamingHandler;
+	TMap<uint32, FVector> PlayerStreamingPosition;
 };
 
 

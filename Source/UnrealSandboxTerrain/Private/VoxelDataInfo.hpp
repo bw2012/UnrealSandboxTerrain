@@ -88,8 +88,8 @@ public:
         if (Vd != nullptr) {
             delete Vd;
             Vd = nullptr;
+            DataState = TVoxelDataState::READY_TO_LOAD;
         }
-        DataState = TVoxelDataState::READY_TO_LOAD;
     }
 
     void HandleUngenerated() {
