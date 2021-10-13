@@ -24,7 +24,7 @@ UVdServerComponent::UVdServerComponent(const FObjectInitializer& ObjectInitializ
 void UVdServerComponent::BeginPlay() {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Warning, TEXT("UVdServerComponent::BeginPlay()"));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("UVdServerComponent::BeginPlay()"));
 
 	const FString VdServerSocketName = TEXT("test");
 	const int Port = (GetTerrainController()->ServerPort == 0) ? 6000 : GetTerrainController()->ServerPort;
@@ -43,7 +43,7 @@ void UVdServerComponent::BeginPlay() {
 void UVdServerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
 
-	UE_LOG(LogTemp, Warning, TEXT("UVdServerComponent::EndPlay"));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("UVdServerComponent::EndPlay"));
 
 	if (TcpListenerPtr) {
 		TcpListenerPtr->GetSocket()->Close();
@@ -62,7 +62,7 @@ bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4End
 	FString RemoteAddressString = RemoteAddress->ToString(true);
 	ConnectedClientsMap.Add(RemoteAddressString, SocketPtr);
 
-	UE_LOG(LogTemp, Warning, TEXT("Vd Server: connection accepted -> %s"), *RemoteAddress->ToString(true));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Vd Server: connection accepted -> %s"), *RemoteAddress->ToString(true));
 
 	// test
 	TVoxelIndex TestIndex(0, 0, 0);
@@ -74,7 +74,7 @@ bool UVdServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4End
 
 		while (true) {
 			if (SocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-				UE_LOG(LogTemp, Warning, TEXT("Vd Server -> connection finished"));
+				UE_LOG(LogSandboxTerrain, Log, TEXT("Vd Server -> connection finished"));
 				// TODO remove from client list
 				return;
 			}

@@ -66,7 +66,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	}
 
 	if (MeshDataTimeStamp > MeshDataPtr->TimeStamp) {
-		UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
 	}
 
 	MeshDataTimeStamp = MeshDataPtr->TimeStamp;
@@ -99,7 +99,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 typedef struct TInstantMeshData {
@@ -125,7 +125,7 @@ TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
 
 
 TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceObjectMap) {
-	FastUnsafeSerializer Serializer;
+	usbt::TFastUnsafeSerializer Serializer;
 	int32 MeshCount = InstanceObjectMap.Num();
 	Serializer << MeshCount;
 
@@ -160,7 +160,7 @@ TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshT
 
 
 std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMeshes() {
-	FastUnsafeSerializer Serializer;
+	usbt::TFastUnsafeSerializer Serializer;
 	int32 MeshCount = InstancedMeshMap.Num();
 	Serializer << MeshCount;
 
@@ -194,7 +194,7 @@ std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMes
 }
 
 void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap) {
-	FastUnsafeDeserializer Deserializer(Data.data());
+	usbt::TFastUnsafeDeserializer Deserializer(Data.data());
 
 	int32 MeshCount;
 	Deserializer >> MeshCount;

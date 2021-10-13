@@ -34,7 +34,7 @@ public:
 	TTerrainAreaPipeline() {}
 
 	~TTerrainAreaPipeline() {
-		//UE_LOG(LogSandboxTerrain, Warning, TEXT("~TTerrainLoadHandler()"));
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TTerrainLoadHandler()"));
 	}
 
 	TTerrainAreaPipeline(FString Name_, ASandboxTerrainController* Controller_) :
@@ -115,16 +115,16 @@ private:
 		}
 
 		if (bIsStopped) {
-			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+			//UE_LOG(LogSandboxTerrain, Log, TEXT("Terrain swap task is cancelled -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
 		} else {
-			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Finish terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+			//UE_LOG(LogSandboxTerrain, Log, TEXT("Finish terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
 		}
 	}
 
 public:
 
 	void Cancel() {
-		//UE_LOG(LogSandboxTerrain, Warning, TEXT("Cancel -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("Cancel -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
 		this->bIsStopped = true;
 	}
 
@@ -138,7 +138,7 @@ public:
 		if (this->Controller) {
 			this->AreaOrigin = Origin;
 			this->OriginIndex = Controller->GetZoneIndex(Origin);
-			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Start terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
+			//UE_LOG(LogSandboxTerrain, Log, TEXT("Start terrain swap task -> %s %d %d %d"), *Name, OriginIndex.X, OriginIndex.Y, OriginIndex.Z);
 			AreaWalkthrough();
 
 			if (!Controller->IsWorkFinished()) {
@@ -185,7 +185,7 @@ protected :
 
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
-		//UE_LOG(LogTemp, Warning, TEXT("BatchSpawnZone -> %f ms - %d %d %d"), Time, Index.X, Index.Y, Index.Z);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("BatchSpawnZone -> %f ms - %d %d %d"), Time, Index.X, Index.Y, Index.Z);
 
 
 		return 0;

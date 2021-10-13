@@ -83,7 +83,7 @@ public:
 		float MinZ;
 	} TMeshParamData;
 
-	void SerializeMesh(FastUnsafeSerializer& Serializer) const {
+	void SerializeMesh(usbt::TFastUnsafeSerializer& Serializer) const {
 		// vertexes
 		TMeshParamData D;
 		D.VertexNum = ProcVertexBuffer.Num();
@@ -101,7 +101,7 @@ public:
 		for (int32 Index : ProcIndexBuffer) { Serializer << Index; }
 	}
 
-	void DeserializeMeshFast(FastUnsafeDeserializer& Deserializer) {
+	void DeserializeMeshFast(usbt::TFastUnsafeDeserializer& Deserializer) {
 		int32 VertexNum;
 		Deserializer.readObj(VertexNum);
 

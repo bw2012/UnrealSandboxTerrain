@@ -20,7 +20,7 @@ void UVdNetworkComponent::HandleRcvData(FArrayReader& Data) {
 	uint32 OpCode;
 	Data << OpCode;
 
-	UE_LOG(LogTemp, Log, TEXT("OpCode -> %d"), OpCode);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("OpCode -> %d"), OpCode);
 
 	if (OpcodeHandlerMap.Contains(OpCode)) {
 		OpcodeHandlerMap[OpCode](Data);

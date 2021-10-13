@@ -29,7 +29,7 @@ private:
 
 	TMeshDataPtr MeshDataCachePtr = nullptr;
 
-	std::shared_timed_mutex ZoneMutex;
+	//std::shared_timed_mutex ZoneMutex;
 	std::atomic<UTerrainZoneComponent*> ZoneComponentAtomicPtr = nullptr;
 
 	std::shared_timed_mutex InstanceObjectMapMutex;
@@ -49,7 +49,7 @@ public:
     }
     
     ~TVoxelDataInfo() { 
-		//UE_LOG(LogSandboxTerrain, Warning, TEXT("~TVoxelDataInfo()"));
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TVoxelDataInfo()"));
 		if (Vd != nullptr) {
 			delete Vd;
 			Vd = nullptr;

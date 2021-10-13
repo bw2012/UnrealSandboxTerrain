@@ -274,7 +274,7 @@ TChunkHeightMapData* TDefaultTerrainGenerator::GetChunkHeightMap(int X, int Y) {
 
         double End = FPlatformTime::Seconds();
         double Time = (End - Start) * 1000;
-        //UE_LOG(LogTemp, Warning, TEXT("generate height map  ----> %f ms --  %d %d"), Time, X, Y);
+        //UE_LOG(LogSandboxTerrain, Log, TEXT("generate height map  ----> %f ms --  %d %d"), Time, X, Y);
     } else {
         ChunkHeightMapData = ChunkDataCollection[Index];
     }
@@ -356,7 +356,7 @@ void TDefaultTerrainGenerator::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, 
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    UE_LOG(LogTemp, Warning, TEXT("TDefaultTerrainGenerator::GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    UE_LOG(LogSandboxTerrain, Log, TEXT("TDefaultTerrainGenerator::GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;
@@ -385,7 +385,7 @@ void TDefaultTerrainGenerator::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>
 
     double End1 = FPlatformTime::Seconds();
     double Time1 = (End1 - Start1) * 1000;
-    //UE_LOG(LogTemp, Warning, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
+    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
 }
 
 TVoxelDataFillState TDefaultTerrainGenerator::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr) {
@@ -448,10 +448,11 @@ void TDefaultTerrainGenerator::BatchGenerateVoxelTerrain(const TArray<TSpawnZone
             SecondPassItm.Vd = NewVd;
             SecondPassItm.ChunkData = ChunkDataPtr;
 
+#ifdef USBT_EXPERIMENTAL_UNGENERATED_ZONES
             if (P.TerrainLodMask > 0) {
-                SecondPassItm.GenerationLOD = USBT_VD_UNGENERATED_LOD;
+                //SecondPassItm.GenerationLOD = USBT_VD_UNGENERATED_LOD;
             }
-
+#endif
             SecondPassList.Add(SecondPassItm);
         } else {
             NewVd->setCacheToValid();
@@ -463,7 +464,7 @@ void TDefaultTerrainGenerator::BatchGenerateVoxelTerrain(const TArray<TSpawnZone
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    //UE_LOG(LogTemp, Warning, TEXT("GenerateVd Pass1 -> %f ms"), Time);
+    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass1 -> %f ms"), Time);
 
     if (SecondPassList.Num() > 0) {
         BatchGenerateComplexVd(SecondPassList);

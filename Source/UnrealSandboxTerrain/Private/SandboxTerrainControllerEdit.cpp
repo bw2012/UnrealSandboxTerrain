@@ -378,7 +378,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 template<class H>
 void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
 	if (!VdInfoPtr->Vd) {
-		UE_LOG(LogTemp, Warning, TEXT("voxel data is null"));
+		UE_LOG(LogSandboxTerrain, Log, TEXT("voxel data is null"));
 		return;
 	}
 
@@ -421,9 +421,9 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
-					//UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+					//UE_LOG(LogSandboxTerrain, Log, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-						UE_LOG(LogTemp, Warning, TEXT("Invalid zone vd state"));
+						UE_LOG(LogSandboxTerrain, Log, TEXT("Invalid zone vd state"));
 						bIsValid = false;
 						break;
 					}
@@ -450,7 +450,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-						UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
+						UE_LOG(LogSandboxTerrain, Log, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
 						continue;
 					}
 
@@ -483,5 +483,5 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
 }

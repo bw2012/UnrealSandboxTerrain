@@ -17,6 +17,32 @@
 #include <cstring> 
 
 
+//============================================================================
+
+
+namespace kvdb {
+
+	inline unsigned int CRC32(unsigned char* buf, unsigned long len) {
+		unsigned long crc_table[256];
+		unsigned long crc;
+		for (int i = 0; i < 256; i++) {
+			crc = i;
+			for (int j = 0; j < 8; j++)
+				crc = crc & 1 ? (crc >> 1) ^ 0xEDB88320UL : crc >> 1;
+			crc_table[i] = crc;
+		};
+
+		crc = 0xFFFFFFFFUL;
+		while (len--)
+			crc = crc_table[(crc ^ *buf++) & 0xFF] ^ (crc >> 8);
+		return crc ^ 0xFFFFFFFFUL;
+	}
+
+}
+
+//============================================================================
+
+
 #define KVDB_KEY_SIZE 12 // 3 x int32 (X, Y, Z)
 #define KVDB_RESERVED_TABLE_SIZE 1000
 
@@ -208,7 +234,7 @@ namespace kvdb {
 
 		void rewritePair(TKeyEntryInfo& keyInfo, const TValueData& valueData) {
 			// rewrite value data
-			filePtr->seekg(keyInfo().dataPos);
+			filePtr->seekp(keyInfo().dataPos);
 			filePtr->write((char*)valueData.data(), valueData.size());
 
 			// rewrite key data
@@ -247,7 +273,7 @@ namespace kvdb {
 				valueDataExp = std::move(valueData);
 			}
 
-			filePtr->seekg(0, std::ios::end); // to end-of-file
+			filePtr->seekp(0, std::ios::end); // to end-of-file
 			ulong64 endFile = (ulong64)(filePtr->tellp());
 			filePtr->write((char*)valueDataExp.data(), valueDataExp.size());
 
@@ -264,17 +290,16 @@ namespace kvdb {
 		}
 
 		ulong64 readTable() {
-			ulong64 tablePos = (ulong64)filePtr->tellp();
+			ulong64 tablePos = (ulong64)filePtr->tellg();
 
 			TTableHeader tableHeader;
 			filePtr >> tableHeader;
 
 			for (unsigned int i = 0; i < tableHeader.recordCount; i++) {
-				ulong64 pos = (ulong64)filePtr->tellp();
+				ulong64 pos = (ulong64)filePtr->tellg();
 
 				TKeyEntry keyEntry;
 				filePtr >> keyEntry;
-
 				TKeyEntryInfo keyInfo(keyEntry, pos);
 
 				if (keyInfo().dataLength > 0) {
@@ -295,7 +320,7 @@ namespace kvdb {
 		}
 
 		void createNewTable() {
-			filePtr->seekg(0, std::ios::end); // to end-of-file
+			filePtr->seekp(0, std::ios::end); // to end-of-file
 			ulong64 newTablePos = (ulong64)filePtr->tellp();
 
 			// write new table
@@ -317,7 +342,7 @@ namespace kvdb {
 
 			// read previous last table 
 			TTableHeaderInfo& lastTable = tableList.back();
-			filePtr->seekg(lastTable.pos);
+			//filePtr->seekp(lastTable.pos);
 
 			// add link to new table
 			lastTable().nextTable = newTablePos;
@@ -368,7 +393,7 @@ namespace kvdb {
 		}
 
 		void change(const TKeyData& keyData, const TValueData& valueData) {
-			TKeyEntryInfo keyInfo = dataMap[keyData];
+			TKeyEntryInfo& keyInfo = dataMap[keyData];
 			if (valueData.size() > 0) {
 				if (keyInfo().initialDataLength >= valueData.size()) {
 					rewritePair(keyInfo, valueData);
@@ -508,7 +533,7 @@ namespace kvdb {
 				// pair not found  
 				addNew(keyData, valueData);
 			} else {
-				// pair found  
+				// pair found 
 				change(keyData, valueData);
 			}
 		}

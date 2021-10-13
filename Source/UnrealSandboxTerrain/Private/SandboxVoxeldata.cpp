@@ -836,7 +836,7 @@ TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataPara
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 

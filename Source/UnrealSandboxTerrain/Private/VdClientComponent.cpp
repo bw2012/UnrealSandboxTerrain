@@ -28,11 +28,11 @@ void UVdClientComponent::BeginPlay() {
 
 	const int Port = 6000;
 
-	UE_LOG(LogTemp, Warning, TEXT("UVdClientComponent::BeginPlay()"));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("UVdClientComponent::BeginPlay()"));
 
 	FString ServerHost = GetWorld()->URL.Host;
 
-	UE_LOG(LogTemp, Warning, TEXT("Game Server Host -> %s"), *ServerHost);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Game Server Host -> %s"), *ServerHost);
 
 	ISocketSubsystem* const SocketSubSystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 
@@ -45,7 +45,7 @@ void UVdClientComponent::BeginPlay() {
 			uint32 OutIP = 0;
 			Addr->GetIp(OutIP);
 
-			UE_LOG(LogTemp, Warning, TEXT("Vd server IP -> %d.%d.%d.%d: "), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
+			UE_LOG(LogSandboxTerrain, Log, TEXT("Vd server IP -> %d.%d.%d.%d: "), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
 
 			const int Port = 6000;
 			FIPv4Address IP(0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
@@ -61,14 +61,14 @@ void UVdClientComponent::BeginPlay() {
 				isConnected = SocketPtr->Connect(*ServerAddr);
 
 				if (isConnected) {
-					UE_LOG(LogTemp, Warning, TEXT("Vd server -> Connected"));
+					UE_LOG(LogSandboxTerrain, Log, TEXT("Vd server -> Connected"));
 
 					ClientSocketPtr = SocketPtr;
 
 					GetTerrainController()->RunThread([=]() {
 						while (true) {
 							if (ClientSocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-								UE_LOG(LogTemp, Warning, TEXT("Client -> connection finished"));
+								UE_LOG(LogSandboxTerrain, Log, TEXT("Client -> connection finished"));
 								return;
 							}
 
@@ -83,7 +83,7 @@ void UVdClientComponent::BeginPlay() {
 					});
 
 				} else {
-					UE_LOG(LogTemp, Warning, TEXT("Vd server -> Not connected"));
+					UE_LOG(LogSandboxTerrain, Log, TEXT("Vd server -> Not connected"));
 				}
 			} while (!isConnected);
 		}
