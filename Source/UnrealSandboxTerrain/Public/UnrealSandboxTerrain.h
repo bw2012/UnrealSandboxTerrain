@@ -15,7 +15,9 @@
 #define USBT_REGION_VOXELDATA_VERSION	1
 
 //#define USBT_EXPERIMENTAL_UNGENERATED_ZONES		1
+//#define USBT_EXPERIMENTAL_NOLOD					1
 
+#define USBT_ENABLE_LOD true
 
 
 //======================================================================

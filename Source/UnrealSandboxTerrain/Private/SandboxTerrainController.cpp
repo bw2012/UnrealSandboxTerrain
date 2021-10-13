@@ -41,7 +41,6 @@ bool bIsGameShutdown;
 void ASandboxTerrainController::InitializeTerrainController() {
 	PrimaryActorTick.bCanEverTick = true;
 	MapName = TEXT("World 0");
-	bEnableLOD = false;
 	SaveGeneratedZones = 1000;
 	ServerPort = 6000;
     AutoSavePeriod = 20;
@@ -1052,7 +1051,7 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
     //Vdp.bZCut = true;
     //Vdp.ZCutLevel = -100;
 
-	if (bEnableLOD) {
+	if (USBT_ENABLE_LOD) {
 		Vdp.bGenerateLOD = true;
 		Vdp.collisionLOD = GetCollisionMeshSectionLodIndex();
 	} else {
@@ -1073,3 +1072,11 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 }
 
 
+int ASandboxTerrainController::GetCollisionMeshSectionLodIndex() {
+	if (CollisionSection > 6)
+		return 6;
+
+	return CollisionSection;
+
+	//return 0; // nolod
+}

@@ -282,10 +282,7 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FTerrainSwapAreaParams InitialLoadArea;
-        
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    bool bEnableLOD;
-    
+           
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FSandboxTerrainLODDistance LodDistance;
     
@@ -521,13 +518,7 @@ private:
 	// collision
 	//===============================================================================
 
-	int GetCollisionMeshSectionLodIndex() {
-		if (bEnableLOD) {
-			if (CollisionSection > 6) return 6;
-			return CollisionSection;
-		}
-		return 0;
-	}
+	int GetCollisionMeshSectionLodIndex();
 
     void OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
 
