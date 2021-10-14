@@ -328,12 +328,9 @@ void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelDa
 
 }
 
-void ASandboxTerrainController::FastSave() {
-    const std::lock_guard<std::mutex> lock(FastSaveMutex);
-	Save();
-}
-
 void ASandboxTerrainController::Save() {
+	const std::lock_guard<std::mutex> lock(SaveMutex);
+
 	if (!TdFile.isOpen()) {
 		return;
 	}
@@ -375,14 +372,14 @@ void ASandboxTerrainController::Save() {
 			}
 
 			if (FoliageDataAsset) {
-				auto InstanceObjectMapPtr = VdInfoPtr->PopInstanceObjectMap();
-				if (InstanceObjectMapPtr) {
-					DataObj = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
+				UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
+				if (Zone && Zone->IsNeedSave()) {
+					DataObj = Zone->SerializeAndResetObjectData();
 					ZoneHeader.LenObj = DataObj->size();
 				} else {
-					UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
-					if (Zone && Zone->IsNeedSave()) {
-						DataObj = Zone->SerializeAndResetObjectData();
+					auto InstanceObjectMapPtr = VdInfoPtr->PopInstanceObjectMap();
+					if (InstanceObjectMapPtr) {
+						DataObj = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
 						ZoneHeader.LenObj = DataObj->size();
 					}
 				}
@@ -426,13 +423,13 @@ void ASandboxTerrainController::Save() {
 void ASandboxTerrainController::SaveMapAsync() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Start save terrain async"));
 	RunThread([&]() {
-		FastSave();
+		Save();
 	});
 }
 
 void ASandboxTerrainController::AutoSaveByTimer() {
     UE_LOG(LogSandboxTerrain, Log, TEXT("Start auto save..."));
-    FastSave();
+    Save();
 }
 
 void ASandboxTerrainController::SaveJson() {
@@ -938,9 +935,6 @@ void ASandboxTerrainController::RunThread(TUniqueFunction<void()> Function) {
 
 void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone) {
     if (FoliageDataAsset) {
-		//TInstanceMeshTypeMap ZoneInstanceMeshMap;
-        //Generator->GenerateNewFoliage(Index, ZoneInstanceMeshMap);
-
 		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(Index);
 		Zone->SpawnAll(ZoneInstanceObjectMap);
 		Zone->SetNeedSave();

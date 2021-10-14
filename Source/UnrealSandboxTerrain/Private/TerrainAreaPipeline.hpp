@@ -91,7 +91,7 @@ private:
 			}
 
 			if (GeneratedVdConter > SaveGeneratedZones) {
-				Controller->FastSave();
+				Controller->Save();
 				GeneratedVdConter = 0;
 			}
 		}
@@ -142,7 +142,7 @@ public:
 			AreaWalkthrough();
 
 			if (!Controller->IsWorkFinished()) {
-				Controller->FastSave();
+				Controller->Save();
 			}
 		}
 	}

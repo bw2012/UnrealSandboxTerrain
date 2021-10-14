@@ -438,14 +438,12 @@ private:
     
     FTimerHandle TimerAutoSave;
     
-    std::mutex FastSaveMutex;
+    std::mutex SaveMutex;
 
 	bool bIsLoadFinished;
 
 	void Save();
-    
-    void FastSave();
-    
+        
     void AutoSaveByTimer();
 
 	void SaveJson();
