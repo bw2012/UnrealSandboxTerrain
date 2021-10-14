@@ -399,10 +399,7 @@ void ASandboxTerrainController::Save() {
 				ZoneSerializer.write(DataObj->data(), DataObj->size());
 			}
 
-
-
 			auto DataPtr = ZoneSerializer.data();
-
 			crc = kvdb::CRC32(DataPtr->data(), DataPtr->size());
 			TdFile.save(Index, *DataPtr);
 			SavedCount++;

@@ -17,41 +17,6 @@ UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectIni
 	bIsObjectsNeedSave = false;
 }
 
-/*
-TMeshData const * UTerrainZoneComponent::GetCachedMeshData() {
-	return (TMeshData const *) CachedMeshDataPtr.get();
-}
-
-TMeshDataPtr UTerrainZoneComponent::GetCachedMeshData() {
-    return CachedMeshDataPtr;
-}
-*/
-
-/*
-void UTerrainZoneComponent::ClearCachedMeshData() {
-    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
-	CachedMeshDataPtr = nullptr;
-}
-
-bool UTerrainZoneComponent::HasCachedMeshData() {
-    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
-    return CachedMeshDataPtr != nullptr;
-}
-
-TValueDataPtr UTerrainZoneComponent::SerializeAndClearCachedMeshData() {
-    const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
-    
-    if(CachedMeshDataPtr){
-        TValueDataPtr DataPtr = SerializeMeshData(CachedMeshDataPtr);
-        CachedMeshDataPtr = nullptr;
-        return DataPtr;
-    }
-    
-    return nullptr;
-}
-*/
-
-
 void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask) {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	double start = FPlatformTime::Seconds();
