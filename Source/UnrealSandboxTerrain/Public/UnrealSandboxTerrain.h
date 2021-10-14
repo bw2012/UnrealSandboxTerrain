@@ -4,14 +4,20 @@
 
 #include "ModuleManager.h"
 
-#define USBT_ZONE_SIZE			1000.f
-#define USBT_ZONE_DIMENSION		65
+#define USBT_ZONE_SIZE				1000.f
+#define USBT_ZONE_DIMENSION			65
 
-#define USBT_REGION_SIZE		9000.f
+#define USBT_VD_UNGENERATED_LOD		2
 
+#define USBT_REGION_SIZE			9000.f
 
 #define USBT_REGION_FILE_VERSION		1
 #define USBT_REGION_VOXELDATA_VERSION	1
+
+//#define USBT_EXPERIMENTAL_UNGENERATED_ZONES		1
+//#define USBT_EXPERIMENTAL_NOLOD					1
+
+#define USBT_ENABLE_LOD true
 
 
 //======================================================================

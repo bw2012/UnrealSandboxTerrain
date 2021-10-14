@@ -127,7 +127,7 @@ void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, Edg
 
 					if (!zeroCrossing) continue;
 
-					//UE_LOG(LogTemp, Warning, TEXT("x, y, z - pDensity, qDensity  --> %d %d %d - %f %f"), x, y, z, pDensity, qDensity);
+					//UE_LOG(LogSandboxTerrain, Log, TEXT("x, y, z - pDensity, qDensity  --> %d %d %d - %f %f"), x, y, z, pDensity, qDensity);
 
 					const FVector p1 = voxelData->voxelIndexToVector(p.X, p.Y, p.Z);
 					const FVector q1 = voxelData->voxelIndexToVector(q.X, q.Y, q.Z);
@@ -148,7 +148,7 @@ void FindActiveVoxels(const TVoxelData* voxelData, VoxelIDSet& activeVoxels, Edg
 
 					const auto code = EncodeAxisUniqueID(axis, x, y, z);
 
-					//UE_LOG(LogTemp, Warning, TEXT("code  --> %d"), code);
+					//UE_LOG(LogSandboxTerrain, Log, TEXT("code  --> %d"), code);
 
 					activeEdges[code] = info;
 
@@ -317,8 +317,8 @@ void UVoxelDualContouringMeshComponent::MakeMesh() {
 
 	FindActiveVoxels(VoxelData, ActiveVoxels, ActiveEdges);
 
-	UE_LOG(LogTemp, Warning, TEXT("activeVoxels --> %d"), ActiveVoxels.size());
-	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), ActiveEdges.size());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("activeVoxels --> %d"), ActiveVoxels.size());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("activeEdges  --> %d"), ActiveEdges.size());
 
 	TArray<FVector> VertexArray;
 	TArray<FVector> NormalArray;
@@ -327,13 +327,13 @@ void UVoxelDualContouringMeshComponent::MakeMesh() {
 
 	GenerateVertexData(ActiveVoxels, ActiveEdges, VertexIndices, VertexArray, NormalArray);
 
-	UE_LOG(LogTemp, Warning, TEXT("varray --> %d"), VertexArray.Num());
-	UE_LOG(LogTemp, Warning, TEXT("narray  --> %d"), NormalArray.Num());
-	UE_LOG(LogTemp, Warning, TEXT("vertexIndices  --> %d"), VertexIndices.size());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("varray --> %d"), VertexArray.Num());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("narray  --> %d"), NormalArray.Num());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("vertexIndices  --> %d"), VertexIndices.size());
 
 	GenerateTriangles(ActiveEdges, VertexIndices, TriangleArray);
 
-	UE_LOG(LogTemp, Warning, TEXT("triarray  --> %d"), TriangleArray.Num());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("triarray  --> %d"), TriangleArray.Num());
 
 	TMeshDataPtr MeshDataPtr(new TMeshData());
 	TMeshMaterialSection& MatSection = MeshDataPtr->MeshSectionLodArray[0].RegularMeshContainer.MaterialSectionMap.FindOrAdd(0);
@@ -351,10 +351,10 @@ void UVoxelDualContouringMeshComponent::MakeMesh() {
 	FVector Min = MatSection.MaterialMesh.SectionLocalBox.Min;
 	FVector Max = MatSection.MaterialMesh.SectionLocalBox.Max;
 
-	UE_LOG(LogTemp, Warning, TEXT("min  --> %f %f %f"), Min.X, Min.Y, Min.Z);
-	UE_LOG(LogTemp, Warning, TEXT("max  --> %f %f %f"), Max.X, Max.Y, Max.Z);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("min  --> %f %f %f"), Min.X, Min.Y, Min.Z);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("max  --> %f %f %f"), Max.X, Max.Y, Max.Z);
 
-	UE_LOG(LogTemp, Warning, TEXT("activeEdges  --> %d"), ActiveEdges.size());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("activeEdges  --> %d"), ActiveEdges.size());
 
 	for (int i = 0; i < TriangleArray.Num(); i++) {
 		MatSection.MaterialMesh.ProcIndexBuffer.Add(TriangleArray[i]);

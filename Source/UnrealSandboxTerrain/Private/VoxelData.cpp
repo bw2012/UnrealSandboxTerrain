@@ -58,7 +58,7 @@ void TVoxelData::copyCacheUnsafe(const int* cache_data, const int* len) {
 	for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
 		int n = (num() - 1) >> lod;
 		int l = len[lod];
-		//UE_LOG(LogTemp, Warning, TEXT("test ----> %d"), l);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("test ----> %d"), l);
 		substanceCacheLOD[lod].copy(offset + cache_data, l);
 		offset += n * n * n;
 	}
@@ -363,12 +363,12 @@ FORCEINLINE void TVoxelData::performSubstanceCacheNoLOD(int x, int y, int z) {
 	performCellSubstanceCaching(x, y, z, 0, 1);
 }
 
-void TVoxelData::performSubstanceCacheLOD(int x, int y, int z) {
+void TVoxelData::performSubstanceCacheLOD(int x, int y, int z, int initial_lod) {
 	if (density_data == NULL) {
 		return;
 	}
 
-	for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
+	for (auto lod = initial_lod; lod < LOD_ARRAY_SIZE; lod++) {
 		int s = 1 << lod;
 		if (x >= s && y >= s && z >= s) {
 			if (x % s == 0 && y % s == 0 && z % s == 0) {
@@ -450,7 +450,7 @@ void TVoxelData::makeSubstanceCache() {
 #define DATA_END_MARKER 0x000A2D77
 
 bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data) {
-	FastUnsafeDeserializer deserializer(data.data());
+	usbt::TFastUnsafeDeserializer deserializer(data.data());
 
 	TVoxelDataHeader header;
 	deserializer >> header;
@@ -481,7 +481,7 @@ bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data) {
 }
 
 std::shared_ptr<std::vector<uint8>> TVoxelData::serialize() {
-	FastUnsafeSerializer serializer;
+	usbt::TFastUnsafeSerializer serializer;
 	const size_t s = num() * num() * num();
 	const TVoxelDataFillState material_volume_state = (material_data) ? TVoxelDataFillState::MIXED : TVoxelDataFillState::ZERO;
 
@@ -531,7 +531,7 @@ TSubstanceCache::TSubstanceCache() {
 TSubstanceCacheItem* TSubstanceCache::emplace() {
 	auto s = cellArray.size();
 	if (s == idx) {
-		UE_LOG(LogTemp, Warning, TEXT("resize -> %d"), cellArray.size());
+		UE_LOG(LogSandboxTerrain, Log, TEXT("resize -> %d"), cellArray.size());
 		cellArray.resize(s + s / 2 + 1);
 	}
 

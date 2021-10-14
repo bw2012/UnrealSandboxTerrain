@@ -574,7 +574,7 @@ public:
 // ================================================================================================================================================
 
 UVoxelMeshComponent::UVoxelMeshComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	bLodFlag = false;
+	bLodFlag = USBT_ENABLE_LOD;
 	bUseComplexAsSimpleCollision = true;
 }
 

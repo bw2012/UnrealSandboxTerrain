@@ -198,6 +198,28 @@ typedef struct TChunkIndex {
 
 } TChunkIndex;
 
+enum class TZoneFlag : int {
+	Generated = 0,
+	NoMesh = 1,
+	NoVoxelData = 2,
+};
+
+typedef struct TKvFileZodeData {
+	uint32 Flags = 0x0;
+	uint32 LenMd = 0;
+	uint32 LenVd = 0;
+	uint32 LenObj = 0;
+
+	bool Is(TZoneFlag Flag) {
+		return (Flags >> (int)Flag) & 1U;
+	};
+
+	void SetFlag(int Flag) {
+		Flags |= 1UL << Flag;
+	};
+
+} TKvFileZodeData;
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -260,10 +282,7 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FTerrainSwapAreaParams InitialLoadArea;
-        
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    bool bEnableLOD;
-    
+           
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FSandboxTerrainLODDistance LodDistance;
     
@@ -419,14 +438,12 @@ private:
     
     FTimerHandle TimerAutoSave;
     
-    std::mutex FastSaveMutex;
+    std::mutex SaveMutex;
 
 	bool bIsLoadFinished;
 
 	void Save();
-    
-    void FastSave();
-    
+        
     void AutoSaveByTimer();
 
 	void SaveJson();
@@ -459,11 +476,7 @@ private:
     
     TTerrainData* TerrainData;
 
-	TKvFile VdFile;
-
-	TKvFile MdFile;
-
-	TKvFile ObjFile;
+	TKvFile TdFile;
 
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 
@@ -503,13 +516,7 @@ private:
 	// collision
 	//===============================================================================
 
-	int GetCollisionMeshSectionLodIndex() {
-		if (bEnableLOD) {
-			if (CollisionSection > 6) return 6;
-			return CollisionSection;
-		}
-		return 0;
-	}
+	int GetCollisionMeshSectionLodIndex();
 
     void OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
 
@@ -545,11 +552,7 @@ protected:
 
 	void CloseFile();
 
-	void ForceSaveVd(const TVoxelIndex& ZoneIndex, TVoxelData* Vd);
-
-	void ForceSaveMd(const TVoxelIndex& ZoneIndex, TMeshDataPtr MeshDataPtr);
-
-	void ForceSaveObj(const TVoxelIndex& ZoneIndex, const TInstanceMeshTypeMap& InstanceObjectMap);
+	void ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap);
 
 	//===============================================================================
 	// voxel data storage

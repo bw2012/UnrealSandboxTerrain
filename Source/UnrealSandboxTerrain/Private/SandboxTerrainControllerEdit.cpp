@@ -1,9 +1,9 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "SandboxTerrainController.h"
 
+
 struct TZoneEditHandler {
 	bool changed = false;
-	bool enableLOD = false;
 	bool bNoise = false;
 	float Strength;
 
@@ -67,14 +67,13 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 
 					changed = true;
 				}
-			}, enableLOD);
+			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
 	Zh.MaterialMapPtr = &MaterialMap;
-	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = Strength;
 	Zh.Origin = Origin;
 	Zh.Extend = Radius;
@@ -126,14 +125,13 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 
 					changed = true;
 				}
-			}, enableLOD);
+			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
 	Zh.MaterialMapPtr = &MaterialMap;
-	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = Strength;
 	Zh.Origin = Origin;
 	Zh.Extend = Radius;
@@ -173,13 +171,12 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, const 
 						changed = true;
 					}
 				}
-			}, enableLOD);
+			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
-	Zh.enableLOD = bEnableLOD;
 	Zh.MaterialMapPtr = &MaterialMap;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
@@ -232,13 +229,12 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 						changed = true;
 					}
 				}
-			}, enableLOD);
+			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
-	Zh.enableLOD = bEnableLOD;
 	Zh.MaterialMapPtr = &MaterialMap;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
@@ -267,14 +263,13 @@ void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Ext
 				if (o.X < radiusMargin && o.X > -radiusMargin && o.Y < radiusMargin && o.Y > -radiusMargin && o.Z < radiusMargin && o.Z > -radiusMargin) {
 					vd->setMaterial(x, y, z, newMaterialId);
 				}
-			}, enableLOD);
+			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
 	Zh.newMaterialId = MatId;
-	Zh.enableLOD = bEnableLOD;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
@@ -307,14 +302,13 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 				if (rl < Extend + 20) {
 					vd->setMaterial(x, y, z, newMaterialId);
 				}
-			}, enableLOD);
+			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
 	Zh.newMaterialId = MatId;
-	Zh.enableLOD = bEnableLOD;
 	Zh.Strength = 5;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
@@ -378,7 +372,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 template<class H>
 void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
 	if (!VdInfoPtr->Vd) {
-		UE_LOG(LogTemp, Warning, TEXT("voxel data is null"));
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("voxel data is null"));
 		return;
 	}
 
@@ -421,9 +415,9 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
-					//UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+					//UE_LOG(LogSandboxTerrain, Log, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-						UE_LOG(LogTemp, Warning, TEXT("Invalid zone vd state"));
+						UE_LOG(LogSandboxTerrain, Warning, TEXT("Invalid zone vd state"));
 						bIsValid = false;
 						break;
 					}
@@ -450,7 +444,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-						UE_LOG(LogTemp, Warning, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
+						UE_LOG(LogSandboxTerrain, Warning, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
 						continue;
 					}
 
@@ -483,5 +477,5 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	//UE_LOG(LogTemp, Warning, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
 }

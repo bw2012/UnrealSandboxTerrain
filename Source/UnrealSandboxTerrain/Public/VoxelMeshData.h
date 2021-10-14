@@ -86,7 +86,7 @@ typedef struct TMeshData {
 	}
 
 	~TMeshData() {
-		//UE_LOG(LogTemp, Warning, TEXT("~TMeshData()")); // memory leak checking
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TMeshData()")); // memory leak checking
 	}
 
 } TMeshData;
