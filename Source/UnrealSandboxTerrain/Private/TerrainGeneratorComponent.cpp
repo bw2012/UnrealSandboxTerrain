@@ -76,6 +76,8 @@ UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer&
 void UTerrainGeneratorComponent::BeginPlay() {
     Super::BeginPlay();
 
+    UE_LOG(LogTemp, Log, TEXT("UTerrainGeneratorComponent::BeginPlay"));
+
     UndergroundLayersTmp.Empty();
 
     if (GetController()->TerrainParameters && GetController()->TerrainParameters->UndergroundLayers.Num() > 0) {
@@ -354,7 +356,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TVoxelIndex& ZoneIndex
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    UE_LOG(LogSandboxTerrain, Log, TEXT("TDefaultTerrainGenerator::GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;

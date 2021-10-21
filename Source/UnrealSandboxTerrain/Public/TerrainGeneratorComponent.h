@@ -63,35 +63,35 @@ public:
 
 	void BatchGenerateVoxelTerrain(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray);
 
-	float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
+	virtual float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
 
-	float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
+	virtual float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
 
 	int32 ZoneHash(const FVector& ZonePos);
 
-	void Clean();
+	virtual void Clean();
 
-	void Clean(TVoxelIndex& Index);
+	virtual void Clean(TVoxelIndex& Index);
 
 	//========================================================================================
 	// foliage etc.
 	//========================================================================================
 
-	void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	virtual bool UseCustomFoliage(const TVoxelIndex& Index);
 
 	virtual bool SpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
 
-	FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
+	virtual FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
 
-	bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
+	virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
 
-	bool IsOverrideGroundLevel(const TVoxelIndex& Index);
+	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
 
-	float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
+	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
-	bool ForcePerformZone(const TVoxelIndex& ZoneIndex);
+	virtual bool ForcePerformZone(const TVoxelIndex& ZoneIndex);
 
 protected:
 
