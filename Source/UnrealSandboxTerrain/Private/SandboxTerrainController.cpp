@@ -23,7 +23,9 @@
 #include "TerrainAreaPipeline.hpp"
 #include "TerrainEdit.hpp"
 
-#include "SandboxTerrainGenerator.h"
+
+
+//# define USBT_DEBUG_ZONE_CRC 1
 
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
@@ -83,12 +85,12 @@ void ASandboxTerrainController::PostLoad() {
 
 }
 
-TBaseTerrainGenerator* ASandboxTerrainController::NewTerrainGenerator() {
-	return new TDefaultTerrainGenerator(this);
+UTerrainGeneratorComponent* ASandboxTerrainController::NewTerrainGenerator() {
+	return NewObject<UTerrainGeneratorComponent>(this, TEXT("TerrainGenerator"));
 }
 
-TBaseTerrainGenerator* ASandboxTerrainController::GetTerrainGenerator() {
-	return this->Generator;
+UTerrainGeneratorComponent* ASandboxTerrainController::GetTerrainGenerator() {
+	return this->GeneratorComponent;
 }
 
 void ASandboxTerrainController::BeginPlay() {
@@ -96,9 +98,6 @@ void ASandboxTerrainController::BeginPlay() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::BeginPlay()"));
 
 	bIsGameShutdown = false;
-
-	Generator = NewTerrainGenerator();
-    Generator->OnBeginPlay();
     
     GlobalTerrainZoneLOD[0] = 0;
     GlobalTerrainZoneLOD[1] = LodDistance.Distance1;
@@ -148,10 +147,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Save();
 	CloseFile();
     TerrainData->Clean();
-
-	if (Generator) {
-		delete Generator;
-	}
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
@@ -252,6 +247,9 @@ void ASandboxTerrainController::PerformCheckArea() {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::BeginPlayServer() {
+	GeneratorComponent = NewTerrainGenerator();
+	GeneratorComponent->RegisterComponent();
+
 	if (!OpenFile()) {
 		return;
 	}
@@ -324,8 +322,72 @@ void ASandboxTerrainController::NetworkSerializeVd(FBufferArchive& Buffer, const
 // save
 //======================================================================================================================================================================
 
-void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap) {
+uint32 SaveZoneToFile(TKvFile& File, const TVoxelIndex& Index, const TValueDataPtr DataVd, const TValueDataPtr DataMd, const TValueDataPtr DataObj) {
+	TKvFileZodeData ZoneHeader;
+	if (DataVd) {
+		ZoneHeader.LenVd = DataVd->size();
+	} else {
+		ZoneHeader.SetFlag((int)TZoneFlag::NoVoxelData);
+	}
 
+	if (DataMd) {
+		ZoneHeader.LenMd = DataMd->size();
+	} else {
+		ZoneHeader.SetFlag((int)TZoneFlag::NoMesh);
+	}
+
+	if (DataObj) {
+		ZoneHeader.LenObj = DataObj->size();
+	}
+
+	usbt::TFastUnsafeSerializer ZoneSerializer;
+	ZoneSerializer << ZoneHeader;
+
+	if (DataMd) {
+		ZoneSerializer.write(DataMd->data(), DataMd->size());
+	}
+
+	if (DataVd) {
+		ZoneSerializer.write(DataVd->data(), DataVd->size());
+	}
+
+	if (DataObj) {
+		ZoneSerializer.write(DataObj->data(), DataObj->size());
+	}
+
+	auto DataPtr = ZoneSerializer.data();
+
+#ifdef USBT_DEBUG_ZONE_CRC
+	uint32 CRC = kvdb::CRC32(DataPtr->data(), DataPtr->size());
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Save zone -> %d %d %d -> CRC32 = 0x%x "), Index.X, Index.Y, Index.Z, CRC);
+#else
+	uint32 CRC = 0;
+#endif
+
+	File.save(Index, *DataPtr);
+
+	return CRC;
+}
+
+
+void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap) {
+	TValueDataPtr DataVd = nullptr;
+	TValueDataPtr DataMd = nullptr;
+	TValueDataPtr DataObj = nullptr;
+
+	if (Vd) {
+		DataVd = SerializeVd(Vd);
+	}
+
+	if (MeshDataPtr) {
+		DataMd = SerializeMeshData(MeshDataPtr);
+	}
+
+	if (InstanceObjectMap.Num() > 0) {
+		DataObj = UTerrainZoneComponent::SerializeInstancedMesh(InstanceObjectMap);
+	}
+
+	SaveZoneToFile(TdFile, ZoneIndex, DataVd, DataMd, DataObj);
 }
 
 void ASandboxTerrainController::Save() {
@@ -343,65 +405,35 @@ void ASandboxTerrainController::Save() {
 	for (const TVoxelIndex& Index : SaveIndexSet) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
-		TKvFileZodeData ZoneHeader;
-		usbt::TFastUnsafeSerializer ZoneSerializer;
 		TValueDataPtr DataVd = nullptr;
 		TValueDataPtr DataMd = nullptr;
 		TValueDataPtr DataObj = nullptr;
-
-		uint32 crc;
 
 		VdInfoPtr->VdMutexPtr->lock();
 		if (VdInfoPtr->IsChanged()) {
 
 			if (VdInfoPtr->Vd) {
 				DataVd = SerializeVd(VdInfoPtr->Vd);
-				ZoneHeader.LenVd = DataVd->size();
-			}
-
-			if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED) {
-				ZoneHeader.SetFlag((int)TZoneFlag::NoVoxelData);
 			}
 
 			auto MeshDataPtr = VdInfoPtr->PopMeshDataCache();
 			if (MeshDataPtr) {
 				DataMd = SerializeMeshData(MeshDataPtr);
-				ZoneHeader.LenMd = DataMd->size();
-			} else {
-				ZoneHeader.SetFlag((int)TZoneFlag::NoMesh);
 			}
 
 			if (FoliageDataAsset) {
 				UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
 				if (Zone && Zone->IsNeedSave()) {
 					DataObj = Zone->SerializeAndResetObjectData();
-					ZoneHeader.LenObj = DataObj->size();
 				} else {
 					auto InstanceObjectMapPtr = VdInfoPtr->PopInstanceObjectMap();
 					if (InstanceObjectMapPtr) {
 						DataObj = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
-						ZoneHeader.LenObj = DataObj->size();
 					}
 				}
 			}
 
-			ZoneSerializer << ZoneHeader;
-		
-			if (DataMd) {
-				ZoneSerializer.write(DataMd->data(), DataMd->size());
-			}
-
-			if (DataVd) {
-				ZoneSerializer.write(DataVd->data(), DataVd->size());
-			}
-
-			if (DataObj) {
-				ZoneSerializer.write(DataObj->data(), DataObj->size());
-			}
-
-			auto DataPtr = ZoneSerializer.data();
-			crc = kvdb::CRC32(DataPtr->data(), DataPtr->size());
-			TdFile.save(Index, *DataPtr);
+			uint32 CRC = SaveZoneToFile(TdFile, Index, DataVd, DataMd, DataObj);
 			SavedCount++;
 			VdInfoPtr->ResetLastSave();
 		}
@@ -679,7 +711,7 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 		VdInfoPtr->SetChanged();
 
 		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(P.Index);
-		Generator->GenerateInstanceObjects(P.Index, VdInfoPtr->Vd, ZoneInstanceObjectMap);
+		GeneratorComponent->GenerateInstanceObjects(P.Index, VdInfoPtr->Vd, ZoneInstanceObjectMap);
 
 		TerrainData->AddSaveIndex(P.Index);
 		VdInfoPtr->VdMutexPtr->unlock();
@@ -991,13 +1023,15 @@ FORCEINLINE void ASandboxTerrainController::OnFinishGenerateNewZone(const TVoxel
 
 // TODO use seed
 float ASandboxTerrainController::PerlinNoise(const FVector& Pos) const {
-	return Generator->PerlinNoise(Pos.X, Pos.Y, Pos.Z);
+	//return Generator->PerlinNoise(Pos.X, Pos.Y, Pos.Z);
+	return 0;
 }
 
 // range 0..1
 float ASandboxTerrainController::NormalizedPerlinNoise(const FVector& Pos) const {
-	float NormalizedPerlin = (Generator->PerlinNoise(Pos.X, Pos.Y, Pos.Z) + 0.87) / 1.73;
-	return NormalizedPerlin;
+	//float NormalizedPerlin = (Generator->PerlinNoise(Pos.X, Pos.Y, Pos.Z) + 0.87) / 1.73;
+	//return NormalizedPerlin;
+	return 0;
 }
 
 //======================================================================================================================================================================

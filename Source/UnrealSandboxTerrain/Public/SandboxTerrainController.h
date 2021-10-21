@@ -3,7 +3,7 @@
 #include "Engine.h"
 #include "Runtime/Engine/Classes/Engine/DataAsset.h"
 #include "SandboxTerrainCommon.h"
-#include "SandboxTerrainGenerator.h"
+#include "TerrainGeneratorComponent.h"
 #include <memory>
 #include <queue>
 #include <mutex>
@@ -24,10 +24,6 @@ struct TInstanceMeshArray;
 class UVdClientComponent;
 class TTerrainData;
 class TCheckAreaMap;
-
-//TODO refactor
-class TBaseTerrainGenerator;
-class TDefaultTerrainGenerator;
 
 class TVoxelDataInfo;
 class TTerrainAreaPipeline;
@@ -228,13 +224,10 @@ public:
     ASandboxTerrainController();
     
     friend UTerrainZoneComponent;
-
-	//TODO refactor
-	friend TDefaultTerrainGenerator;
-
 	friend UVdClientComponent;
 	friend TTerrainAreaPipeline;
 	friend TTerrainLoadPipeline;
+	friend UTerrainGeneratorComponent;
 
 	virtual void BeginPlay() override;
 
@@ -363,7 +356,10 @@ public:
 
 	//========================================================================================
 
-	TBaseTerrainGenerator* GetTerrainGenerator();
+	UPROPERTY()
+	UTerrainGeneratorComponent* GeneratorComponent;
+
+	UTerrainGeneratorComponent* GetTerrainGenerator();
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
@@ -471,9 +467,7 @@ private:
 	//===============================================================================
 	// voxel data storage
 	//===============================================================================
-    
-    TBaseTerrainGenerator* Generator;
-    
+        
     TTerrainData* TerrainData;
 
 	TKvFile TdFile;
@@ -580,7 +574,7 @@ protected:
     // virtual functions
     //===============================================================================
 
-	virtual TBaseTerrainGenerator* NewTerrainGenerator();
+	virtual UTerrainGeneratorComponent* NewTerrainGenerator();
     
 	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
 
