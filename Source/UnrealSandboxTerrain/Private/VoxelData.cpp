@@ -133,7 +133,6 @@ FORCEINLINE void TVoxelData::setDensityAndMaterial(const TVoxelIndex& vi, float 
 	material_data[index] = materialId;
 }
 
-
 FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 	if (density_data == NULL) {
 		if (density_state == TVoxelDataFillState::FULL) {
@@ -158,8 +157,6 @@ void TVoxelData::setDensity(const TVoxelIndex& vi, float density) {
 float TVoxelData::getDensity(const TVoxelIndex& vi) const {
 	return getDensity(vi.X, vi.Y, vi.Z);
 }
-
-
 
 FORCEINLINE TDensityVal TVoxelData::getRawDensityUnsafe(int x, int y, int z) const {
 	const int index = clcLinearIndex(x, y, z);

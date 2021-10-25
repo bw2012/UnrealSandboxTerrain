@@ -9,8 +9,6 @@
 #include <iterator>
 #include <map>
 
-#define USBT_USE_VD_PREBUILD_DATA 1
-
 
 typedef struct TVoxelDataGenerationParam {
     int lod = 0;

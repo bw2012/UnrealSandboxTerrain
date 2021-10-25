@@ -308,30 +308,18 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TVoxelIndex& ZoneIndex
     TMaterialId BaseMaterialId = 0;
 
     VoxelData->initCache();
-    //VoxelData->initializeDensity();
-   // VoxelData->initializeMaterial();
+    VoxelData->initializeDensity();
+    VoxelData->initializeMaterial();
 
     for (int X = 0; X < USBT_ZONE_DIMENSION; X += S) {
         for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y += S) {
             for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z += S) {
                 const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
                 const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
-                
-                
-                FVector WorldPos = LocalPos + VoxelData->getOrigin();
-                float GroundLevel = ChunkHeightMapData->GetHeightLevel(Index.X, Index.Y);
 
-                float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
-                Density = DensityFunctionExt(Density, ZoneIndex, WorldPos, LocalPos);
-                TMaterialId MaterialId = MaterialFuncion(LocalPos, WorldPos, GroundLevel);
-
-                VoxelData->setDensity(Index.X, Index.Y, Index.Z, Density);
-                VoxelData->setMaterial(Index.X, Index.Y, Index.Z, MaterialId);
-                //VoxelData->setDensityAndMaterial(Index, Density, MaterialId);
-
-                //auto R = A(Index, VoxelData, ChunkHeightMapData);
-                //float Density = std::get<2>(R);
-                //TMaterialId MaterialId = std::get<3>(R);
+                auto R = A(Index, VoxelData, ChunkHeightMapData);
+                float Density = std::get<2>(R);
+                TMaterialId MaterialId = std::get<3>(R);
 
                 if (LOD > 0) {
                    // MaterialId = 2; // FIXME
@@ -390,11 +378,7 @@ ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& Index, TVoxelData* Voxe
     const float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
     const float Density2 = DensityFunctionExt(Density, Index, WorldPos, LocalPos);
     TMaterialId MaterialId = MaterialFuncion(LocalPos, WorldPos, GroundLevel);
-    //VoxelData->setDensity(Index.X, Index.Y, Index.Z, Density2);
-    //VoxelData->setMaterial(Index.X, Index.Y, Index.Z, MaterialId);
-
     VoxelData->setDensityAndMaterial(Index, Density2, MaterialId);
-
     auto Result = std::make_tuple(LocalPos, WorldPos, Density2, MaterialId);
     return Result;
 };
