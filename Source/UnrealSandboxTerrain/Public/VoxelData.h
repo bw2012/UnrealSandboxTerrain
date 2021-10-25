@@ -2,6 +2,7 @@
 
 #include "EngineMinimal.h"
 
+#include "VoxelIndex.h"
 #include <list>
 #include <array>
 #include <memory>
@@ -21,8 +22,6 @@ enum TVoxelDataFillState : uint8 {
 	FULL = 1,		// data contains only one same value
 	MIXED = 2		// mixed state, any value in any point
 };
-
-
 
 typedef struct TSubstanceCacheItem {
 	uint32 index = 0;
@@ -67,7 +66,22 @@ typedef struct TVoxelDataHeader {
 class TVoxelData;
 typedef std::shared_ptr<TVoxelData> TVoxelDataPtr;
 
+namespace vd {
+	namespace tools {
+
+		void makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step);
+		void makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step);
+		unsigned long caseCode(int8(&corner)[8]);
+
+		namespace unsafe {
+			void forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod);
+		}
+	}
+};
+
 class UNREALSANDBOXTERRAIN_API TVoxelData {
+
+	friend void vd::tools::unsafe::forceAddToCache(TVoxelData*, int, int, int, int);
 
 private:
 	TVoxelDataFillState density_state;
@@ -85,9 +99,6 @@ private:
 	FVector lower = FVector(0.0f, 0.0f, 0.0f);
 	FVector upper = FVector(0.0f, 0.0f, 0.0f);
 
-	void initializeDensity();
-	void initializeMaterial();
-
 	std::array<TSubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
 	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
@@ -103,8 +114,15 @@ public:
 	void copyDataUnsafe(const TDensityVal* density_data, const TMaterialId* material_data);
 	void copyCacheUnsafe(const int* cache_data, const int* len);
 
-	FORCEINLINE int clcLinearIndex(int x, int y, int z) const;
-	FORCEINLINE void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
+	void initializeDensity();
+	void initializeMaterial();
+
+	int clcLinearIndex(const TVoxelIndex& v) const;
+	int clcLinearIndex(int x, int y, int z) const;
+	void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
+
+	static TDensityVal clcFloatToByte(float v);
+	static float clcByteToFloat(TDensityVal v);
 
 	void forEach(std::function<void(int x, int y, int z)> func);
 	void forEachWithCache(std::function<void(int x, int y, int z)> func, bool enableLOD);
@@ -112,6 +130,11 @@ public:
 
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;
+
+	void setDensity(const TVoxelIndex& vi, float density);
+	float getDensity(const TVoxelIndex& vi) const;
+
+	void setDensityAndMaterial(const TVoxelIndex& vi, float density, TMaterialId materialId);
 
 	TDensityVal getRawDensityUnsafe(int x, int y, int z) const;
 	unsigned short getRawMaterialUnsafe(int x, int y, int z) const;
@@ -134,16 +157,10 @@ public:
 	FVector getLower() const { return lower; };
 	FVector getUpper() const { return upper; };
 
-	void getRawVoxelData(int x, int y, int z, TDensityVal& density, unsigned short& material) const;
-	void setVoxelPoint(int x, int y, int z, TDensityVal density, unsigned short material);
-	void setVoxelPointDensity(int x, int y, int z, TDensityVal density);
-	void setVoxelPointMaterial(int x, int y, int z, unsigned short material);
-
 	void performSubstanceCacheNoLOD(int x, int y, int z);
 	void performSubstanceCacheLOD(int x, int y, int z, int initial_lod = 0);
 
 	TVoxelDataFillState getDensityFillState() const;
-	//VoxelDataFillState getMaterialFillState() const; 
 
 	void deinitializeDensity(TVoxelDataFillState density_state);
 	void deinitializeMaterial(unsigned short base_mat);

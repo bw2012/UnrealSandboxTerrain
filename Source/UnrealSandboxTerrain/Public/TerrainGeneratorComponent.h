@@ -34,8 +34,13 @@ typedef struct TGenerateVdTempItm {
 	// partial generation
 	int GenerationLOD = 0;
 
+	// partial generation v2
+	bool bSlightGeneration = false;
+
 } TGenerateVdTempItm;
 
+
+typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
 
 /**
 *
@@ -132,5 +137,9 @@ private:
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	void GenerateNewFoliageCustom(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+
+	//====
+
+	ResultA A(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
 
 };

@@ -69,16 +69,13 @@ void TVoxelData::copyCacheUnsafe(const int* cache_data, const int* len) {
 FORCEINLINE void TVoxelData::initializeDensity() {
 	const int s = voxel_num * voxel_num * voxel_num;
 	density_data = new TDensityVal[s];
+	const TDensityVal d = (density_state == TVoxelDataFillState::FULL) ? 0xff : 0x00;
+
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
 			for (auto z = 0; z < voxel_num; z++) {
-				if (density_state == TVoxelDataFillState::FULL) {
-					setDensity(x, y, z, 1);
-				}
-
-				if (density_state == TVoxelDataFillState::ZERO) {
-					setDensity(x, y, z, 0);
-				}
+				const int index = clcLinearIndex(x, y, z);
+				density_data[clcLinearIndex(x, y, z)] = d;
 			}
 		}
 	}
@@ -87,13 +84,22 @@ FORCEINLINE void TVoxelData::initializeDensity() {
 FORCEINLINE void TVoxelData::initializeMaterial() {
 	const int s = voxel_num * voxel_num * voxel_num;
 	material_data = new TMaterialId[s];
+
 	for (auto x = 0; x < voxel_num; x++) {
 		for (auto y = 0; y < voxel_num; y++) {
 			for (auto z = 0; z < voxel_num; z++) {
-				setMaterial(x, y, z, base_fill_mat);
+				material_data[clcLinearIndex(x, y, z)] = base_fill_mat;
 			}
 		}
 	}
+}
+
+FORCEINLINE TDensityVal TVoxelData::clcFloatToByte(float v) {
+	return 255 * v;
+}
+
+FORCEINLINE float TVoxelData::clcByteToFloat(TDensityVal v) {
+	return (float)v / 255.0f;
 }
 
 FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
@@ -116,10 +122,17 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 		if (density < 0) density = 0;
 		if (density > 1) density = 1;
 
-		TDensityVal d = 255 * density;
-		density_data[index] = d;
+		density_data[index] = clcFloatToByte(density);
 	}
 }
+
+FORCEINLINE void TVoxelData::setDensityAndMaterial(const TVoxelIndex& vi, float density, TMaterialId materialId) {
+	const int index = clcLinearIndex(vi.X, vi.Y, vi.Z);
+	density_state = TVoxelDataFillState::MIXED;
+	density_data[index] = clcFloatToByte(density);
+	material_data[index] = materialId;
+}
+
 
 FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 	if (density_data == NULL) {
@@ -132,13 +145,21 @@ FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
 		const int index = clcLinearIndex(x, y, z);
-
-		float d = (float)density_data[index] / 255.0f;
-		return d;
+		return clcByteToFloat(density_data[index]);
 	} else {
 		return 0;
 	}
 }
+
+void TVoxelData::setDensity(const TVoxelIndex& vi, float density) {
+	setDensity(vi.X, vi.Y, vi.Z, density);
+}
+
+float TVoxelData::getDensity(const TVoxelIndex& vi) const {
+	return getDensity(vi.X, vi.Y, vi.Z);
+}
+
+
 
 FORCEINLINE TDensityVal TVoxelData::getRawDensityUnsafe(int x, int y, int z) const {
 	const int index = clcLinearIndex(x, y, z);
@@ -236,56 +257,6 @@ FORCEINLINE int TVoxelData::num() const {
 	return voxel_num;
 }
 
-FORCEINLINE void TVoxelData::getRawVoxelData(int x, int y, int z, TDensityVal& density, unsigned short& material) const {
-	const int index = clcLinearIndex(x, y, z);
-
-	if (density_data != NULL) {
-		density = density_data[index];
-	} else {
-		density = 0;
-	}
-
-	if (material_data != NULL) {
-		material = material_data[index];
-	} else {
-		material = base_fill_mat;
-	}
-}
-
-FORCEINLINE void TVoxelData::setVoxelPoint(int x, int y, int z, TDensityVal density, unsigned short material) {
-	if (density_data == NULL) {
-		initializeDensity();
-		density_state = TVoxelDataFillState::MIXED;
-	}
-
-	if (material_data == NULL) {
-		initializeMaterial();
-	}
-
-	const int index = clcLinearIndex(x, y, z);
-	material_data[index] = material;
-	density_data[index] = density;
-}
-
-FORCEINLINE void TVoxelData::setVoxelPointDensity(int x, int y, int z, TDensityVal density) {
-	if (density_data == NULL) {
-		initializeDensity();
-		density_state = TVoxelDataFillState::MIXED;
-	}
-
-	const int index = clcLinearIndex(x, y, z);
-	density_data[index] = density;
-}
-
-FORCEINLINE void TVoxelData::setVoxelPointMaterial(int x, int y, int z, unsigned short material) {
-	if (material_data == NULL) {
-		initializeMaterial();
-	}
-
-	const int index = clcLinearIndex(x, y, z);
-	material_data[index] = material;
-}
-
 FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState State) {
 	if (State == TVoxelDataFillState::MIXED) {
 		return;
@@ -313,47 +284,25 @@ FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 	return density_state;
 }
 
- bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
-	uint32 index[8];
-	index[7] = clcLinearIndex(x, y - step, z);
-	index[6] = clcLinearIndex(x, y, z);
-	index[5] = clcLinearIndex(x - step, y - step, z);
-	index[4] = clcLinearIndex(x - step, y, z);
-	index[3] = clcLinearIndex(x, y - step, z - step);
-	index[2] = clcLinearIndex(x, y, z - step);
-	index[1] = clcLinearIndex(x - step, y - step, z - step);
-	index[0] = clcLinearIndex(x - step, y, z - step);
-
-
+bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
+	TVoxelIndex d[8];
 	int8 corner[8];
+
+	vd::tools::makeIndexes(d, x, y, z, -step);
 	for (auto i = 0; i < 8; i++) {
-		corner[i] = (density_data[index[i]] <= 127) ? -127 : 0;
+		corner[7-i] = (density_data[clcLinearIndex(d[i])] <= 127) ? -127 : 0;
 	}
 
-	unsigned long caseCode = ((corner[0] >> 7) & 0x01)
-		| ((corner[1] >> 6) & 0x02)
-		| ((corner[2] >> 5) & 0x04)
-		| ((corner[3] >> 4) & 0x08)
-		| ((corner[4] >> 3) & 0x10)
-		| ((corner[5] >> 2) & 0x20)
-		| ((corner[6] >> 1) & 0x40)
-		| (corner[7] & 0x80);
-
-	if (caseCode == 0 || caseCode == 255) return false;
-
-	//int index = clcLinearIndex(x - step, y - step, z - step);
-
-	TSubstanceCache& lodCache = substanceCacheLOD[lod];
-	TSubstanceCacheItem* cacheItm = lodCache.emplace();
-	//cacheItm->caseCode = caseCode;
-	cacheItm->index = index[1];
-	//cacheItm->x = x - step;
-	//cacheItm->y = y - step;
-	//cacheItm->z = z - step;
-
-	return true;
+	unsigned long caseCode = vd::tools::caseCode(corner);
+	if (caseCode == 0x0 || caseCode == 0xff) {
+		return false;
+	} else {
+		TSubstanceCache& lodCache = substanceCacheLOD[lod];
+		TSubstanceCacheItem* cacheItm = lodCache.emplace();
+		cacheItm->index = clcLinearIndex(x - step, y - step, z - step);
+		return true;
+	}
 }
-
 
 FORCEINLINE void TVoxelData::performSubstanceCacheNoLOD(int x, int y, int z) {
 	if (density_data == NULL) {
@@ -417,6 +366,10 @@ void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubst
 
 FORCEINLINE int TVoxelData::clcLinearIndex(int x, int y, int z) const {
 	return x * voxel_num * voxel_num + y * voxel_num + z;
+};
+
+FORCEINLINE int TVoxelData::clcLinearIndex(const TVoxelIndex& v) const {
+	return clcLinearIndex(v.X, v.Y, v.Z);
 };
 
 FORCEINLINE void TVoxelData::clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const {
@@ -564,4 +517,43 @@ void TSubstanceCache::copy(const int* cache_data, const int len) {
 	cellArray.resize(len);
 	memcpy(cellArray.data(), cache_data, len * sizeof(TSubstanceCacheItem));
 	idx = len;
+}
+
+
+void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod) {
+	auto const index = vd->clcLinearIndex(x, y, z);
+	TSubstanceCache& lodCache = vd->substanceCacheLOD[lod];
+	TSubstanceCacheItem* cacheItm = lodCache.emplace();
+	cacheItm->index = index;
+}
+
+void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
+	d[0] = TVoxelIndex(x, y + step, z);
+	d[1] = TVoxelIndex(x, y, z);
+	d[2] = TVoxelIndex(x + step, y + step, z);
+	d[3] = TVoxelIndex(x + step, y, z);
+	d[4] = TVoxelIndex(x, y + step, z + step);
+	d[5] = TVoxelIndex(x, y, z + step);
+	d[6] = TVoxelIndex(x + step, y + step, z + step);
+	d[7] = TVoxelIndex(x + step, y, z + step);
+}
+
+void vd::tools::makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step) {
+	const int x = vi.X;
+	const int y = vi.Y;
+	const int z = vi.Z;
+	vd::tools::makeIndexes(d, x, y, z,step);
+}
+
+unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
+	unsigned long caseCode = ((corner[0] >> 7) & 0x01)
+		| ((corner[1] >> 6) & 0x02)
+		| ((corner[2] >> 5) & 0x04)
+		| ((corner[3] >> 4) & 0x08)
+		| ((corner[4] >> 3) & 0x10)
+		| ((corner[5] >> 2) & 0x20)
+		| ((corner[6] >> 1) & 0x40)
+		| (corner[7] & 0x80);
+
+	return caseCode;
 }

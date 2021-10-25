@@ -98,4 +98,5 @@ typedef struct TVoxelDataParam {
 	int collisionLOD = 0;
 	float ZCutLevel = 0;
 	bool bZCut = false;
+	bool bForceNoCache = false;
 } TVoxelDataParam;

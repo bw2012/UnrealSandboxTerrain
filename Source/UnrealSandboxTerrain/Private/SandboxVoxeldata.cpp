@@ -89,7 +89,7 @@ private:
 
 	} PointAddr;
 
-
+	//FIXME
 	struct Point {
 		PointAddr adr;
 		FVector pos;
@@ -534,15 +534,7 @@ private:
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
 		}
 
-		unsigned long caseCode = ((corner[0] >> 7) & 0x01)
-			| ((corner[1] >> 6) & 0x02)
-			| ((corner[2] >> 5) & 0x04)
-			| ((corner[3] >> 4) & 0x08)
-			| ((corner[4] >> 3) & 0x10)
-			| ((corner[5] >> 2) & 0x20)
-			| ((corner[6] >> 1) & 0x40)
-			| (corner[7] & 0x80);
-
+		unsigned long caseCode = vd::tools::caseCode(corner);
 		extractRegularCell(d, caseCode);
 	}
 
@@ -832,11 +824,11 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 //####################################################################################################################################
 
 TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp) {
-    if (vd.isSubstanceCacheValid() && !vdp.bZCut) {
+    if (vd.isSubstanceCacheValid() && !vdp.bZCut && !vdp.bForceNoCache) {
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 

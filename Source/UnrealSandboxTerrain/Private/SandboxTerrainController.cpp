@@ -819,9 +819,9 @@ void ASandboxTerrainController::SpawnInitialZone() {
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
 		SpawnZoneParam.TerrainLodMask = 0;
+		//SpawnZoneParam.bSlightGeneration = true;
 		SpawnList.Add(SpawnZoneParam);
 	}
-
 
 	BatchSpawnZone(SpawnList);
 }
@@ -1083,6 +1083,8 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 		Vdp.bGenerateLOD = false;
 		Vdp.collisionLOD = 0;
 	}
+
+	//Vdp.bForceNoCache = true;
 
 	TMeshDataPtr MeshDataPtr = sandboxVoxelGenerateMesh(*Vd, Vdp);
 
