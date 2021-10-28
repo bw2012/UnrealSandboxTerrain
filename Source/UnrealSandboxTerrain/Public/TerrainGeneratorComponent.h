@@ -142,4 +142,7 @@ private:
 
 	ResultA A(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
 
+	//void GenerateLandscapeZoneSlight(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData) const;
+	void GenerateLandscapeZoneSlight(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData* ChunkHeightMapData) const;
+
 };

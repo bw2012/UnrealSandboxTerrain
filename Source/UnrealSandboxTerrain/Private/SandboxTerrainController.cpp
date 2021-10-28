@@ -819,7 +819,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
 		SpawnZoneParam.TerrainLodMask = 0;
-		//SpawnZoneParam.bSlightGeneration = true;
+		SpawnZoneParam.bSlightGeneration = true;
 		SpawnList.Add(SpawnZoneParam);
 	}
 

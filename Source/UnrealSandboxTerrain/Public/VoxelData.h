@@ -72,6 +72,7 @@ namespace vd {
 		void makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step);
 		void makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step);
 		unsigned long caseCode(int8(&corner)[8]);
+		int clcLinearIndex(int n, int x, int y, int z);
 
 		namespace unsafe {
 			void forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod);

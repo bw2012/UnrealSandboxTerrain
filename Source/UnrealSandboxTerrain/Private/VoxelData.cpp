@@ -362,11 +362,12 @@ void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubst
 }
 
 FORCEINLINE int TVoxelData::clcLinearIndex(int x, int y, int z) const {
-	return x * voxel_num * voxel_num + y * voxel_num + z;
+	//return x * voxel_num * voxel_num + y * voxel_num + z;
+	return vd::tools::clcLinearIndex(voxel_num, x, y, z);
 };
 
 FORCEINLINE int TVoxelData::clcLinearIndex(const TVoxelIndex& v) const {
-	return clcLinearIndex(v.X, v.Y, v.Z);
+	return vd::tools::clcLinearIndex(voxel_num, v.X, v.Y, v.Z);
 };
 
 FORCEINLINE void TVoxelData::clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const {
@@ -517,14 +518,14 @@ void TSubstanceCache::copy(const int* cache_data, const int len) {
 }
 
 
-void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod) {
+FORCEINLINE void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod) {
 	auto const index = vd->clcLinearIndex(x, y, z);
 	TSubstanceCache& lodCache = vd->substanceCacheLOD[lod];
 	TSubstanceCacheItem* cacheItm = lodCache.emplace();
 	cacheItm->index = index;
 }
 
-void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
+FORCEINLINE void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
 	d[0] = TVoxelIndex(x, y + step, z);
 	d[1] = TVoxelIndex(x, y, z);
 	d[2] = TVoxelIndex(x + step, y + step, z);
@@ -535,14 +536,14 @@ void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
 	d[7] = TVoxelIndex(x + step, y, z + step);
 }
 
-void vd::tools::makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step) {
+FORCEINLINE void vd::tools::makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step) {
 	const int x = vi.X;
 	const int y = vi.Y;
 	const int z = vi.Z;
-	vd::tools::makeIndexes(d, x, y, z,step);
+	vd::tools::makeIndexes(d, x, y, z, step);
 }
 
-unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
+FORCEINLINE unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
 	unsigned long caseCode = ((corner[0] >> 7) & 0x01)
 		| ((corner[1] >> 6) & 0x02)
 		| ((corner[2] >> 5) & 0x04)
@@ -554,3 +555,7 @@ unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
 
 	return caseCode;
 }
+
+FORCEINLINE int vd::tools::clcLinearIndex(int n,  int x, int y, int z) {
+	return x * n * n + y * n + z;
+};

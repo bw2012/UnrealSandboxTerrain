@@ -297,6 +297,148 @@ FORCEINLINE bool UTerrainGeneratorComponent::IsZoneOnGroundLevel(TChunkHeightMap
 // Generator
 //======================================================================================================================================================================
 
+struct TMinMax {
+    float Min = 999;
+    float Max = -999;
+
+    TMinMax() {};
+
+    TMinMax(float Val) : Min(Val), Max(Val) {};
+
+    friend TMinMax& operator << (TMinMax& In, float Val) {
+        if (Val < In.Min) {
+            In.Min = Val;
+        }
+
+        if (Val > In.Max) {
+            In.Max = Val;
+        }
+
+        return In;
+    }
+};
+
+FORCEINLINE int ClcZ(float Gl, float ZonePosZ, float Step, int S, int D) {
+    const float H = Gl - ZonePosZ;
+    int Z = (int)(H / Step) + (D / 2) - 1;
+    if (Z < 0) {
+        Z = 0;
+    }
+
+    Z *= S;
+
+    return Z;
+};
+
+class TPseudoOctree {
+
+public:
+
+    TVoxelData* VoxelData;
+    TChunkHeightMapData* ChunkData;
+    int* Processed;
+    const int Total = USBT_ZONE_DIMENSION * USBT_ZONE_DIMENSION * USBT_ZONE_DIMENSION;
+    int Count = 0;
+
+    std::function<void(const TVoxelIndex&, int, TVoxelData*)> Handler = nullptr;
+
+    TPseudoOctree() {
+        Processed = new int[Total];
+        for (int I = 0; I < Total; I++) {
+            Processed[I] = 0x0;
+        }
+
+        Handler = [=](const TVoxelIndex& V, int Idx, TVoxelData* VoxelData) { };
+    };
+
+    ~TPseudoOctree() {
+        delete Processed;
+    };
+
+    bool CheckVoxel(const TVoxelIndex& Idx, int S) {
+        const int X = Idx.X;
+        const int Y = Idx.Y;
+        const int Z = Idx.Z;
+
+        const FVector& Pos = VoxelData->voxelIndexToVector(X, Y, Z);
+        const FVector& Pos2 = VoxelData->voxelIndexToVector(X, Y, Z + S);
+
+        TMinMax MinMax;
+        MinMax << ChunkData->GetHeightLevel(X, Y) << ChunkData->GetHeightLevel(X + S, Y) << ChunkData->GetHeightLevel(X, Y + S) << ChunkData->GetHeightLevel(X + S, Y + S);
+
+        bool b = std::max(Pos.Z, MinMax.Min) <= std::min(Pos2.Z, MinMax.Max);
+
+        //UE_LOG(LogSandboxTerrain, Warning, TEXT("Z1 = %f, Z2 = %f"), Pos.Z, Pos2.Z);
+        //UE_LOG(LogSandboxTerrain, Warning, TEXT("Min = %f, Max = %f"), MinMax.Min, MinMax.Max);
+
+        return b;
+    };
+
+    void PerformVoxel(const TVoxelIndex& Parent, const int LOD) {
+        const int S = 1 << LOD;
+
+        if (CheckVoxel(Parent, S)) {
+            TVoxelIndex Tmp[8];
+            vd::tools::makeIndexes(Tmp, Parent, S);
+            vd::tools::unsafe::forceAddToCache(VoxelData, Parent.X, Parent.Y, Parent.Z, LOD);
+            for (auto i = 0; i < 8; i++) {
+                const TVoxelIndex& TTT = Tmp[i];
+                int Idx = vd::tools::clcLinearIndex(USBT_ZONE_DIMENSION, TTT.X, TTT.Y, TTT.Z);
+
+                if (Processed[Idx] == 0) {
+                    Handler(TTT, Idx, VoxelData);
+                    Count++;
+                    Processed[Idx] = 0xff;
+                }
+            }
+
+            if (LOD != 0) {
+                const int ChildLOD = LOD - 1;
+                const int ChildS = 1 << ChildLOD;
+                TVoxelIndex Child[8];
+                vd::tools::makeIndexes(Child, Parent, ChildS);
+                for (auto I = 0; I < 8; I++) {
+                    PerformVoxel(Child[I], ChildLOD);
+                }
+            }
+        }
+    };
+
+    void Start() {
+        PerformVoxel(TVoxelIndex(0, 0, 0), 6);
+    };
+
+
+};
+//void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const {
+void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData* ChunkData) const {
+    double Start2 = FPlatformTime::Seconds();
+
+    VoxelData->initCache();
+    VoxelData->initializeDensity();
+    VoxelData->initializeMaterial();
+
+    TPseudoOctree Octree;
+    Octree.VoxelData = VoxelData;
+    Octree.ChunkData = ChunkData;
+    Octree.Handler = [=] (const TVoxelIndex& V, int Idx, TVoxelData* VoxelData){
+        auto R = A(V, VoxelData, ChunkData);
+        //const FVector& WorldPos = std::get<1>(R);
+        //const FVector& LocalPos = VoxelData->voxelIndexToVector(V.X, V.Y, V.Z);
+        //const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
+        //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugPoint(GetWorld(), WorldPos, 3.f, FColor(255, 255, 255, 0), true); });
+    };
+
+    Octree.Start();
+    VoxelData->setCacheToValid();
+
+    double End2 = FPlatformTime::Seconds();
+    double Time2 = (End2 - Start2) * 1000;
+    float Ratio = (float)Octree.Count / (float)Octree.Total * 100.f;
+
+    UE_LOG(LogSandboxTerrain, Warning, TEXT("Slight Generation -> %f ms -> %d points -> %.4f%%"), Time2, Octree.Count, Ratio);
+}
+
 void UTerrainGeneratorComponent::GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData, const int LOD) const {
     int zc = 0;
     int fc = 0;
@@ -343,8 +485,6 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TVoxelIndex& ZoneIndex
                         bContainsMoreOneMaterial = true;
                     }
                 }
-
-                // BaseMaterialId = MaterialId;
             }
         }
     }
@@ -388,48 +528,12 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
     double Start1 = FPlatformTime::Seconds();
 
     for (const auto& SecondPassItm : SecondPassList) {
-        GenerateZoneVolume(SecondPassItm.ZoneIndex, SecondPassItm.Vd, SecondPassItm.ChunkData, SecondPassItm.GenerationLOD);
-
         if (SecondPassItm.bSlightGeneration) {
-            double Start2 = FPlatformTime::Seconds();
-
-            TVoxelData* VoxelData = SecondPassItm.Vd;
-            VoxelData->initializeDensity();
-            VoxelData->initializeMaterial();
-
-
-            const TVoxelIndex& ZoneIndex = SecondPassItm.ZoneIndex;
-            const FVector ZonePos = VoxelData->getOrigin();
-            const float step = USBT_ZONE_SIZE / (USBT_ZONE_DIMENSION - 1);
-            auto ChunkData = SecondPassItm.ChunkData;
-
-            for (int X = 0; X < USBT_ZONE_DIMENSION; X++) {
-                for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y++) {
-                    float Gl = ChunkData->GetHeightLevel(X, Y);
-                    float H = Gl - ZonePos.Z;
-                    int Z = (int)(H / step) + USBT_ZONE_DIMENSION / 2 - 1;
-
-                    int SZ = Z - 0; // -0
-                    int EZ = Z + 3; // +3
-
-                    for (int ZZ = SZ; ZZ < EZ; ZZ++) {
-                        const TVoxelIndex& Index = TVoxelIndex(X, Y, ZZ);
-                        auto R = A(Index, VoxelData, ChunkData);
-
-                        const FVector& WorldPos = std::get<1>(R);
-
-                        AsyncTask(ENamedThreads::GameThread, [=]() {
-                            //DrawDebugPoint(GetWorld(), WorldPos, 2.f, FColor(255, 255, 255, 0), true);
-                        });
-                    }
-                }
-            }
-
-            double End2 = FPlatformTime::Seconds();
-            double Time2 = (End2 - Start2) * 1000;
-            UE_LOG(LogSandboxTerrain, Warning, TEXT("Slight Generation -> %f ms"), Time2);
+            GenerateLandscapeZoneSlight(SecondPassItm.ZoneIndex, SecondPassItm.Vd, SecondPassItm.ChunkData);
+            continue;
         }
 
+        GenerateZoneVolume(SecondPassItm.ZoneIndex, SecondPassItm.Vd, SecondPassItm.ChunkData, SecondPassItm.GenerationLOD);
     }
 
     double End1 = FPlatformTime::Seconds();
