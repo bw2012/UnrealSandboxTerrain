@@ -143,7 +143,7 @@ private:
 
 	//====
 
-	ResultA A(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
+	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
 
 	void B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
 

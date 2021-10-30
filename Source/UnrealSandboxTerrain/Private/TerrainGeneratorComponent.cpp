@@ -457,7 +457,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
                 const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
                 const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
 
-                auto R = A(Index, VoxelData, ChunkData);
+                auto R = A(ZoneIndex, Index, VoxelData, ChunkData);
                 float Density = std::get<2>(R);
                 TMaterialId MaterialId = std::get<3>(R);
 
@@ -509,14 +509,14 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
     VoxelData->setCacheToValid();
 }
 
-ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const {
-    const FVector& LocalPos = VoxelData->voxelIndexToVector(Index.X, Index.Y, Index.Z);
+ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const {
+    const FVector& LocalPos = VoxelData->voxelIndexToVector(VoxelIndex.X, VoxelIndex.Y, VoxelIndex.Z);
     const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
-    const float GroundLevel = ChunkData->GetHeightLevel(Index.X, Index.Y);
+    const float GroundLevel = ChunkData->GetHeightLevel(VoxelIndex.X, VoxelIndex.Y);
     const float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
-    const float Density2 = DensityFunctionExt(Density, Index, WorldPos, LocalPos);
+    const float Density2 = DensityFunctionExt(Density, ZoneIndex, WorldPos, LocalPos);
     TMaterialId MaterialId = MaterialFuncion(LocalPos, WorldPos, GroundLevel);
-    VoxelData->setDensityAndMaterial(Index, Density2, MaterialId);
+    VoxelData->setDensityAndMaterial(VoxelIndex, Density2, MaterialId);
     auto Result = std::make_tuple(LocalPos, WorldPos, Density2, MaterialId);
     return Result;
 };
@@ -538,10 +538,6 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
     for (const auto& Itm : SecondPassList) {
         if (Itm.bSlightGeneration) {
             if (Itm.Type == 2) {
-                AsyncTask(ENamedThreads::GameThread, [=]() {
-                    DrawDebugBox(GetWorld(), Itm.Vd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
-                });
-
                 GenerateLandscapeZoneSlight(Itm);
                 continue;
             }
@@ -556,8 +552,13 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
 }
 
 int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkHeightMapData* ChunkHeightMapData) {
+    if (ForcePerformZone(ZoneIndex)) {
+        return 3;
+    }
+
     const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
     static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
+
 
     if (ChunkHeightMapData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize) {
         return 0; // air only
@@ -565,10 +566,9 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
 
     if (ChunkHeightMapData->GetMinHeightLevel() > Pos.Z + ZoneHalfSize) {
         TArray<FTerrainUndergroundLayer> LayerList;
-        int LayersCount = GetMaterialLayers(ChunkHeightMapData, Pos, &LayerList);
-        if (LayersCount > 1) {
+        if (GetMaterialLayers(ChunkHeightMapData, Pos, &LayerList) == 1) {
             return 1; //full solid
-        }
+        } 
     }
 
     float ZoneHigh = Pos.Z + ZoneHalfSize; // +100
@@ -618,8 +618,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
 
         TChunkHeightMapData* ChunkData = GetChunkHeightMap(P.Index.X, P.Index.Y);
         int Type = ZoneGenType(P.Index, ChunkData);
-        //bool bForcePerformZone = ForcePerformZone(ZoneIndex);
-
+        
         if (Type < 2) {
             GenerateSimpleVd(P.Index, NewVd, Type, ChunkData);
         } else {
@@ -629,7 +628,10 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
             SecondPassItm.ZoneIndex = P.Index;
             SecondPassItm.Vd = NewVd;
             SecondPassItm.ChunkData = ChunkData;
+
+#ifdef USBT_EXPERIMENTAL_FAST_GENERATOR
             SecondPassItm.bSlightGeneration = P.bSlightGeneration;
+#endif
 
 #ifdef USBT_EXPERIMENTAL_UNGENERATED_ZONES
             if (P.TerrainLodMask > 0) {
