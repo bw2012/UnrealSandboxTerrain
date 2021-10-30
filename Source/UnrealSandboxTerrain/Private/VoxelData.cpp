@@ -525,6 +525,12 @@ FORCEINLINE void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y
 	cacheItm->index = index;
 }
 
+FORCEINLINE void vd::tools::unsafe::setDensity(TVoxelData* vd, const TVoxelIndex& vi, float density) {
+	const int index = vd::tools::clcLinearIndex(vd->num(), vi);
+	vd->density_state = TVoxelDataFillState::MIXED;
+	vd->density_data[index] = vd->clcFloatToByte(density);
+}
+
 FORCEINLINE void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
 	d[0] = TVoxelIndex(x, y + step, z);
 	d[1] = TVoxelIndex(x, y, z);
@@ -558,4 +564,8 @@ FORCEINLINE unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
 
 FORCEINLINE int vd::tools::clcLinearIndex(int n,  int x, int y, int z) {
 	return x * n * n + y * n + z;
+};
+
+FORCEINLINE int vd::tools::clcLinearIndex(int n, const TVoxelIndex& vi) {
+	return vd::tools::clcLinearIndex(n, vi.X, vi.Y, vi.Z);
 };

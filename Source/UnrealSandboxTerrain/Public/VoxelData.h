@@ -73,9 +73,11 @@ namespace vd {
 		void makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step);
 		unsigned long caseCode(int8(&corner)[8]);
 		int clcLinearIndex(int n, int x, int y, int z);
+		int clcLinearIndex(int n, const TVoxelIndex& vi);
 
 		namespace unsafe {
 			void forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod);
+			void setDensity(TVoxelData* vd, const TVoxelIndex& vi, float density);
 		}
 	}
 };
@@ -83,6 +85,7 @@ namespace vd {
 class UNREALSANDBOXTERRAIN_API TVoxelData {
 
 	friend void vd::tools::unsafe::forceAddToCache(TVoxelData*, int, int, int, int);
+	friend void vd::tools::unsafe::setDensity(TVoxelData*, const TVoxelIndex&, float);
 
 private:
 	TVoxelDataFillState density_state;

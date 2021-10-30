@@ -54,6 +54,9 @@ class UNREALSANDBOXTERRAIN_API UTerrainGeneratorComponent : public UActorCompone
 
 public:
 		
+	UPROPERTY()
+	int DfaultGrassMaterialId;
+
 	virtual void BeginPlay() override;
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -141,6 +144,8 @@ private:
 	//====
 
 	ResultA A(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
+
+	void B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
 
 	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
 

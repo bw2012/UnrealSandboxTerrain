@@ -7,6 +7,8 @@
 
 
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
+#define USBT_DEFAULT_GRASS_MATERIAL_ID      2
+
 
 
 class TChunkHeightMapData {
@@ -71,6 +73,7 @@ public:
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
     this->Pn = new TPerlinNoise();
+    this->DfaultGrassMaterialId = USBT_DEFAULT_GRASS_MATERIAL_ID;
 }
 
 void UTerrainGeneratorComponent::BeginPlay() {
@@ -189,7 +192,7 @@ FORCEINLINE TMaterialId UTerrainGeneratorComponent::MaterialFuncion(const FVecto
 
     TMaterialId mat = 0;
     if (DeltaZ >= -70) {
-        mat = 2; // grass
+        mat = DfaultGrassMaterialId; // grass
     } else {
         const FTerrainUndergroundLayer* Layer = GetMaterialLayer(WorldPos.Z, GroundLevel);
         if (Layer != nullptr) {
@@ -407,13 +410,13 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
 
     VoxelData->initCache();
     VoxelData->initializeDensity();
-    VoxelData->initializeMaterial();
+    VoxelData->deinitializeMaterial(DfaultGrassMaterialId);
 
     TPseudoOctree Octree;
     Octree.VoxelData = VoxelData;
     Octree.ChunkData = ChunkData;
     Octree.Handler = [=] (const TVoxelIndex& V, int Idx, TVoxelData* VoxelData){
-        auto R = A(V, VoxelData, ChunkData);
+       B(V, VoxelData, ChunkData);
         //const FVector& WorldPos = std::get<1>(R);
         //const FVector& LocalPos = VoxelData->voxelIndexToVector(V.X, V.Y, V.Z);
         //const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
@@ -459,8 +462,8 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
                 TMaterialId MaterialId = std::get<3>(R);
 
                 if (LOD > 0) {
-                   // MaterialId = 2; // FIXME
-                    VoxelData->setMaterial(Index.X, Index.Y, Index.Z, 2);
+                   // MaterialId = DfaultGrassMaterialId; // FIXME
+                    VoxelData->setMaterial(Index.X, Index.Y, Index.Z, DfaultGrassMaterialId);
                 }
 
                 VoxelData->performSubstanceCacheLOD(Index.X, Index.Y, Index.Z, LOD);
@@ -518,6 +521,16 @@ ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& Index, TVoxelData* Voxe
     return Result;
 };
 
+void UTerrainGeneratorComponent::B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const {
+    const FVector& LocalPos = VoxelData->voxelIndexToVector(Index.X, Index.Y, Index.Z);
+    const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
+    const float GroundLevel = ChunkData->GetHeightLevel(Index.X, Index.Y);
+    const float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+    const float Density2 = DensityFunctionExt(Density, Index, WorldPos, LocalPos);
+    //VoxelData->setDensity(Index, Density2);
+    vd::tools::unsafe::setDensity(VoxelData, Index, Density2);
+};
+
 
 void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& SecondPassList) {
     double Start1 = FPlatformTime::Seconds();
@@ -556,7 +569,6 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
         if (LayersCount > 1) {
             return 1; //full solid
         }
-
     }
 
     float ZoneHigh = Pos.Z + ZoneHalfSize; // +100
@@ -564,13 +576,11 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
     float TerrainHigh = ChunkHeightMapData->GetMaxHeightLevel();
     float TerrainLow = ChunkHeightMapData->GetMinHeightLevel();
     if (std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh)) {
-
         /*
         AsyncTask(ENamedThreads::GameThread, [=]() {
             DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
         });
         */ 
-
         return 2; // landscape
     }
 
