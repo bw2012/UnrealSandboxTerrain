@@ -11,7 +11,7 @@
 
 
 
-class TChunkHeightMapData {
+class TChunkData {
 
 private:
 
@@ -22,12 +22,12 @@ private:
 
 public:
 
-    TChunkHeightMapData(int Size) {
+    TChunkData(int Size) {
         this->Size = Size;
         HeightLevelArray = new float[Size * Size * Size];
     }
 
-    ~TChunkHeightMapData() {
+    ~TChunkData() {
         delete[] HeightLevelArray;
     }
 
@@ -61,12 +61,10 @@ public:
 
     FORCEINLINE float GetMaxHeightLevel() const {
         return this->MaxHeightLevel;
-
     };
 
     FORCEINLINE float GetMinHeightLevel() const {
         return this->MinHeightLevel;
-
     };
 };
 
@@ -151,12 +149,12 @@ float UTerrainGeneratorComponent::PerlinNoise(const FVector& Pos) const {
 // 
 //======================================================================================================================================================================
 
-int UTerrainGeneratorComponent::GetMaterialLayers(const TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const {
+int UTerrainGeneratorComponent::GetMaterialLayers(const TChunkData* ChunkData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const {
     static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
     float ZoneHigh = ZoneOrigin.Z + ZoneHalfSize;
     float ZoneLow = ZoneOrigin.Z - ZoneHalfSize;
-    float TerrainHigh = ChunkHeightMapData->GetMaxHeightLevel();
-    float TerrainLow = ChunkHeightMapData->GetMinHeightLevel();
+    float TerrainHigh = ChunkData->GetMaxHeightLevel();
+    float TerrainLow = ChunkData->GetMinHeightLevel();
 
     int Cnt = 0;
     for (int Idx = 0; Idx < UndergroundLayersTmp.Num() - 1; Idx++) {
@@ -247,15 +245,15 @@ FORCEINLINE float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVec
 }
 
 
-TChunkHeightMapData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
+TChunkData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
     const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
 
     TVoxelIndex Index(X, Y, 0);
-    TChunkHeightMapData* ChunkHeightMapData = nullptr;
+    TChunkData* ChunkData = nullptr;
 
     if (ChunkDataCollection.find(Index) == ChunkDataCollection.end()) {
-        ChunkHeightMapData = new TChunkHeightMapData(USBT_ZONE_DIMENSION);
-        ChunkDataCollection.insert({ Index, ChunkHeightMapData });
+        ChunkData = new TChunkData(USBT_ZONE_DIMENSION);
+        ChunkDataCollection.insert({ Index, ChunkData });
 
         double Start = FPlatformTime::Seconds();
         const float step = USBT_ZONE_SIZE / (USBT_ZONE_DIMENSION - 1);
@@ -269,7 +267,7 @@ TChunkHeightMapData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y)
                 const FVector& LocalPos = v;
                 FVector WorldPos = LocalPos + GetController()->GetZonePos(Index);
                 float GroundLevel = GroundLevelFunction(Index, WorldPos);
-                ChunkHeightMapData->SetHeightLevel(X, Y, GroundLevel);
+                ChunkData->SetHeightLevel(X, Y, GroundLevel);
             }
         }
 
@@ -277,10 +275,10 @@ TChunkHeightMapData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y)
         double Time = (End - Start) * 1000;
         UE_LOG(LogSandboxTerrain, Log, TEXT("Generate height map  ----> %f ms --  %d %d"), Time, X, Y);
     } else {
-        ChunkHeightMapData = ChunkDataCollection[Index];
+        ChunkData = ChunkDataCollection[Index];
     }
 
-    return ChunkHeightMapData;
+    return ChunkData;
 };
 
 //======================================================================================================================================================================
@@ -396,7 +394,7 @@ public:
 void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const {
     const TVoxelIndex& ZoneIndex = Itm.ZoneIndex;
     TVoxelData* VoxelData = Itm.Vd;
-    /* const */ TChunkHeightMapData* ChunkData = Itm.ChunkData;
+    /* const */ TChunkData* ChunkData = Itm.ChunkData;
 
     double Start2 = FPlatformTime::Seconds();
 
@@ -443,7 +441,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
 
     const TVoxelIndex& ZoneIndex = Itm.ZoneIndex;
     TVoxelData* VoxelData = Itm.Vd;
-    /* const */ TChunkHeightMapData* ChunkData = Itm.ChunkData;
+    /* const */ TChunkData* ChunkData = Itm.ChunkData;
     const int LOD = Itm.GenerationLOD;
     int zc = 0;
     int fc = 0;
@@ -514,7 +512,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
     VoxelData->setCacheToValid();
 }
 
-ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const {
+ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkData* ChunkData) const {
     const FVector& LocalPos = VoxelData->voxelIndexToVector(VoxelIndex.X, VoxelIndex.Y, VoxelIndex.Z);
     const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
     const float GroundLevel = ChunkData->GetHeightLevel(VoxelIndex.X, VoxelIndex.Y);
@@ -526,16 +524,14 @@ ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& ZoneIndex, const TVoxel
     return Result;
 };
 
-void UTerrainGeneratorComponent::B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const {
+void UTerrainGeneratorComponent::B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkData* ChunkData) const {
     const FVector& LocalPos = VoxelData->voxelIndexToVector(Index.X, Index.Y, Index.Z);
     const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
     const float GroundLevel = ChunkData->GetHeightLevel(Index.X, Index.Y);
     const float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
     const float Density2 = DensityFunctionExt(Density, Index, WorldPos, LocalPos);
-    //VoxelData->setDensity(Index, Density2);
     vd::tools::unsafe::setDensity(VoxelData, Index, Density2);
 };
-
 
 void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& SecondPassList) {
     double Start1 = FPlatformTime::Seconds();
@@ -556,7 +552,7 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
     //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
 }
 
-int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkHeightMapData* ChunkHeightMapData) {
+int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData) {
     if (ForcePerformZone(ZoneIndex)) {
         return 3;
     }
@@ -565,21 +561,21 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
     static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
 
-    if (ChunkHeightMapData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize) {
+    if (ChunkData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize) {
         return 0; // air only
     }
 
-    if (ChunkHeightMapData->GetMinHeightLevel() > Pos.Z + ZoneHalfSize) {
+    if (ChunkData->GetMinHeightLevel() > Pos.Z + ZoneHalfSize) {
         TArray<FTerrainUndergroundLayer> LayerList;
-        if (GetMaterialLayers(ChunkHeightMapData, Pos, &LayerList) == 1) {
+        if (GetMaterialLayers(ChunkData, Pos, &LayerList) == 1) {
             return 1; //full solid
         } 
     }
 
     float ZoneHigh = Pos.Z + ZoneHalfSize; // +100
     float ZoneLow = Pos.Z - ZoneHalfSize; //-10
-    float TerrainHigh = ChunkHeightMapData->GetMaxHeightLevel();
-    float TerrainLow = ChunkHeightMapData->GetMinHeightLevel();
+    float TerrainHigh = ChunkData->GetMaxHeightLevel();
+    float TerrainLow = ChunkData->GetMinHeightLevel();
     if (std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh)) {
         /*
         AsyncTask(ENamedThreads::GameThread, [=]() {
@@ -592,7 +588,7 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
     return 3;
 }
 
-void UTerrainGeneratorComponent::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkHeightMapData* ChunkData) {
+void UTerrainGeneratorComponent::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkData* ChunkData) {
     if (Type == 0) {
         // air only
         VoxelData->deinitializeDensity(TVoxelDataFillState::ZERO);
@@ -621,7 +617,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
         TVoxelData* NewVd = GetController()->NewVoxelData();
         NewVd->setOrigin(Pos);
 
-        TChunkHeightMapData* ChunkData = GetChunkHeightMap(P.Index.X, P.Index.Y);
+        TChunkData* ChunkData = GetChunkHeightMap(P.Index.X, P.Index.Y);
         int Type = ZoneGenType(P.Index, ChunkData);
         
         if (Type < 2) {
