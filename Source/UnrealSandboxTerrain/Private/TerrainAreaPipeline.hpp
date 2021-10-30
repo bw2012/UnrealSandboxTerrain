@@ -178,6 +178,12 @@ protected :
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = Index;
 		SpawnZoneParam.TerrainLodMask = TerrainLodMask;
+
+		if (Distance > 2000) {
+			//SpawnZoneParam.bSlightGeneration = true;
+		}
+
+
 		SpawnList.Add(SpawnZoneParam);
 
 		// batch with one zone. CPU only

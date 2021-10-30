@@ -665,7 +665,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 		VoxelDataInfoPtr->VdMutexPtr->lock();
 		MeshDataPtr = GenerateMesh(VoxelDataInfoPtr->Vd);
-		VoxelDataInfoPtr->HandleUngenerated(); //TODO refactor
+		VoxelDataInfoPtr->CleanUngenerated(); //TODO refactor
 		VoxelDataInfoPtr->VdMutexPtr->unlock();
 
 		if (ExistingZone) {
@@ -753,13 +753,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 					//voxel data exist in file
 					VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
 				}
-
-				if (bIsNoMesh) {
-					//UE_LOG(LogSandboxTerrain, Log, TEXT("NoMesh"));
-				} 
-
-				//UE_LOG(LogSandboxTerrain, Log, TEXT("Test: %d"), ZoneHeader.LenMd);
-
 			} else {
 				// generate new voxel data
 				VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
@@ -811,6 +804,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 					TSpawnZoneParam SpawnZoneParam;
 					SpawnZoneParam.Index = TVoxelIndex(x, y, z);
 					SpawnZoneParam.TerrainLodMask = 0;
+					SpawnZoneParam.bSlightGeneration = (x == 0 && y == 0 && z == 0) ? false : true;
 					SpawnList.Add(SpawnZoneParam);
 				}
 			}
@@ -819,7 +813,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
 		SpawnZoneParam.TerrainLodMask = 0;
-		SpawnZoneParam.bSlightGeneration = true;
+		SpawnZoneParam.bSlightGeneration = false;
 		SpawnList.Add(SpawnZoneParam);
 	}
 

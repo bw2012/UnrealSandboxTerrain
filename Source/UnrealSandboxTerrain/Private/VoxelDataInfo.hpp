@@ -92,7 +92,7 @@ public:
         }
     }
 
-    void HandleUngenerated() {
+    void CleanUngenerated() {
         if (DataState == TVoxelDataState::UNGENERATED) {
             if (Vd != nullptr) {
                 delete Vd;

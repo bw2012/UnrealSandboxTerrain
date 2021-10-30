@@ -37,6 +37,8 @@ typedef struct TGenerateVdTempItm {
 	// partial generation v2
 	bool bSlightGeneration = false;
 
+	int Type = 0;
+
 } TGenerateVdTempItm;
 
 
@@ -106,6 +108,8 @@ protected:
 
 	virtual void OnBatchGenerationFinished();
 
+	virtual int ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkHeightMapData* ChunkHeightMapData);
+
 private:
 
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
@@ -116,21 +120,17 @@ private:
 
 	TChunkHeightMapData* GetChunkHeightMap(int X, int Y);
 
-	virtual TVoxelDataFillState GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr);
-
-	bool IsZoneOverGroundLevel(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin) const;
-
-	bool IsZoneOnGroundLevel(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin) const;
+	virtual void GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkHeightMapData* ChunkData);
 
 	float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const;
 
-	void GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData, const int LOD = 0) const;
+	void GenerateZoneVolume(const TGenerateVdTempItm& Itm) const;
 
 	FORCEINLINE TMaterialId MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const;
 
 	const FTerrainUndergroundLayer* GetMaterialLayer(float Z, float RealGroundLevel) const;
 
-	int GetMaterialLayersCount(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
+	int GetMaterialLayers(const TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
 
 	void GenerateNewFoliage(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
@@ -142,7 +142,6 @@ private:
 
 	ResultA A(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkData) const;
 
-	//void GenerateLandscapeZoneSlight(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData) const;
-	void GenerateLandscapeZoneSlight(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData* ChunkHeightMapData) const;
+	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
 
 };
