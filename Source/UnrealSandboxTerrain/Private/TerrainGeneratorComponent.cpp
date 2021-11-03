@@ -256,15 +256,15 @@ TChunkData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
         ChunkDataCollection.insert({ Index, ChunkData });
 
         double Start = FPlatformTime::Seconds();
+
         const float Step = USBT_ZONE_SIZE / (USBT_ZONE_DIMENSION - 1);
         const float S = -USBT_ZONE_SIZE / 2;
-
         for (int VX = 0; VX < USBT_ZONE_DIMENSION; VX++) {
             for (int VY = 0; VY < USBT_ZONE_DIMENSION; VY++) {
-                const FVector& LocalPos = FVector(S, S, S) + FVector(VX * Step, VY * Step, 0);
-                const FVector& WorldPos = LocalPos + GetController()->GetZonePos(Index);
-                const float GroundLevel = GroundLevelFunction(Index, WorldPos);
-                ChunkData->SetHeightLevel(X, Y, GroundLevel);
+                const FVector LocalPos(S + VX * Step, S + VY * Step, S);
+                FVector WorldPos = LocalPos + GetController()->GetZonePos(Index);
+                float GroundLevel = GroundLevelFunction(Index, WorldPos);
+                ChunkData->SetHeightLevel(VX, VY, GroundLevel);
             }
         }
 
