@@ -316,12 +316,12 @@ namespace kvdb {
 
 			// read previous last table 
 			TTableHeaderInfo& lastTable = tableList.back();
-			//filePtr->seekp(lastTable.pos);
 
 			// add link to new table
 			lastTable().nextTable = newTablePos;
 
 			// rewrite previous last table
+			filePtr->seekp(lastTable.pos);
 			filePtr << lastTable();
 
 			// add new table to internal list
@@ -415,9 +415,13 @@ namespace kvdb {
 			filePtr >> fileHeader;
 
 			ulong64 nextTablePos = readTable();
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("nextTablePos0 %d"), nextTablePos);
+
 			while (nextTablePos > 0) {
 				filePtr->seekg(nextTablePos);
 				nextTablePos = readTable();
+
+				UE_LOG(LogSandboxTerrain, Warning, TEXT("nextTablePos %d"), nextTablePos);
 			}
 
 			return true;

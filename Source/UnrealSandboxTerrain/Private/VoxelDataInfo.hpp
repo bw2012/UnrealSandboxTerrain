@@ -95,7 +95,6 @@ public:
     void CleanUngenerated() {
         if (DataState == TVoxelDataState::UNGENERATED) {
             if (Vd != nullptr) {
-                UE_LOG(LogSandboxTerrain, Warning, TEXT("CleanUngenerated"));
                 delete Vd;
                 Vd = nullptr;
             }

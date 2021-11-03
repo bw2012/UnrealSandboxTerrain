@@ -366,7 +366,6 @@ uint32 SaveZoneToFile(TKvFile& File, const TVoxelIndex& Index, const TValueDataP
 #endif
 
 	File.save(Index, *DataPtr);
-
 	return CRC;
 }
 
@@ -435,6 +434,7 @@ void ASandboxTerrainController::Save() {
 			}
 
 			uint32 CRC = SaveZoneToFile(TdFile, Index, DataVd, DataMd, DataObj);
+
 			SavedCount++;
 			VdInfoPtr->ResetLastSave();
 		}
@@ -743,7 +743,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		VdInfoPtr->VdMutexPtr->lock();
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 			if (TdFile.isExist(Index)) {
-
 				// TODO: refactor kvdb
 				TValueDataPtr DataPtr = TdFile.loadData(Index);
 				usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
@@ -753,7 +752,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 				bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
 				bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
 				if (bIsNoVd) {
-					UE_LOG(LogSandboxTerrain, Log, TEXT("NoVoxelData"));
+					//UE_LOG(LogSandboxTerrain, Log, TEXT("NoVoxelData"));
 					VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 				} else {
 					//voxel data exist in file
