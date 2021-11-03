@@ -336,18 +336,15 @@ namespace kvdb {
 			for (auto itr = deletedKeyList.begin(); itr != deletedKeyList.end();) {
 				TKeyEntryInfo keyInfo = *itr;
 				if (keyInfo().initialDataLength >= valueData.size()) {
-					TKeyEntryInfo keyInfo = *itr;
 					keyInfo().freeKeyData = keyData;
 					rewritePair(keyInfo, valueData);
 					dataMap.insert({ keyInfo().freeKeyData, keyInfo });
 					itr = deletedKeyList.erase(itr);
-
 					return true;
 				} else {
 					++itr;
 				}
 			}
-
 			return false;
 		}
 

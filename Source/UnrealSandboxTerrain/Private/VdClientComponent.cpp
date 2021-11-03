@@ -47,12 +47,12 @@ void UVdClientComponent::BeginPlay() {
 
 			UE_LOG(LogSandboxTerrain, Log, TEXT("Vd server IP -> %d.%d.%d.%d: "), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
 
-			const int Port = 6000;
+			const int Port1 = 6000;
 			FIPv4Address IP(0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
 
 			TSharedRef<FInternetAddr> ServerAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 			ServerAddr->SetIp(IP.Value);
-			ServerAddr->SetPort(Port);
+			ServerAddr->SetPort(Port1);
 
 			FSocket* SocketPtr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("default"), false);
 

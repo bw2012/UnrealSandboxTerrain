@@ -33,8 +33,8 @@ public:
 
 	TTerrainAreaPipeline() {}
 
-	~TTerrainAreaPipeline() {
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TTerrainLoadHandler()"));
+	virtual ~TTerrainAreaPipeline() { 
+		// UE_LOG(LogSandboxTerrain, Log, TEXT("~TTerrainLoadHandler()")); 
 	}
 
 	TTerrainAreaPipeline(FString Name_, ASandboxTerrainController* Controller_) :
@@ -128,10 +128,10 @@ public:
 		this->bIsStopped = true;
 	}
 
-	void SetParams(FString Name, ASandboxTerrainController* Controller, TTerrainAreaPipelineParams Params) {
-		this->Name = Name;
-		this->Controller = Controller;
-		this->Params = Params;
+	void SetParams(FString NewName, ASandboxTerrainController* NewController, TTerrainAreaPipelineParams NewParams) {
+		this->Name = NewName;
+		this->Controller = NewController;
+		this->Params = NewParams;
 	}
 
 	void LoadArea(const FVector& Origin) {

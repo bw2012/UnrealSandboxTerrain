@@ -65,7 +65,7 @@ struct FTerrainInstancedMeshType {
 	int32 MeshTypeId;
 
 	UPROPERTY()
-	UStaticMesh* Mesh;
+	UStaticMesh* Mesh = nullptr;
 
 	UPROPERTY()
 	int32 StartCullDistance;
