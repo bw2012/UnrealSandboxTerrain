@@ -424,7 +424,7 @@ private:
 	void BeginClient();
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
 
@@ -454,7 +454,7 @@ private:
 
 	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0);
 
-	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const bool bIsNewGenerated = false);
 
 	//===============================================================================
 	// threads
@@ -590,9 +590,5 @@ protected:
 
 	void BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
 
-	virtual void BatchGenerateNewVd(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray);
-
 	std::list<TChunkIndex> MakeChunkListByAreaSize(const uint32 AreaRadius);
-	
-	
 };

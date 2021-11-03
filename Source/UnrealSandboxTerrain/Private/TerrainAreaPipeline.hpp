@@ -179,9 +179,9 @@ protected :
 		SpawnZoneParam.Index = Index;
 		SpawnZoneParam.TerrainLodMask = TerrainLodMask;
 
-		if (Distance > 2000) {
-			//SpawnZoneParam.bSlightGeneration = true;
-		}
+		//if (Distance > 2000) {
+			SpawnZoneParam.bSlightGeneration = true;
+		//}
 
 
 		SpawnList.Add(SpawnZoneParam);

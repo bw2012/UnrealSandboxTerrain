@@ -27,10 +27,6 @@ public:
 
 	void SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
 
-	void SetLodFlag(bool bLodFlag) {
-		this->bLodFlag = bLodFlag;
-	}
-
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual class UBodySetup* GetBodySetup() override;

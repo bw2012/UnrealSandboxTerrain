@@ -22,7 +22,7 @@ struct FSandboxFoliage;
 typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
-typedef struct TGenerateVdTempItm {
+struct TGenerateVdTempItm {
 
 	int Idx = 0;
 
@@ -39,7 +39,13 @@ typedef struct TGenerateVdTempItm {
 
 	int Type = 0;
 
-} TGenerateVdTempItm;
+};
+
+struct TGenerateZoneResult {
+	TVoxelData* Vd = nullptr;
+	int Type = 0;
+	int Method = 0;
+};
 
 
 typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
@@ -71,7 +77,9 @@ public:
 
 	float PerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const;
 
-	void BatchGenerateVoxelTerrain(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray);
+	void ForceGenerateZone(TVoxelData* VoxelData, const TVoxelIndex& ZoneIndex);
+
+	void BatchGenerateVoxelTerrain(const TArray<TSpawnZoneParam>& GenerationList, TArray<TGenerateZoneResult>& ResultArray);
 
 	virtual float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
 

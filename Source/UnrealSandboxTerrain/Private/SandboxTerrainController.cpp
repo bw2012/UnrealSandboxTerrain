@@ -7,6 +7,7 @@
 #include "Json.h"
 #include "JsonObjectConverter.h"
 #include "DrawDebugHelpers.h"
+#include "kvdb.hpp"
 
 #include "TerrainZoneComponent.h"
 #include "VdServerComponent.h"
@@ -643,7 +644,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 			return (int)TZoneSpawnResult::ChangeLodMask;
 		} else {
 			// spawn new zone with mesh
-			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask, TVoxelDataState::LOADED);
+			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask);
 			return (int)TZoneSpawnResult::SpawnMesh;
 		}
 	}
@@ -673,9 +674,9 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
 		}
 
-		TVoxelDataState State = VoxelDataInfoPtr->DataState;
+		bool bIsNewGenerated = (VoxelDataInfoPtr->DataState == TVoxelDataState::GENERATED);
 		TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
-		ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask, State);
+		ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask, bIsNewGenerated);
 
 		return (int)TZoneSpawnResult::SpawnMesh;
 	}
@@ -683,21 +684,26 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	return TZoneSpawnResult::None;
 }
 
-void ASandboxTerrainController::BatchGenerateNewVd(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray) {
-	GetTerrainGenerator()->BatchGenerateVoxelTerrain(GenerationList, NewVdArray);
-}
-
 void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList) {
-	TArray<TVoxelData*> NewVdArray;
-	BatchGenerateNewVd(GenerationList, NewVdArray);
+	TArray<TGenerateZoneResult> NewVdArray;
+	GetTerrainGenerator()->BatchGenerateVoxelTerrain(GenerationList, NewVdArray);
 
 	int Idx = 0;
 	for (const auto& P : GenerationList) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(P.Index);
 		VdInfoPtr->VdMutexPtr->lock();
 
-		VdInfoPtr->Vd = NewVdArray[Idx];
+		VdInfoPtr->Vd = NewVdArray[Idx].Vd;
 
+		FVector v = VdInfoPtr->Vd->getOrigin();
+
+		if (NewVdArray[Idx].Method == 2) {
+			//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), v, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
+			VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
+		} else {
+			VdInfoPtr->DataState = TVoxelDataState::GENERATED;
+		}
+/*
 #ifdef USBT_EXPERIMENTAL_UNGENERATED_ZONES 
 		if (P.TerrainLodMask == 0) {
 			VdInfoPtr->DataState = TVoxelDataState::GENERATED;
@@ -707,6 +713,7 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 #else
 		VdInfoPtr->DataState = TVoxelDataState::GENERATED;
 #endif
+*/
 
 		VdInfoPtr->SetChanged();
 
@@ -744,7 +751,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 				Deserializer >> ZoneHeader;
 
 				bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
-
 				bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
 				if (bIsNoVd) {
 					UE_LOG(LogSandboxTerrain, Log, TEXT("NoVoxelData"));
@@ -760,13 +766,13 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 			}
 		}
 
+		/*
 		if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED && TerrainLodMask == 0) {
 			VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
-
-			UE_LOG(LogSandboxTerrain, Log, TEXT("bNewVdGeneration"));
-
+			UE_LOG(LogSandboxTerrain, Log, TEXT("bNewVdGeneration"))
 			bNewVdGeneration = true;
 		}
+		*/
 
 		VdInfoPtr->VdMutexPtr->unlock();
 
@@ -788,7 +794,18 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 	}
 
 	for (const auto& P : GenerationList) {
-		SpawnZone(P.Index, P.TerrainLodMask);
+		//SpawnZone(P.Index, P.TerrainLodMask);
+		TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(P.Index);
+
+		if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
+			VoxelDataInfoPtr->VdMutexPtr->lock();
+			TMeshDataPtr MeshDataPtr = GenerateMesh(VoxelDataInfoPtr->Vd);
+			VoxelDataInfoPtr->CleanUngenerated(); //TODO refactor
+			VoxelDataInfoPtr->VdMutexPtr->unlock();
+			TerrainData->PutMeshDataToCache(P.Index, MeshDataPtr);
+			ExecGameThreadAddZoneAndApplyMesh(P.Index, MeshDataPtr, P.TerrainLodMask, true);
+		}
+
 	}
 }
 
@@ -804,7 +821,8 @@ void ASandboxTerrainController::SpawnInitialZone() {
 					TSpawnZoneParam SpawnZoneParam;
 					SpawnZoneParam.Index = TVoxelIndex(x, y, z);
 					SpawnZoneParam.TerrainLodMask = 0;
-					SpawnZoneParam.bSlightGeneration = (x == 0 && y == 0 && z == 0) ? false : true;
+					//SpawnZoneParam.bSlightGeneration = (x == 0 && y == 0 && z == 0) ? false : true;
+					SpawnZoneParam.bSlightGeneration = true;
 					SpawnList.Add(SpawnZoneParam);
 				}
 			}
@@ -813,7 +831,7 @@ void ASandboxTerrainController::SpawnInitialZone() {
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
 		SpawnZoneParam.TerrainLodMask = 0;
-		SpawnZoneParam.bSlightGeneration = false;
+		SpawnZoneParam.bSlightGeneration = true;
 		SpawnList.Add(SpawnZoneParam);
 	}
 
@@ -915,7 +933,7 @@ void ASandboxTerrainController::ExecGameThreadZoneApplyMesh(UTerrainZoneComponen
 	}
 }
 
-void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask, const uint32 State) {
+void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask, const bool bIsNewGenerated) {
 	FVector ZonePos = GetZonePos(Index);
 	ASandboxTerrainController* Controller = this;
 
@@ -926,17 +944,15 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 				if (Zone) {
 					Zone->ApplyTerrainMesh(MeshDataPtr, TerrainLodMask);
 
-					if (State == TVoxelDataState::GENERATED) {
+					if (bIsNewGenerated) {
 						OnGenerateNewZone(Index, Zone);
-					}
-
-					if (State == TVoxelDataState::LOADED) {
+					} else {
 						OnLoadZone(Zone);
 					}
-				}
+				} 
 			}
 		} else {
-			UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh - game shutdown"));
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh - game shutdown"));
 		}
 	};
 
