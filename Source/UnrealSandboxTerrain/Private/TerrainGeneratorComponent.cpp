@@ -244,9 +244,8 @@ FORCEINLINE float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVec
     return DensityByGroundLevel;
 }
 
-
 TChunkData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
-    const std::lock_guard<std::mutex> lock(ZoneHeightMapMutex);
+    const std::lock_guard<std::mutex> lock(ChunkDataMapMutex);
 
     TVoxelIndex Index(X, Y, 0);
     TChunkData* ChunkData = nullptr;
@@ -271,6 +270,9 @@ TChunkData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
         double End = FPlatformTime::Seconds();
         double Time = (End - Start) * 1000;
         UE_LOG(LogSandboxTerrain, Log, TEXT("Generate height map  ----> %f ms --  %d %d"), Time, X, Y);
+
+        const static size_t SSS = sizeof(TChunkData) + sizeof(float) * USBT_ZONE_DIMENSION * USBT_ZONE_DIMENSION * USBT_ZONE_DIMENSION;
+        //UE_LOG(LogSandboxTerrain, Log, TEXT("%d"), ChunkDataCollection.size() * SSS);
     } else {
         ChunkData = ChunkDataCollection[Index];
     }
@@ -432,7 +434,7 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
     double Time2 = (End2 - Start2) * 1000;
     float Ratio = (float)Octree.GetCount() / (float)Octree.GetTotal() * 100.f;
 
-    UE_LOG(LogSandboxTerrain, Warning, TEXT("Slight Generation -> %f ms -> %d points -> %.4f%%"), Time2, Octree.GetCount(), Ratio);
+    UE_LOG(LogSandboxTerrain, Warning, TEXT("Slight Generation -> %f ms -> %d points -> %.4f%% -> %d %d %d"), Time2, Octree.GetCount(), Ratio, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 }
 
 void UTerrainGeneratorComponent::ForceGenerateZone(TVoxelData* VoxelData, const TVoxelIndex& ZoneIndex) {
@@ -674,7 +676,12 @@ void UTerrainGeneratorComponent::OnBatchGenerationFinished() {
 //}
 
 void UTerrainGeneratorComponent::Clean() {
-    ChunkDataCollection.clear();
+    const std::lock_guard<std::mutex> lock(ChunkDataMapMutex);
+    for (auto Itm : ChunkDataCollection) {
+        delete Itm.second;
+
+    }
+    ChunkDataCollection.clear(); //UNSAFE
 }
 
 void UTerrainGeneratorComponent::Clean(TVoxelIndex& Index) {

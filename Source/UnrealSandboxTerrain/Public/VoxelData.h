@@ -68,6 +68,9 @@ typedef std::shared_ptr<TVoxelData> TVoxelDataPtr;
 
 namespace vd {
 	namespace tools {
+		namespace memory {
+			int getVdCount();
+		}
 
 		void makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step);
 		void makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step);
@@ -182,6 +185,5 @@ public:
 
 	friend bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);
 };
-
 
 //bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);

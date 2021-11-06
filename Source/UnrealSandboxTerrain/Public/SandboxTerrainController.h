@@ -520,7 +520,7 @@ private:
 	// pipeline
 	//===============================================================================
 
-	int SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
+	void SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 

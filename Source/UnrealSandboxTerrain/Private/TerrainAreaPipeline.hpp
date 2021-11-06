@@ -7,14 +7,6 @@
 //
 //======================================================================================================================================================================
 
-enum TZoneSpawnResult : int {
-	None = 0,
-	SpawnMesh = 1,
-	GeneratedNewVd = 2,
-	GeneratedNewMesh = 3,
-	ChangeLodMask = 4
-};
-
 typedef struct TTerrainAreaPipelineParams {
 	float Radius = 3000;
 	float FullLodDistance = 1000;
@@ -51,14 +43,13 @@ protected:
 	TVoxelIndex OriginIndex;
 	uint32 Total = 0;
 	uint32 Progress = 0;
-	uint32 GeneratedVdConter = 0;
 	uint32 SaveGeneratedZones = 1000;
 	bool bIsStopped = false;
 
 protected:
 
-	virtual int PerformZone(const TVoxelIndex& Index) {
-		return TZoneSpawnResult::None;
+	virtual void PerformZone(const TVoxelIndex& Index) {
+
 	}
 
 	virtual void EndChunk(int x, int y) {
@@ -75,25 +66,21 @@ private:
 	void PerformChunk(int x, int y) {
 		for (int z = -Params.TerrainSizeMinZ; z <= Params.TerrainSizeMaxZ; z++) {
 			TVoxelIndex Index(x + OriginIndex.X, y + OriginIndex.Y, z);
-			TZoneSpawnResult Res = (TZoneSpawnResult)PerformZone(Index);
+			PerformZone(Index);
 			Progress++;
 
 			if (Params.OnProgress) {
 				Params.OnProgress(Progress, Total);
 			}
 
-			if (Res == TZoneSpawnResult::GeneratedNewVd) {
-				GeneratedVdConter++;
-			}
-
 			if (Controller->IsWorkFinished() || bIsStopped) {
 				return;
 			}
 
-			if (GeneratedVdConter > SaveGeneratedZones) {
-				Controller->Save();
-				GeneratedVdConter = 0;
-			}
+			//if (GeneratedVdConter > SaveGeneratedZones) {
+			//	Controller->Save();
+			//	GeneratedVdConter = 0;
+			//}
 		}
 	}
 
@@ -157,7 +144,7 @@ public:
 
 protected :
 
-	virtual int PerformZone(const TVoxelIndex& Index) override {
+	virtual void PerformZone(const TVoxelIndex& Index) override {
 		TTerrainLodMask TerrainLodMask = (TTerrainLodMask)ETerrainLodMaskPreset::All;
 		FVector ZonePos = Controller->GetZonePos(Index);
 		FVector ZonePosXY(ZonePos.X, ZonePos.Y, 0);
@@ -192,9 +179,6 @@ protected :
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
 		//UE_LOG(LogSandboxTerrain, Log, TEXT("BatchSpawnZone -> %f ms - %d %d %d"), Time, Index.X, Index.Y, Index.Z);
-
-
-		return 0;
 	}
 };
 

@@ -125,7 +125,7 @@ private:
 
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
 
-	std::mutex ZoneHeightMapMutex;
+	std::mutex ChunkDataMapMutex;
 
 	std::unordered_map<TVoxelIndex, TChunkData*> ChunkDataCollection;
 

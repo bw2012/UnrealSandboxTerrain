@@ -4,6 +4,9 @@
 #include "serialization.hpp"
 
 #include <string.h> // memcpy
+#include <atomic>
+
+std::atomic<int> vd_counter{0};
 
 //====================================================================================
 // Voxel data impl
@@ -16,6 +19,7 @@ TVoxelData::TVoxelData() {
 
 	voxel_num = 0;
 	volume_size = 0;
+	vd_counter++;
 }
 
 TVoxelData::TVoxelData(int num, float size) {
@@ -25,11 +29,13 @@ TVoxelData::TVoxelData(int num, float size) {
 
 	voxel_num = num;
 	volume_size = size;
+	vd_counter++;
 }
 
 TVoxelData::~TVoxelData() {
 	if (density_data != nullptr) delete[] density_data;
 	if (material_data != nullptr) delete[] material_data;
+	vd_counter--;
 }
 
 void TVoxelData::initCache() {
@@ -568,4 +574,9 @@ FORCEINLINE int vd::tools::clcLinearIndex(int n,  int x, int y, int z) {
 
 FORCEINLINE int vd::tools::clcLinearIndex(int n, const TVoxelIndex& vi) {
 	return vd::tools::clcLinearIndex(n, vi.X, vi.Y, vi.Z);
+};
+
+
+FORCEINLINE int vd::tools::memory::getVdCount() {
+	return vd_counter;
 };

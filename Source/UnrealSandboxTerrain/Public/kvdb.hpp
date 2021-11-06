@@ -415,13 +415,9 @@ namespace kvdb {
 			filePtr >> fileHeader;
 
 			ulong64 nextTablePos = readTable();
-			UE_LOG(LogSandboxTerrain, Warning, TEXT("nextTablePos0 %d"), nextTablePos);
-
 			while (nextTablePos > 0) {
 				filePtr->seekg(nextTablePos);
 				nextTablePos = readTable();
-
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("nextTablePos %d"), nextTablePos);
 			}
 
 			return true;

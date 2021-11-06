@@ -148,6 +148,8 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Save();
 	CloseFile();
     TerrainData->Clean();
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("vd counter -> %d"), vd::tools::memory::getVdCount());
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
@@ -287,8 +289,9 @@ void ASandboxTerrainController::BeginTerrainLoad() {
             Loader.LoadArea(FVector(0));
 			UE_LOG(LogSandboxTerrain, Log, TEXT("Finish initial terrain load"));
 
+			GetTerrainGenerator()->Clean();
+
 			if (!bIsWorkFinished) {
-				//Generator->Clean;
 				AsyncTask(ENamedThreads::GameThread, [&] {
 					StartPostLoadTimers();
 				});
@@ -618,7 +621,7 @@ bool ASandboxTerrainController::IsVdExistsInFile(const TVoxelIndex& ZoneIndex) {
 	return false;
 }
 
-int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
+void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
 	//UE_LOG(LogSandboxTerrain, Log, TEXT("SpawnZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
 
 	bool bMeshExist = false;
@@ -626,7 +629,7 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 	if (ExistingZone) {
 		//UE_LOG(LogSandboxTerrain, Log, TEXT("ExistingZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
 		if (ExistingZone->GetTerrainLodMask() <= TerrainLodMask) {
-			return TZoneSpawnResult::None;
+			return;
 		} else {
 			bMeshExist = true;
 		}
@@ -641,11 +644,11 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 		if (bMeshExist) {
 			// just change lod mask
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
-			return (int)TZoneSpawnResult::ChangeLodMask;
+			return;
 		} else {
 			// spawn new zone with mesh
 			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask);
-			return (int)TZoneSpawnResult::SpawnMesh;
+			return;
 		}
 	}
 
@@ -672,16 +675,13 @@ int ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrai
 		if (ExistingZone) {
 			// just change lod mask
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
+			return;
 		}
 
 		bool bIsNewGenerated = (VoxelDataInfoPtr->DataState == TVoxelDataState::GENERATED);
 		TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 		ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask, bIsNewGenerated);
-
-		return (int)TZoneSpawnResult::SpawnMesh;
 	}
-
-	return TZoneSpawnResult::None;
 }
 
 void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList) {
