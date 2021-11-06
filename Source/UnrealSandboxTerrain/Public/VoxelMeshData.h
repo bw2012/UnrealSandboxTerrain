@@ -11,6 +11,8 @@
 #include <mutex>
 #include <functional>
 
+#include "memstat.h"
+
 
 // mesh per one material
 typedef struct TMeshMaterialSection {
@@ -83,10 +85,11 @@ typedef struct TMeshData {
 	TMeshData() {
 		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
 		CollisionMeshPtr = nullptr;
+		md_counter++;
 	}
 
 	~TMeshData() {
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TMeshData()")); // memory leak checking
+		md_counter--;
 	}
 
 } TMeshData;

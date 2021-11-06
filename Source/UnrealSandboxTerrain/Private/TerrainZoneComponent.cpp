@@ -50,7 +50,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	//MainTerrainMesh->AddLocalRotation(FRotator(0.0f, -0.01, 0.0f)); // workaround
 
 	//MainTerrainMesh->bLodFlag = GetTerrainController()->bEnableLOD;
-	//MainTerrainMesh->SetMeshData(MeshDataPtr, TargetTerrainLodMask);
+	MainTerrainMesh->SetMeshData(MeshDataPtr, TargetTerrainLodMask);
 
 	//MainTerrainMesh->SetMobility(EComponentMobility::Stationary);
 
@@ -59,7 +59,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->SetVisibility(true);
 
-	//MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
+	MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
 	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
 
 	double end = FPlatformTime::Seconds();

@@ -441,19 +441,18 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 					VoxelDataInfo->VdMutexPtr->lock();
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNGENERATED) {
-						UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-
 						if (VoxelDataInfo->Vd == nullptr) {
+							UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
 							TVoxelData* NewVd = NewVoxelData();
 							NewVd->setOrigin(GetZonePos(ZoneIndex));
-							GetTerrainGenerator()->ForceGenerateZone(NewVd, ZoneIndex);
 							VoxelDataInfo->Vd = NewVd;
-							VoxelDataInfo->DataState = TVoxelDataState::GENERATED;
 						} else {
 							UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED but Vd is not null"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-							VoxelDataInfo->VdMutexPtr->unlock();
-							continue;
 						}
+
+						GetTerrainGenerator()->ForceGenerateZone(VoxelDataInfo->Vd, ZoneIndex);
+						VoxelDataInfo->DataState = TVoxelDataState::GENERATED;
 					}
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {

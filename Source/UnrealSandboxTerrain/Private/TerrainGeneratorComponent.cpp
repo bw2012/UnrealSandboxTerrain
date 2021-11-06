@@ -4,10 +4,27 @@
 #include "SandboxTerrainController.h"
 #include "TerrainGeneratorComponent.h"
 #include "perlin.hpp"
-
+#include "memstat.h"
 
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
 #define USBT_DEFAULT_GRASS_MATERIAL_ID      2
+
+
+
+namespace ZoneGenType {
+    static const int AirOnly = 0;
+    static const int FullSolidOneMaterial = 1;
+    static const int Landscape = 2;
+    static const int Complex = 3;
+    static const int FullSolidMultipleMaterials = 4;
+};
+
+
+namespace ZoneGenMethod {
+    static const int SlowComplex = 1;
+    static const int FastPartially = 2;
+    static const int Skip = 3;
+};
 
 
 
@@ -25,10 +42,12 @@ public:
     TChunkData(int Size) {
         this->Size = Size;
         HeightLevelArray = new float[Size * Size * Size];
+        cd_counter++;
     }
 
     ~TChunkData() {
         delete[] HeightLevelArray;
+        cd_counter--;
     }
 
     float const* const GetHeightLevelArrayPtr() const {
@@ -549,7 +568,7 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
 
     for (const auto& Itm : SecondPassList) {
         if (Itm.bSlightGeneration) {
-            if (Itm.Type == 2) {
+            if (Itm.Type == ZoneGenType::Landscape) {
                 GenerateLandscapeZoneSlight(Itm);
                 continue;
             }
@@ -565,7 +584,7 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
 
 int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData) {
     if (ForcePerformZone(ZoneIndex)) {
-        return 3;
+        return ZoneGenType::Complex;
     }
 
     const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
@@ -573,14 +592,17 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
 
 
     if (ChunkData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize) {
-        return 0; // air only
+        return ZoneGenType::AirOnly; // air only
     }
 
     if (ChunkData->GetMinHeightLevel() > Pos.Z + ZoneHalfSize) {
         TArray<FTerrainUndergroundLayer> LayerList;
         if (GetMaterialLayers(ChunkData, Pos, &LayerList) == 1) {
-            return 1; //full solid
-        } 
+            return ZoneGenType::FullSolidOneMaterial; //full solid
+        } else {
+            AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
+            return ZoneGenType::FullSolidMultipleMaterials;
+        }
     }
 
     float ZoneHigh = Pos.Z + ZoneHalfSize; // +100
@@ -588,11 +610,10 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
     float TerrainHigh = ChunkData->GetMaxHeightLevel();
     float TerrainLow = ChunkData->GetMinHeightLevel();
     if (std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh)) {
-        //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
-        return 2; // landscape
+        return ZoneGenType::Landscape; 
     }
 
-    return 3;
+    return ZoneGenType::Complex;
 }
 
 void UTerrainGeneratorComponent::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkData* ChunkData) {
@@ -632,7 +653,12 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
 
         if (Type < 2) {
             GenerateSimpleVd(P.Index, NewVd, Type, ChunkData);
-        } else {
+        } else if (Type == ZoneGenType::FullSolidMultipleMaterials) {
+            NewVd->deinitializeDensity(TVoxelDataFillState::FULL);
+            NewVd->deinitializeMaterial(0);
+            NewVd->setCacheToValid();
+            NewVdArray[Idx].Method = ZoneGenMethod::Skip;
+        } else  {
             TGenerateVdTempItm SecondPassItm;
             SecondPassItm.Type = Type;
             SecondPassItm.Idx = Idx;
@@ -642,7 +668,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
 
 #ifdef USBT_EXPERIMENTAL_FAST_GENERATOR
             SecondPassItm.bSlightGeneration = P.bSlightGeneration;
-            NewVdArray[Idx].Method = 2;
+            NewVdArray[Idx].Method = ZoneGenMethod::FastPartially;
 #endif
 
 #ifdef USBT_EXPERIMENTAL_UNGENERATED_ZONES

@@ -2,11 +2,10 @@
 #include "UnrealSandboxTerrainPrivatePCH.h"
 #include "VoxelData.h"
 #include "serialization.hpp"
-
 #include <string.h> // memcpy
-#include <atomic>
 
-std::atomic<int> vd_counter{0};
+// mem stat
+std::atomic<int> vd_counter{ 0 };
 
 //====================================================================================
 // Voxel data impl

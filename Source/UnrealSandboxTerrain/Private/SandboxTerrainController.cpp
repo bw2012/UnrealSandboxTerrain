@@ -24,6 +24,8 @@
 #include "TerrainAreaPipeline.hpp"
 #include "TerrainEdit.hpp"
 
+#include "memstat.h"
+
 
 
 //# define USBT_DEBUG_ZONE_CRC 1
@@ -148,8 +150,9 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Save();
 	CloseFile();
     TerrainData->Clean();
+	GetTerrainGenerator()->Clean();
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("vd counter -> %d"), vd::tools::memory::getVdCount());
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd -> %d, md -> %d, cd -> %d"), vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load());
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
@@ -289,7 +292,9 @@ void ASandboxTerrainController::BeginTerrainLoad() {
             Loader.LoadArea(FVector(0));
 			UE_LOG(LogSandboxTerrain, Log, TEXT("Finish initial terrain load"));
 
-			GetTerrainGenerator()->Clean();
+			//GetTerrainGenerator()->Clean();
+
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("vd -> %d, md -> %d, cd -> %d"), vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load());
 
 			if (!bIsWorkFinished) {
 				AsyncTask(ENamedThreads::GameThread, [&] {
@@ -697,7 +702,7 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 
 		FVector v = VdInfoPtr->Vd->getOrigin();
 
-		if (NewVdArray[Idx].Method == 2) {
+		if (NewVdArray[Idx].Method > 1) {
 			//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), v, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
 			VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 		} else {
