@@ -579,6 +579,7 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
             }
         }
 
+        //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Itm.Vd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true); });
         GenerateZoneVolume(Itm);
     }
 
@@ -588,13 +589,13 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
 }
 
 int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData) {
-    if (ForcePerformZone(ZoneIndex)) {
-        return ZoneGenType::Complex;
-    }
-
     const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
     static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
+    if (ForcePerformZone(ZoneIndex)) {
+        AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
+        return ZoneGenType::Complex;
+    }
 
     if (ChunkData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize) {
         return ZoneGenType::AirOnly; // air only
@@ -603,10 +604,8 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
     if (ChunkData->GetMinHeightLevel() > Pos.Z + ZoneHalfSize) {
         TArray<FTerrainUndergroundLayer> LayerList;
         if (GetMaterialLayers(ChunkData, Pos, &LayerList) == 1) {
-            //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 0, 100), true); });
             return ZoneGenType::FullSolidOneMaterial; //full solid
         } else {
-            //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
             return ZoneGenType::FullSolidMultipleMaterials;
         }
     }
@@ -667,7 +666,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
             NewVd->deinitializeMaterial(0);
             NewVd->setCacheToValid();
             NewVdArray[Idx].Method = TGenerationMethod::Skip;
-            AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), NewVd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true); });
+            //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), NewVd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true); });
         } else  {
             TGenerateVdTempItm SecondPassItm;
             SecondPassItm.Type = Type;
@@ -677,7 +676,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
             SecondPassItm.ChunkData = ChunkData;
 
 #ifdef USBT_EXPERIMENTAL_FAST_GENERATOR
-            SecondPassItm.bSlightGeneration = P.bSlightGeneration;
+            //SecondPassItm.bSlightGeneration = P.bSlightGeneration;
             NewVdArray[Idx].Method = P.bSlightGeneration ? TGenerationMethod::FastPartially : TGenerationMethod::SlowComplex;
 #endif
 
