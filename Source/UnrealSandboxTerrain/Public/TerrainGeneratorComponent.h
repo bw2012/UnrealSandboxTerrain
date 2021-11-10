@@ -41,10 +41,17 @@ struct TGenerateVdTempItm {
 
 };
 
+enum TGenerationMethod : int32 {
+	FastSimple = 0x1,
+	SlowComplex = 0x2,
+	FastPartially = 0x3,
+	Skip = 0x4
+};
+
 struct TGenerateZoneResult {
 	TVoxelData* Vd = nullptr;
 	int Type = 0;
-	int Method = 0;
+	TGenerationMethod Method;
 };
 
 

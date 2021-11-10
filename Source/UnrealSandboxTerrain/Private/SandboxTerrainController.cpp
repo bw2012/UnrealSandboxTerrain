@@ -420,7 +420,7 @@ void ASandboxTerrainController::Save() {
 		VdInfoPtr->VdMutexPtr->lock();
 		if (VdInfoPtr->IsChanged()) {
 
-			if (VdInfoPtr->Vd) {
+			if (VdInfoPtr->Vd && VdInfoPtr->CanSave()) {
 				DataVd = SerializeVd(VdInfoPtr->Vd);
 			}
 
@@ -702,8 +702,8 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 
 		FVector v = VdInfoPtr->Vd->getOrigin();
 
-		if (NewVdArray[Idx].Method > 1) {
-			//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), v, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
+		if (NewVdArray[Idx].Method == TGenerationMethod::FastPartially || NewVdArray[Idx].Method == Skip) {
+			//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), v, FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true); });
 			VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 		} else {
 			VdInfoPtr->DataState = TVoxelDataState::GENERATED;
@@ -982,7 +982,6 @@ void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTer
 		Zone->SpawnAll(ZoneInstanceObjectMap);
 		Zone->SetNeedSave();
 		TerrainData->AddSaveIndex(Index);
-
 		OnFinishGenerateNewZone(Index);
     }
 }

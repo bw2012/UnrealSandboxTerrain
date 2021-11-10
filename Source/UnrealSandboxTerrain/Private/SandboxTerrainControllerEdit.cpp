@@ -433,14 +433,29 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
+					VoxelDataInfo->VdMutexPtr->lock();
+
+					UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> %d"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, (int)VoxelDataInfo->DataState);
+
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
 						UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNDEFINED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+						VoxelDataInfo->VdMutexPtr->unlock();
 						continue;
 					}
 
-					VoxelDataInfo->VdMutexPtr->lock();
+					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
+						TVoxelData* Vd = LoadVoxelDataByIndex(ZoneIndex);
+						if (Vd) {
+							VoxelDataInfo->Vd = Vd;
+							VoxelDataInfo->DataState = TVoxelDataState::LOADED;
+						} else {
+							VoxelDataInfo->DataState = TVoxelDataState::UNGENERATED;
+						}
+					}
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNGENERATED) {
+						VoxelDataInfo->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
+
 						if (VoxelDataInfo->Vd == nullptr) {
 							UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
@@ -453,11 +468,6 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 						GetTerrainGenerator()->ForceGenerateZone(VoxelDataInfo->Vd, ZoneIndex);
 						VoxelDataInfo->DataState = TVoxelDataState::GENERATED;
-					}
-
-					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
-						VoxelDataInfo->Vd = LoadVoxelDataByIndex(ZoneIndex);
-						VoxelDataInfo->DataState = TVoxelDataState::LOADED;
 					}
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::LOADED || VoxelDataInfo->DataState == TVoxelDataState::GENERATED) {

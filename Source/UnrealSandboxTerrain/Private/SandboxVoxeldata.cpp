@@ -13,10 +13,12 @@
 typedef struct TVoxelDataGenerationParam {
     int lod = 0;
     bool bGenerateLOD = false;
+	bool bIgnoreLodPatches = false;
     
     FORCEINLINE int step() const { return 1 << lod; }
     TVoxelDataGenerationParam(const TVoxelDataParam& vdp) {
         bGenerateLOD = vdp.bGenerateLOD;
+
         //collisionLOD = vdp.collisionLOD;
         //ZCutLevel = vdp.ZCutLevel;
         //bZCut = vdp.bZCut;
@@ -662,7 +664,7 @@ private:
     }
     
     void extractAllTransitionCell(Point (&d)[8], const int x, const int y, const int z){
-        if (voxel_data_param.bGenerateLOD) {
+        if (voxel_data_param.bGenerateLOD && !voxel_data_param.bIgnoreLodPatches) {
             if (voxel_data_param.lod > 0) {
                 const int e = voxel_data.num() - voxel_data_param.step() - 1;
                 if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+

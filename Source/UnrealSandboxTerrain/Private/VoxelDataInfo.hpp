@@ -56,6 +56,10 @@ public:
 		}
 	}
 
+    bool CanSave() const {
+        return DataState == TVoxelDataState::GENERATED || DataState == TVoxelDataState::LOADED;
+    }
+
     bool IsNewGenerated() const {
         return DataState == TVoxelDataState::GENERATED;
     }
