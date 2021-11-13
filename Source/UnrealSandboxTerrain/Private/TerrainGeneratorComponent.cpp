@@ -88,7 +88,7 @@ UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer&
 void UTerrainGeneratorComponent::BeginPlay() {
     Super::BeginPlay();
 
-    UE_LOG(LogTemp, Log, TEXT("UTerrainGeneratorComponent::BeginPlay"));
+    UE_LOG(LogTemp, Warning, TEXT("UTerrainGeneratorComponent::BeginPlay"));
 
     UndergroundLayersTmp.Empty();
 
@@ -107,6 +107,8 @@ void UTerrainGeneratorComponent::BeginPlay() {
     LastLayer.StartDepth = 9999999.f;
     LastLayer.Name = TEXT("");
     UndergroundLayersTmp.Add(LastLayer);
+
+    PrepareMetaData();
 }
 
 void UTerrainGeneratorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -471,6 +473,82 @@ void UTerrainGeneratorComponent::ForceGenerateZone(TVoxelData* VoxelData, const 
     GenerateZoneVolume(Itm);
 }
 
+void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const TZoneGenerationFunction& Function) const {
+    double Start = FPlatformTime::Seconds();
+
+    const TVoxelIndex& ZoneIndex = Itm.ZoneIndex;
+    TVoxelData* VoxelData = Itm.Vd;
+    /* const */ TChunkData* ChunkData = Itm.ChunkData;
+    const int LOD = Itm.GenerationLOD;
+    int zc = 0;
+    int fc = 0;
+
+    const int S = 1 << LOD;
+    bool bContainsMoreOneMaterial = false;
+    TMaterialId BaseMaterialId = 0;
+
+    VoxelData->initCache();
+    VoxelData->initializeDensity();
+    VoxelData->initializeMaterial();
+
+    for (int X = 0; X < USBT_ZONE_DIMENSION; X += S) {
+        for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y += S) {
+            for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z += S) {
+                const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
+                const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
+
+                auto R = A(ZoneIndex, Index, VoxelData, ChunkData);
+                float Density = std::get<2>(R);
+                TMaterialId MaterialId = std::get<3>(R);
+
+                if (LOD > 0) {
+                    // MaterialId = DfaultGrassMaterialId; // FIXME
+                    VoxelData->setMaterial(Index.X, Index.Y, Index.Z, DfaultGrassMaterialId);
+                }
+
+                VoxelData->performSubstanceCacheLOD(Index.X, Index.Y, Index.Z, LOD);
+
+                if (Density == 0) {
+                    zc++;
+                }
+
+                if (Density == 1) {
+                    fc++;
+                }
+
+                if (!BaseMaterialId) {
+                    BaseMaterialId = MaterialId;
+                } else {
+                    if (BaseMaterialId != MaterialId) {
+                        bContainsMoreOneMaterial = true;
+                    }
+                }
+            }
+        }
+    }
+
+    double End = FPlatformTime::Seconds();
+    double Time = (End - Start) * 1000;
+    UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
+    int n = VoxelData->num();
+    int s = n * n * n;
+
+    if (zc == s) {
+        VoxelData->deinitializeDensity(TVoxelDataFillState::ZERO);
+    }
+
+    if (fc == s) {
+        VoxelData->deinitializeDensity(TVoxelDataFillState::FULL);
+    }
+
+    if (!bContainsMoreOneMaterial) {
+        VoxelData->deinitializeMaterial(BaseMaterialId);
+    }
+
+    VoxelData->setCacheToValid();
+}
+
 void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& Itm) const {
     double Start = FPlatformTime::Seconds();
 
@@ -592,8 +670,8 @@ int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const 
     const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
     static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
-    if (ForcePerformZone(ZoneIndex)) {
-        AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true); });
+    if (IsForcedComplexZone(ZoneIndex)) {
+        //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Pos, FVector(ZoneHalfSize), FColor(255, 0, 0, 100), true); });
         return ZoneGenType::Complex;
     }
 
@@ -706,17 +784,13 @@ void UTerrainGeneratorComponent::OnBatchGenerationFinished() {
 
 }
 
-//uint32 TDefaultTerrainGenerator::GetChunkDataMemSize() {
-//    return ChunkDataCollection.size();
-//}
-
 void UTerrainGeneratorComponent::Clean() {
     const std::lock_guard<std::mutex> lock(ChunkDataMapMutex);
     for (auto Itm : ChunkDataCollection) {
-        delete Itm.second;
+        //delete Itm.second;
 
     }
-    ChunkDataCollection.clear(); //UNSAFE
+    //ChunkDataCollection.clear(); //UNSAFE
 }
 
 void UTerrainGeneratorComponent::Clean(TVoxelIndex& Index) {
@@ -909,6 +983,14 @@ float UTerrainGeneratorComponent::GeneratorGroundLevelFunc(const TVoxelIndex& In
     return GroundLevel;
 }
 
-bool UTerrainGeneratorComponent::ForcePerformZone(const TVoxelIndex& ZoneIndex) {
-    return false;
+bool UTerrainGeneratorComponent::IsForcedComplexZone(const TVoxelIndex& ZoneIndex) {
+    return StructureMap.find(ZoneIndex) != StructureMap.end();
+}
+
+void UTerrainGeneratorComponent::PrepareMetaData() {
+
+}
+
+void UTerrainGeneratorComponent::AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure) {
+    StructureMap.insert({ ZoneIndex, Structure });
 }

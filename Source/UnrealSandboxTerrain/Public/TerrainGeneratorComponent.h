@@ -11,6 +11,7 @@
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
 #include <mutex>
+#include <functional>
 #include "TerrainGeneratorComponent.generated.h"
 
 
@@ -54,8 +55,18 @@ struct TGenerateZoneResult {
 	TGenerationMethod Method;
 };
 
+typedef std::tuple<float, TMaterialId> TGenerationResult;
 
 typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
+
+typedef std::function<TGenerationResult(float, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
+
+struct TZoneStructureHandler {
+	int Type = 0;
+	TZoneGenerationFunction Handler = nullptr;
+};
+
+
 
 /**
 *
@@ -116,8 +127,6 @@ public:
 
 	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
-	virtual bool ForcePerformZone(const TVoxelIndex& ZoneIndex);
-
 protected:
 
 	TPerlinNoise* Pn;
@@ -127,6 +136,12 @@ protected:
 	virtual void OnBatchGenerationFinished();
 
 	virtual int ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData);
+
+	virtual void PrepareMetaData();
+
+	virtual bool IsForcedComplexZone(const TVoxelIndex& ZoneIndex);
+
+	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
 private:
 
@@ -143,6 +158,8 @@ private:
 	float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const;
 
 	void GenerateZoneVolume(const TGenerateVdTempItm& Itm) const;
+
+	void GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const TZoneGenerationFunction& Function) const;
 
 	FORCEINLINE TMaterialId MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const;
 
@@ -163,5 +180,7 @@ private:
 	void B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
 
 	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
+
+	std::unordered_map<TVoxelIndex, TZoneStructureHandler> StructureMap;
 
 };
