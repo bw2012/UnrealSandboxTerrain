@@ -309,7 +309,7 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 	} Zh;
 
 	Zh.newMaterialId = MatId;
-	Zh.Strength = 5;
+	Zh.Strength = 10;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
@@ -350,6 +350,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
 				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(Overlap.GetComponent());
 				if (InstancedMesh) {
+					//UE_LOG(LogSandboxTerrain, Warning, TEXT("InstancedMesh: %s"), *InstancedMesh->GetName());
 					InstancedMesh->RemoveInstance(Overlap.Item);
 
 					TArray<USceneComponent*> Parents;
@@ -435,7 +436,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					VoxelDataInfo->VdMutexPtr->lock();
 
-					UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> %d"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, (int)VoxelDataInfo->DataState);
+					//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> %d"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, (int)VoxelDataInfo->DataState);
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
 						UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNDEFINED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);

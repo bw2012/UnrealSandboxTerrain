@@ -51,6 +51,7 @@ void ASandboxTerrainController::InitializeTerrainController() {
     AutoSavePeriod = 20;
     TerrainData = new TTerrainData();
     CheckAreaMap = new TCheckAreaMap();
+	bSaveOnEndPlay = true;
     
     //FString SaveDir = FPaths::ProjectSavedDir() + TEXT("/Map/") + MapName + TEXT("/");
     //CheckSaveDir(SaveDir);
@@ -147,7 +148,10 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		}
 	}
 
-	Save();
+	if (bSaveOnEndPlay) {
+		Save();
+	}
+
 	CloseFile();
     TerrainData->Clean();
 	GetTerrainGenerator()->Clean();
@@ -228,8 +232,8 @@ void ASandboxTerrainController::PerformCheckArea() {
 				TTerrainAreaPipelineParams Params;
                 Params.FullLodDistance = DynamicLoadArea.FullLodDistance;
                 Params.Radius = DynamicLoadArea.Radius;
-                Params.TerrainSizeMinZ = DynamicLoadArea.TerrainSizeMinZ;
-                Params.TerrainSizeMaxZ = DynamicLoadArea.TerrainSizeMaxZ;
+                Params.TerrainSizeMinZ = LocationIndex.Z + DynamicLoadArea.TerrainSizeMinZ;
+                Params.TerrainSizeMaxZ = LocationIndex.Z + DynamicLoadArea.TerrainSizeMaxZ;
                 HandlerPtr->SetParams(TEXT("Player_Swap_Terrain_Task"), this, Params);
                 
                 //TSharedPtr<ASandboxTerrainController> ControllerPtr = MakeShareable(this);
@@ -702,7 +706,7 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 
 		FVector v = VdInfoPtr->Vd->getOrigin();
 
-		if (NewVdArray[Idx].Method == TGenerationMethod::FastPartially || NewVdArray[Idx].Method == Skip) {
+		if (NewVdArray[Idx].Method == TGenerationMethod::FastSimple || NewVdArray[Idx].Method == Skip) {
 			//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), v, FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true); });
 			VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 		} else {
@@ -815,18 +819,16 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 
 void ASandboxTerrainController::SpawnInitialZone() {
 	const int s = static_cast<int>(TerrainInitialArea);
-
 	TArray<TSpawnZoneParam> SpawnList;
 
 	if (s > 0) {
-		for (auto z = 5; z >= -5; z--) {
+		UE_LOG(LogTemp, Warning, TEXT("Zone Z range: %d -> %d"), InitialLoadArea.TerrainSizeMaxZ, -InitialLoadArea.TerrainSizeMinZ);
+		for (auto z = InitialLoadArea.TerrainSizeMaxZ; z >= InitialLoadArea.TerrainSizeMinZ; z--) {
 			for (auto x = -s; x <= s; x++) {
 				for (auto y = -s; y <= s; y++) {
 					TSpawnZoneParam SpawnZoneParam;
 					SpawnZoneParam.Index = TVoxelIndex(x, y, z);
 					SpawnZoneParam.TerrainLodMask = 0;
-					//SpawnZoneParam.bSlightGeneration = (x == 0 && y == 0 && z == 0) ? false : true;
-					SpawnZoneParam.bSlightGeneration = true;
 					SpawnList.Add(SpawnZoneParam);
 				}
 			}
@@ -835,7 +837,6 @@ void ASandboxTerrainController::SpawnInitialZone() {
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
 		SpawnZoneParam.TerrainLodMask = 0;
-		SpawnZoneParam.bSlightGeneration = true;
 		SpawnList.Add(SpawnZoneParam);
 	}
 

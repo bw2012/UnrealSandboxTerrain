@@ -33,7 +33,8 @@ public:
 		Name(Name_), Controller(Controller_) {}
 
 	TTerrainAreaPipeline(FString Name_, ASandboxTerrainController* Controller_, TTerrainAreaPipelineParams Params_) :
-		Name(Name_), Controller(Controller_), Params(Params_) {}
+		Name(Name_), Controller(Controller_), Params(Params_) {
+	}
 
 protected:
 	FString Name;
@@ -64,7 +65,7 @@ protected:
 private:
 
 	void PerformChunk(int x, int y) {
-		for (int z = -Params.TerrainSizeMinZ; z <= Params.TerrainSizeMaxZ; z++) {
+		for (int z = Params.TerrainSizeMinZ; z <= Params.TerrainSizeMaxZ; z++) {
 			TVoxelIndex Index(x + OriginIndex.X, y + OriginIndex.Y, z);
 			PerformZone(Index);
 			Progress++;
@@ -76,11 +77,6 @@ private:
 			if (Controller->IsWorkFinished() || bIsStopped) {
 				return;
 			}
-
-			//if (GeneratedVdConter > SaveGeneratedZones) {
-			//	Controller->Save();
-			//	GeneratedVdConter = 0;
-			//}
 		}
 	}
 
@@ -122,6 +118,9 @@ public:
 	}
 
 	void LoadArea(const FVector& Origin) {
+
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone Z range --> %d %d"), Params.TerrainSizeMaxZ, Params.TerrainSizeMinZ);
+
 		if (this->Controller) {
 			this->AreaOrigin = Origin;
 			this->OriginIndex = Controller->GetZoneIndex(Origin);
@@ -129,7 +128,7 @@ public:
 			AreaWalkthrough();
 
 			if (!Controller->IsWorkFinished()) {
-				Controller->Save();
+				//Controller->Save();
 			}
 		}
 	}
@@ -150,6 +149,7 @@ protected :
 		FVector ZonePosXY(ZonePos.X, ZonePos.Y, 0);
 		float Distance = FVector::Distance(AreaOrigin, ZonePosXY);
 
+		/*
 		if (Distance > Params.FullLodDistance) {
 			float Delta = Distance - Params.FullLodDistance;
 			if (Delta > Controller->LodDistance.Distance2) {
@@ -157,7 +157,7 @@ protected :
 			} if (Delta > Controller->LodDistance.Distance5) {
 				TerrainLodMask = (TTerrainLodMask)ETerrainLodMaskPreset::Far;
 			}
-		}
+		}*/
 
 		double Start = FPlatformTime::Seconds();
 
@@ -165,12 +165,6 @@ protected :
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = Index;
 		SpawnZoneParam.TerrainLodMask = TerrainLodMask;
-
-		//if (Distance > 2000) {
-			SpawnZoneParam.bSlightGeneration = true;
-		//}
-
-
 		SpawnList.Add(SpawnZoneParam);
 
 		// batch with one zone. CPU only

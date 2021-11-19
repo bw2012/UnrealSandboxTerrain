@@ -10,6 +10,7 @@
 #include "VoxelIndex.h"
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
+#include <vector>
 #include <mutex>
 #include <functional>
 #include "TerrainGeneratorComponent.generated.h"
@@ -23,30 +24,21 @@ struct FSandboxFoliage;
 typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
-struct TGenerateVdTempItm {
-
-	int Idx = 0;
-
-	TVoxelIndex ZoneIndex;
-	TVoxelData* Vd;
-
-	TChunkData* ChunkData;
-
-	// partial generation
-	int GenerationLOD = 0;
-
-	// partial generation v2
-	bool bSlightGeneration = false;
-
-	int Type = 0;
-
-};
-
 enum TGenerationMethod : int32 {
 	FastSimple = 0x1,
 	SlowComplex = 0x2,
-	FastPartially = 0x3,
+	UltraFastPartially = 0x3,
 	Skip = 0x4
+};
+
+struct TGenerateVdTempItm {
+	int Idx = 0;
+	TVoxelIndex ZoneIndex;
+	TVoxelData* Vd;
+	TChunkData* ChunkData;
+	int GenerationLOD = 0; // UltraFastPartially
+	int Type = 0;
+	TGenerationMethod Method;
 };
 
 struct TGenerateZoneResult {
@@ -62,8 +54,9 @@ typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
 typedef std::function<TGenerationResult(float, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
 
 struct TZoneStructureHandler {
+	TVoxelIndex ZoneIndex;
 	int Type = 0;
-	TZoneGenerationFunction Handler = nullptr;
+	TZoneGenerationFunction Function = nullptr;
 };
 
 
@@ -131,7 +124,9 @@ protected:
 
 	TPerlinNoise* Pn;
 
-	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& GenPass2List);
+	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& List);
+
+	virtual void BatchGenerateSlightVd(TArray<TGenerateVdTempItm>& List);
 
 	virtual void OnBatchGenerationFinished();
 
@@ -159,7 +154,7 @@ private:
 
 	void GenerateZoneVolume(const TGenerateVdTempItm& Itm) const;
 
-	void GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const TZoneGenerationFunction& Function) const;
+	void GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const std::vector<TZoneStructureHandler>& StructureList) const;
 
 	FORCEINLINE TMaterialId MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const;
 
@@ -177,10 +172,16 @@ private:
 
 	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
 
-	void B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
+	float B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
 
 	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
 
-	std::unordered_map<TVoxelIndex, TZoneStructureHandler> StructureMap;
+	std::unordered_map<TVoxelIndex, std::vector<TZoneStructureHandler>> StructureMap;
+
+	//====
+
+	//float TestFunctionMakeCaveLayer(float Density, const FVector& WorldPos) const;
+
+	//void Test(const TGenerateVdTempItm& Itm) const;
 
 };

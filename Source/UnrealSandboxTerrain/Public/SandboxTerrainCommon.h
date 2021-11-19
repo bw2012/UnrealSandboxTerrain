@@ -16,8 +16,6 @@ typedef struct TSpawnZoneParam {
 
 	TTerrainLodMask TerrainLodMask = 0;
 
-	bool bSlightGeneration = false;
-
 } TSpawnZoneParam;
 
 UENUM(BlueprintType)

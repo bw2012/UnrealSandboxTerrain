@@ -278,6 +278,9 @@ public:
            
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FSandboxTerrainLODDistance LodDistance;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	bool bSaveOnEndPlay;
     
     //========================================================================================
     // Dynamic area swapping
