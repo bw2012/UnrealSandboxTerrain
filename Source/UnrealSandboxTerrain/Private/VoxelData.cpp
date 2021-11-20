@@ -286,16 +286,20 @@ FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 	return density_state;
 }
 
-bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
+unsigned long TVoxelData::getCaseCode(int x, int y, int z, int step) const {
 	TVoxelIndex d[8];
 	int8 corner[8];
 
-	vd::tools::makeIndexes(d, x, y, z, -step);
+	vd::tools::makeIndexes(d, x, y, z, step);
 	for (auto i = 0; i < 8; i++) {
-		corner[7-i] = (density_data[clcLinearIndex(d[i])] <= 127) ? -127 : 0;
+		corner[7 - i] = (density_data[clcLinearIndex(d[i])] <= 127) ? -127 : 0;
 	}
 
-	unsigned long caseCode = vd::tools::caseCode(corner);
+	return vd::tools::caseCode(corner);
+}
+
+bool TVoxelData::performCellSubstanceCaching(int x, int y, int z, int lod, int step) {
+	unsigned long caseCode = getCaseCode(x, y, z, -step);
 	if (caseCode == 0x0 || caseCode == 0xff) {
 		return false;
 	} else {
@@ -365,6 +369,10 @@ void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubst
 		//const int z = index % vd.num();
 	});
 }
+
+//const TSubstanceCache& TVoxelData::getCacheByLod(int lod) const {
+//	return substanceCacheLOD[lod];
+//}
 
 FORCEINLINE int TVoxelData::clcLinearIndex(int x, int y, int z) const {
 	//return x * voxel_num * voxel_num + y * voxel_num + z;
@@ -522,6 +530,14 @@ void TSubstanceCache::copy(const int* cache_data, const int len) {
 	idx = len;
 }
 
+int32 TSubstanceCache::size() const {
+	return idx;
+}
+
+const TSubstanceCacheItem& TSubstanceCache::operator[](std::size_t idx) const {
+	return cellArray[idx];
+}
+
 
 FORCEINLINE void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod) {
 	auto const index = vd->clcLinearIndex(x, y, z);
@@ -578,4 +594,12 @@ FORCEINLINE int vd::tools::clcLinearIndex(int n, const TVoxelIndex& vi) {
 
 FORCEINLINE int vd::tools::memory::getVdCount() {
 	return vd_counter;
+};
+
+FORCEINLINE size_t vd::tools::getCacheSize(const TVoxelData* vd, int lod) {
+	return vd->substanceCacheLOD[lod].size();
+};
+
+FORCEINLINE const TSubstanceCacheItem& vd::tools::getCacheItmByNumber(const TVoxelData* vd, int lod, int number) {
+	return vd->substanceCacheLOD[lod][number];
 };

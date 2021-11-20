@@ -43,10 +43,18 @@ public:
 	TSubstanceCache();
 
 	TSubstanceCacheItem* emplace();
+
 	void resize(uint32 s);
+
 	void clear();
+
 	void forEach(std::function<void(const TSubstanceCacheItem& itm)> func) const;
+
 	void copy(const int* cache_data, const int len);
+
+	int32 size() const;
+
+	const TSubstanceCacheItem& operator[](std::size_t idx) const;
 
 } TSubstanceCache;
 
@@ -77,6 +85,8 @@ namespace vd {
 		unsigned long caseCode(int8(&corner)[8]);
 		int clcLinearIndex(int n, int x, int y, int z);
 		int clcLinearIndex(int n, const TVoxelIndex& vi);
+		size_t getCacheSize(const TVoxelData* vd, int lod);
+		const TSubstanceCacheItem& getCacheItmByNumber(const TVoxelData* vd, int lod, int number);
 
 		namespace unsafe {
 			void forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod);
@@ -89,6 +99,8 @@ class UNREALSANDBOXTERRAIN_API TVoxelData {
 
 	friend void vd::tools::unsafe::forceAddToCache(TVoxelData*, int, int, int, int);
 	friend void vd::tools::unsafe::setDensity(TVoxelData*, const TVoxelIndex&, float);
+	friend size_t vd::tools::getCacheSize(const TVoxelData*, int);
+	friend const TSubstanceCacheItem& vd::tools::getCacheItmByNumber(const TVoxelData*, int, int);
 
 private:
 	TVoxelDataFillState density_state;
@@ -176,6 +188,8 @@ public:
 	void setCacheToValid();
 	void makeSubstanceCache();
 	void clearSubstanceCache();
+
+	unsigned long getCaseCode(int x, int y, int z, int step) const;
 
 	std::shared_ptr<std::vector<uint8>> serialize();
 

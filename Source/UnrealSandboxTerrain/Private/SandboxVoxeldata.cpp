@@ -477,7 +477,9 @@ private:
 	}
 
 	FORCEINLINE void extractRegularCell(Point (&d)[8], unsigned long caseCode) {
-		if (caseCode == 0) { return; }
+		if (caseCode == 0) { 
+			return; 
+		}
 
 		unsigned int c = regularCellClass[caseCode];
 		RegularCellData cd = regularCellData[c];
@@ -537,7 +539,6 @@ private:
 		unsigned long caseCode = vd::tools::caseCode(corner);
 		extractRegularCell(d, caseCode);
 	}
-
 
 	FORCEINLINE void extractTransitionCell(int sectionNumber, Point& d0, Point& d2, Point& d6, Point& d8) {
 		Point d[14];
@@ -707,6 +708,14 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 //####################################################################################################################################
 
+TMeshDataPtr polygonizeSingleCell(const TVoxelData& vd, const TVoxelDataParam& vdp, int x, int y, int z) {
+	TMeshData* mesh_data = new TMeshData();
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
+	mesh_extractor_ptr->generateCell(x, y, z);
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
+	return TMeshDataPtr(mesh_data);
+}
+
 TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
@@ -719,17 +728,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 		const int y = (index / n) % n;
 		const int z = index % n;
 		mesh_extractor_ptr->generateCell(x, y, z);
-		});
-
-	/*
-	vd.substanceCacheLOD[0].forEach([=](const TSubstanceCacheItem& itm) {
-		const int index = itm.index;
-		const int x = index / (n * n);
-		const int y = (index / n) % n;
-		const int z = index % n;
-		mesh_extractor_ptr->generateCell(x, y, z);
 	});
-	*/
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 	return TMeshDataPtr(mesh_data);

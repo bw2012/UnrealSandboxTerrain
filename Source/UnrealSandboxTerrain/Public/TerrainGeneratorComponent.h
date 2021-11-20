@@ -96,7 +96,7 @@ public:
 
 	virtual float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
 
-	int32 ZoneHash(const FVector& ZonePos);
+	int32 ZoneHash(const FVector& ZonePos) const;
 
 	virtual void Clean();
 
@@ -109,8 +109,6 @@ public:
 	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	virtual bool UseCustomFoliage(const TVoxelIndex& Index);
-
-	virtual bool SpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
 
 	virtual FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
 
@@ -135,6 +133,10 @@ protected:
 	virtual void PrepareMetaData();
 
 	virtual bool IsForcedComplexZone(const TVoxelIndex& ZoneIndex);
+
+	virtual bool SpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
+
+	virtual void PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
 
 	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
@@ -162,7 +164,7 @@ private:
 
 	int GetMaterialLayers(const TChunkData* ChunkData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
 
-	void GenerateNewFoliage(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+	void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
@@ -183,5 +185,11 @@ private:
 	//float TestFunctionMakeCaveLayer(float Density, const FVector& WorldPos) const;
 
 	//void Test(const TGenerateVdTempItm& Itm) const;
+
+public:
+
+	//void Test(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd) const;
+
+	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal) const;
 
 };

@@ -118,9 +118,7 @@ public:
 	}
 
 	void LoadArea(const FVector& Origin) {
-
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone Z range --> %d %d"), Params.TerrainSizeMaxZ, Params.TerrainSizeMinZ);
-
+		//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone Z range --> %d %d"), Params.TerrainSizeMaxZ, Params.TerrainSizeMinZ);
 		if (this->Controller) {
 			this->AreaOrigin = Origin;
 			this->OriginIndex = Controller->GetZoneIndex(Origin);
