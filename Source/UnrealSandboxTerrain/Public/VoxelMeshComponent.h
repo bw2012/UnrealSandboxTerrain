@@ -27,10 +27,6 @@ public:
 
 	void SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
 
-	void SetLodFlag(bool bLodFlag) {
-		this->bLodFlag = bLodFlag;
-	}
-
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual class UBodySetup* GetBodySetup() override;
@@ -72,8 +68,6 @@ public:
 	TMaterialId GetMaterialIdFromCollisionFaceIndex(int32 FaceIndex) const;
 
 private:
-
-	TMeshDataPtr MeshDataPtr;
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

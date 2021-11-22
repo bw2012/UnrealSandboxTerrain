@@ -10,31 +10,55 @@
 #include "VoxelIndex.h"
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
+#include <vector>
 #include <mutex>
+#include <functional>
 #include "TerrainGeneratorComponent.generated.h"
 
 
 class TPerlinNoise;
 class ASandboxTerrainController;
-class TChunkHeightMapData;
+class TChunkData;
 struct TInstanceMeshArray;
 struct FSandboxFoliage;
 typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
-typedef struct TGenerateVdTempItm {
+enum TGenerationMethod : int32 {
+	FastSimple = 0x1,
+	SlowComplex = 0x2,
+	UltraFastPartially = 0x3,
+	Skip = 0x4
+};
 
+struct TGenerateVdTempItm {
 	int Idx = 0;
-
 	TVoxelIndex ZoneIndex;
 	TVoxelData* Vd;
+	TChunkData* ChunkData;
+	int GenerationLOD = 0; // UltraFastPartially
+	int Type = 0;
+	TGenerationMethod Method;
+};
 
-	TChunkHeightMapData* ChunkData;
+struct TGenerateZoneResult {
+	TVoxelData* Vd = nullptr;
+	int Type = 0;
+	TGenerationMethod Method;
+};
 
-	// partial generation
-	int GenerationLOD = 0;
+typedef std::tuple<float, TMaterialId> TGenerationResult;
 
-} TGenerateVdTempItm;
+typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
+
+typedef std::function<TGenerationResult(float, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
+
+struct TZoneStructureHandler {
+	TVoxelIndex ZoneIndex;
+	int Type = 0;
+	TZoneGenerationFunction Function = nullptr;
+};
+
 
 
 /**
@@ -47,6 +71,9 @@ class UNREALSANDBOXTERRAIN_API UTerrainGeneratorComponent : public UActorCompone
 
 public:
 		
+	UPROPERTY()
+	int DfaultGrassMaterialId;
+
 	virtual void BeginPlay() override;
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -61,76 +88,108 @@ public:
 
 	float PerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const;
 
-	void BatchGenerateVoxelTerrain(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray);
+	void ForceGenerateZone(TVoxelData* VoxelData, const TVoxelIndex& ZoneIndex);
 
-	float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
+	void BatchGenerateVoxelTerrain(const TArray<TSpawnZoneParam>& GenerationList, TArray<TGenerateZoneResult>& ResultArray);
 
-	float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
+	virtual float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
 
-	int32 ZoneHash(const FVector& ZonePos);
+	virtual float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
 
-	void Clean();
+	int32 ZoneHash(const FVector& ZonePos) const;
 
-	void Clean(TVoxelIndex& Index);
+	virtual void Clean();
+
+	virtual void Clean(TVoxelIndex& Index);
 
 	//========================================================================================
 	// foliage etc.
 	//========================================================================================
 
-	void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	virtual bool UseCustomFoliage(const TVoxelIndex& Index);
 
-	virtual bool SpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
+	virtual FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
 
-	FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
+	virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
 
-	bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
+	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
 
-	bool IsOverrideGroundLevel(const TVoxelIndex& Index);
-
-	float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
-
-	bool ForcePerformZone(const TVoxelIndex& ZoneIndex);
+	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
 protected:
 
 	TPerlinNoise* Pn;
 
-	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& GenPass2List);
+	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& List);
+
+	virtual void BatchGenerateSlightVd(TArray<TGenerateVdTempItm>& List);
 
 	virtual void OnBatchGenerationFinished();
+
+	virtual int ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData);
+
+	virtual void PrepareMetaData();
+
+	virtual bool IsForcedComplexZone(const TVoxelIndex& ZoneIndex);
+
+	virtual bool SpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
+
+	virtual void PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
+
+	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
 private:
 
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
 
-	std::mutex ZoneHeightMapMutex;
+	std::mutex ChunkDataMapMutex;
 
-	std::unordered_map<TVoxelIndex, TChunkHeightMapData*> ChunkDataCollection;
+	std::unordered_map<TVoxelIndex, TChunkData*> ChunkDataCollection;
 
-	TChunkHeightMapData* GetChunkHeightMap(int X, int Y);
+	TChunkData* GetChunkHeightMap(int X, int Y);
 
-	virtual TVoxelDataFillState GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, TChunkHeightMapData** ChunkDataPtr);
-
-	bool IsZoneOverGroundLevel(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin) const;
-
-	bool IsZoneOnGroundLevel(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin) const;
+	virtual void GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkData* ChunkData);
 
 	float ClcDensityByGroundLevel(const FVector& V, const float GroundLevel) const;
 
-	void GenerateZoneVolume(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const TChunkHeightMapData* ChunkHeightMapData, const int LOD = 0) const;
+	void GenerateZoneVolume(const TGenerateVdTempItm& Itm) const;
+
+	void GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const std::vector<TZoneStructureHandler>& StructureList) const;
 
 	FORCEINLINE TMaterialId MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const;
 
 	const FTerrainUndergroundLayer* GetMaterialLayer(float Z, float RealGroundLevel) const;
 
-	int GetMaterialLayersCount(TChunkHeightMapData* ChunkHeightMapData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
+	int GetMaterialLayers(const TChunkData* ChunkData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
 
-	void GenerateNewFoliage(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+	void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	void GenerateNewFoliageCustom(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+
+	//====
+
+	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
+
+	float B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
+
+	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
+
+	std::unordered_map<TVoxelIndex, std::vector<TZoneStructureHandler>> StructureMap;
+
+	//====
+
+	//float TestFunctionMakeCaveLayer(float Density, const FVector& WorldPos) const;
+
+	//void Test(const TGenerateVdTempItm& Itm) const;
+
+public:
+
+	//void Test(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd) const;
+
+	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal) const;
 
 };

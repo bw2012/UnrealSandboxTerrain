@@ -2,6 +2,7 @@
 
 #include "EngineMinimal.h"
 
+#include "VoxelIndex.h"
 #include <list>
 #include <array>
 #include <memory>
@@ -21,8 +22,6 @@ enum TVoxelDataFillState : uint8 {
 	FULL = 1,		// data contains only one same value
 	MIXED = 2		// mixed state, any value in any point
 };
-
-
 
 typedef struct TSubstanceCacheItem {
 	uint32 index = 0;
@@ -44,10 +43,18 @@ public:
 	TSubstanceCache();
 
 	TSubstanceCacheItem* emplace();
+
 	void resize(uint32 s);
+
 	void clear();
+
 	void forEach(std::function<void(const TSubstanceCacheItem& itm)> func) const;
+
 	void copy(const int* cache_data, const int len);
+
+	int32 size() const;
+
+	const TSubstanceCacheItem& operator[](std::size_t idx) const;
 
 } TSubstanceCache;
 
@@ -67,7 +74,33 @@ typedef struct TVoxelDataHeader {
 class TVoxelData;
 typedef std::shared_ptr<TVoxelData> TVoxelDataPtr;
 
+namespace vd {
+	namespace tools {
+		namespace memory {
+			int getVdCount();
+		}
+
+		void makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step);
+		void makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step);
+		unsigned long caseCode(int8(&corner)[8]);
+		int clcLinearIndex(int n, int x, int y, int z);
+		int clcLinearIndex(int n, const TVoxelIndex& vi);
+		size_t getCacheSize(const TVoxelData* vd, int lod);
+		const TSubstanceCacheItem& getCacheItmByNumber(const TVoxelData* vd, int lod, int number);
+
+		namespace unsafe {
+			void forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod);
+			void setDensity(TVoxelData* vd, const TVoxelIndex& vi, float density);
+		}
+	}
+};
+
 class UNREALSANDBOXTERRAIN_API TVoxelData {
+
+	friend void vd::tools::unsafe::forceAddToCache(TVoxelData*, int, int, int, int);
+	friend void vd::tools::unsafe::setDensity(TVoxelData*, const TVoxelIndex&, float);
+	friend size_t vd::tools::getCacheSize(const TVoxelData*, int);
+	friend const TSubstanceCacheItem& vd::tools::getCacheItmByNumber(const TVoxelData*, int, int);
 
 private:
 	TVoxelDataFillState density_state;
@@ -85,9 +118,6 @@ private:
 	FVector lower = FVector(0.0f, 0.0f, 0.0f);
 	FVector upper = FVector(0.0f, 0.0f, 0.0f);
 
-	void initializeDensity();
-	void initializeMaterial();
-
 	std::array<TSubstanceCache, LOD_ARRAY_SIZE> substanceCacheLOD;
 
 	bool performCellSubstanceCaching(int x, int y, int z, int lod, int step);
@@ -103,8 +133,15 @@ public:
 	void copyDataUnsafe(const TDensityVal* density_data, const TMaterialId* material_data);
 	void copyCacheUnsafe(const int* cache_data, const int* len);
 
-	FORCEINLINE int clcLinearIndex(int x, int y, int z) const;
-	FORCEINLINE void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
+	void initializeDensity();
+	void initializeMaterial();
+
+	int clcLinearIndex(const TVoxelIndex& v) const;
+	int clcLinearIndex(int x, int y, int z) const;
+	void clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const;
+
+	static TDensityVal clcFloatToByte(float v);
+	static float clcByteToFloat(TDensityVal v);
 
 	void forEach(std::function<void(int x, int y, int z)> func);
 	void forEachWithCache(std::function<void(int x, int y, int z)> func, bool enableLOD);
@@ -112,6 +149,11 @@ public:
 
 	void setDensity(int x, int y, int z, float density);
 	float getDensity(int x, int y, int z) const;
+
+	void setDensity(const TVoxelIndex& vi, float density);
+	float getDensity(const TVoxelIndex& vi) const;
+
+	void setDensityAndMaterial(const TVoxelIndex& vi, float density, TMaterialId materialId);
 
 	TDensityVal getRawDensityUnsafe(int x, int y, int z) const;
 	unsigned short getRawMaterialUnsafe(int x, int y, int z) const;
@@ -128,22 +170,19 @@ public:
 	FVector voxelIndexToVector(int x, int y, int z) const;
 	void vectorToVoxelIndex(const FVector& v, int& x, int& y, int& z) const;
 
-	void setOrigin(FVector o);
-	FVector getOrigin() const;
+	void setOrigin(const FVector& o);
+	const FVector& getOrigin() const;
+	void getOrigin(FVector& o) const {
+		o = origin;
+	};
 
 	FVector getLower() const { return lower; };
 	FVector getUpper() const { return upper; };
-
-	void getRawVoxelData(int x, int y, int z, TDensityVal& density, unsigned short& material) const;
-	void setVoxelPoint(int x, int y, int z, TDensityVal density, unsigned short material);
-	void setVoxelPointDensity(int x, int y, int z, TDensityVal density);
-	void setVoxelPointMaterial(int x, int y, int z, unsigned short material);
 
 	void performSubstanceCacheNoLOD(int x, int y, int z);
 	void performSubstanceCacheLOD(int x, int y, int z, int initial_lod = 0);
 
 	TVoxelDataFillState getDensityFillState() const;
-	//VoxelDataFillState getMaterialFillState() const; 
 
 	void deinitializeDensity(TVoxelDataFillState density_state);
 	void deinitializeMaterial(unsigned short base_mat);
@@ -153,6 +192,8 @@ public:
 	void makeSubstanceCache();
 	void clearSubstanceCache();
 
+	unsigned long getCaseCode(int x, int y, int z, int step) const;
+
 	std::shared_ptr<std::vector<uint8>> serialize();
 
 	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
@@ -161,6 +202,5 @@ public:
 
 	friend bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);
 };
-
 
 //bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);

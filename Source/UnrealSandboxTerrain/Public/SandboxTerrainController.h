@@ -65,7 +65,7 @@ struct FTerrainInstancedMeshType {
 	int32 MeshTypeId;
 
 	UPROPERTY()
-	UStaticMesh* Mesh;
+	UStaticMesh* Mesh = nullptr;
 
 	UPROPERTY()
 	int32 StartCullDistance;
@@ -278,6 +278,9 @@ public:
            
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FSandboxTerrainLODDistance LodDistance;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	bool bSaveOnEndPlay;
     
     //========================================================================================
     // Dynamic area swapping
@@ -291,19 +294,6 @@ public:
     
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     FTerrainSwapAreaParams DynamicLoadArea;
-
-	//========================================================================================
-	// 
-	//========================================================================================
-
-	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
-	//void OnStartBuildTerrain();
-
-	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Finish Build Sandbox Terrain"))
-	//void OnFinishBuildTerrain();
-
-	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
-	//void OnProgressBuildTerrain(float Progress);
 
 	//========================================================================================
 	// save/load
@@ -424,7 +414,7 @@ private:
 	void BeginClient();
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	volatile bool bIsWorkFinished = false;
 
@@ -437,8 +427,6 @@ private:
     std::mutex SaveMutex;
 
 	bool bIsLoadFinished;
-
-	void Save();
         
     void AutoSaveByTimer();
 
@@ -454,7 +442,7 @@ private:
 
 	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0);
 
-	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const uint32 State = 0);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const bool bIsNewGenerated = false);
 
 	//===============================================================================
 	// threads
@@ -520,7 +508,7 @@ private:
 	// pipeline
 	//===============================================================================
 
-	int SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
+	void SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
@@ -547,6 +535,8 @@ protected:
 	void CloseFile();
 
 	void ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap);
+
+	void Save(std::function<void(uint32, uint32)> OnProgress = nullptr, std::function<void(uint32)> OnFinish = nullptr);
 
 	//===============================================================================
 	// voxel data storage
@@ -590,9 +580,11 @@ protected:
 
 	void BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
 
-	virtual void BatchGenerateNewVd(const TArray<TSpawnZoneParam>& GenerationList, TArray<TVoxelData*>& NewVdArray);
-
 	std::list<TChunkIndex> MakeChunkListByAreaSize(const uint32 AreaRadius);
-	
-	
+
+	//===============================================================================
+	// core
+	//===============================================================================
+
+	void ShutdownThreads();
 };

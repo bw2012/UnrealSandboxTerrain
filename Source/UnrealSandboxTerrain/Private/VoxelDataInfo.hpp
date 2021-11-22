@@ -56,6 +56,10 @@ public:
 		}
 	}
 
+    bool CanSave() const {
+        return DataState == TVoxelDataState::GENERATED || DataState == TVoxelDataState::LOADED;
+    }
+
     bool IsNewGenerated() const {
         return DataState == TVoxelDataState::GENERATED;
     }
@@ -92,7 +96,7 @@ public:
         }
     }
 
-    void HandleUngenerated() {
+    void CleanUngenerated() {
         if (DataState == TVoxelDataState::UNGENERATED) {
             if (Vd != nullptr) {
                 delete Vd;

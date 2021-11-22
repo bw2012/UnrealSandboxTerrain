@@ -9,16 +9,16 @@
 #include <iterator>
 #include <map>
 
-#define USBT_USE_VD_PREBUILD_DATA 1
-
 
 typedef struct TVoxelDataGenerationParam {
     int lod = 0;
     bool bGenerateLOD = false;
+	bool bIgnoreLodPatches = false;
     
     FORCEINLINE int step() const { return 1 << lod; }
     TVoxelDataGenerationParam(const TVoxelDataParam& vdp) {
         bGenerateLOD = vdp.bGenerateLOD;
+
         //collisionLOD = vdp.collisionLOD;
         //ZCutLevel = vdp.ZCutLevel;
         //bZCut = vdp.bZCut;
@@ -89,7 +89,7 @@ private:
 
 	} PointAddr;
 
-
+	//FIXME
 	struct Point {
 		PointAddr adr;
 		FVector pos;
@@ -477,7 +477,9 @@ private:
 	}
 
 	FORCEINLINE void extractRegularCell(Point (&d)[8], unsigned long caseCode) {
-		if (caseCode == 0) { return; }
+		if (caseCode == 0) { 
+			return; 
+		}
 
 		unsigned int c = regularCellClass[caseCode];
 		RegularCellData cd = regularCellData[c];
@@ -534,18 +536,9 @@ private:
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
 		}
 
-		unsigned long caseCode = ((corner[0] >> 7) & 0x01)
-			| ((corner[1] >> 6) & 0x02)
-			| ((corner[2] >> 5) & 0x04)
-			| ((corner[3] >> 4) & 0x08)
-			| ((corner[4] >> 3) & 0x10)
-			| ((corner[5] >> 2) & 0x20)
-			| ((corner[6] >> 1) & 0x40)
-			| (corner[7] & 0x80);
-
+		unsigned long caseCode = vd::tools::caseCode(corner);
 		extractRegularCell(d, caseCode);
 	}
-
 
 	FORCEINLINE void extractTransitionCell(int sectionNumber, Point& d0, Point& d2, Point& d6, Point& d8) {
 		Point d[14];
@@ -672,7 +665,7 @@ private:
     }
     
     void extractAllTransitionCell(Point (&d)[8], const int x, const int y, const int z){
-        if (voxel_data_param.bGenerateLOD) {
+        if (voxel_data_param.bGenerateLOD && !voxel_data_param.bIgnoreLodPatches) {
             if (voxel_data_param.lod > 0) {
                 const int e = voxel_data.num() - voxel_data_param.step() - 1;
                 if (x == 0) extractTransitionCell(0, d[1], d[0], d[5], d[4]); // X+
@@ -715,6 +708,14 @@ typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
 
 //####################################################################################################################################
 
+TMeshDataPtr polygonizeSingleCell(const TVoxelData& vd, const TVoxelDataParam& vdp, int x, int y, int z) {
+	TMeshData* mesh_data = new TMeshData();
+	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
+	mesh_extractor_ptr->generateCell(x, y, z);
+	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
+	return TMeshDataPtr(mesh_data);
+}
+
 TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	TMeshData* mesh_data = new TMeshData();
 	VoxelMeshExtractorPtr mesh_extractor_ptr = VoxelMeshExtractorPtr(new VoxelMeshExtractor(mesh_data->MeshSectionLodArray[0], vd, vdp));
@@ -727,17 +728,7 @@ TMeshDataPtr polygonizeCellSubstanceCacheNoLOD(const TVoxelData &vd, const TVoxe
 		const int y = (index / n) % n;
 		const int z = index % n;
 		mesh_extractor_ptr->generateCell(x, y, z);
-		});
-
-	/*
-	vd.substanceCacheLOD[0].forEach([=](const TSubstanceCacheItem& itm) {
-		const int index = itm.index;
-		const int x = index / (n * n);
-		const int y = (index / n) % n;
-		const int z = index % n;
-		mesh_extractor_ptr->generateCell(x, y, z);
 	});
-	*/
 
 	mesh_data->CollisionMeshPtr = &mesh_data->MeshSectionLodArray[0].WholeMesh;
 	return TMeshDataPtr(mesh_data);
@@ -832,11 +823,11 @@ TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataPa
 //####################################################################################################################################
 
 TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataParam &vdp) {
-    if (vd.isSubstanceCacheValid() && !vdp.bZCut) {
+    if (vd.isSubstanceCacheValid() && !vdp.bZCut && !vdp.bForceNoCache) {
 		return vdp.bGenerateLOD ? polygonizeCellSubstanceCacheLOD(vd, vdp) : polygonizeCellSubstanceCacheNoLOD(vd, vdp);
 	}
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
 

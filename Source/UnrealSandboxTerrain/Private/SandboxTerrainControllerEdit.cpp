@@ -309,7 +309,7 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 	} Zh;
 
 	Zh.newMaterialId = MatId;
-	Zh.Strength = 5;
+	Zh.Strength = 10;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
@@ -350,6 +350,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
 				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(Overlap.GetComponent());
 				if (InstancedMesh) {
+					//UE_LOG(LogSandboxTerrain, Warning, TEXT("InstancedMesh: %s"), *InstancedMesh->GetName());
 					InstancedMesh->RemoveInstance(Overlap.Item);
 
 					TArray<USceneComponent*> Parents;
@@ -370,24 +371,14 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 }
 
 template<class H>
-void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoPtr, H handler, std::function<void(TMeshDataPtr)> OnComplete) {
-	if (!VdInfoPtr->Vd) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("voxel data is null"));
-		return;
-	}
-
-	bool bIsChanged = false;
-
-	bIsChanged = handler(VdInfoPtr->Vd);
+void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete) {
+	bool bIsChanged = Handler(VdInfoPtr->Vd);
 	if (bIsChanged) {
 		VdInfoPtr->SetChanged();
 		VdInfoPtr->Vd->setCacheToValid();
 		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
 		VdInfoPtr->ResetLastMeshRegenerationTime();
-
-		if (bIsChanged) {
-			OnComplete(MeshDataPtr);
-		}
+		OnComplete(MeshDataPtr);
 	}
 }
 
@@ -417,7 +408,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
 					//UE_LOG(LogSandboxTerrain, Log, TEXT("VoxelDataInfo->DataState = %d, Index = %d %d %d"), VoxelDataInfo->DataState, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-						UE_LOG(LogSandboxTerrain, Warning, TEXT("Invalid zone vd state"));
+						UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> Invalid zone vd state (UNDEFINED)"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 						bIsValid = false;
 						break;
 					}
@@ -443,16 +434,41 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
+					VoxelDataInfo->VdMutexPtr->lock();
+
+					//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> %d"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, (int)VoxelDataInfo->DataState);
+
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-						UE_LOG(LogSandboxTerrain, Warning, TEXT("VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED"));
+						UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNDEFINED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+						VoxelDataInfo->VdMutexPtr->unlock();
 						continue;
 					}
 
-					VoxelDataInfo->VdMutexPtr->lock();
-
 					if (VoxelDataInfo->DataState == TVoxelDataState::READY_TO_LOAD) {
-						VoxelDataInfo->Vd = LoadVoxelDataByIndex(ZoneIndex);
-						VoxelDataInfo->DataState = TVoxelDataState::LOADED;
+						TVoxelData* Vd = LoadVoxelDataByIndex(ZoneIndex);
+						if (Vd) {
+							VoxelDataInfo->Vd = Vd;
+							VoxelDataInfo->DataState = TVoxelDataState::LOADED;
+						} else {
+							VoxelDataInfo->DataState = TVoxelDataState::UNGENERATED;
+						}
+					}
+
+					if (VoxelDataInfo->DataState == TVoxelDataState::UNGENERATED) {
+						VoxelDataInfo->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
+
+						if (VoxelDataInfo->Vd == nullptr) {
+							UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+
+							TVoxelData* NewVd = NewVoxelData();
+							NewVd->setOrigin(GetZonePos(ZoneIndex));
+							VoxelDataInfo->Vd = NewVd;
+						} else {
+							UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED but Vd is not null"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+						}
+
+						GetTerrainGenerator()->ForceGenerateZone(VoxelDataInfo->Vd, ZoneIndex);
+						VoxelDataInfo->DataState = TVoxelDataState::GENERATED;
 					}
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::LOADED || VoxelDataInfo->DataState == TVoxelDataState::GENERATED) {
@@ -460,12 +476,12 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 							PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 								TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
 								ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr);
-								});
+							});
 						} else {
 							PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 								TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
 								ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr);
-								});
+							});
 						}
 					}
 
@@ -477,5 +493,5 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::editTerrain -------------> %f ms"), Time);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Edit terrain -> %f ms"), Time);
 }

@@ -322,13 +322,13 @@ public:
 
 			for (auto i = 0; i < 6; i++) {
 				// copy regular material mesh
-				TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
-				CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->NormalPatchPtrArray[i],
+				TMaterialSectionMap& LodMaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
+				CopyMaterialMesh<TMeshMaterialSection>(Component, LodMaterialMap, NewLodSection->NormalPatchPtrArray[i],
 					[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
 
 				// copy transition material mesh
-				TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
-				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
+				TMaterialTransitionSectionMap& LodMaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
+				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, LodMaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
 					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
 			}
 
@@ -534,9 +534,9 @@ public:
 		Collector.AddMesh(ViewIndex, Mesh);	
 	}
 
-	int GetLodIndex(const FVector& ZoneOrigin, const FVector& ViewOrigin) const {
+	int GetLodIndex(const FVector& Origin, const FVector& ViewOrigin) const {
 		if (bLodFlag) {
-			return CalculateLodIndex(ZoneOrigin, ViewOrigin);
+			return CalculateLodIndex(Origin, ViewOrigin);
 		}
 
 		return 0;
@@ -602,9 +602,8 @@ void UVoxelMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	OutMaterials.Append(LocalMaterials);
 }
 
-void UVoxelMeshComponent::SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask) {
+void UVoxelMeshComponent::SetMeshData(TMeshDataPtr NewMeshDataPtr, const TTerrainLodMask TerrainLodMask) {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
-	//if (TerrainController == nullptr) return;
 
 	LocalMaterials.Empty();
 	//LocalMaterials.Reserve(10);
@@ -612,9 +611,9 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLo
     static const auto DummyMesh = TMeshLodSection();
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
-	if (MeshDataPtr) {
+	if (NewMeshDataPtr) {
 		auto LodIndex = 0;
-		for (auto& SectionLOD : MeshDataPtr->MeshSectionLodArray) {
+		for (auto& SectionLOD : NewMeshDataPtr->MeshSectionLodArray) {
             const auto* SourceMesh = &SectionLOD;
             bool bIgnoreLod = TerrainLodMask & (1 << LodIndex);
             if(bIgnoreLod){

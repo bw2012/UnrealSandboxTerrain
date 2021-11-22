@@ -164,6 +164,14 @@ bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function
 	return true;
 }
 
+TValueDataPtr LoadDataFromKvFile2(TKvFile& KvFile, const TVoxelIndex& Index) {
+	TValueDataPtr DataPtr = KvFile.loadData(Index);
+	if (DataPtr == nullptr || DataPtr->size() == 0) {
+		return nullptr;
+	}
+	return DataPtr;
+}
+
 TValueDataPtr Decompress(TValueDataPtr CompressedDataPtr) {
 	TValueDataPtr Result = std::make_shared<TValueData>();
 	TArray<uint8> BinaryArray;
@@ -269,8 +277,8 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 	TVoxelData* Vd = NewVoxelData();
 	Vd->setOrigin(GetZonePos(Index));
 
-	bool bIsLoaded = LoadDataFromKvFile(TdFile, Index, [=](TValueDataPtr DataPtr) {
-
+	TValueDataPtr DataPtr = LoadDataFromKvFile2(TdFile, Index);
+	if (DataPtr) {
 		usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
 		TKvFileZodeData ZoneHeader;
 		Deserializer >> ZoneHeader;
@@ -291,24 +299,15 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 			} else {
 				deserializeVoxelData(Vd, *VdPtr);
 			}
+		} else {
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("no vd"));
+			return nullptr;
 		}
-	});
+	}
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-
-	if (bIsLoaded) {
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
-
-		double Start2 = FPlatformTime::Seconds();
-
-		Vd->makeSubstanceCache();
-
-		double End2 = FPlatformTime::Seconds();
-		double Time2 = (End2 - Start2) * 1000;
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("makeSubstanceCache() -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time2);
-	}
-
+	UE_LOG(LogSandboxTerrain, Log, TEXT("loading voxel data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 	return Vd;
 }
 

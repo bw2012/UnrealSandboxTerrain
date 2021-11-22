@@ -7,14 +7,6 @@
 //
 //======================================================================================================================================================================
 
-enum TZoneSpawnResult : int {
-	None = 0,
-	SpawnMesh = 1,
-	GeneratedNewVd = 2,
-	GeneratedNewMesh = 3,
-	ChangeLodMask = 4
-};
-
 typedef struct TTerrainAreaPipelineParams {
 	float Radius = 3000;
 	float FullLodDistance = 1000;
@@ -33,15 +25,16 @@ public:
 
 	TTerrainAreaPipeline() {}
 
-	~TTerrainAreaPipeline() {
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TTerrainLoadHandler()"));
+	virtual ~TTerrainAreaPipeline() { 
+		// UE_LOG(LogSandboxTerrain, Log, TEXT("~TTerrainLoadHandler()")); 
 	}
 
 	TTerrainAreaPipeline(FString Name_, ASandboxTerrainController* Controller_) :
 		Name(Name_), Controller(Controller_) {}
 
 	TTerrainAreaPipeline(FString Name_, ASandboxTerrainController* Controller_, TTerrainAreaPipelineParams Params_) :
-		Name(Name_), Controller(Controller_), Params(Params_) {}
+		Name(Name_), Controller(Controller_), Params(Params_) {
+	}
 
 protected:
 	FString Name;
@@ -51,14 +44,13 @@ protected:
 	TVoxelIndex OriginIndex;
 	uint32 Total = 0;
 	uint32 Progress = 0;
-	uint32 GeneratedVdConter = 0;
 	uint32 SaveGeneratedZones = 1000;
 	bool bIsStopped = false;
 
 protected:
 
-	virtual int PerformZone(const TVoxelIndex& Index) {
-		return TZoneSpawnResult::None;
+	virtual void PerformZone(const TVoxelIndex& Index) {
+
 	}
 
 	virtual void EndChunk(int x, int y) {
@@ -73,26 +65,17 @@ protected:
 private:
 
 	void PerformChunk(int x, int y) {
-		for (int z = -Params.TerrainSizeMinZ; z <= Params.TerrainSizeMaxZ; z++) {
+		for (int z = Params.TerrainSizeMinZ; z <= Params.TerrainSizeMaxZ; z++) {
 			TVoxelIndex Index(x + OriginIndex.X, y + OriginIndex.Y, z);
-			TZoneSpawnResult Res = (TZoneSpawnResult)PerformZone(Index);
+			PerformZone(Index);
 			Progress++;
 
 			if (Params.OnProgress) {
 				Params.OnProgress(Progress, Total);
 			}
 
-			if (Res == TZoneSpawnResult::GeneratedNewVd) {
-				GeneratedVdConter++;
-			}
-
 			if (Controller->IsWorkFinished() || bIsStopped) {
 				return;
-			}
-
-			if (GeneratedVdConter > SaveGeneratedZones) {
-				Controller->Save();
-				GeneratedVdConter = 0;
 			}
 		}
 	}
@@ -128,13 +111,14 @@ public:
 		this->bIsStopped = true;
 	}
 
-	void SetParams(FString Name, ASandboxTerrainController* Controller, TTerrainAreaPipelineParams Params) {
-		this->Name = Name;
-		this->Controller = Controller;
-		this->Params = Params;
+	void SetParams(FString NewName, ASandboxTerrainController* NewController, TTerrainAreaPipelineParams NewParams) {
+		this->Name = NewName;
+		this->Controller = NewController;
+		this->Params = NewParams;
 	}
 
 	void LoadArea(const FVector& Origin) {
+		//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone Z range --> %d %d"), Params.TerrainSizeMaxZ, Params.TerrainSizeMinZ);
 		if (this->Controller) {
 			this->AreaOrigin = Origin;
 			this->OriginIndex = Controller->GetZoneIndex(Origin);
@@ -142,7 +126,7 @@ public:
 			AreaWalkthrough();
 
 			if (!Controller->IsWorkFinished()) {
-				Controller->Save();
+				//Controller->Save();
 			}
 		}
 	}
@@ -157,12 +141,13 @@ public:
 
 protected :
 
-	virtual int PerformZone(const TVoxelIndex& Index) override {
+	virtual void PerformZone(const TVoxelIndex& Index) override {
 		TTerrainLodMask TerrainLodMask = (TTerrainLodMask)ETerrainLodMaskPreset::All;
 		FVector ZonePos = Controller->GetZonePos(Index);
 		FVector ZonePosXY(ZonePos.X, ZonePos.Y, 0);
 		float Distance = FVector::Distance(AreaOrigin, ZonePosXY);
 
+		/*
 		if (Distance > Params.FullLodDistance) {
 			float Delta = Distance - Params.FullLodDistance;
 			if (Delta > Controller->LodDistance.Distance2) {
@@ -170,7 +155,7 @@ protected :
 			} if (Delta > Controller->LodDistance.Distance5) {
 				TerrainLodMask = (TTerrainLodMask)ETerrainLodMaskPreset::Far;
 			}
-		}
+		}*/
 
 		double Start = FPlatformTime::Seconds();
 
@@ -186,9 +171,6 @@ protected :
 		double End = FPlatformTime::Seconds();
 		double Time = (End - Start) * 1000;
 		//UE_LOG(LogSandboxTerrain, Log, TEXT("BatchSpawnZone -> %f ms - %d %d %d"), Time, Index.X, Index.Y, Index.Z);
-
-
-		return 0;
 	}
 };
 
