@@ -122,8 +122,6 @@ TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshT
 	return Serializer.data();
 }
 
-
-
 std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMeshes() {
 	usbt::TFastUnsafeSerializer Serializer;
 	int32 MeshCount = InstancedMeshMap.Num();
@@ -140,10 +138,11 @@ std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMes
 			TInstantMeshData P;
 			FTransform InstanceTransform;
 			InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
+			const FVector LocalPos = InstanceTransform.GetLocation() - GetComponentLocation();
 
-			P.X = InstanceTransform.GetLocation().X;
-			P.Y = InstanceTransform.GetLocation().Y;
-			P.Z = InstanceTransform.GetLocation().Z;
+			P.X = LocalPos.X;
+			P.Y = LocalPos.Y;
+			P.Z = LocalPos.Z;
 			P.Roll = InstanceTransform.Rotator().Roll;
 			P.Pitch = InstanceTransform.Rotator().Pitch;
 			P.Yaw = InstanceTransform.Rotator().Yaw;
@@ -200,13 +199,11 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data,
 void UTerrainZoneComponent::SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap) {
 	for (const auto& Elem : InstanceMeshMap) {
 		const TInstanceMeshArray& InstMeshTransArray = Elem.Value;
-		for (const FTransform& Transform : InstMeshTransArray.TransformArray) {
-			SpawnInstancedMesh(InstMeshTransArray.MeshType, Transform);
-		}
+		SpawnInstancedMesh(InstMeshTransArray.MeshType, InstMeshTransArray);
 	}
 }
 
-void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const FTransform& Transform) {
+void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const TInstanceMeshArray& InstMeshTransArray) {
     const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
 	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = nullptr;
 
@@ -234,5 +231,5 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 		InstancedMeshMap.Add(MeshType.MeshTypeId, InstancedStaticMeshComponent);
 	}
 
-	InstancedStaticMeshComponent->AddInstanceWorldSpace(Transform);
+	InstancedStaticMeshComponent->AddInstances(InstMeshTransArray.TransformArray, false);
 }

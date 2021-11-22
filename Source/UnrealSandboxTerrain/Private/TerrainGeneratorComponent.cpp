@@ -995,19 +995,20 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                         }
 
                         float GroundLevel = GroundLevelFunction(Index, FVector(V.X, V.Y, 0)) - 5.5;
-                        FVector Location(V.X, V.Y, GroundLevel);
+                        FVector WorldLocation(V.X, V.Y, GroundLevel);
 
                         FVector Min(-ZoneHalfSize, -ZoneHalfSize, -ZoneHalfSize);
                         FVector Max(ZoneHalfSize, ZoneHalfSize, ZoneHalfSize);
                         FBox Box(Min, Max);
                         Box = Box.MoveTo(ZonePos);
 
-                        if (FMath::PointBoxIntersection(Location, Box)) {
+                        if (FMath::PointBoxIntersection(WorldLocation, Box)) {
                             float Angle = rnd.FRandRange(0.f, 360.f);
                             float ScaleZ = rnd.FRandRange(FoliageType2.ScaleMinZ, FoliageType2.ScaleMaxZ);
                             FVector Scale = FVector(1, 1, ScaleZ);
-                            if (OnCheckFoliageSpawn(Index, Location, Scale)) {
-                                FTransform Transform(FRotator(0, Angle, 0), Location, Scale);
+                            if (OnCheckFoliageSpawn(Index, WorldLocation, Scale)) {
+                                const FVector LocalPos = WorldLocation - ZonePos;
+                                FTransform Transform(FRotator(0, Angle, 0), LocalPos, Scale);
                                 FTerrainInstancedMeshType MeshType;
                                 MeshType.MeshTypeId = FoliageTypeId;
                                 MeshType.Mesh = FoliageType2.Mesh;

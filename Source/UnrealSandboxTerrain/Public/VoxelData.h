@@ -170,8 +170,11 @@ public:
 	FVector voxelIndexToVector(int x, int y, int z) const;
 	void vectorToVoxelIndex(const FVector& v, int& x, int& y, int& z) const;
 
-	void setOrigin(FVector o);
-	FVector getOrigin() const;
+	void setOrigin(const FVector& o);
+	const FVector& getOrigin() const;
+	void getOrigin(FVector& o) const {
+		o = origin;
+	};
 
 	FVector getLower() const { return lower; };
 	FVector getUpper() const { return upper; };

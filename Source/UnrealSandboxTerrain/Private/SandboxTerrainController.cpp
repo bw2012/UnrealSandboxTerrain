@@ -135,18 +135,21 @@ void ASandboxTerrainController::BeginPlay() {
 	StartCheckArea();
 }
 
-void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
-	Super::EndPlay(EndPlayReason);
-
+void ASandboxTerrainController::ShutdownThreads() {
 	bIsWorkFinished = true;
 
-	{
-		std::unique_lock<std::shared_timed_mutex> Lock(ThreadListMutex);
-		UE_LOG(LogSandboxTerrain, Log, TEXT("TerrainControllerEventList -> %d threads. Waiting for finish..."), TerrainControllerEventList.Num());
-		for (auto& TerrainControllerEvent : TerrainControllerEventList) {
-			while (!TerrainControllerEvent->IsComplete()) {};
-		}
+	std::unique_lock<std::shared_timed_mutex> Lock(ThreadListMutex);
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("TerrainControllerEventList -> %d threads. Waiting for finish..."), TerrainControllerEventList.Num());
+	for (auto& TerrainControllerEvent : TerrainControllerEventList) {
+		while (!TerrainControllerEvent->IsComplete()) {};
 	}
+}
+
+void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	Super::EndPlay(EndPlayReason);
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("ASandboxTerrainController::EndPlay"));
+
+	ShutdownThreads();
 
 	if (bSaveOnEndPlay) {
 		Save();
@@ -402,7 +405,7 @@ void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelDa
 	SaveZoneToFile(TdFile, ZoneIndex, DataVd, DataMd, DataObj);
 }
 
-void ASandboxTerrainController::Save() {
+void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgress, std::function<void(uint32)> OnFinish) {
 	const std::lock_guard<std::mutex> lock(SaveMutex);
 
 	if (!TdFile.isOpen()) {
@@ -412,8 +415,8 @@ void ASandboxTerrainController::Save() {
 	double Start = FPlatformTime::Seconds();
 
 	uint32 SavedCount = 0;
-
 	std::unordered_set<TVoxelIndex> SaveIndexSet = TerrainData->PopSaveIndexSet();
+	uint32 Total = (uint32)SaveIndexSet.size();
 	for (const TVoxelIndex& Index : SaveIndexSet) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
@@ -449,6 +452,10 @@ void ASandboxTerrainController::Save() {
 
 			SavedCount++;
 			VdInfoPtr->ResetLastSave();
+
+			if (OnProgress) {
+				OnProgress(SavedCount, Total);
+			}
 		}
 
 		VdInfoPtr->Unload();
@@ -460,12 +467,25 @@ void ASandboxTerrainController::Save() {
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Save terrain data: %d zones saved -> %f ms "), SavedCount, Time);
+
+	if (OnFinish) {
+		OnFinish(SavedCount);
+	}
 }
 
 void ASandboxTerrainController::SaveMapAsync() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Start save terrain async"));
 	RunThread([&]() {
-		Save();
+
+		std::function<void(uint32, uint32)> OnProgress = [=](uint32 Processed, uint32 Total) {
+			if (Processed % 10 == 0) {
+				float Progress = (float)Processed / (float)Total * 100.f;
+				UE_LOG(LogSandboxTerrain, Log, TEXT("Save terrain: %d / %d - %f%%"), Processed, Total, Progress);
+				//AsyncTask(ENamedThreads::GameThread, [=]() { OnProgressSaveTerrain(Progress); });
+			}
+		};
+
+		Save(OnProgress);
 	});
 }
 

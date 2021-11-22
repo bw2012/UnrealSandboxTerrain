@@ -50,7 +50,7 @@ public:
 
 	void SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap);
 
-	void SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const FTransform& transform);
+	void SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const TInstanceMeshArray& InstMeshTransArray);
 
 	//TMeshData const * GetCachedMeshData();
     //TMeshDataPtr GetCachedMeshData();

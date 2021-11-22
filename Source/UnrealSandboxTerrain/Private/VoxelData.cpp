@@ -241,15 +241,19 @@ void TVoxelData::vectorToVoxelIndex(const FVector& v, int& x, int& y, int& z) co
 	z = (int)(v.Z / step) + num() / 2 - 1;
 }
 
-void TVoxelData::setOrigin(FVector o) {
+void TVoxelData::setOrigin(const FVector& o) {
 	origin = o;
 	lower = FVector(o.X - volume_size, o.Y - volume_size, o.Z - volume_size);
 	upper = FVector(o.X + volume_size, o.Y + volume_size, o.Z + volume_size);
 }
 
-FORCEINLINE FVector TVoxelData::getOrigin() const {
+const FVector& TVoxelData::getOrigin() const {
 	return origin;
 }
+
+//void getOrigin(FVector& o) const {
+	//o = origin;
+//};
 
 FORCEINLINE float TVoxelData::size() const {
 	return volume_size;

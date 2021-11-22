@@ -296,19 +296,6 @@ public:
     FTerrainSwapAreaParams DynamicLoadArea;
 
 	//========================================================================================
-	// 
-	//========================================================================================
-
-	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Start Build Sandbox Terrain"))
-	//void OnStartBuildTerrain();
-
-	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Finish Build Sandbox Terrain"))
-	//void OnFinishBuildTerrain();
-
-	//UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Progress Build Sandbox Terrain"))
-	//void OnProgressBuildTerrain(float Progress);
-
-	//========================================================================================
 	// save/load
 	//========================================================================================
 
@@ -440,8 +427,6 @@ private:
     std::mutex SaveMutex;
 
 	bool bIsLoadFinished;
-
-	void Save();
         
     void AutoSaveByTimer();
 
@@ -551,6 +536,8 @@ protected:
 
 	void ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap);
 
+	void Save(std::function<void(uint32, uint32)> OnProgress = nullptr, std::function<void(uint32)> OnFinish = nullptr);
+
 	//===============================================================================
 	// voxel data storage
 	//===============================================================================
@@ -594,4 +581,10 @@ protected:
 	void BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
 
 	std::list<TChunkIndex> MakeChunkListByAreaSize(const uint32 AreaRadius);
+
+	//===============================================================================
+	// core
+	//===============================================================================
+
+	void ShutdownThreads();
 };
