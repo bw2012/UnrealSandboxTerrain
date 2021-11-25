@@ -286,7 +286,7 @@ FORCEINLINE void TVoxelData::deinitializeMaterial(unsigned short base_mat) {
 	material_data = NULL;
 }
 
-FORCEINLINE TVoxelDataFillState TVoxelData::getDensityFillState()	const {
+TVoxelDataFillState TVoxelData::getDensityFillState()	const {
 	return density_state;
 }
 

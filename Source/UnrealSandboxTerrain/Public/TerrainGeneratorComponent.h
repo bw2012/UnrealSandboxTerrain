@@ -24,6 +24,15 @@ struct FSandboxFoliage;
 typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
+enum TZoneGenerationType : int32 {
+	AirOnly,
+	FullSolidOneMaterial,
+	FullSolidMultipleMaterials,
+	Landscape, 
+	Other
+};
+
+
 enum TGenerationMethod : int32 {
 	FastSimple = 0x1,
 	SlowComplex = 0x2,
@@ -37,13 +46,14 @@ struct TGenerateVdTempItm {
 	TVoxelData* Vd;
 	TChunkData* ChunkData;
 	int GenerationLOD = 0; // UltraFastPartially
-	int Type = 0;
+	TZoneGenerationType Type;
 	TGenerationMethod Method;
+	bool bHasStructures = false;
 };
 
 struct TGenerateZoneResult {
 	TVoxelData* Vd = nullptr;
-	int Type = 0;
+	TZoneGenerationType Type;
 	TGenerationMethod Method;
 };
 
@@ -51,14 +61,20 @@ typedef std::tuple<float, TMaterialId> TGenerationResult;
 
 typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
 
-typedef std::function<TGenerationResult(float, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
+struct TZoneStructureHandler;
+
+typedef std::function<TGenerationResult(const float, const TMaterialId, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
 
 struct TZoneStructureHandler {
 	TVoxelIndex ZoneIndex;
 	int Type = 0;
 	TZoneGenerationFunction Function = nullptr;
+	std::function<bool(const TVoxelIndex&, const FVector&, const FVector&)> LandscapeFoliageHandler = nullptr;
+	FBox Box;
+	FVector Pos;
+	float Val1;
+	float Val2;
 };
-
 
 
 /**
@@ -118,6 +134,8 @@ public:
 
 	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
 
+	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
+
 protected:
 
 	TPerlinNoise* Pn;
@@ -128,7 +146,7 @@ protected:
 
 	virtual void OnBatchGenerationFinished();
 
-	virtual int ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData);
+	virtual TZoneGenerationType ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData);
 
 	virtual void PrepareMetaData();
 
@@ -137,8 +155,6 @@ protected:
 	virtual bool SpawnCustomFoliage(const TVoxelIndex& Index, const FVector& WorldPos, int32 FoliageTypeId, FSandboxFoliage FoliageType, FRandomStream& Rnd, FTransform& Transform);
 
 	virtual void PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
-
-	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
 private:
 
@@ -158,7 +174,7 @@ private:
 
 	void GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const std::vector<TZoneStructureHandler>& StructureList) const;
 
-	FORCEINLINE TMaterialId MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const;
+	FORCEINLINE TMaterialId MaterialFuncion(const FVector& WorldPos, float GroundLevel) const;
 
 	const FTerrainUndergroundLayer* GetMaterialLayer(float Z, float RealGroundLevel) const;
 
@@ -187,6 +203,7 @@ private:
 	//void Test(const TGenerateVdTempItm& Itm) const;
 
 public:
+	bool HasStructures(const TVoxelIndex& ZoneIndex) const;
 
 	//void Test(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd) const;
 

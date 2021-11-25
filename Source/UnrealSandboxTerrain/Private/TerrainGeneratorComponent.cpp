@@ -13,15 +13,6 @@
 static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
 
-namespace ZoneGenType {
-    static const int AirOnly = 0;
-    static const int FullSolidOneMaterial = 1;
-    static const int Landscape = 2;
-    static const int Complex = 3;
-    static const int FullSolidMultipleMaterials = 4;
-};
-
-
 class TChunkData {
 
 private:
@@ -199,7 +190,7 @@ const FTerrainUndergroundLayer* UTerrainGeneratorComponent::GetMaterialLayer(flo
     return nullptr;
 }
 
-FORCEINLINE TMaterialId UTerrainGeneratorComponent::MaterialFuncion(const FVector& LocalPos, const FVector& WorldPos, float GroundLevel) const {
+FORCEINLINE TMaterialId UTerrainGeneratorComponent::MaterialFuncion(const FVector& WorldPos, float GroundLevel) const {
     const float DeltaZ = WorldPos.Z - GroundLevel;
 
     TMaterialId mat = 0;
@@ -504,12 +495,20 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
 
 void UTerrainGeneratorComponent::ForceGenerateZone(TVoxelData* VoxelData, const TVoxelIndex& ZoneIndex) {
     TGenerateVdTempItm Itm;
-    Itm.Type = 0;
+    //Itm.Type; TODO
     Itm.Idx = 0;
     Itm.ZoneIndex = ZoneIndex;
     Itm.Vd = VoxelData;
     Itm.ChunkData = GetChunkHeightMap(ZoneIndex.X, ZoneIndex.Y);
     GenerateZoneVolume(Itm);
+}
+
+bool IsLandscapeZone(const FVector& Pos, const TChunkData* ChunkData) {
+    float ZoneHigh = Pos.Z + ZoneHalfSize;
+    float ZoneLow = Pos.Z - ZoneHalfSize;
+    float TerrainHigh = ChunkData->GetMaxHeightLevel();
+    float TerrainLow = ChunkData->GetMinHeightLevel();
+    return std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh);
 }
 
 void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const std::vector<TZoneStructureHandler>& StructureList) const {
@@ -530,24 +529,33 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
     VoxelData->initializeDensity();
     VoxelData->initializeMaterial();
 
+    bool bIsLandscape = IsLandscapeZone(VoxelData->getOrigin(), ChunkData);
+
     for (int X = 0; X < USBT_ZONE_DIMENSION; X += S) {
         for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y += S) {
             for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z += S) {
                 const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
                 const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
                 const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
+                const float GroundLevel = ChunkData->GetHeightLevel(X, Y);
 
                 float Density = 1.f;
-                TMaterialId MaterialId = 0;
-                for (auto& Structure : StructureList) {
-                    if (Structure.Function) {
-                        auto R = Structure.Function(Density, Index, LocalPos, WorldPos);
+                TMaterialId MaterialId = MaterialFuncion(WorldPos, GroundLevel);
+
+                if (bIsLandscape) {
+                    Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
+                }
+
+                for (const auto& StructureHandler : StructureList) {
+                    if (StructureHandler.Function) {
+                        auto R = StructureHandler.Function(Density, MaterialId, Index, LocalPos, WorldPos);
                         Density = std::get<0>(R);
                         MaterialId = std::get<1>(R);
                     }
                 }
 
-                VoxelData->setDensityAndMaterial(Index, Density, MaterialId);
+                const float Density2 = DensityFunctionExt(Density, ZoneIndex, WorldPos, LocalPos);
+                VoxelData->setDensityAndMaterial(Index, Density2, MaterialId);
                 VoxelData->performSubstanceCacheLOD(Index.X, Index.Y, Index.Z, LOD);
 
                 if (Density == 0) {
@@ -571,7 +579,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;
@@ -673,7 +681,7 @@ ResultA UTerrainGeneratorComponent::A(const TVoxelIndex& ZoneIndex, const TVoxel
     const float GroundLevel = ChunkData->GetHeightLevel(VoxelIndex.X, VoxelIndex.Y);
     const float Density = ClcDensityByGroundLevel(WorldPos, GroundLevel);
     const float Density2 = DensityFunctionExt(Density, ZoneIndex, WorldPos, LocalPos);
-    TMaterialId MaterialId = MaterialFuncion(LocalPos, WorldPos, GroundLevel);
+    TMaterialId MaterialId = MaterialFuncion(WorldPos, GroundLevel);
     VoxelData->setDensityAndMaterial(VoxelIndex, Density2, MaterialId);
     auto Result = std::make_tuple(LocalPos, WorldPos, Density2, MaterialId);
     return Result;
@@ -697,9 +705,9 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
 
         auto ZoneHandlerList = StructureMap[ZoneIndex];
         if (ZoneHandlerList.size() > 0) {
+            //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Itm.Vd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
+
             auto ZoneHandlerList = StructureMap[ZoneIndex];
-            //const FVector& Location = GetController()->GetZonePos(ZoneIndex);
-            //DrawDebugBox(GetWorld(), Location, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true);
             GenerateZoneVolumeWithFunction(Itm, ZoneHandlerList);
             continue;
         }
@@ -716,7 +724,7 @@ void UTerrainGeneratorComponent::BatchGenerateSlightVd(TArray<TGenerateVdTempItm
     double Start1 = FPlatformTime::Seconds();
 
     for (const auto& Itm : List) {
-        if (Itm.Type == ZoneGenType::Landscape) {
+        if (Itm.Type == TZoneGenerationType::Landscape) {
             GenerateLandscapeZoneSlight(Itm);
             continue;
         }
@@ -730,37 +738,32 @@ void UTerrainGeneratorComponent::BatchGenerateSlightVd(TArray<TGenerateVdTempItm
     //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
 }
 
-
-int UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData) {
+TZoneGenerationType UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData) {
     const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
     //static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
     if (IsForcedComplexZone(ZoneIndex)) {
-        return ZoneGenType::Complex;
+        return TZoneGenerationType::Other;
     }
 
     if (ChunkData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize) {
-        return ZoneGenType::AirOnly; // air only
+        return TZoneGenerationType::AirOnly; // air only
     }
 
     if (ChunkData->GetMinHeightLevel() > Pos.Z + ZoneHalfSize) {
         TArray<FTerrainUndergroundLayer> LayerList;
         if (GetMaterialLayers(ChunkData, Pos, &LayerList) == 1) {
-            return ZoneGenType::FullSolidOneMaterial; //full solid
+            return TZoneGenerationType::FullSolidOneMaterial; //full solid
         } else {
-            return ZoneGenType::FullSolidMultipleMaterials;
+            return TZoneGenerationType::FullSolidMultipleMaterials;
         }
     }
 
-    float ZoneHigh = Pos.Z + ZoneHalfSize; 
-    float ZoneLow = Pos.Z - ZoneHalfSize; 
-    float TerrainHigh = ChunkData->GetMaxHeightLevel();
-    float TerrainLow = ChunkData->GetMinHeightLevel();
-    if (std::max(ZoneLow, TerrainLow) <= std::min(ZoneHigh, TerrainHigh)) {
-        return ZoneGenType::Landscape; 
+    if (IsLandscapeZone(Pos, ChunkData)) {
+        return TZoneGenerationType::Landscape;
     }
 
-    return ZoneGenType::Complex;
+    return TZoneGenerationType::Other;
 }
 
 void UTerrainGeneratorComponent::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkData* ChunkData) {
@@ -794,15 +797,16 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
         NewVd->setOrigin(Pos);
 
         TChunkData* ChunkData = GetChunkHeightMap(P.Index.X, P.Index.Y);
-        int Type = ZoneGenType(P.Index, ChunkData);
-        
+        TZoneGenerationType Type = ZoneGenType(P.Index, ChunkData);
+        bool bHasStructures = HasStructures(P.Index);
+
         NewVdArray[Idx].Vd = NewVd;
         NewVdArray[Idx].Type = Type;
 
-        if (Type < 2) {
+        if ((Type == TZoneGenerationType::AirOnly || Type == TZoneGenerationType::FullSolidOneMaterial)&& !bHasStructures) {
             GenerateSimpleVd(P.Index, NewVd, Type, ChunkData);
             NewVdArray[Idx].Method = TGenerationMethod::FastSimple;
-        } else if (Type == ZoneGenType::FullSolidMultipleMaterials) {
+        } else if (Type == TZoneGenerationType::FullSolidMultipleMaterials && !bHasStructures) {
             NewVd->deinitializeDensity(TVoxelDataFillState::FULL);
             NewVd->deinitializeMaterial(0);
             NewVd->setCacheToValid();
@@ -814,7 +818,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
             Itm.ZoneIndex = P.Index;
             Itm.Vd = NewVd;
             Itm.ChunkData = ChunkData;
-
+            Itm.bHasStructures = bHasStructures;
             Itm.GenerationLOD = 0;
 
 #ifdef USBT_EXPERIMENTAL_UNGENERATED_ZONES
@@ -823,7 +827,8 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
             }
 #endif
             // select method 
-            if (Itm.Type == ZoneGenType::Landscape) {
+            bool bIsComplex = (Itm.Type != TZoneGenerationType::Landscape) || bHasStructures;
+            if (!bIsComplex) {
                 Itm.Method = TGenerationMethod::FastSimple;
                 FastList.Add(Itm);
             } else {
@@ -878,12 +883,13 @@ void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Inde
     TChunkData* ChunkData = GetChunkHeightMap(Index.X, Index.Y);
     auto Type = ZoneGenType(Index, ChunkData);
 
-    if (Type == ZoneGenType::AirOnly || Type == ZoneGenType::FullSolidOneMaterial || Type == ZoneGenType::FullSolidMultipleMaterials) {
-        return;
+    if (Type == TZoneGenerationType::AirOnly || Type == TZoneGenerationType::FullSolidOneMaterial || Type == TZoneGenerationType::FullSolidMultipleMaterials) {
+        //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Vd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
+        //return;
     }
 
     if (GetController()->FoliageMap.Num() != 0) {   
-        if (Type == ZoneGenType::Landscape) {
+        if (Type == TZoneGenerationType::Landscape) {
             GenerateNewFoliageLandscape(Index, ZoneInstanceMeshMap);
         }
 
@@ -944,8 +950,8 @@ bool UTerrainGeneratorComponent::SelectRandomSpawnPoint(FRandomStream& Rnd, cons
                 FVector TT = SectedLocation + (SectedNormal * 200);
                 DrawDebugPoint(GetWorld(), SectedLocation, 6.f, FColor(255, 111, 111, 0), true);
                 DrawDebugLine(GetWorld(), SectedLocation, TT, FColor(255, 111, 111, 0), true);
-                });
-                */
+             });
+            */
         }
 
         return true;
@@ -969,7 +975,26 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
     for (auto X = -S; X <= S; X += Step) {
         for (auto Y = -S; Y <= S; Y += Step) {
             FVector V(ZonePos);
-            V += FVector(X, Y, 0);
+            FVector LocalPos(X, Y, 0);
+            V += LocalPos;
+
+            bool bIsValidPosition = true;
+
+            auto ZoneHandlerList = StructureMap[Index];
+            if (ZoneHandlerList.size() > 0) {
+                for (const auto& ZoneHandler : ZoneHandlerList) {
+                    if (ZoneHandler.LandscapeFoliageHandler) {
+                        if (!ZoneHandler.LandscapeFoliageHandler(Index, V, LocalPos)) {
+                            bIsValidPosition = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!bIsValidPosition) {
+                continue;
+            }
 
             for (auto& Elem : GetController()->FoliageMap) {
                 FSandboxFoliage FoliageType = Elem.Value;
@@ -1112,6 +1137,10 @@ float UTerrainGeneratorComponent::GeneratorGroundLevelFunc(const TVoxelIndex& In
 }
 
 bool UTerrainGeneratorComponent::IsForcedComplexZone(const TVoxelIndex& ZoneIndex) {
+    return false;
+}
+
+bool UTerrainGeneratorComponent::HasStructures(const TVoxelIndex& ZoneIndex) const {
     return StructureMap.find(ZoneIndex) != StructureMap.end();
 }
 
