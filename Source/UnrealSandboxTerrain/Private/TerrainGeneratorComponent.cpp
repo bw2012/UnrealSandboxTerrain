@@ -6,6 +6,8 @@
 #include "perlin.hpp"
 #include "memstat.h"
 
+#include <thread>
+
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
 #define USBT_DEFAULT_GRASS_MATERIAL_ID      2
 
@@ -417,7 +419,7 @@ public:
     };
 
     void Start() {
-        PerformVoxel(TVoxelIndex(0, 0, 0), 6);
+        PerformVoxel(TVoxelIndex(0, 0, 0), LOD_ARRAY_SIZE - 1);
     };
 
     int GetCount() {
@@ -789,7 +791,6 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
     TArray<TGenerateVdTempItm> ComplexList;
     TArray<TGenerateVdTempItm> FastList;
 
-    double Start = FPlatformTime::Seconds();
     int Idx = 0;
     for (const auto& P : BatchList) {
         const FVector Pos = GetController()->GetZonePos(P.Index);
@@ -842,9 +843,14 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
         Idx++;
     }
 
-    double End = FPlatformTime::Seconds();
-    double Time = (End - Start) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass1 -> %f ms"), Time);
+
+    double Start2 = FPlatformTime::Seconds();
+
+    //std::thread T1([&]() { BatchGenerateComplexVd(ComplexList); });
+   //std::thread T2([&]() { BatchGenerateSlightVd(FastList); });
+
+    //T1.join();
+    //T2.join();
 
     if (ComplexList.Num() > 0) {
         BatchGenerateComplexVd(ComplexList);
@@ -853,6 +859,10 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
     if (FastList.Num() > 0) {
         BatchGenerateSlightVd(FastList);
     }
+
+    double End2 = FPlatformTime::Seconds();
+    double Time2 = (End2 - Start2) * 1000;
+    UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time2);
 
     OnBatchGenerationFinished();
 }

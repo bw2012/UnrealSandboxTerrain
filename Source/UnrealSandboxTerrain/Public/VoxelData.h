@@ -2,6 +2,7 @@
 
 #include "EngineMinimal.h"
 
+#include "UnrealSandboxTerrain.h"
 #include "VoxelIndex.h"
 #include <list>
 #include <array>
@@ -10,8 +11,6 @@
 #include <mutex>
 #include <functional>
 #include <vector>
-
-#define LOD_ARRAY_SIZE 7
 
 typedef unsigned char TDensityVal;
 typedef unsigned short TMaterialId;

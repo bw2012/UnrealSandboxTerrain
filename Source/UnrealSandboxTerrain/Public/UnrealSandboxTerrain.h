@@ -4,6 +4,9 @@
 
 #include "ModuleManager.h"
 
+
+
+#define LOD_ARRAY_SIZE				7
 #define USBT_ZONE_SIZE				1000.f
 #define USBT_ZONE_DIMENSION			65
 
@@ -13,7 +16,6 @@
 
 #define USBT_REGION_FILE_VERSION		1
 #define USBT_REGION_VOXELDATA_VERSION	1
-
 
 #define USBT_ENABLE_LOD true
 
