@@ -67,6 +67,8 @@ void ASandboxTerrainController::FinishDestroy() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::FinishDestroy()"));
 	delete TerrainData;
 	delete CheckAreaMap;
+
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd -> %d, md -> %d, cd -> %d"), vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load());
 }
 
 ASandboxTerrainController::ASandboxTerrainController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
@@ -158,8 +160,6 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	CloseFile();
     TerrainData->Clean();
 	GetTerrainGenerator()->Clean();
-
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd -> %d, md -> %d, cd -> %d"), vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load());
 }
 
 void ASandboxTerrainController::Tick(float DeltaTime) {
