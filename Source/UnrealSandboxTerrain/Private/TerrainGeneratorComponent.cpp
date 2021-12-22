@@ -375,11 +375,11 @@ private:
                 int Idx = vd::tools::clcLinearIndex(VoxelData->num(), TTT.X, TTT.Y, TTT.Z);
 
                 int P = Processed[Idx];
-                ///if (Processed[Idx] == 0x0) {
+                if (Processed[Idx] == 0x0) {
                     const float D = Handler(TTT, Idx, VoxelData, LOD);
                     Count++;
                     Processed[Idx] = 0xff;
-                //}
+                }
             }
 
             if (LOD != 0) {
