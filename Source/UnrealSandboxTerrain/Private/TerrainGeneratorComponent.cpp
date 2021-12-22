@@ -862,7 +862,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
 
     double End2 = FPlatformTime::Seconds();
     double Time2 = (End2 - Start2) * 1000;
-    UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time2);
+    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time2);
 
     OnBatchGenerationFinished();
 }
