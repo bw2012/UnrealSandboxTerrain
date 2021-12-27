@@ -16,6 +16,18 @@ struct TVoxelIndex {
 	friend TVoxelIndex operator+(const TVoxelIndex& lhs, const TVoxelIndex& rhs) {
 		return TVoxelIndex(lhs.X + rhs.X, lhs.Y + rhs.Y, lhs.Z + rhs.Z);
 	}
+
+	friend TVoxelIndex operator-(const TVoxelIndex& lhs, const TVoxelIndex& rhs) {
+		return TVoxelIndex(lhs.X - rhs.X, lhs.Y - rhs.Y, lhs.Z - rhs.Z);
+	}
+
+	friend TVoxelIndex operator*(const TVoxelIndex& lhs, const int rhs) {
+		return TVoxelIndex(lhs.X * rhs, lhs.Y * rhs, lhs.Z * rhs);
+	}
+
+	friend TVoxelIndex operator/(const TVoxelIndex& lhs, const int rhs) {
+		return TVoxelIndex(lhs.X / rhs, lhs.Y / rhs, lhs.Z / rhs);
+	}
 };
 
 namespace std {
