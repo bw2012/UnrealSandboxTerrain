@@ -351,6 +351,12 @@ public:
 
 	UTerrainGeneratorComponent* GetTerrainGenerator();
 
+	//========================================================================================
+
+	uint32 GetZoneVoxelResolution();
+
+	float GetZoneSize();
+
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
 
 	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const float Strength = 1.f, const bool bNoise = true);

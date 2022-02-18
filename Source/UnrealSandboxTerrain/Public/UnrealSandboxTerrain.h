@@ -6,9 +6,9 @@
 
 
 
-#define LOD_ARRAY_SIZE				7
+#define LOD_ARRAY_SIZE				6	//7
 #define USBT_ZONE_SIZE				1000.f
-#define USBT_ZONE_DIMENSION			65
+//#define USBT_ZONE_DIMENSION			65
 
 #define USBT_VD_UNGENERATED_LOD		2
 
