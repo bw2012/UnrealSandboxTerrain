@@ -413,10 +413,10 @@ public:
 		//BatchElement.MinScreenSize = LODResource.LODInfo.MinScreenSize;
 		//BatchElement.MaxScreenSize = LODResource.LODInfo.MaxScreenSize;
 
-		static const float LodScreenSizeArray[LOD_ARRAY_SIZE] = {MAX_FLT, .8f, .43f, .19f, .15f, .12f, .1f};
-		const float ScreenSize = LodScreenSizeArray[LODIndex];
+		//static const float LodScreenSizeArray[LOD_ARRAY_SIZE] = {MAX_FLT, .8f, .43f, .19f, .15f, .12f, .1f};
+		//const float ScreenSize = LodScreenSizeArray[LODIndex];
 		//PDI->DrawMesh(Mesh, MAX_FLT); // ok
-		PDI->DrawMesh(Mesh, ScreenSize); // ok
+		//PDI->DrawMesh(Mesh, ScreenSize); // ok
 	}
 
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {

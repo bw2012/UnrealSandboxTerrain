@@ -85,6 +85,8 @@ void UTerrainGeneratorComponent::BeginPlay() {
 
     UE_LOG(LogTemp, Warning, TEXT("UTerrainGeneratorComponent::BeginPlay"));
 
+    ZoneVoxelResolution = GetController()->GetZoneVoxelResolution();
+
     UndergroundLayersTmp.Empty();
 
     if (GetController()->TerrainParameters && GetController()->TerrainParameters->UndergroundLayers.Num() > 0) {
@@ -259,15 +261,15 @@ TChunkData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
     TChunkData* ChunkData = nullptr;
 
     if (ChunkDataCollection.find(Index) == ChunkDataCollection.end()) {
-        ChunkData = new TChunkData(USBT_ZONE_DIMENSION);
+        ChunkData = new TChunkData(ZoneVoxelResolution);
         ChunkDataCollection.insert({ Index, ChunkData });
 
         double Start = FPlatformTime::Seconds();
 
-        const float Step = USBT_ZONE_SIZE / (USBT_ZONE_DIMENSION - 1);
+        const float Step = USBT_ZONE_SIZE / (ZoneVoxelResolution - 1);
         const float S = -USBT_ZONE_SIZE / 2;
-        for (int VX = 0; VX < USBT_ZONE_DIMENSION; VX++) {
-            for (int VY = 0; VY < USBT_ZONE_DIMENSION; VY++) {
+        for (int VX = 0; VX < ZoneVoxelResolution; VX++) {
+            for (int VY = 0; VY < ZoneVoxelResolution; VY++) {
                 const FVector LocalPos(S + VX * Step, S + VY * Step, S);
                 FVector WorldPos = LocalPos + GetController()->GetZonePos(Index);
                 float GroundLevel = GroundLevelFunction(Index, WorldPos);
@@ -307,7 +309,7 @@ TChunkData* UTerrainGeneratorComponent::GetChunkHeightMap(int X, int Y) {
         double Time = (End - Start) * 1000;
         //UE_LOG(LogSandboxTerrain, Log, TEXT("Generate height map  ----> %f ms --  %d %d"), Time, X, Y);
 
-        const static size_t SSS = sizeof(TChunkData) + sizeof(float) * USBT_ZONE_DIMENSION * USBT_ZONE_DIMENSION * USBT_ZONE_DIMENSION;
+        const static size_t SSS = sizeof(TChunkData) + sizeof(float) * ZoneVoxelResolution * ZoneVoxelResolution * ZoneVoxelResolution;
         //UE_LOG(LogSandboxTerrain, Log, TEXT("%d"), ChunkDataCollection.size() * SSS);
     } else {
         ChunkData = ChunkDataCollection[Index];
@@ -533,9 +535,9 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
 
     bool bIsLandscape = IsLandscapeZone(VoxelData->getOrigin(), ChunkData);
 
-    for (int X = 0; X < USBT_ZONE_DIMENSION; X += S) {
-        for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y += S) {
-            for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z += S) {
+    for (int X = 0; X < ZoneVoxelResolution; X += S) {
+        for (int Y = 0; Y < ZoneVoxelResolution; Y += S) {
+            for (int Z = 0; Z < ZoneVoxelResolution; Z += S) {
                 const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
                 const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
                 const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
@@ -619,9 +621,9 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
     VoxelData->initializeDensity();
     VoxelData->initializeMaterial();
 
-    for (int X = 0; X < USBT_ZONE_DIMENSION; X += S) {
-        for (int Y = 0; Y < USBT_ZONE_DIMENSION; Y += S) {
-            for (int Z = 0; Z < USBT_ZONE_DIMENSION; Z += S) {
+    for (int X = 0; X < ZoneVoxelResolution; X += S) {
+        for (int Y = 0; Y < ZoneVoxelResolution; Y += S) {
+            for (int Z = 0; Z < ZoneVoxelResolution; Z += S) {
                 const FVector& LocalPos = VoxelData->voxelIndexToVector(X, Y, Z);
                 const TVoxelIndex& Index = TVoxelIndex(X, Y, Z);
 

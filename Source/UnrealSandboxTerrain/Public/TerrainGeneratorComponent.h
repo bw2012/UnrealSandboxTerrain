@@ -138,6 +138,8 @@ public:
 
 protected:
 
+	int32 ZoneVoxelResolution;
+
 	TPerlinNoise* Pn;
 
 	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& List);

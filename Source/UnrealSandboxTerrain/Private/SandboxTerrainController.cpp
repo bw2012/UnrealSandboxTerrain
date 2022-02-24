@@ -633,8 +633,20 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 	}
 }
 
+uint32 ASandboxTerrainController::GetZoneVoxelResolution() {
+	int L = LOD_ARRAY_SIZE - 1;
+	int R = 1 << L;
+	int RRR = R + 1;
+	UE_LOG(LogSandboxTerrain, Error, TEXT("RRR -> %d"), RRR);
+	return RRR;
+}
+
+float ASandboxTerrainController::GetZoneSize() {
+	return USBT_ZONE_SIZE;
+}
+
 TVoxelData* ASandboxTerrainController::NewVoxelData() {
-	return new TVoxelData(USBT_ZONE_DIMENSION, USBT_ZONE_SIZE);
+	return new TVoxelData(GetZoneVoxelResolution(), GetZoneSize());
 }
 
 std::list<TChunkIndex> ASandboxTerrainController::MakeChunkListByAreaSize(const uint32 AreaRadius) {
