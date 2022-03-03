@@ -165,6 +165,16 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
+	const std::lock_guard<std::mutex> Lock(ConveyorMutex);
+	for (auto Idx = 0; Idx < MaxConveyorTasks; Idx++) {
+		if (ConveyorList.size() > 0) {
+			const auto& Function = ConveyorList.front();
+			Function();
+			ConveyorList.pop_front();
+		}
+	}
+
+
 	//if (bIsGeneratingTerrain) {
 	//	OnProgressBuildTerrain(GeneratingProgress);
 	//}
@@ -637,7 +647,6 @@ uint32 ASandboxTerrainController::GetZoneVoxelResolution() {
 	int L = LOD_ARRAY_SIZE - 1;
 	int R = 1 << L;
 	int RRR = R + 1;
-	UE_LOG(LogSandboxTerrain, Error, TEXT("RRR -> %d"), RRR);
 	return RRR;
 }
 
@@ -950,6 +959,11 @@ void ASandboxTerrainController::InvokeSafe(std::function<void()> Function) {
 }
 */
 
+void ASandboxTerrainController::AddTaskToConveyor(std::function<void()> Function) {
+	const std::lock_guard<std::mutex> Lock(ConveyorMutex);
+	ConveyorList.push_back(Function);
+}
+
 void ASandboxTerrainController::ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr,const TTerrainLodMask TerrainLodMask) {
 	ASandboxTerrainController* Controller = this;
 
@@ -982,9 +996,13 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 					Zone->ApplyTerrainMesh(MeshDataPtr, TerrainLodMask);
 
 					if (bIsNewGenerated) {
-						OnGenerateNewZone(Index, Zone);
+						AddTaskToConveyor([=]() {
+							OnGenerateNewZone(Index, Zone);
+						});
 					} else {
-						OnLoadZone(Zone);
+						AddTaskToConveyor([=]() {
+							OnLoadZone(Zone);
+						});
 					}
 				} 
 			}

@@ -7,6 +7,7 @@
 #include <memory>
 #include <queue>
 #include <mutex>
+#include <list>
 #include <shared_mutex>
 #include <set>
 #include <unordered_map>
@@ -336,6 +337,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	USandboxTarrainFoliageMap* FoliageDataAsset;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
+	int MaxConveyorTasks = 5;
     
     //========================================================================================
     // networking
@@ -445,6 +449,12 @@ private:
 	//===============================================================================
 	// async tasks
 	//===============================================================================
+
+	std::mutex ConveyorMutex;
+
+	std::list<std::function<void()>> ConveyorList;
+
+	void AddTaskToConveyor(std::function<void()> Function);
 
 	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0);
 
