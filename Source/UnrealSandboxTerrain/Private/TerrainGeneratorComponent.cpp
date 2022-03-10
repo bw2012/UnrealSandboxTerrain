@@ -992,13 +992,15 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
 
             bool bIsValidPosition = true;
 
-            auto ZoneHandlerList = StructureMap[Index];
-            if (ZoneHandlerList.size() > 0) {
-                for (const auto& ZoneHandler : ZoneHandlerList) {
-                    if (ZoneHandler.LandscapeFoliageHandler) {
-                        if (!ZoneHandler.LandscapeFoliageHandler(Index, V, LocalPos)) {
-                            bIsValidPosition = false;
-                            break;
+            if (HasStructures(Index)) {
+                auto ZoneHandlerList = StructureMap[Index];
+                if (ZoneHandlerList.size() > 0) {
+                    for (const auto& ZoneHandler : ZoneHandlerList) {
+                        if (ZoneHandler.LandscapeFoliageHandler) {
+                            if (!ZoneHandler.LandscapeFoliageHandler(Index, V, LocalPos)) {
+                                bIsValidPosition = false;
+                                break;
+                            }
                         }
                     }
                 }
