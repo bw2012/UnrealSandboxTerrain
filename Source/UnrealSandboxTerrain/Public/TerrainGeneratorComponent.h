@@ -70,7 +70,7 @@ struct TZoneStructureHandler {
 	int Type = 0;
 	TZoneGenerationFunction Function = nullptr;
 	std::function<bool(const TVoxelIndex&, const FVector&, const FVector&)> LandscapeFoliageHandler = nullptr;
-	FBox Box;
+	//FBox Box;
 	FVector Pos;
 	float Val1;
 	float Val2;
@@ -182,7 +182,7 @@ private:
 
 	int GetMaterialLayers(const TChunkData* ChunkData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
 
-	void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+	virtual void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 

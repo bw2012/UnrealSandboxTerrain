@@ -1033,8 +1033,9 @@ void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTer
 		Zone->SpawnAll(ZoneInstanceObjectMap);
 		Zone->SetNeedSave();
 		TerrainData->AddSaveIndex(Index);
-		OnFinishGenerateNewZone(Index);
     }
+
+	OnFinishGenerateNewZone(Index);
 }
 
 void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
