@@ -30,7 +30,7 @@ class TVoxelDataInfo;
 class TTerrainAreaPipeline;
 class TTerrainLoadPipeline;
 
-typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
+typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 
@@ -63,7 +63,10 @@ struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	int32 MeshTypeId;
+	uint32 MeshTypeId2 = 0;
+
+	UPROPERTY()
+	uint32 MeshVariantId = 0;
 
 	UPROPERTY()
 	UStaticMesh* Mesh = nullptr;
@@ -73,6 +76,18 @@ struct FTerrainInstancedMeshType {
 
 	UPROPERTY()
 	int32 EndCullDistance;
+
+	uint64 GetMeshTypeCode() const {
+		union {
+			uint32 A[2];
+			uint64 B;
+		};
+
+		A[0] = MeshTypeId2;
+		A[1] = MeshVariantId;
+
+		return B;
+	}
 };
 
 UCLASS(BlueprintType, Blueprintable)

@@ -96,10 +96,17 @@ TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshT
 
 	for (auto& Elem : InstanceObjectMap) {
 		const TInstanceMeshArray& InstancedObjectArray = Elem.Value;
-		int32 MeshTypeId = Elem.Key;
+		union {
+			uint32 A[2];
+			uint64 B;
+		};
+
+		B = Elem.Key;
+		uint32 MeshTypeId = A[0];
+		uint32 MeshVariantId = A[1];
 		int32 MeshInstanceCount = InstancedObjectArray.TransformArray.Num();
 
-		Serializer << MeshTypeId << MeshInstanceCount;
+		Serializer << MeshTypeId << MeshVariantId << MeshInstanceCount;
 
 		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
 			TInstantMeshData P;
@@ -129,10 +136,18 @@ std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMes
 
 	for (auto& Elem : InstancedMeshMap) {
 		UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = Elem.Value;
-		int32 MeshTypeId = Elem.Key;
+
+		union {
+			uint32 A[2];
+			uint64 B;
+		};
+
+		B = Elem.Key;
+		uint32 MeshTypeId = A[0];
+		uint32 MeshVariantId = A[1];
 		int32 MeshInstanceCount = InstancedStaticMeshComponent->GetInstanceCount();
 
-		Serializer << MeshTypeId << MeshInstanceCount;
+		Serializer << MeshTypeId << MeshVariantId << MeshInstanceCount;
 
 		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
 			TInstantMeshData P;
@@ -164,23 +179,29 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data,
 	Deserializer >> MeshCount;
 
 	for (int Idx = 0; Idx < MeshCount; Idx++) {
-		int32 MeshTypeId;
+		uint32 MeshTypeId;
+		uint32 MeshVariantId;
 		int32 MeshInstanceCount;
 
 		Deserializer >> MeshTypeId;
+		Deserializer >> MeshVariantId;
 		Deserializer >> MeshInstanceCount;
 
 		FTerrainInstancedMeshType MeshType;
 		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
 			FSandboxFoliage FoliageType = GetTerrainController()->FoliageMap[MeshTypeId];
+			if ((uint32)FoliageType.MeshVariants.Num() > MeshVariantId) {
+				UE_LOG(LogSandboxTerrain, Log, TEXT("DeserializeInstancedMeshes -> %d, %d"), MeshVariantId, MeshTypeId);
 
-			MeshType.Mesh = FoliageType.Mesh;
-			MeshType.MeshTypeId = MeshTypeId;
-			MeshType.StartCullDistance = FoliageType.StartCullDistance;
-			MeshType.EndCullDistance = FoliageType.EndCullDistance;
+				MeshType.Mesh = FoliageType.MeshVariants[MeshVariantId];
+				MeshType.MeshTypeId2 = MeshTypeId;
+				MeshType.MeshVariantId = MeshVariantId;
+				MeshType.StartCullDistance = FoliageType.StartCullDistance;
+				MeshType.EndCullDistance = FoliageType.EndCullDistance;
+			}
 		}
 
-		TInstanceMeshArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshTypeId);
+		TInstanceMeshArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshType.GetMeshTypeCode());
 		InstMeshArray.MeshType = MeshType;
 		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
 
@@ -207,12 +228,15 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
     const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
 	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = nullptr;
 
-	if (InstancedMeshMap.Contains(MeshType.MeshTypeId)) {
-		InstancedStaticMeshComponent = InstancedMeshMap[MeshType.MeshTypeId];
+	uint64 MeshCode = MeshType.GetMeshTypeCode();
+	if (InstancedMeshMap.Contains(MeshCode)) {
+		InstancedStaticMeshComponent = InstancedMeshMap[MeshCode];
 	}
 
 	if (InstancedStaticMeshComponent == nullptr) {
-		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - %d -> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("SpawnInstancedMesh -> %d %d"), MeshType.MeshVariantId, MeshType.MeshTypeId2);
+
+		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - [%d, %d]-> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId2, MeshType.MeshVariantId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
 		InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
 
@@ -228,7 +252,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 		InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
 
-		InstancedMeshMap.Add(MeshType.MeshTypeId, InstancedStaticMeshComponent);
+		InstancedMeshMap.Add(MeshCode, InstancedStaticMeshComponent);
 	}
 
 	InstancedStaticMeshComponent->AddInstances(InstMeshTransArray.TransformArray, false);

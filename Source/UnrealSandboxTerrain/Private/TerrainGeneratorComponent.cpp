@@ -1046,19 +1046,28 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                             float ScaleZ = rnd.FRandRange(FoliageType2.ScaleMinZ, FoliageType2.ScaleMaxZ);
                             FVector Scale = FVector(1, 1, ScaleZ);
                             if (OnCheckFoliageSpawn(Index, WorldLocation, Scale)) {
-                                const FVector LocalPos = WorldLocation - ZonePos;
-                                FTransform Transform(FRotator(0, Angle, 0), LocalPos, Scale);
-                                FTerrainInstancedMeshType MeshType;
-                                MeshType.MeshTypeId = FoliageTypeId;
-                                MeshType.Mesh = FoliageType2.Mesh;
-                                MeshType.StartCullDistance = FoliageType2.StartCullDistance;
-                                MeshType.EndCullDistance = FoliageType2.EndCullDistance;
+                                if (FoliageType2.MeshVariants.Num() > 0) {
+                                    uint32 MeshVariantId = 0;
+                                    if (FoliageType2.MeshVariants.Num() > 1) {
+                                        MeshVariantId = rnd.RandRange(0, FoliageType.MeshVariants.Num() - 1);
+                                        //UE_LOG(LogSandboxTerrain, Log, TEXT("TEST -> %d"), MeshVariantId);
+                                    }
 
-                                auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(FoliageTypeId);
-                                InstanceMeshContainer.MeshType = MeshType;
-                                InstanceMeshContainer.TransformArray.Add(Transform);
-                                
-                                Counter++;
+                                    const FVector LocalPos = WorldLocation - ZonePos;
+                                    FTransform Transform(FRotator(0, Angle, 0), LocalPos, Scale);
+                                    FTerrainInstancedMeshType MeshType;
+                                    MeshType.MeshTypeId2 = FoliageTypeId;
+                                    MeshType.MeshVariantId = MeshVariantId;
+                                    MeshType.Mesh = FoliageType2.MeshVariants[MeshVariantId];
+                                    MeshType.StartCullDistance = FoliageType2.StartCullDistance;
+                                    MeshType.EndCullDistance = FoliageType2.EndCullDistance;
+
+                                    auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(MeshType.GetMeshTypeCode());
+                                    InstanceMeshContainer.MeshType = MeshType;
+                                    InstanceMeshContainer.TransformArray.Add(Transform);
+
+                                    Counter++;
+                                }
                             }
                         }
                     }
@@ -1110,15 +1119,24 @@ void UTerrainGeneratorComponent::GenerateNewFoliageCustom(const TVoxelIndex& Ind
 
             bool bSpawn = SpawnCustomFoliage(Index, WorldPos, FoliageTypeId, FoliageType, rnd, Transform);
             if (bSpawn) {
-                FTerrainInstancedMeshType MeshType;
-                MeshType.MeshTypeId = FoliageTypeId;
-                MeshType.Mesh = FoliageType.Mesh;
-                MeshType.StartCullDistance = FoliageType.StartCullDistance;
-                MeshType.EndCullDistance = FoliageType.EndCullDistance;
+                if (FoliageType.MeshVariants.Num() > 0) {
+                    uint32 MeshVariantId = 0;
+                    if (FoliageType.MeshVariants.Num() > 1) {
+                        MeshVariantId = rnd.RandRange(0, FoliageType.MeshVariants.Num() - 1);
+                        //UE_LOG(LogSandboxTerrain, Log, TEXT("TEST2 -> %d"), MeshVariantId);
+                    }
 
-                auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(FoliageTypeId);
-                InstanceMeshContainer.MeshType = MeshType;
-                InstanceMeshContainer.TransformArray.Add(Transform);
+                    FTerrainInstancedMeshType MeshType;
+                    MeshType.MeshTypeId2 = FoliageTypeId;
+                    MeshType.MeshVariantId = MeshVariantId;
+                    MeshType.Mesh = FoliageType.MeshVariants[MeshVariantId];
+                    MeshType.StartCullDistance = FoliageType.StartCullDistance;
+                    MeshType.EndCullDistance = FoliageType.EndCullDistance;
+
+                    auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(MeshType.GetMeshTypeCode());
+                    InstanceMeshContainer.MeshType = MeshType;
+                    InstanceMeshContainer.TransformArray.Add(Transform);
+                }
             }
 
             });

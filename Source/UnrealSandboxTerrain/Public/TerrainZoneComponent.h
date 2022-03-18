@@ -18,7 +18,7 @@ typedef struct TInstanceMeshArray {
 
 } TInstanceMeshArray;
 
-typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
+typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 /**
 *
@@ -34,7 +34,7 @@ public:
 	UVoxelMeshComponent* MainTerrainMesh;
 
 	UPROPERTY()
-	TMap<uint32, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;
+	TMap<uint64, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;
 
 public:
 

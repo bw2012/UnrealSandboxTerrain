@@ -33,8 +33,11 @@ struct FSandboxFoliage {
 	UPROPERTY(EditAnywhere)
 	ESandboxFoliageType Type;
 
+	//UPROPERTY(EditAnywhere)
+	//UStaticMesh* Mesh;
+
 	UPROPERTY(EditAnywhere)
-	UStaticMesh* Mesh;
+	TArray<UStaticMesh*> MeshVariants;
 
 	UPROPERTY(EditAnywhere)
 	int32 SpawnStep = 25;
@@ -62,12 +65,12 @@ USTRUCT()
 struct FTerrainUndergroundLayer {
 	GENERATED_BODY()
 
-		UPROPERTY(EditAnywhere)
-		int32 MatId;
+	UPROPERTY(EditAnywhere)
+	int32 MatId;
 
 	UPROPERTY(EditAnywhere)
-		float StartDepth;
+	float StartDepth;
 
 	UPROPERTY(EditAnywhere)
-		FString Name;
+	FString Name;
 };

@@ -21,7 +21,7 @@ class ASandboxTerrainController;
 class TChunkData;
 struct TInstanceMeshArray;
 struct FSandboxFoliage;
-typedef TMap<int32, TInstanceMeshArray> TInstanceMeshTypeMap;
+typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
 enum TZoneGenerationType : int32 {
