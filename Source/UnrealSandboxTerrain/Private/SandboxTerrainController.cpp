@@ -854,29 +854,45 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 			TerrainData->PutMeshDataToCache(P.Index, MeshDataPtr);
 			ExecGameThreadAddZoneAndApplyMesh(P.Index, MeshDataPtr, P.TerrainLodMask, true);
 		}
-
 	}
+}
+
+bool ASandboxTerrainController::IsWorkFinished() { 
+	return bIsWorkFinished; 
+};
+
+void ASandboxTerrainController::AddInitialZone(const TVoxelIndex& ZoneIndex) {
+	InitialLoadSet.insert(ZoneIndex);
 }
 
 void ASandboxTerrainController::SpawnInitialZone() {
 	const int s = static_cast<int>(TerrainInitialArea);
-	TArray<TSpawnZoneParam> SpawnList;
+
+
+	/*
+	const FVector Pos = GetZonePos(Index);
+	AsyncTask(ENamedThreads::GameThread, [=]() {
+		DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true);
+		});
+	*/
 
 	if (s > 0) {
 		UE_LOG(LogTemp, Warning, TEXT("Zone Z range: %d -> %d"), InitialLoadArea.TerrainSizeMaxZ, -InitialLoadArea.TerrainSizeMinZ);
 		for (auto z = InitialLoadArea.TerrainSizeMaxZ; z >= InitialLoadArea.TerrainSizeMinZ; z--) {
 			for (auto x = -s; x <= s; x++) {
 				for (auto y = -s; y <= s; y++) {
-					TSpawnZoneParam SpawnZoneParam;
-					SpawnZoneParam.Index = TVoxelIndex(x, y, z);
-					SpawnZoneParam.TerrainLodMask = 0;
-					SpawnList.Add(SpawnZoneParam);
+					AddInitialZone(TVoxelIndex(x, y, z));
 				}
 			}
 		}
 	} else {
+		AddInitialZone(TVoxelIndex(0, 0, 0));
+	}
+
+	TArray<TSpawnZoneParam> SpawnList;
+	for (const auto& ZoneIndex : InitialLoadSet) {
 		TSpawnZoneParam SpawnZoneParam;
-		SpawnZoneParam.Index = TVoxelIndex(0, 0, 0);
+		SpawnZoneParam.Index = ZoneIndex;
 		SpawnZoneParam.TerrainLodMask = 0;
 		SpawnList.Add(SpawnZoneParam);
 	}
@@ -1081,7 +1097,6 @@ FORCEINLINE void ASandboxTerrainController::OnFinishGenerateNewZone(const TVoxel
 
 }
 
-
 //======================================================================================================================================================================
 // Perlin noise according seed
 //======================================================================================================================================================================
@@ -1171,4 +1186,8 @@ int ASandboxTerrainController::GetCollisionMeshSectionLodIndex() {
 	return CollisionSection;
 
 	//return 0; // nolod
+}
+
+const FSandboxFoliage& ASandboxTerrainController::GetFoliageById(uint32 FoliageId) const {
+	return FoliageMap[FoliageId];
 }

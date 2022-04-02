@@ -538,8 +538,8 @@ int32 TSubstanceCache::size() const {
 	return idx;
 }
 
-const TSubstanceCacheItem& TSubstanceCache::operator[](std::size_t idx) const {
-	return cellArray[idx];
+const TSubstanceCacheItem& TSubstanceCache::operator[](std::size_t index) const {
+	return cellArray[index];
 }
 
 

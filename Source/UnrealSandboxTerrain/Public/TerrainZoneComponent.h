@@ -10,6 +10,26 @@
 
 class ASandboxTerrainController;
 
+
+/**
+*
+*/
+UCLASS()
+class UNREALSANDBOXTERRAIN_API UTerrainFoliageMesh : public UHierarchicalInstancedStaticMeshComponent {
+	GENERATED_UCLASS_BODY()
+
+public:
+
+	UPROPERTY()
+	uint32 MeshTypeId = 0;
+
+	UPROPERTY()
+	uint32 MeshVariantId = 0;
+
+};
+
+
+
 typedef struct TInstanceMeshArray {
 
 	TArray<FTransform> TransformArray;
@@ -24,8 +44,7 @@ typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public USceneComponent
-{
+class UNREALSANDBOXTERRAIN_API UTerrainZoneComponent : public USceneComponent {
 	GENERATED_UCLASS_BODY()
 
 public:
@@ -34,13 +53,11 @@ public:
 	UVoxelMeshComponent* MainTerrainMesh;
 
 	UPROPERTY()
-	TMap<uint64, UHierarchicalInstancedStaticMeshComponent*> InstancedMeshMap;
+	TMap<uint64, UTerrainFoliageMesh*> InstancedMeshMap;
 
 public:
 
-	ASandboxTerrainController* GetTerrainController() {
-		return (ASandboxTerrainController*)GetAttachmentRootActor();
-	};
+	ASandboxTerrainController* GetTerrainController();
 
 	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
 
@@ -65,17 +82,11 @@ public:
 
 	static TValueDataPtr SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceMeshMap);
     
-	void SetNeedSave() {
-		bIsObjectsNeedSave = true;
-	}
+	void SetNeedSave();
 
-	bool IsNeedSave() {
-		return bIsObjectsNeedSave;
-	}
+	bool IsNeedSave();
 
-    TTerrainLodMask GetTerrainLodMask(){
-        return CurrentTerrainLodMask;
-    }
+	TTerrainLodMask GetTerrainLodMask();
     
 private:
     

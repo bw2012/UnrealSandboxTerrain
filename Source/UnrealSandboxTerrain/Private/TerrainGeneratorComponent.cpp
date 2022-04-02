@@ -710,8 +710,6 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
         auto ZoneHandlerList = StructureMap[ZoneIndex];
         if (ZoneHandlerList.size() > 0) {
             //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Itm.Vd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
-
-            auto ZoneHandlerList = StructureMap[ZoneIndex];
             GenerateZoneVolumeWithFunction(Itm, ZoneHandlerList);
             continue;
         }
@@ -908,10 +906,10 @@ void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Inde
         GenerateNewFoliageCustom(Index, Vd, ZoneInstanceMeshMap);
     }
 
-    PostGenerateNewInstanceObjects(Index, Vd, ZoneInstanceMeshMap);
+    PostGenerateNewInstanceObjects(Index, Type, Vd, ZoneInstanceMeshMap);
 }
 
-void UTerrainGeneratorComponent::PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const {
+void UTerrainGeneratorComponent::PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TZoneGenerationType ZoneType, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const {
 
 }
 
@@ -1053,10 +1051,10 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                                         //UE_LOG(LogSandboxTerrain, Log, TEXT("TEST -> %d"), MeshVariantId);
                                     }
 
-                                    const FVector LocalPos = WorldLocation - ZonePos;
-                                    FTransform Transform(FRotator(0, Angle, 0), LocalPos, Scale);
+                                    const FVector NewPos = WorldLocation - ZonePos;
+                                    FTransform Transform(FRotator(0, Angle, 0), NewPos, Scale);
                                     FTerrainInstancedMeshType MeshType;
-                                    MeshType.MeshTypeId2 = FoliageTypeId;
+                                    MeshType.MeshTypeId = FoliageTypeId;
                                     MeshType.MeshVariantId = MeshVariantId;
                                     MeshType.Mesh = FoliageType2.MeshVariants[MeshVariantId];
                                     MeshType.StartCullDistance = FoliageType2.StartCullDistance;
@@ -1127,7 +1125,7 @@ void UTerrainGeneratorComponent::GenerateNewFoliageCustom(const TVoxelIndex& Ind
                     }
 
                     FTerrainInstancedMeshType MeshType;
-                    MeshType.MeshTypeId2 = FoliageTypeId;
+                    MeshType.MeshTypeId = FoliageTypeId;
                     MeshType.MeshVariantId = MeshVariantId;
                     MeshType.Mesh = FoliageType.MeshVariants[MeshVariantId];
                     MeshType.StartCullDistance = FoliageType.StartCullDistance;

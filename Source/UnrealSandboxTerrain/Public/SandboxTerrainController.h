@@ -10,6 +10,7 @@
 #include <list>
 #include <shared_mutex>
 #include <set>
+#include <unordered_set>
 #include <unordered_map>
 #include "VoxelIndex.h"
 #include "kvdb.hpp"
@@ -63,7 +64,7 @@ struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint32 MeshTypeId2 = 0;
+	uint32 MeshTypeId = 0;
 
 	UPROPERTY()
 	uint32 MeshVariantId = 0;
@@ -83,7 +84,7 @@ struct FTerrainInstancedMeshType {
 			uint64 B;
 		};
 
-		A[0] = MeshTypeId2;
+		A[0] = MeshTypeId;
 		A[1] = MeshVariantId;
 
 		return B;
@@ -424,7 +425,7 @@ public:
 
 private:
     
-	//void GenerateNewZoneVd(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, const TVoxelIndex& Index);
+	std::unordered_set<TVoxelIndex> InitialLoadSet;
 
 	void StartPostLoadTimers();
 
@@ -553,7 +554,9 @@ protected:
 
 	virtual void BeginPlayServer();
 
-	bool IsWorkFinished() { return bIsWorkFinished; };
+	bool IsWorkFinished();
+
+	void AddInitialZone(const TVoxelIndex& ZoneIndex);
 
 	//===============================================================================
 	// save/load
@@ -618,4 +621,10 @@ protected:
 	//===============================================================================
 
 	void ShutdownThreads();
+
+	//===============================================================================
+	// foliage
+	//===============================================================================
+
+	const FSandboxFoliage& GetFoliageById(uint32 FoliageId) const;
 };

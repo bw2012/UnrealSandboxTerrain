@@ -11,6 +11,11 @@
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 
+
+UTerrainFoliageMesh::UTerrainFoliageMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+
+}
+
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
     CurrentTerrainLodMask = 0xff;
@@ -135,7 +140,7 @@ std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMes
 	Serializer << MeshCount;
 
 	for (auto& Elem : InstancedMeshMap) {
-		UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = Elem.Value;
+		UTerrainFoliageMesh* InstancedStaticMeshComponent = Elem.Value;
 
 		union {
 			uint32 A[2];
@@ -191,10 +196,8 @@ void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data,
 		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
 			FSandboxFoliage FoliageType = GetTerrainController()->FoliageMap[MeshTypeId];
 			if ((uint32)FoliageType.MeshVariants.Num() > MeshVariantId) {
-				UE_LOG(LogSandboxTerrain, Log, TEXT("DeserializeInstancedMeshes -> %d, %d"), MeshVariantId, MeshTypeId);
-
 				MeshType.Mesh = FoliageType.MeshVariants[MeshVariantId];
-				MeshType.MeshTypeId2 = MeshTypeId;
+				MeshType.MeshTypeId = MeshTypeId;
 				MeshType.MeshVariantId = MeshVariantId;
 				MeshType.StartCullDistance = FoliageType.StartCullDistance;
 				MeshType.EndCullDistance = FoliageType.EndCullDistance;
@@ -226,7 +229,7 @@ void UTerrainZoneComponent::SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap
 
 void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const TInstanceMeshArray& InstMeshTransArray) {
     const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
-	UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent = nullptr;
+	UTerrainFoliageMesh* InstancedStaticMeshComponent = nullptr;
 
 	uint64 MeshCode = MeshType.GetMeshTypeCode();
 	if (InstancedMeshMap.Contains(MeshCode)) {
@@ -234,11 +237,10 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 	}
 
 	if (InstancedStaticMeshComponent == nullptr) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("SpawnInstancedMesh -> %d %d"), MeshType.MeshVariantId, MeshType.MeshTypeId2);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("SpawnInstancedMesh -> %d %d"), MeshType.MeshVariantId, MeshType.MeshTypeId);
+		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - [%d, %d]-> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, MeshType.MeshVariantId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
-		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - [%d, %d]-> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId2, MeshType.MeshVariantId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
-
-		InstancedStaticMeshComponent = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, FName(*InstancedStaticMeshCompName));
+		InstancedStaticMeshComponent = NewObject<UTerrainFoliageMesh>(this, FName(*InstancedStaticMeshCompName));
 
 		InstancedStaticMeshComponent->RegisterComponent();
 		InstancedStaticMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
@@ -247,13 +249,36 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 		InstancedStaticMeshComponent->SetMobility(EComponentMobility::Static);
 		InstancedStaticMeshComponent->SetSimulatePhysics(false);
 
-		//InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		auto FoliageType = GetTerrainController()->FoliageMap[MeshType.MeshTypeId];
+		if (FoliageType.Type == ESandboxFoliageType::Tree) {
+			InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		} else {
+			InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+		}
 
-		InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+		InstancedStaticMeshComponent->MeshTypeId = MeshType.MeshTypeId;
+		InstancedStaticMeshComponent->MeshVariantId = MeshType.MeshVariantId;
 
 		InstancedMeshMap.Add(MeshCode, InstancedStaticMeshComponent);
 	}
 
 	InstancedStaticMeshComponent->AddInstances(InstMeshTransArray.TransformArray, false);
 }
+
+
+void UTerrainZoneComponent::SetNeedSave() {
+	bIsObjectsNeedSave = true;
+}
+
+bool UTerrainZoneComponent::IsNeedSave() {
+	return bIsObjectsNeedSave;
+}
+
+TTerrainLodMask UTerrainZoneComponent::GetTerrainLodMask() {
+	return CurrentTerrainLodMask;
+}
+
+ASandboxTerrainController* UTerrainZoneComponent::GetTerrainController() {
+	return (ASandboxTerrainController*)GetAttachmentRootActor();
+};
