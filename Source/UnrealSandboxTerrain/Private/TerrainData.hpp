@@ -101,7 +101,6 @@ public:
 
 	void PutMeshDataToCache(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr) {
 		GetVoxelDataInfo(Index)->PushMeshDataCache(MeshDataPtr);
-		AddSaveIndex(Index);
 	}
 
 	//=====================================================================================
@@ -115,6 +114,10 @@ public:
     UTerrainZoneComponent* GetZone(const TVoxelIndex& Index){
         return GetVoxelDataInfo(Index)->GetZone();
     }
+
+	void RemoveZone(const TVoxelIndex& Index) {
+		return GetVoxelDataInfo(Index)->RemoveZone();
+	}
     
 	//=====================================================================================
 	// terrain voxel data 

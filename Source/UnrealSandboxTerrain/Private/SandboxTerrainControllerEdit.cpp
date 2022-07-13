@@ -1,4 +1,4 @@
-#include "UnrealSandboxTerrainPrivatePCH.h"
+
 #include "SandboxTerrainController.h"
 
 
@@ -342,29 +342,37 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	//FIXME delete thread after finish
 
 	FVector TestPoint(Handler.Origin);
-	TestPoint.Z -= 10;
-	TArray<struct FHitResult> OutHits;
-	bool bIsOverlap = GetWorld()->SweepMultiByChannel(OutHits, Handler.Origin, TestPoint, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Handler.Extend)); // ECC_Visibility
+	TArray<struct FOverlapResult> Result;
+	
+	FCollisionQueryParams CollisionQueryParams = FCollisionQueryParams::DefaultQueryParam;
+	CollisionQueryParams.bTraceComplex = false;
+	CollisionQueryParams.bSkipNarrowPhase = true;
+
+	double Start = FPlatformTime::Seconds();
+	bool bIsOverlap = GetWorld()->OverlapMultiByChannel(Result, Handler.Origin, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(Handler.Extend * 1.5f)); // ECC_Visibility
+	double End = FPlatformTime::Seconds();
+	double Time = (End - Start) * 1000;
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Trace terrain -> %f ms"), Time);
+
 	if (bIsOverlap) {
-		for (FHitResult& Overlap : OutHits) {
+		for (FOverlapResult& Overlap : Result) {
 			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
 				UHierarchicalInstancedStaticMeshComponent* InstancedMesh = Cast<UHierarchicalInstancedStaticMeshComponent>(Overlap.GetComponent());
 				if (InstancedMesh) {
-					//UE_LOG(LogSandboxTerrain, Warning, TEXT("InstancedMesh: %s"), *InstancedMesh->GetName());
-					InstancedMesh->RemoveInstance(Overlap.Item);
+					//UE_LOG(LogSandboxTerrain, Warning, TEXT("InstancedMesh: %s -> %d"), *InstancedMesh->GetName(), Overlap.ItemIndex);
+					InstancedMesh->RemoveInstance(Overlap.ItemIndex);
 
 					TArray<USceneComponent*> Parents;
 					InstancedMesh->GetParentComponents(Parents);
 					if (Parents.Num() > 0) {
 						UTerrainZoneComponent* Zone = Cast<UTerrainZoneComponent>(Parents[0]);
 						if (Zone) {
-							Zone->SetNeedSave();
+							Zone->SetNeedSave(); // TODO check condition racing
 						}
 					}
 				}
-			}
-			else {
-				OnOverlapActorDuringTerrainEdit(Overlap, Handler.Origin);
+			} else {
+				//OnOverlapActorDuringTerrainEdit(Overlap, Handler.Origin);
 			}
 		}
 	}
@@ -434,13 +442,13 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 				FVector Lower(ZoneOrigin.X - ZoneVolumeSize, ZoneOrigin.Y - ZoneVolumeSize, ZoneOrigin.Z - ZoneVolumeSize);
 
 				if (FMath::SphereAABBIntersection(FSphere(ZoneHandler.Origin, ZoneHandler.Extend * 2.f), FBox(Lower, Upper))) {
-					VoxelDataInfo->VdMutexPtr->lock();
+					VoxelDataInfo->Lock();
 
 					//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> %d"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, (int)VoxelDataInfo->DataState);
 
 					if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
 						UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNDEFINED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-						VoxelDataInfo->VdMutexPtr->unlock();
+						VoxelDataInfo->Unlock();
 						continue;
 					}
 
@@ -476,16 +484,19 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 							PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 								TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
 								ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr);
+								TerrainData->AddSaveIndex(ZoneIndex);
 							});
 						} else {
 							PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 								TerrainData->PutMeshDataToCache(ZoneIndex, MeshDataPtr);
 								ExecGameThreadZoneApplyMesh(Zone, MeshDataPtr);
+								TerrainData->AddSaveIndex(ZoneIndex);
 							});
 						}
 					}
 
-					VoxelDataInfo->VdMutexPtr->unlock();
+					TerrainData->AddSaveIndex(ZoneIndex);
+					VoxelDataInfo->Unlock();
 				}
 			}
 		}

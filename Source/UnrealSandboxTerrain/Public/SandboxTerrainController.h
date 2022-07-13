@@ -23,7 +23,6 @@ struct TMeshData;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
 struct TInstanceMeshArray;
-class UVdClientComponent;
 class TTerrainData;
 class TCheckAreaMap;
 
@@ -63,22 +62,25 @@ USTRUCT()
 struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	uint32 MeshTypeId = 0;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	uint32 MeshVariantId = 0;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	UStaticMesh* Mesh = nullptr;
 
-	UPROPERTY()
-	int32 StartCullDistance;
+	UPROPERTY(EditAnywhere)
+	int32 StartCullDistance = 4000;
 
-	UPROPERTY()
-	int32 EndCullDistance;
+	UPROPERTY(EditAnywhere)
+	int32 EndCullDistance = 8000;
 
-	uint64 GetMeshTypeCode() const {
+	UPROPERTY(EditAnywhere)
+	uint32 SandboxClassId = 0;
+
+	static uint64 ClcMeshTypeCode(uint32 MeshTypeId, uint32 MeshVariantId) {
 		union {
 			uint32 A[2];
 			uint64 B;
@@ -89,7 +91,24 @@ struct FTerrainInstancedMeshType {
 
 		return B;
 	}
+
+	uint64 GetMeshTypeCode() const {
+		return FTerrainInstancedMeshType::ClcMeshTypeCode(MeshTypeId, MeshVariantId);
+	}
 };
+
+
+typedef struct TInstanceMeshArray {
+
+	TArray<FTransform> TransformArray;
+
+	FTerrainInstancedMeshType MeshType;
+
+} TInstanceMeshArray;
+
+
+typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
+
 
 UCLASS(BlueprintType, Blueprintable)
 class UNREALSANDBOXTERRAIN_API USandboxTarrainFoliageMap : public UDataAsset {
@@ -153,6 +172,9 @@ public:
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Generator")
     TArray<FTerrainUndergroundLayer> UndergroundLayers;
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Inst. Meshes")
+	TArray<FTerrainInstancedMeshType> InstanceMeshes;
+
 };
 
 extern float GlobalTerrainZoneLOD[LOD_ARRAY_SIZE];
@@ -198,7 +220,7 @@ struct FTerrainSwapAreaParams {
     float FullLodDistance = 1000;
     
     UPROPERTY(EditAnywhere)
-    int TerrainSizeMinZ = 5;
+    int TerrainSizeMinZ = -5;
     
     UPROPERTY(EditAnywhere)
     int TerrainSizeMaxZ = 5;
@@ -241,7 +263,6 @@ public:
     ASandboxTerrainController();
     
     friend UTerrainZoneComponent;
-	friend UVdClientComponent;
 	friend TTerrainAreaPipeline;
 	friend TTerrainLoadPipeline;
 	friend UTerrainGeneratorComponent;
@@ -319,6 +340,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
 	void SaveMapAsync();
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+	bool bSaveAfterInitialLoad;
+
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     int32 AutoSavePeriod;
     
@@ -356,7 +380,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	int MaxConveyorTasks = 5;
-    
+   
     //========================================================================================
     // networking
     //========================================================================================
@@ -370,6 +394,9 @@ public:
 	UTerrainGeneratorComponent* GeneratorComponent;
 
 	UTerrainGeneratorComponent* GetTerrainGenerator();
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
+	void ForcePerformHardUnload();
 
 	//========================================================================================
 
@@ -407,6 +434,8 @@ public:
 
 	UMaterialInterface* GetTransitionTerrainMaterial(const std::set<unsigned short>& MaterialIdSet);
 
+	const FTerrainInstancedMeshType* GetInstancedMeshType(uint32 MeshTypeId, uint32 MeshVariantId = 0) const;
+
 	//===============================================================================
 	// async tasks
 	//===============================================================================
@@ -424,6 +453,8 @@ public:
 	float ClcGroundLevel(const FVector& V);
 
 private:
+
+	bool bForcePerformHardUnload = false;
     
 	std::unordered_set<TVoxelIndex> InitialLoadSet;
 
@@ -506,6 +537,13 @@ private:
 
 	void LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstanceMeshTypeMap& ZoneInstMeshMap);
 
+
+	//===============================================================================
+	// inst. meshes
+	//===============================================================================
+
+	TMap<uint64, FTerrainInstancedMeshType> InstMeshMap;
+
 	//===============================================================================
 	// foliage
 	//===============================================================================
@@ -550,6 +588,8 @@ private:
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
+	void UnloadFarZones(FVector PlayerLocation, float Radius);
+
 protected:
 
 	FMapInfo MapInfo;
@@ -582,7 +622,9 @@ protected:
 
 	void MarkZoneNeedsToSave(TVoxelIndex ZoneIndex);
 
-	void ZoneUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex);
+	void ZoneHardUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex);
+
+	void ZoneSoftUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex);
 
 	virtual bool OnZoneSoftUnload(const TVoxelIndex& ZoneIndex);
 
@@ -623,6 +665,12 @@ protected:
 	virtual void OnFinishGenerateNewZone(const TVoxelIndex& Index);
 
 	virtual void OnFinishLoadZone(const TVoxelIndex& Index);
+
+	virtual void OnStartBackgroundSaveTerrain();
+
+	virtual void OnFinishBackgroundSaveTerrain();
+
+	virtual void OnProgressBackgroundSaveTerrain(float Progress);
 
 	//===============================================================================
 	// pipeline

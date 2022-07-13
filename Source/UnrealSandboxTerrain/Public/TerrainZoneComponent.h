@@ -15,7 +15,7 @@ class ASandboxTerrainController;
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainFoliageMesh : public UHierarchicalInstancedStaticMeshComponent {
+class UNREALSANDBOXTERRAIN_API UTerrainInstancedStaticMesh : public UHierarchicalInstancedStaticMeshComponent {
 	GENERATED_UCLASS_BODY()
 
 public:
@@ -28,17 +28,6 @@ public:
 
 };
 
-
-
-typedef struct TInstanceMeshArray {
-
-	TArray<FTransform> TransformArray;
-
-	FTerrainInstancedMeshType MeshType;
-
-} TInstanceMeshArray;
-
-typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 /**
 *
@@ -53,7 +42,7 @@ public:
 	UVoxelMeshComponent* MainTerrainMesh;
 
 	UPROPERTY()
-	TMap<uint64, UTerrainFoliageMesh*> InstancedMeshMap;
+	TMap<uint64, UTerrainInstancedStaticMesh*> InstancedMeshMap;
 
 public:
 
@@ -88,6 +77,8 @@ public:
 
 	TTerrainLodMask GetTerrainLodMask();
     
+	volatile bool bIsSpawnFinished = false;
+
 private:
     
 	double MeshDataTimeStamp;
@@ -100,5 +91,5 @@ private:
 
 	//TMeshDataPtr CachedMeshDataPtr;
 
-	bool bIsObjectsNeedSave = false;
+	volatile bool bIsObjectsNeedSave = false;
 };

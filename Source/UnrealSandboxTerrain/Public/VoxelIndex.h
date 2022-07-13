@@ -29,6 +29,12 @@ struct TVoxelIndex {
 		return TVoxelIndex(lhs.X / rhs, lhs.Y / rhs, lhs.Z / rhs);
 	}
 
+	void operator = (const TVoxelIndex& A) {
+		X = A.X; 
+		Y = A.Y; 
+		Z = A.Z;
+	}
+
 	friend uint32 GetTypeHash(const TVoxelIndex& Index) {
 		return ((std::hash<int>()(Index.X) ^ (std::hash<int>()(Index.Y) << 1)) >> 1) ^ (std::hash<int>()(Index.Z) << 1);
 	}

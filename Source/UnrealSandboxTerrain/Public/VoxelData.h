@@ -166,6 +166,7 @@ public:
 	float size() const;
 	int num() const;
 
+	FVector voxelIndexToVector(TVoxelIndex Idx) const;
 	FVector voxelIndexToVector(int x, int y, int z) const;
 	void vectorToVoxelIndex(const FVector& v, int& x, int& y, int& z) const;
 

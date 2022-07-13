@@ -1,6 +1,5 @@
 // Copyright blackw 2015-2020
 
-#include "UnrealSandboxTerrainPrivatePCH.h"
 #include "VoxelMeshComponent.h"
 
 #include "SandboxVoxeldata.h"
@@ -46,7 +45,7 @@ public:
 		const uint32 SizeInBytes = Vertices.Num() * sizeof(FDynamicMeshVertex);
 
 		FProcMeshVertexResourceArray ResourceArray(Vertices.GetData(), SizeInBytes);
-		FRHIResourceCreateInfo CreateInfo(&ResourceArray);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FProcMeshVertexBuffer"), &ResourceArray);
 		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_Static, CreateInfo);
 	}
 
@@ -60,7 +59,7 @@ public:
 
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FProcMeshIndexBuffer"));
 		void* Buffer = nullptr;
 		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(int32), Indices.Num() * sizeof(int32), BUF_Static, CreateInfo, Buffer);
 
@@ -200,7 +199,7 @@ static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProc
 	}
 
 	// ignore texture crd
-	Vert.TextureCoordinate[0] = FVector2D(0.f, 0.f);
+	Vert.TextureCoordinate[0] = FVector2f(0.f, 0.f);
 
 	// ignore tangent
 	Vert.TangentX = FVector(1.f, 0.f, 0.f);
@@ -469,6 +468,7 @@ public:
 				const FBoxSphereBounds& ProxyBounds = GetBounds();
 				//const float ScreenSize = ComputeBoundsScreenSize(ProxyBounds.Origin, ProxyBounds.SphereRadius, *View);
 				const int LodIndex = GetLodIndex(ZoneOrigin, View->ViewMatrices.GetViewOrigin());
+				//const int LodIndex = 5;
 
 				// draw section according lod index
 				FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
@@ -676,7 +676,7 @@ void UVoxelMeshComponent::AddCollisionSection(struct FTriMeshCollisionData* Coll
 	for (int32 VertIdx = 0; VertIdx < MeshSection.ProcVertexBuffer.Num(); VertIdx++) {
 		FProcMeshVertex Vertex = MeshSection.ProcVertexBuffer[VertIdx];
 		FVector Position(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
-		CollisionData->Vertices.Add(Position);
+		CollisionData->Vertices.Add((FVector3f)Position);
 
 		// Copy UV if desired
 		//if (bCopyUVs) {
@@ -822,6 +822,7 @@ void UVoxelMeshComponent::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* Fini
 	}
 
 	UpdateNavigationData();
+
 	//CollisionLodSection = TMeshLodSection(); //clear to reduce memory usage
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
 	if (TerrainController) {
@@ -830,16 +831,12 @@ void UVoxelMeshComponent::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* Fini
 }
 
 void UVoxelMeshComponent::UpdateCollision() {
-	//UWorld* World = GetWorld();
-	//const bool bUseAsyncCook = World && World->IsGameWorld() && bUseAsyncCooking;
-
 	// Abort all previous ones still standing
 	for (UBodySetup* OldBody : AsyncBodySetupQueue) {
 		OldBody->AbortPhysicsMeshAsyncCreation();
 	}
 
 	AsyncBodySetupQueue.Add(CreateBodySetupHelper());
-
 	UBodySetup* UseBodySetup = AsyncBodySetupQueue.Last();
 
 	// Fill in simple collision convex elements
@@ -847,41 +844,7 @@ void UVoxelMeshComponent::UpdateCollision() {
 
 	// Set trace flag
 	UseBodySetup->CollisionTraceFlag = bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
-
 	UseBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &UVoxelMeshComponent::FinishPhysicsAsyncCook, UseBodySetup));
-	
-
-	/*
-	bool bCreatePhysState = false; // Should we create physics state at the end of this function? If its created, shut it down now
-	if (bPhysicsStateCreated) {
-		DestroyPhysicsState();
-		bCreatePhysState = true;
-	}
-
-	// Ensure we have a BodySetup
-	CreateProcMeshBodySetup();
-
-	// Fill in simple collision convex elements
-	ProcMeshBodySetup->AggGeom.ConvexElems = CollisionConvexElems;
-
-	// Set trace flag
-	ProcMeshBodySetup->CollisionTraceFlag = bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
-
-	// New GUID as collision has changed
-	ProcMeshBodySetup->BodySetupGuid = FGuid::NewGuid();
-
-#if WITH_EDITOR
-	// Clear current mesh data
-	ProcMeshBodySetup->InvalidatePhysicsData();
-	// Create new mesh data
-	ProcMeshBodySetup->CreatePhysicsMeshes();
-#endif // WITH_RUNTIME_PHYSICS_COOKING || WITH_EDITOR
-
-	// Create new instance state if desired
-	if (bCreatePhysState) {
-		CreatePhysicsState();
-	}
-	*/
 }
 
 UBodySetup* UVoxelMeshComponent::GetBodySetup() {
