@@ -476,6 +476,8 @@ private:
 
 	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const bool bIsNewGenerated = false);
 
+	//void ExecGameThreadRestoreSoftUnload(const TVoxelIndex& ZoneIndex);
+
 	//===============================================================================
 	// threads
 	//===============================================================================
@@ -532,9 +534,13 @@ private:
 
 	int GetCollisionMeshSectionLodIndex();
 
+	//===============================================================================
+	// 
+	//===============================================================================
+
     void OnGenerateNewZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
 
-    void OnLoadZone(UTerrainZoneComponent* Zone);
+    void OnLoadZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
     
 	//===============================================================================
 	// pipeline
@@ -549,6 +555,8 @@ protected:
 	FMapInfo MapInfo;
 
 	virtual void BeginTerrainLoad();
+
+	FVector BeginTerrainLoadLocation;
 
 	virtual void InitializeTerrainController();
 
@@ -571,6 +579,16 @@ protected:
 	void ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap);
 
 	void Save(std::function<void(uint32, uint32)> OnProgress = nullptr, std::function<void(uint32)> OnFinish = nullptr);
+
+	void MarkZoneNeedsToSave(TVoxelIndex ZoneIndex);
+
+	void ZoneUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex);
+
+	virtual bool OnZoneSoftUnload(const TVoxelIndex& ZoneIndex);
+
+	virtual void OnRestoreZoneSoftUnload(const TVoxelIndex& ZoneIndex);
+
+	virtual bool OnZoneHardUnload(const TVoxelIndex& ZoneIndex);
 
 	//===============================================================================
 	// voxel data storage
@@ -603,6 +621,8 @@ protected:
 	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
 
 	virtual void OnFinishGenerateNewZone(const TVoxelIndex& Index);
+
+	virtual void OnFinishLoadZone(const TVoxelIndex& Index);
 
 	//===============================================================================
 	// pipeline

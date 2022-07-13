@@ -28,15 +28,18 @@ struct TVoxelIndex {
 	friend TVoxelIndex operator/(const TVoxelIndex& lhs, const int rhs) {
 		return TVoxelIndex(lhs.X / rhs, lhs.Y / rhs, lhs.Z / rhs);
 	}
+
+	friend uint32 GetTypeHash(const TVoxelIndex& Index) {
+		return ((std::hash<int>()(Index.X) ^ (std::hash<int>()(Index.Y) << 1)) >> 1) ^ (std::hash<int>()(Index.Z) << 1);
+	}
 };
 
 namespace std {
 
 	template <>
 	struct hash<TVoxelIndex> {
-		std::size_t operator()(const TVoxelIndex& k) const {
-			using std::hash;
-			return ((hash<int>()(k.X) ^ (hash<int>()(k.Y) << 1)) >> 1) ^ (hash<int>()(k.Z) << 1);
+		std::size_t operator()(const TVoxelIndex& Index) const {
+			return ((std::hash<int>()(Index.X) ^ (std::hash<int>()(Index.Y) << 1)) >> 1) ^ (std::hash<int>()(Index.Z) << 1);
 		}
 	};
 }

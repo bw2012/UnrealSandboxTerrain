@@ -62,7 +62,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
     MainTerrainMesh->bCastShadowAsTwoSided = true;    
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
-	MainTerrainMesh->SetVisibility(true);
+	//MainTerrainMesh->SetVisibility(true);
 
 	MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
 	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
@@ -245,8 +245,16 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 		InstancedStaticMeshComponent->RegisterComponent();
 		InstancedStaticMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
-		InstancedStaticMeshComponent->SetCullDistances(MeshType.StartCullDistance, MeshType.EndCullDistance);
-		InstancedStaticMeshComponent->SetMobility(EComponentMobility::Static);
+
+		int32 StartCullDistance = MeshType.StartCullDistance;
+		int32 EndCullDistance = MeshType.EndCullDistance;
+		if (GetWorld()->WorldType == EWorldType::PIE || GetWorld()->WorldType == EWorldType::Editor) {
+			StartCullDistance /= 10;
+			EndCullDistance /= 10;
+		}
+
+		InstancedStaticMeshComponent->SetCullDistances(StartCullDistance, EndCullDistance);
+		InstancedStaticMeshComponent->SetMobility(EComponentMobility::Movable);
 		InstancedStaticMeshComponent->SetSimulatePhysics(false);
 
 		auto FoliageType = GetTerrainController()->FoliageMap[MeshType.MeshTypeId];

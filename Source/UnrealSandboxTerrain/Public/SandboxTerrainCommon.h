@@ -20,10 +20,12 @@ typedef struct TSpawnZoneParam {
 
 UENUM(BlueprintType)
 enum class ESandboxFoliageType : uint8 {
-	Grass = 0	UMETA(DisplayName = "Grass"),
-	Tree = 1   UMETA(DisplayName = "Tree"),
-	Cave = 2   UMETA(DisplayName = "Cave foliage"),
-	Custom = 3   UMETA(DisplayName = "Custom"),
+	Grass = 0		UMETA(DisplayName = "Grass"),
+	Tree = 1		UMETA(DisplayName = "Tree"),
+	Cave = 2		UMETA(DisplayName = "Cave foliage"),
+	Custom = 3		UMETA(DisplayName = "Custom"),
+	Bush = 4		UMETA(DisplayName = "Bush"),
+	Flower = 5		UMETA(DisplayName = "Flower"),
 };
 
 USTRUCT()

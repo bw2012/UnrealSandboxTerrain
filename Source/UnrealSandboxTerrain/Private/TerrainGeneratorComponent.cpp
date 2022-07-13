@@ -214,7 +214,7 @@ FORCEINLINE TMaterialId UTerrainGeneratorComponent::MaterialFuncion(const FVecto
 // Density
 //======================================================================================================================================================================
 
-FORCEINLINE float UTerrainGeneratorComponent::GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const {
+float UTerrainGeneratorComponent::GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const {
     //float scale1 = 0.0035f; // small
     const float scale1 = 0.001f; // small
     const float scale2 = 0.0004f; // medium
@@ -223,10 +223,32 @@ FORCEINLINE float UTerrainGeneratorComponent::GroundLevelFunction(const TVoxelIn
     float noise_small = Pn->noise(V.X * scale1, V.Y * scale1, 0) * 0.5f; // 0.5
     float noise_medium = Pn->noise(V.X * scale2, V.Y * scale2, 0) * 5.f;
     float noise_big = Pn->noise(V.X * scale3, V.Y * scale3, 0) * 10.f;
+    //float noise_big = Pn->noise(V.X * scale2, V.Y * scale2, 0) * 30.f; // min zone z = -2
 
-    //float r = std::sqrt(V.X * V.X + V.Y * V.Y);
-    //const float MaxR = 5000;
-    //float t = 1 - exp(-pow(r, 2) / ( MaxR * 100));
+    /*
+    const float MaxR = 2000; // max radius
+    const float H = 6; // height
+    FVector Origin(0, 0, 0);
+    FVector Tmp = V - Origin; 
+    float R = std::sqrt(Tmp.X * Tmp.X + Tmp.Y * Tmp.Y);
+    //float t = 1 - exp(-pow(R, 2) / ( MaxR * 100)); // hollow
+    float t = exp(-pow(R, 2) / (MaxR * 100)) * H; // hill
+    */
+
+
+    {
+
+        const static float test = 0.5;
+        if (noise_big > -test && noise_big < test) {
+            float ttt = noise_big * 100;
+            FVector V2(V.X, V.Y, ttt);
+            AsyncTask(ENamedThreads::GameThread, [=]() {
+               // DrawDebugPoint(GetWorld(), V2, 3.f, FColor(255, 255, 255, 0), true);
+            });
+        }
+        
+    }
+
 
     const float gl = noise_small + noise_medium + noise_big;
     //const float gl = noise_big;
@@ -482,7 +504,7 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
         
         TMinMax MinMax;
         MinMax << ChunkData->GetHeightLevel(X, Y) << ChunkData->GetHeightLevel(X + S, Y) << ChunkData->GetHeightLevel(X, Y + S) << ChunkData->GetHeightLevel(X + S, Y + S);
-        const static float F = 0.f;
+        const static float F = 5.f;
         bool R = std::max(Pos.Z, MinMax.Min - F) < std::min(Pos2.Z, MinMax.Max + F);
         return R;
     };
@@ -583,7 +605,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;
@@ -988,26 +1010,6 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
             FVector LocalPos(X, Y, 0);
             V += LocalPos;
 
-            bool bIsValidPosition = true;
-
-            if (HasStructures(Index)) {
-                auto ZoneHandlerList = StructureMap[Index];
-                if (ZoneHandlerList.size() > 0) {
-                    for (const auto& ZoneHandler : ZoneHandlerList) {
-                        if (ZoneHandler.LandscapeFoliageHandler) {
-                            if (!ZoneHandler.LandscapeFoliageHandler(Index, V, LocalPos)) {
-                                bIsValidPosition = false;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!bIsValidPosition) {
-                continue;
-            }
-
             for (auto& Elem : GetController()->FoliageMap) {
                 FSandboxFoliage FoliageType = Elem.Value;
 
@@ -1027,8 +1029,18 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                         float r = std::sqrt(V.X * V.X + V.Y * V.Y);
 
                         if (FoliageType2.OffsetRange > 0) {
-                            float ox = rnd.FRandRange(0.f, FoliageType2.OffsetRange); if (rnd.GetFraction() > 0.5) ox = -ox; V.X += ox;
-                            float oy = rnd.FRandRange(0.f, FoliageType2.OffsetRange); if (rnd.GetFraction() > 0.5) oy = -oy; V.Y += oy;
+                            float ox = rnd.FRandRange(0.f, FoliageType2.OffsetRange); 
+                            if (rnd.GetFraction() > 0.5) {
+                                ox = -ox;
+                            }
+
+                            float oy = rnd.FRandRange(0.f, FoliageType2.OffsetRange);
+                            if (rnd.GetFraction() > 0.5) {
+                                oy = -oy;
+                            }
+
+                            V.X += ox;
+                            V.Y += oy;
                         }
 
                         float GroundLevel = GroundLevelFunction(Index, FVector(V.X, V.Y, 0)) - 5.5;
@@ -1052,6 +1064,27 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                                     }
 
                                     const FVector NewPos = WorldLocation - ZonePos;
+
+                                    bool bIsValidPosition = true;
+                                    if (HasStructures(Index)) {
+                                        auto ZoneHandlerList = StructureMap[Index];
+                                        if (ZoneHandlerList.size() > 0) {
+                                            for (const auto& ZoneHandler : ZoneHandlerList) {
+                                                if (ZoneHandler.LandscapeFoliageFilter) {
+                                                    if (!ZoneHandler.LandscapeFoliageFilter(Index, WorldLocation, NewPos)) {
+                                                        bIsValidPosition = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (!bIsValidPosition) {
+                                        continue;
+                                    }
+
+   
                                     FTransform Transform(FRotator(0, Angle, 0), NewPos, Scale);
                                     FTerrainInstancedMeshType MeshType;
                                     MeshType.MeshTypeId = FoliageTypeId;

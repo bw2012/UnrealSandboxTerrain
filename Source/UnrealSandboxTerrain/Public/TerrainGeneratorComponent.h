@@ -69,8 +69,7 @@ struct TZoneStructureHandler {
 	TVoxelIndex ZoneIndex;
 	int Type = 0;
 	TZoneGenerationFunction Function = nullptr;
-	std::function<bool(const TVoxelIndex&, const FVector&, const FVector&)> LandscapeFoliageHandler = nullptr;
-	//FBox Box;
+	std::function<bool(const TVoxelIndex&, const FVector&, const FVector&)> LandscapeFoliageFilter = nullptr;
 	FVector Pos;
 	float Val1;
 	float Val2;

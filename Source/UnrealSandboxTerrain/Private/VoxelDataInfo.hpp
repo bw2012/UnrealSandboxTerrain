@@ -35,7 +35,10 @@ private:
 	std::shared_timed_mutex InstanceObjectMapMutex;
 	std::shared_ptr<TInstanceMeshTypeMap> InstanceMeshTypeMapPtr = nullptr;
 
+    bool bSoftUnload = false;
+
 public:
+
     TVoxelData* Vd = nullptr;
     volatile TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
     std::shared_ptr<std::mutex> VdMutexPtr;
@@ -105,6 +108,18 @@ public:
         }
     }
 
+    void SetSoftUnload() {
+        bSoftUnload = true;
+    }
+
+    void ResetSoftUnload() {
+        bSoftUnload = false;
+    }
+
+    bool IsSoftUnload() {
+        return bSoftUnload;
+    }
+
 	void PushMeshDataCache(TMeshDataPtr MeshDataPtr) {
 		std::atomic_store(&MeshDataCachePtr, MeshDataPtr);
 	}
@@ -118,6 +133,13 @@ public:
 	void AddZone(UTerrainZoneComponent* ZoneComponent) {
 		ZoneComponentAtomicPtr.store(ZoneComponent);
 	}
+
+    /*
+    void RemoveZone() {
+        ZoneComponentAtomicPtr.store(nullptr);
+        bDebugUnload = true;
+    }
+    */
 
 	UTerrainZoneComponent* GetZone() {
 		UTerrainZoneComponent* ZoneComponent = ZoneComponentAtomicPtr.load();

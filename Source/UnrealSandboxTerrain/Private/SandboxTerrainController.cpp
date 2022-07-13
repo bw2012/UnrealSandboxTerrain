@@ -52,7 +52,8 @@ void ASandboxTerrainController::InitializeTerrainController() {
     TerrainData = new TTerrainData();
     CheckAreaMap = new TCheckAreaMap();
 	bSaveOnEndPlay = true;
-    
+	BeginTerrainLoadLocation = FVector(0);
+
     //FString SaveDir = FPaths::ProjectSavedDir() + TEXT("/Map/") + MapName + TEXT("/");
     //CheckSaveDir(SaveDir);
 }
@@ -67,7 +68,6 @@ void ASandboxTerrainController::FinishDestroy() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::FinishDestroy()"));
 	delete TerrainData;
 	delete CheckAreaMap;
-
 	UE_LOG(LogSandboxTerrain, Warning, TEXT("vd -> %d, md -> %d, cd -> %d"), vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load());
 }
 
@@ -215,14 +215,18 @@ void ASandboxTerrainController::PerformCheckArea() {
         APlayerController* PlayerController = Iterator->Get();
         if (PlayerController){
             const auto PlayerId = PlayerController->GetUniqueID();
-            const auto Pawn = PlayerController->GetCharacter();
-            const FVector Location = Pawn->GetActorLocation();
+            const auto Pawn = PlayerController->GetPawn();
+			if (!Pawn) {
+				continue;
+			}
+
+            const FVector PlayerLocation = Pawn->GetActorLocation();
             const FVector PrevLocation = CheckAreaMap->PlayerStreamingPosition.FindOrAdd(PlayerId);
-            const float Distance = FVector::Distance(Location, PrevLocation);
+            const float Distance = FVector::Distance(PlayerLocation, PrevLocation);
             const float Threshold = PlayerLocationThreshold;
             if(Distance > Threshold) {
-                CheckAreaMap->PlayerStreamingPosition[PlayerId] = Location;
-                TVoxelIndex LocationIndex = GetZoneIndex(Location);
+                CheckAreaMap->PlayerStreamingPosition[PlayerId] = PlayerLocation;
+                TVoxelIndex LocationIndex = GetZoneIndex(PlayerLocation);
                 FVector Tmp = GetZonePos(LocationIndex);
                                 
                 if(CheckAreaMap->PlayerStreamingHandler.Contains(PlayerId)){
@@ -237,7 +241,7 @@ void ASandboxTerrainController::PerformCheckArea() {
 				CheckAreaMap->PlayerStreamingHandler.Add(PlayerId, HandlerPtr);
 
                 if(bShowStartSwapPos){
-                    DrawDebugBox(GetWorld(), Location, FVector(100), FColor(255, 0, 255, 0), false, 15);
+                    DrawDebugBox(GetWorld(), PlayerLocation, FVector(100), FColor(255, 0, 255, 0), false, 15);
                     static const float Len = 1000;
                     DrawDebugCylinder(GetWorld(), FVector(Tmp.X, Tmp.Y, Len), FVector(Tmp.X, Tmp.Y, -Len), DynamicLoadArea.Radius, 128, FColor(255, 0, 255, 128), false, 30);
                 }
@@ -248,14 +252,67 @@ void ASandboxTerrainController::PerformCheckArea() {
                 Params.TerrainSizeMinZ = LocationIndex.Z + DynamicLoadArea.TerrainSizeMinZ;
                 Params.TerrainSizeMaxZ = LocationIndex.Z + DynamicLoadArea.TerrainSizeMaxZ;
                 HandlerPtr->SetParams(TEXT("Player_Swap_Terrain_Task"), this, Params);
-                
-                //TSharedPtr<ASandboxTerrainController> ControllerPtr = MakeShareable(this);
-                //TSharedRef<ASandboxTerrainController> NewReference = this;
-                
+                               
                 RunThread([=]() {
-                    //TTerrainLoadPipeline& Handler2 = CheckAreaMap->Get(PlayerId);
-                    HandlerPtr->LoadArea(Location);
+                    HandlerPtr->LoadArea(PlayerLocation);
                 });
+
+	
+
+
+
+				double Start = FPlatformTime::Seconds();
+
+				// hard unload far zones
+				TArray<UTerrainZoneComponent*> Components;
+				GetComponents<UTerrainZoneComponent>(Components);
+				for (UTerrainZoneComponent* ZoneComponent : Components) {
+					FVector ZonePos = ZoneComponent->GetComponentLocation();
+					const TVoxelIndex ZoneIndex = GetZoneIndex(ZonePos);
+					float ZoneDistance = FVector::Distance(ZonePos, PlayerLocation);
+					if (ZoneDistance > DynamicLoadArea.Radius * 1.5f) {
+						//DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true);
+						ZoneUnload(ZoneComponent, ZoneIndex);
+					} else {
+						if (ZoneDistance < DynamicLoadArea.Radius) {
+							// restore soft unload
+							TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(ZoneIndex);
+							if (VoxelDataInfoPtr->IsSoftUnload()) {
+								//DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), true);
+								VoxelDataInfoPtr->ResetSoftUnload();
+								OnRestoreZoneSoftUnload(ZoneIndex);
+
+								TArray<USceneComponent*> Children;
+								ZoneComponent->GetChildrenComponents(true, Children);
+								for (USceneComponent* Child : Children) {
+									auto* FoliageMesh = Cast<UTerrainFoliageMesh>(Child);
+									if (FoliageMesh) {
+										//Child->DestroyComponent(true);
+										//UE_LOG(LogSandboxTerrain, Log, TEXT("%s"), *Child->GetName());
+										//Child->SetVisibility(true, false);
+									}
+								}
+
+								/*
+								ZoneComponent->SetVisibility(true, true);
+								TArray<USceneComponent*> Children;
+								ZoneComponent->GetChildrenComponents(true, Children);
+								for (USceneComponent* Child : Children) {
+									//Child->DestroyComponent(true);
+									UE_LOG(LogSandboxTerrain, Log, TEXT("%s"), *Child->GetName());
+									Child->SetVisibility(true, true);
+								}
+								*/
+
+							}
+						}
+					}
+				}
+
+				double End = FPlatformTime::Seconds();
+				double Time = (End - Start) * 1000;
+				UE_LOG(LogSandboxTerrain, Log, TEXT("--> %f ms"), Time);
+
             }
         }
     }
@@ -263,6 +320,33 @@ void ASandboxTerrainController::PerformCheckArea() {
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
     //UE_LOG(LogSandboxTerrain, Log, TEXT("PerformCheckArea -> %f ms"), Time);
+}
+
+void ASandboxTerrainController::ZoneUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex) {
+	TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(ZoneIndex);
+	if (!VdInfoPtr->IsSoftUnload()) {
+		// TODO: lock zone + double check locking
+		bool bCanUnload = OnZoneSoftUnload(ZoneIndex);
+		if (bCanUnload) {
+			// soft unload
+			VdInfoPtr->SetSoftUnload();
+			//ZoneComponent->SetVisibility(false, false);
+
+			TArray<USceneComponent*> Children;
+			ZoneComponent->GetChildrenComponents(true, Children);
+			for (USceneComponent* Child : Children) {
+				auto* FoliageMesh = Cast<UTerrainFoliageMesh>(Child);
+				if (FoliageMesh) {
+					//Child->DestroyComponent(true);
+					//UE_LOG(LogSandboxTerrain, Log, TEXT("%s"), *Child->GetName());
+					//Child->SetVisibility(false, false);
+				}
+			}
+		}
+	} else {
+		// TODO: hard unload
+
+	}
 }
 
 //======================================================================================================================================================================
@@ -305,8 +389,10 @@ void ASandboxTerrainController::BeginTerrainLoad() {
             Params.TerrainSizeMinZ = InitialLoadArea.TerrainSizeMinZ;
             Params.TerrainSizeMaxZ = InitialLoadArea.TerrainSizeMaxZ;
             
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("BeginTerrainLoad -> %f %f %f"), BeginTerrainLoadLocation.X, BeginTerrainLoadLocation.Y, BeginTerrainLoadLocation.Z);
+
 			TTerrainLoadPipeline Loader(TEXT("Initial_Load_Task"), this, Params);
-            Loader.LoadArea(FVector(0));
+            Loader.LoadArea(BeginTerrainLoadLocation);
 			UE_LOG(LogSandboxTerrain, Log, TEXT("Finish initial terrain load"));
 
 			//GetTerrainGenerator()->Clean();
@@ -674,6 +760,9 @@ bool ASandboxTerrainController::IsVdExistsInFile(const TVoxelIndex& ZoneIndex) {
 void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
 	//UE_LOG(LogSandboxTerrain, Log, TEXT("SpawnZone -> %d %d %d "), Index.X, Index.Y, Index.Z);
 
+	// voxel data must exist in this point
+	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
+
 	bool bMeshExist = false;
 	auto ExistingZone = GetZoneByVectorIndex(Index);
 	if (ExistingZone) {
@@ -685,18 +774,17 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerra
 		}
 	}
 
-	// voxel data must exist in this point
-	TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(Index);
-
 	// if mesh data exist in file - load, apply and return
 	TMeshDataPtr MeshDataPtr = LoadMeshDataByIndex(Index);
 	if (MeshDataPtr && VoxelDataInfoPtr->DataState != TVoxelDataState::GENERATED) {
 		if (bMeshExist) {
 			// just change lod mask
+			TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 			ExecGameThreadZoneApplyMesh(ExistingZone, MeshDataPtr, TerrainLodMask);
 			return;
 		} else {
 			// spawn new zone with mesh
+			TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 			ExecGameThreadAddZoneAndApplyMesh(Index, MeshDataPtr, TerrainLodMask);
 			return;
 		}
@@ -868,14 +956,6 @@ void ASandboxTerrainController::AddInitialZone(const TVoxelIndex& ZoneIndex) {
 void ASandboxTerrainController::SpawnInitialZone() {
 	const int s = static_cast<int>(TerrainInitialArea);
 
-
-	/*
-	const FVector Pos = GetZonePos(Index);
-	AsyncTask(ENamedThreads::GameThread, [=]() {
-		DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true);
-		});
-	*/
-
 	if (s > 0) {
 		UE_LOG(LogTemp, Warning, TEXT("Zone Z range: %d -> %d"), InitialLoadArea.TerrainSizeMaxZ, -InitialLoadArea.TerrainSizeMinZ);
 		for (auto z = InitialLoadArea.TerrainSizeMaxZ; z >= InitialLoadArea.TerrainSizeMinZ; z--) {
@@ -902,25 +982,29 @@ void ASandboxTerrainController::SpawnInitialZone() {
 
 // always in game thread
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
-    if (!IsInGameThread()) return nullptr;
+	if (!IsInGameThread()) {
+		return nullptr;
+	}
     
     TVoxelIndex Index = GetZoneIndex(Pos);
-    if(GetZoneByVectorIndex(Index)) return nullptr; // no duplicate
+	if (GetZoneByVectorIndex(Index)) {
+		return nullptr; // no duplicate
+	}
 
     FVector IndexTmp(Index.X, Index.Y,Index.Z);
-    FString ZoneName = FString::Printf(TEXT("Zone -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
+    FString ZoneName = FString::Printf(TEXT("Zone [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
     UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*ZoneName));
     if (ZoneComponent) {
         ZoneComponent->RegisterComponent();
         //ZoneComponent->SetRelativeLocation(pos);
-
         ZoneComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
         ZoneComponent->SetWorldLocation(Pos);
+		ZoneComponent->SetMobility(EComponentMobility::Movable);
 
-        FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh -> [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
+        FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
         UVoxelMeshComponent* TerrainMeshComp = NewObject<UVoxelMeshComponent>(this, FName(*TerrainMeshCompName));
         TerrainMeshComp->RegisterComponent();
-        TerrainMeshComp->SetMobility(EComponentMobility::Stationary);
+        TerrainMeshComp->SetMobility(EComponentMobility::Movable);
         TerrainMeshComp->SetCanEverAffectNavigation(true);
         TerrainMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
         TerrainMeshComp->AttachToComponent(ZoneComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
@@ -930,7 +1014,11 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
     }
 
     TerrainData->AddZone(Index, ZoneComponent);
-    if(bShowZoneBounds) DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
+
+	if (bShowZoneBounds) {
+		DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
+	}
+
     return ZoneComponent;
 }
 
@@ -1017,7 +1105,7 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 						});
 					} else {
 						AddTaskToConveyor([=]() {
-							OnLoadZone(Zone);
+							OnLoadZone(Index, Zone);
 						});
 					}
 				} 
@@ -1054,10 +1142,12 @@ void ASandboxTerrainController::OnGenerateNewZone(const TVoxelIndex& Index, UTer
 	OnFinishGenerateNewZone(Index);
 }
 
-void ASandboxTerrainController::OnLoadZone(UTerrainZoneComponent* Zone) {
+void ASandboxTerrainController::OnLoadZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone) {
 	if (FoliageDataAsset) {
 		LoadFoliage(Zone);
 	}
+
+	OnFinishLoadZone(Index);
 }
 
 void ASandboxTerrainController::OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex) {
@@ -1190,4 +1280,69 @@ int ASandboxTerrainController::GetCollisionMeshSectionLodIndex() {
 
 const FSandboxFoliage& ASandboxTerrainController::GetFoliageById(uint32 FoliageId) const {
 	return FoliageMap[FoliageId];
+}
+
+void ASandboxTerrainController::MarkZoneNeedsToSave(TVoxelIndex ZoneIndex) {
+	TerrainData->AddSaveIndex(ZoneIndex);
+	TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(ZoneIndex);
+	VdInfoPtr->VdMutexPtr->lock();
+	VdInfoPtr->SetChanged();
+	VdInfoPtr->VdMutexPtr->unlock();
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("MarkZoneNeedsToSave -> %d %d %d"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+}
+
+/*
+void ASandboxTerrainController::ExecGameThreadRestoreSoftUnload(const TVoxelIndex& ZoneIndex) {
+	ASandboxTerrainController* Controller = this;
+
+	TFunction<void()> Function = [=]() {
+		if (!bIsGameShutdown) {
+			TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(ZoneIndex);
+			UTerrainZoneComponent* ZoneComponent = VdInfoPtr->GetZone();
+			if (ZoneComponent) {
+				VdInfoPtr->SetSoftUnload();
+				ZoneComponent->SetVisibility(true, true);
+			}
+		} else {
+			UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::ExecGameThreadRestoreSoftUnload - game shutdown"));
+		}
+	};
+
+	if (IsInGameThread()) {
+		Function();
+	} else {
+		AsyncTask(ENamedThreads::GameThread, Function);
+	}
+}
+*/
+
+bool ASandboxTerrainController::OnZoneSoftUnload(const TVoxelIndex& ZoneIndex) {
+	return true;
+}
+
+void ASandboxTerrainController::OnRestoreZoneSoftUnload(const TVoxelIndex& ZoneIndex) {
+
+}
+
+/*
+void ASandboxTerrainController::ZoneHardUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex) {
+	//TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(ZoneIndex);
+	//VdInfoPtr->RemoveZone();
+
+	TArray<USceneComponent*> Children;
+	ZoneComponent->GetChildrenComponents(true, Children);
+	for (USceneComponent* Child : Children) {
+		Child->DestroyComponent(true);
+	}
+
+	ZoneComponent->DestroyComponent(true);
+}*/
+
+
+bool ASandboxTerrainController::OnZoneHardUnload(const TVoxelIndex& ZoneIndex) {
+	return true;
+}
+
+void ASandboxTerrainController::OnFinishLoadZone(const TVoxelIndex& Index) {
+
 }
