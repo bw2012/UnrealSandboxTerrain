@@ -1,4 +1,4 @@
-# [WIP] Procedural smooth voxel terrain plugin for UE4 
+# [WIP] Procedural smooth voxel terrain plugin for UE4/UE5 
 
 **Work in progress**
 
