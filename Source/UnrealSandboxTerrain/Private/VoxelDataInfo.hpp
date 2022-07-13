@@ -19,6 +19,21 @@ enum TVoxelDataState : uint32 {
     UNGENERATED = 5
 };
 
+
+class TSpinlock {
+private:
+    std::atomic_flag atomic_flag = ATOMIC_FLAG_INIT;
+
+public:
+    void lock() {
+        while (atomic_flag.test_and_set(std::memory_order_acquire)) { }
+    }
+
+    void unlock() {
+        atomic_flag.clear(std::memory_order_release);
+    }
+};
+
 class TVoxelDataInfo {
 
 private:
@@ -36,15 +51,18 @@ private:
 	std::shared_ptr<TInstanceMeshTypeMap> InstanceMeshTypeMapPtr = nullptr;
 
     bool bSoftUnload = false;
+    //std::shared_ptr<std::mutex> VdMutexPtr;
+    //std::mutex VdMutex;
+    //TSpinlock VdMutex;
+    FCriticalSection VdMutex;
 
 public:
 
     TVoxelData* Vd = nullptr;
     volatile TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
-    std::shared_ptr<std::mutex> VdMutexPtr;
     
     TVoxelDataInfo() {
-		VdMutexPtr = std::make_shared<std::mutex>();
+		//VdMutexPtr = std::make_shared<std::mutex>();
 		LastChange = 0;
 		LastSave = 0;
 		LastMeshGeneration = 0;
@@ -58,6 +76,23 @@ public:
 			Vd = nullptr;
 		}
 	}
+
+    void Lock() {
+        VdMutex.Lock();
+
+        /*
+        try {
+            VdMutex.lock();
+        } catch (std::exception e) {
+            FString ExceptionString(e.what());
+            UE_LOG(LogSandboxTerrain, Warning, TEXT("Exception: %s"), *ExceptionString);
+        }
+        */
+    }
+
+    void Unlock() {
+        VdMutex.Unlock();
+    }
 
     bool CanSave() const {
         return DataState == TVoxelDataState::GENERATED || DataState == TVoxelDataState::LOADED;
@@ -134,13 +169,10 @@ public:
 		ZoneComponentAtomicPtr.store(ZoneComponent);
 	}
 
-    /*
-    void RemoveZone() {
+     void RemoveZone() {
         ZoneComponentAtomicPtr.store(nullptr);
-        bDebugUnload = true;
     }
-    */
-
+ 
 	UTerrainZoneComponent* GetZone() {
 		UTerrainZoneComponent* ZoneComponent = ZoneComponentAtomicPtr.load();
 		return ZoneComponent;
@@ -154,13 +186,10 @@ public:
 		return InstanceMeshTypeMapPtr;
 	}
 
-	std::shared_ptr<TInstanceMeshTypeMap> PopInstanceObjectMap() {
-		std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectMapMutex);
-		auto Res = InstanceMeshTypeMapPtr;
-		InstanceMeshTypeMapPtr = nullptr;
-		return Res;
-	}
-
+    void ClearInstanceObjectMap() {
+        std::unique_lock<std::shared_timed_mutex> Lock(InstanceObjectMapMutex);
+        InstanceMeshTypeMapPtr = nullptr;
+    }
 };
 
 

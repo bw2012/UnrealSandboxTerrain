@@ -70,10 +70,17 @@ typedef struct TMeshContainer {
 
 typedef struct TMeshLodSection {
 	FProcMeshSection WholeMesh; // whole mesh (collision only)
+
 	TMeshContainer RegularMeshContainer; // used only for render main mesh
+
 	TArray<TMeshContainer> TransitionPatchArray; // used for render transition 1 to 1 LOD patch mesh
+
 	TArray<FVector> DebugPointList; // just point to draw debug. remove it after release
-	TMeshLodSection() { TransitionPatchArray.SetNum(6); }
+
+	TMeshLodSection() { 
+		TransitionPatchArray.SetNum(6); 
+	}
+
 } TMeshLodSection;
 
 
@@ -81,7 +88,7 @@ typedef struct TMeshData {
 	TArray<TMeshLodSection> MeshSectionLodArray;
 	FProcMeshSection* CollisionMeshPtr;
 	double TimeStamp = 0;
-    
+   
 	TMeshData() {
 		MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE); // 64
 		CollisionMeshPtr = nullptr;

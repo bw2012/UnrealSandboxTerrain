@@ -25,19 +25,26 @@ typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
 enum TZoneGenerationType : int32 {
-	AirOnly,
-	FullSolidOneMaterial,
-	FullSolidMultipleMaterials,
-	Landscape, 
-	Other
+	AirOnly, // all points are 0
+	FullSolidOneMaterial, // all points are 1 and one material
+	FullSolidMultipleMaterials, // all points are 1 and multiple material
+	Landscape, // landscape
+	Other // all others
 };
 
-
 enum TGenerationMethod : int32 {
-	FastSimple = 0x1,
-	SlowComplex = 0x2,
-	UltraFastPartially = 0x3,
-	Skip = 0x4
+	NotDefined = 0x0, // for warning only
+	FastSimple = 0x1, // loop over important point only
+	SlowComplex = 0x2, // loop over each point
+	UltraFastPartially = 0x3, // not used now
+	Skip = 0x4, // full solid with multiple mats, will generated later
+	SetEmpty = 0x5 // no mesh, air or full solid with single material 
+};
+
+struct TZoneOreData {
+	TVoxelIndex ZoneIndex;
+	FVector Origin;
+	TMaterialId MatId;
 };
 
 struct TGenerateVdTempItm {
@@ -45,10 +52,12 @@ struct TGenerateVdTempItm {
 	TVoxelIndex ZoneIndex;
 	TVoxelData* Vd;
 	TChunkData* ChunkData;
-	int GenerationLOD = 0; // UltraFastPartially
+	int GenerationLOD = 0; // UltraFastPartially, not used now
 	TZoneGenerationType Type;
 	TGenerationMethod Method;
-	bool bHasStructures = false;
+	bool bHasStructures = false; // tunnels and etc
+
+	std::shared_ptr<TZoneOreData> OreData = nullptr;
 };
 
 struct TGenerateZoneResult {
@@ -113,6 +122,8 @@ public:
 
 	int32 ZoneHash(const FVector& ZonePos) const;
 
+	int32 ZoneHash(const TVoxelIndex& ZoneIndex) const;
+
 	virtual void Clean();
 
 	virtual void Clean(TVoxelIndex& Index);
@@ -141,13 +152,19 @@ protected:
 
 	TPerlinNoise* Pn;
 
+	TMap<TVoxelIndex, TMap<FString, FString>> ZoneExtData;
+
+	const FString* GetExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name) const;
+
+	bool CheckExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;
+
 	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& List);
 
 	virtual void BatchGenerateSlightVd(TArray<TGenerateVdTempItm>& List);
 
 	virtual void OnBatchGenerationFinished();
 
-	virtual TZoneGenerationType ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData);
+	TZoneGenerationType ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkData* ChunkData);
 
 	virtual void PrepareMetaData();
 
@@ -157,6 +174,18 @@ protected:
 
 	virtual void PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TZoneGenerationType ZoneType, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
 
+	virtual TChunkData* NewChunkData();
+
+	virtual TChunkData* GenerateChunkData(const TVoxelIndex& Index);
+
+	virtual TMaterialId MaterialFuncionExt(const TGenerateVdTempItm* GenItm, const TMaterialId MatId, const FVector& WorldPos) const;
+
+	virtual TGenerateVdTempItm CollectVdGenerationData(const TVoxelIndex& ZoneIndex);
+
+	virtual void ExtVdGenerationData(TGenerateVdTempItm& VdGenerationData);
+
+	virtual void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+
 private:
 
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
@@ -165,7 +194,7 @@ private:
 
 	std::unordered_map<TVoxelIndex, TChunkData*> ChunkDataCollection;
 
-	TChunkData* GetChunkHeightMap(int X, int Y);
+	TChunkData* GetChunkData(int X, int Y);
 
 	virtual void GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkData* ChunkData);
 
@@ -175,13 +204,11 @@ private:
 
 	void GenerateZoneVolumeWithFunction(const TGenerateVdTempItm& Itm, const std::vector<TZoneStructureHandler>& StructureList) const;
 
-	FORCEINLINE TMaterialId MaterialFuncion(const FVector& WorldPos, float GroundLevel) const;
+	TMaterialId MaterialFuncion(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float GroundLevel) const;
 
 	const FTerrainUndergroundLayer* GetMaterialLayer(float Z, float RealGroundLevel) const;
 
 	int GetMaterialLayers(const TChunkData* ChunkData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
-
-	virtual void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
@@ -189,7 +216,7 @@ private:
 
 	//====
 
-	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
+	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TGenerateVdTempItm& Itm) const;
 
 	float B(const TVoxelIndex& Index, TVoxelData* VoxelData, const TChunkData* ChunkData) const;
 

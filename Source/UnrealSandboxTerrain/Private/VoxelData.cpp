@@ -1,5 +1,4 @@
 
-#include "UnrealSandboxTerrainPrivatePCH.h"
 #include "VoxelData.h"
 #include "serialization.hpp"
 #include <string.h> // memcpy
@@ -222,6 +221,10 @@ FORCEINLINE void TVoxelData::getNormal(int x, int y, int z, FVector& normal) con
 	else {
 		normal.Set(0, 0, 0);
 	}
+}
+
+FORCEINLINE FVector TVoxelData::voxelIndexToVector(TVoxelIndex Idx) const {
+	return voxelIndexToVector(Idx.X, Idx.Y, Idx.Z);
 }
 
 FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
@@ -499,7 +502,7 @@ TSubstanceCache::TSubstanceCache() {
 TSubstanceCacheItem* TSubstanceCache::emplace() {
 	auto s = cellArray.size();
 	if (s == idx) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("resize -> %d"), cellArray.size());
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("resize -> %d"), cellArray.size());
 		cellArray.resize(s + s / 2 + 1);
 	}
 

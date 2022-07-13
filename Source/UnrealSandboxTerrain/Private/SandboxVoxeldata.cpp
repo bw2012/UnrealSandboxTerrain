@@ -1,8 +1,7 @@
 
-#include "UnrealSandboxTerrainPrivatePCH.h"
-
 #include "SandboxVoxeldata.h"
 #include "Transvoxel.h"
+#include "VoxelIndex.h"
 #include <cmath>
 #include <vector>
 #include <mutex>
@@ -15,7 +14,10 @@ typedef struct TVoxelDataGenerationParam {
     bool bGenerateLOD = false;
 	bool bIgnoreLodPatches = false;
     
-    FORCEINLINE int step() const { return 1 << lod; }
+    FORCEINLINE int step() const { 
+		return 1 << lod; 
+	}
+
     TVoxelDataGenerationParam(const TVoxelDataParam& vdp) {
         bGenerateLOD = vdp.bGenerateLOD;
 
@@ -55,43 +57,9 @@ private:
 	const TVoxelData &voxel_data;
 	const TVoxelDataGenerationParam voxel_data_param;
 
-	typedef struct PointAddr {
-		int x = 0;
-		int y = 0;
-		int z = 0;
-
-		PointAddr(const int x0, const int y0, const int z0) : x(x0), y(y0), z(z0) { }
-		PointAddr() { }
-
-
-		FORCEINLINE const PointAddr operator-(const PointAddr& rv) const {
-			return PointAddr(x - rv.x, y - rv.y, z - rv.z);
-		}
-
-		FORCEINLINE const PointAddr operator+(const PointAddr& rv) const {
-			return PointAddr(x + rv.x, y + rv.y, z + rv.z);
-		}
-
-		FORCEINLINE const PointAddr operator/(int val) const {
-			return PointAddr(x / val, y / val, z / val);
-		}
-		FORCEINLINE const PointAddr operator*(float val) const {
-			return PointAddr(x * val, y * val, z * val);
-		}
-
-		FORCEINLINE void operator = (const PointAddr &a) {
-			x = a.x; y = a.y; z = a.z;
-		}
-
-		FORCEINLINE bool operator==(const PointAddr& in) const {
-			return (this->x == in.x) && (this->y == in.y) && (this->z == in.z);
-		}
-
-	} PointAddr;
-
 	//FIXME
-	struct Point {
-		PointAddr adr;
+	struct TPointInfo {
+		TVoxelIndex adr;
 		FVector pos;
 		float density;
 		unsigned short material_id;
@@ -320,7 +288,6 @@ private:
 
 	};
 
-
 	MeshHandler* mainMeshHandler;
 	TArray<MeshHandler*> transitionHandlerArray;
 
@@ -344,13 +311,13 @@ public:
 private:
 	double isolevel = 0.5f;
 
-	FORCEINLINE Point getVoxelpoint(PointAddr adr) {
-		return getVoxelpoint(adr.x, adr.y, adr.z);
+	FORCEINLINE TPointInfo getVoxelpoint(TVoxelIndex Idx) {
+		return getVoxelpoint(Idx.X, Idx.Y, Idx.Z);
 	}
 
-	FORCEINLINE Point getVoxelpoint(uint8 x, uint8 y, uint8 z) {
-		Point vp;
-		vp.adr = PointAddr(x,y,z);
+	FORCEINLINE TPointInfo getVoxelpoint(uint8 x, uint8 y, uint8 z) {
+		TPointInfo vp;
+		vp.adr = TVoxelIndex(x, y, z);
 		vp.density = getDensity(x, y, z);
 		vp.material_id = getMaterial(x, y, z);
 		vp.pos = voxel_data.voxelIndexToVector(x, y, z);
@@ -395,7 +362,7 @@ private:
 	}
 
 	// fast material select for LOD0
-	FORCEINLINE void selectMaterialLOD0(struct TmpPoint& tp, Point& point1, Point& point2) {
+	FORCEINLINE void selectMaterialLOD0(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
 		if (point1.material_id == point2.material_id) {
 			tp.matId = point1.material_id;
 			return;
@@ -412,16 +379,16 @@ private:
 	}
 
 	// calculate material for LOD1-4
-	FORCEINLINE void selectMaterialLODMedium(struct TmpPoint& tp, Point& point1, Point& point2) {
+	FORCEINLINE void selectMaterialLODMedium(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
 		float mu = (isolevel - point1.density) / (point2.density - point1.density);
-		PointAddr tmp = point1.adr + (point2.adr - point1.adr) * mu;
-		tp.matId = getMaterial(tmp.x, tmp.y, tmp.z);
+		TVoxelIndex tmp = point1.adr + (point2.adr - point1.adr) * mu;
+		tp.matId = getMaterial(tmp.X, tmp.Y, tmp.Z);
 	}
 
 	// calculate material for LOD5-6
-	FORCEINLINE void selectMaterialLODBig(struct TmpPoint& tp, Point& point1, Point& point2) {
-		PointAddr A;
-		PointAddr B;
+	FORCEINLINE void selectMaterialLODBig(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
+		TVoxelIndex A;
+		TVoxelIndex B;
 
 		if (point1.density < isolevel) {
 			// point1 - air, point2 - solid
@@ -433,28 +400,108 @@ private:
 			B = point1.adr;
 		}
 
-		PointAddr S = B - A;
-		if (S.x != 0) S.x = S.x / abs(S.x);
-		if (S.y != 0) S.y = S.y / abs(S.y);
-		if (S.z != 0) S.z = S.z / abs(S.z);
+		TVoxelIndex S = B - A;
+		if (S.X != 0) {
+			S.X = S.X / abs(S.X);
+		}
+
+		if (S.Y != 0) {
+			S.Y = S.Y / abs(S.Y);
+		}
+
+		if (S.Z != 0) {
+			S.Z = S.Z / abs(S.Z);
+		}
 
 		// start from air point and find first solid point
-		PointAddr tmp = A; 
-		while (getDensity(tmp.x, tmp.y, tmp.z) < isolevel) {
-			if (tmp == B) break;
+		TVoxelIndex tmp = A;
+		while (getDensity(tmp.X, tmp.Y, tmp.Z) < isolevel) {
+			if (tmp == B) {
+				break;
+			}
 			tmp = tmp + S;
 		}
 
-		tp.matId = getMaterial(tmp.x, tmp.y, tmp.z);
+		tp.matId = getMaterial(tmp.X, tmp.Y, tmp.Z);
 	}
 
-	FORCEINLINE TmpPoint vertexClc(Point& point1, Point& point2) {
+	void convertToLod0(TPointInfo& point1, TPointInfo& point2, TPointInfo& new_point1, TPointInfo& new_point2) {
+		TVoxelIndex A;
+		TVoxelIndex B;
+
+		if (point1.density < isolevel) {
+			// point1 - air, point2 - solid
+			A = point1.adr;
+			B = point2.adr;
+		} else {
+			// point1 - solid, point2 - air
+			A = point2.adr;
+			B = point1.adr;
+		}
+
+		TVoxelIndex S = B - A;
+		if (S.X != 0) {
+			S.X = S.X / abs(S.X);
+		}
+
+		if (S.Y != 0) {
+			S.Y = S.Y / abs(S.Y);
+		}
+
+		if (S.Z != 0) {
+			S.Z = S.Z / abs(S.Z);
+		}
+
+		// start from air point and find first solid point
+		TVoxelIndex tmp = A;
+		while (getDensity(tmp.X, tmp.Y, tmp.Z) < isolevel) {
+			if (tmp == B) {
+				break;
+			}
+
+			tmp = tmp + S;
+		}
+
+		TVoxelIndex newA = tmp - S;
+		TVoxelIndex newB = tmp;
+
+		TPointInfo pointA = getVoxelpoint(newA);
+		TPointInfo pointB = getVoxelpoint(newB);
+
+		//mesh_data.DebugPointList.Add(voxel_data.voxelIndexToVector(newA));
+		//mesh_data.DebugPointList.Add(voxel_data.voxelIndexToVector(newB));
+
+		if (point1.density < isolevel) {
+			// point1 - air, point2 - solid
+			new_point1 = pointA;
+			new_point2 = pointB;
+		} else {
+			// point1 - solid, point2 - air
+			new_point1 = pointB;
+			new_point2 = pointA;
+		}
+
+		//mesh_data.DebugPointList.Add(point1.pos);
+	}
+
+	FORCEINLINE TmpPoint vertexClc(TPointInfo& point1, TPointInfo& point2) {
 		struct TmpPoint ret;
 
-		ret.v = vertexInterpolation(point1.pos, point2.pos, point1.density, point2.density);
+		if (voxel_data_param.lod != 0) {
+			TPointInfo new_point1, new_point2;
+			convertToLod0(point1, point2, new_point1, new_point2);
+			ret.v = vertexInterpolation(new_point1.pos, new_point2.pos, new_point1.density, new_point2.density);
+		} else {
+			ret.v = vertexInterpolation(point1.pos, point2.pos, point1.density, point2.density);
+		}
 
-		//selectMaterialLOD0(ret, point1, point2);
+		if (voxel_data_param.lod == 0) {
+			selectMaterialLOD0(ret, point1, point2);
+		} else {
+			selectMaterialLODBig(ret, point1, point2);
+		}
 
+		/*
 		if (voxel_data_param.lod == 0) {
 			selectMaterialLOD0(ret, point1, point2);
 		} else if (voxel_data_param.lod > 0 && voxel_data_param.lod < 5) {
@@ -462,21 +509,22 @@ private:
 		} else {
 			selectMaterialLODBig(ret, point1, point2);
 		}
+		*/
 
 		return ret;
 	}
 
-	FORCEINLINE void getConrers(int8 (&corner)[8], Point (&d)[8]) {
+	FORCEINLINE void getConrers(int8 (&corner)[8], TPointInfo(&d)[8]) {
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? 0 : -127;
 		}
 	}
 
-	FORCEINLINE PointAddr clcMediumAddr(const PointAddr& adr1, const PointAddr& adr2) {
+	FORCEINLINE TVoxelIndex clcMediumAddr(const TVoxelIndex& adr1, const TVoxelIndex& adr2) {
 		return (adr2 - adr1) / 2 + adr1;
 	}
 
-	FORCEINLINE void extractRegularCell(Point (&d)[8], unsigned long caseCode) {
+	FORCEINLINE void extractRegularCell(TPointInfo(&d)[8], unsigned long caseCode) {
 		if (caseCode == 0) { 
 			return; 
 		}
@@ -530,7 +578,7 @@ private:
 		}
 	}
 
-	FORCEINLINE void extractRegularCell(Point(&d)[8]) {
+	FORCEINLINE void extractRegularCell(TPointInfo(&d)[8]) {
 		int8 corner[8];
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
@@ -540,15 +588,15 @@ private:
 		extractRegularCell(d, caseCode);
 	}
 
-	FORCEINLINE void extractTransitionCell(int sectionNumber, Point& d0, Point& d2, Point& d6, Point& d8) {
-		Point d[14];
+	FORCEINLINE void extractTransitionCell(int sectionNumber, TPointInfo& d0, TPointInfo& d2, TPointInfo& d6, TPointInfo& d8) {
+		TPointInfo d[14];
 
 		d[0] = d0;
 		d[1] = getVoxelpoint(clcMediumAddr(d2.adr, d0.adr));
 		d[2] = d2;
 
-		PointAddr a3 = clcMediumAddr(d6.adr, d0.adr);
-		PointAddr a5 = clcMediumAddr(d8.adr, d2.adr);
+		TVoxelIndex a3 = clcMediumAddr(d6.adr, d0.adr);
+		TVoxelIndex a5 = clcMediumAddr(d8.adr, d2.adr);
 
 		d[3] = getVoxelpoint(a3);
 		d[4] = getVoxelpoint(clcMediumAddr(a5, a3));
@@ -652,7 +700,7 @@ private:
 		}
 	}
 
-    void makeVoxelpointArray(Point (&d)[8], const int x, const int y, const int z){
+    void makeVoxelpointArray(TPointInfo(&d)[8], const int x, const int y, const int z){
         const int step = voxel_data_param.step();
         d[0] = getVoxelpoint(x, y + step, z);
         d[1] = getVoxelpoint(x, y, z);
@@ -664,7 +712,7 @@ private:
         d[7] = getVoxelpoint(x + step, y, z + step);
     }
     
-    void extractAllTransitionCell(Point (&d)[8], const int x, const int y, const int z){
+    void extractAllTransitionCell(TPointInfo(&d)[8], const int x, const int y, const int z){
         if (voxel_data_param.bGenerateLOD && !voxel_data_param.bIgnoreLodPatches) {
             if (voxel_data_param.lod > 0) {
                 const int e = voxel_data.num() - voxel_data_param.step() - 1;
@@ -684,7 +732,7 @@ private:
     
 public:
 	FORCEINLINE void generateCell(int x, int y, int z) {
-		Point d[8];
+		TPointInfo d[8];
         makeVoxelpointArray(d, x, y, z);
 		extractRegularCell(d);
         extractAllTransitionCell(d, x, y, z);
