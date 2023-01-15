@@ -17,8 +17,6 @@
 #include "VoxelData.h"
 #include "SandboxTerrainController.generated.h"
 
-#define USBT_MAX_MATERIAL_HARDNESS 99999.9f
-
 struct TMeshData;
 class UVoxelMeshComponent;
 class UTerrainZoneComponent;
@@ -27,8 +25,14 @@ class TTerrainData;
 class TCheckAreaMap;
 
 class TVoxelDataInfo;
-class TTerrainAreaPipeline;
-class TTerrainLoadPipeline;
+class TTerrainAreaHelper;
+class TTerrainLoadHelper;
+
+class UTerrainClientComponent;
+class UTerrainServerComponent;
+
+class TThreadPool;
+class TConveyour;
 
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
@@ -56,6 +60,26 @@ struct FMapInfo {
 
 	UPROPERTY()
 	FString Status;
+};
+
+USTRUCT(BlueprintType, Blueprintable)
+struct FTerrainDebugInfo {
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int CountVd = 0;
+
+	UPROPERTY()
+	int CountMd = 0;
+
+	UPROPERTY()
+	int CountCd = 0;
+
+	UPROPERTY()
+	int ConveyorSize = 0;
+
+	UPROPERTY()
+	int TaskPoolSize = 0;
 };
 
 USTRUCT()
@@ -138,26 +162,10 @@ struct FSandboxTerrainMaterial {
 	FSandboxTerrainMaterialType Type;
 
 	UPROPERTY(EditAnywhere)
-	float RockHardness;
+	UTexture* TextureDiffuse;
 
 	UPROPERTY(EditAnywhere)
-	UTexture* TextureSideMicro;
-
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureSideMacro;
-
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureSideNormal;
-
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureTopMicro;
-
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureTopMacro;
-
-	UPROPERTY(EditAnywhere)
-	UTexture* TextureTopNormal;
-
+	UTexture* TextureNormal;
 };
 
 UCLASS(Blueprintable)
@@ -177,31 +185,6 @@ public:
 
 };
 
-extern float GlobalTerrainZoneLOD[LOD_ARRAY_SIZE];
-
-USTRUCT()
-struct FSandboxTerrainLODDistance {
-    GENERATED_BODY()
-    
-    UPROPERTY(EditAnywhere)
-    float Distance1 = 1500;
-    
-    UPROPERTY(EditAnywhere)
-    float Distance2 = 3000;
-    
-    UPROPERTY(EditAnywhere)
-    float Distance3 = 6000;
-    
-    UPROPERTY(EditAnywhere)
-    float Distance4 = 12000;
-    
-    UPROPERTY(EditAnywhere)
-    float Distance5 = 16000;
-    
-    UPROPERTY(EditAnywhere)
-    float Distance6 = 20000;
-};
-
 UENUM(BlueprintType)
 enum class ETerrainLodMaskPreset : uint8 {
     All      = 0            UMETA(DisplayName = "Show all"),
@@ -215,9 +198,7 @@ struct FTerrainSwapAreaParams {
     
     UPROPERTY(EditAnywhere)
     float Radius = 3000;
-    
-    UPROPERTY(EditAnywhere)
-    float FullLodDistance = 1000;
+   
     
     UPROPERTY(EditAnywhere)
     int TerrainSizeMinZ = -5;
@@ -234,7 +215,7 @@ typedef struct TChunkIndex {
 } TChunkIndex;
 
 enum class TZoneFlag : int {
-	Generated = 0,
+	Generated = 0, // Not used?
 	NoMesh = 1,
 	NoVoxelData = 2,
 };
@@ -242,8 +223,6 @@ enum class TZoneFlag : int {
 typedef struct TKvFileZodeData {
 	uint32 Flags = 0x0;
 	uint32 LenMd = 0;
-	uint32 LenVd = 0;
-	uint32 LenObj = 0;
 
 	bool Is(TZoneFlag Flag) {
 		return (Flags >> (int)Flag) & 1U;
@@ -255,6 +234,26 @@ typedef struct TKvFileZodeData {
 
 } TKvFileZodeData;
 
+struct TZoneModificationData {
+
+	uint32 ChangeCounter = 0;
+
+};
+
+struct TInstantMeshData {
+	float X;
+	float Y;
+	float Z;
+
+	float Roll;
+	float Pitch;
+	float Yaw;
+
+	float ScaleX;
+	float ScaleY;
+	float ScaleZ;
+};
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -263,9 +262,11 @@ public:
     ASandboxTerrainController();
     
     friend UTerrainZoneComponent;
-	friend TTerrainAreaPipeline;
-	friend TTerrainLoadPipeline;
+	friend TTerrainAreaHelper;
+	friend TTerrainLoadHelper;
 	friend UTerrainGeneratorComponent;
+	friend UTerrainClientComponent;
+	friend UTerrainServerComponent;
 
 	virtual void BeginPlay() override;
 
@@ -291,10 +292,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
 	bool bShowZoneBounds = false;
-    
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-    bool bShowInitialArea = false;
-    
+        
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
     bool bShowStartSwapPos = false;
 
@@ -305,33 +303,34 @@ public:
     // general
     //========================================================================================
 
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
     FString MapName;
 
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
     int32 Seed;
 
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    FTerrainSwapAreaParams InitialLoadArea;
-           
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    FSandboxTerrainLODDistance LodDistance;
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
+	uint32 ActiveAreaSize = 10;
 
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	bool bSaveOnEndPlay;
-    
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
+	uint32 ActiveAreaDepth = 5;
+              
+	//========================================================================================
+	// LOD
+	//========================================================================================
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain LOD")
+	float LodRatio = .5f;
+
     //========================================================================================
-    // Dynamic area swapping
+    // Dynamic area streaming
     //========================================================================================
     
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    bool bEnableAreaSwapping;
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Streaming")
+    bool bEnableAreaStreaming;
     
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    float PlayerLocationThreshold = 1000;
-    
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-    FTerrainSwapAreaParams DynamicLoadArea;
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Streaming")
+    float PlayerLocationThreshold = 4000;
 
 	//========================================================================================
 	// save/load
@@ -345,9 +344,9 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     int32 AutoSavePeriod;
-    
+
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 SaveGeneratedZones; // TODO refactor
+	bool bSaveOnEndPlay;
 
 	//========================================================================================
 	// materials
@@ -363,15 +362,6 @@ public:
 	USandboxTerrainParameters* TerrainParameters;
 
 	//========================================================================================
-	// collision
-	//========================================================================================
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Collision")
-	unsigned int CollisionSection;
-
-	void OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex);
-
-	//========================================================================================
 	// foliage
 	//========================================================================================
 
@@ -379,7 +369,7 @@ public:
 	USandboxTarrainFoliageMap* FoliageDataAsset;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
-	int MaxConveyorTasks = 5;
+	double ConveyorMaxTime = 0.05;
    
     //========================================================================================
     // networking
@@ -400,21 +390,28 @@ public:
 
 	//========================================================================================
 
+	UFUNCTION(BlueprintCallable, Category = "UnrealSandboxWorkaround")
+	void UE51MaterialIssueWorkaround();
+
+	//========================================================================================
+
 	uint32 GetZoneVoxelResolution();
 
 	float GetZoneSize();
 
-	void DigTerrainRoundHole(const FVector& Origin, float Radius, float Strength);
+	void DigTerrainRoundHole(const FVector& Origin, float Radius, bool bNoise = true);
 
-	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const float Strength = 1.f, const bool bNoise = true);
+	void DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator = FRotator(0), const bool bNoise = true);
 
-	void DigTerrainCubeHole(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator = FRotator(0));
+	void DigTerrainCubeHoleComplex(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator = FRotator(0));
 
 	void DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator = FRotator(0));
 
 	void FillTerrainCube(const FVector& Origin, float Extend, int MatId);
 
 	void FillTerrainRound(const FVector& Origin, float Extend, int MatId);
+
+	void RemoveInstanceAtMesh(UInstancedStaticMeshComponent* InstancedMeshComp, int32 ItemIndex);
 
 	TVoxelIndex GetZoneIndex(const FVector& Pos);
 
@@ -440,21 +437,54 @@ public:
 	// async tasks
 	//===============================================================================
 
-	void RunThread(TUniqueFunction<void()> Function);
+	void AddAsyncTask(std::function<void()> Function);
 
 	//========================================================================================
 	// network
 	//========================================================================================
 
-	void NetworkSerializeVd(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex);
+	virtual void OnClientConnected();
+
+	void BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex, const TSet<TVoxelIndex>& Ignore);
+
+	void NetworkSerializeZone(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex);
 
 	void NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData);
 
 	float ClcGroundLevel(const FVector& V);
 
+	//===============================================================================
+	// perlin noise
+	//===============================================================================
+
+	float PerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const;
+
+	float NormalizedPerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const;
+
+	//===============================================================================
+	// groud level
+	//===============================================================================
+
+	float GetGroundLevel(const FVector& Pos);
+
+	//===============================================================================
+	// debug / memory stat
+	//===============================================================================
+
+	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
+	FTerrainDebugInfo GetMemstat();
+
+	//========================================================================================
+	// collision
+	//========================================================================================
+
+	void OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex);
+
 private:
 
-	bool bForcePerformHardUnload = false;
+	volatile bool bEnableConveyor = false;
+
+	volatile bool bForcePerformHardUnload = false;
     
 	std::unordered_set<TVoxelIndex> InitialLoadSet;
 
@@ -467,13 +497,19 @@ private:
     void PerformCheckArea();
     
     void StartCheckArea();
-    
-	void BeginClient();
+
+	volatile bool bIsWorkFinished = false;
+
+	void LoadConsoleVars();
+
+	//===============================================================================
+	// modify terrain
+	//===============================================================================
 
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
 
-	volatile bool bIsWorkFinished = false;
+	void PerformEachZone(const FVector& Origin, const float Extend, std::function<void(TVoxelIndex, FVector, std::shared_ptr<TVoxelDataInfo>)>);
 
 	//===============================================================================
 	// save/load
@@ -491,21 +527,23 @@ private:
 	
 	void SpawnInitialZone();
 
-	TValueDataPtr SerializeVd(TVoxelData* Vd);
+	TValueDataPtr SerializeVd(TVoxelData* Vd) const;
+
+	void DeserializeVd(TValueDataPtr Data, TVoxelData* Vd) const;
+
+	void DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap) const;
 
 	//===============================================================================
 	// async tasks
 	//===============================================================================
 
-	std::mutex ConveyorMutex;
-
-	std::list<std::function<void()>> ConveyorList;
+	TConveyour* Conveyor;
 
 	void AddTaskToConveyor(std::function<void()> Function);
 
-	void ExecGameThreadZoneApplyMesh(UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0);
+	void ExecGameThreadZoneApplyMesh(const TVoxelIndex& Index, UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
 
-	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0x0, const bool bIsNewGenerated = false);
+	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const bool bIsNewGenerated = false, const bool bIsChanged = false);
 
 	//void ExecGameThreadRestoreSoftUnload(const TVoxelIndex& ZoneIndex);
 
@@ -513,9 +551,7 @@ private:
 	// threads
 	//===============================================================================
 
-	std::shared_timed_mutex ThreadListMutex;
-
-	FGraphEventArray TerrainControllerEventList;
+	TThreadPool* ThreadPool = nullptr;
 
 	//===============================================================================
 	// voxel data storage
@@ -523,7 +559,11 @@ private:
         
     TTerrainData* TerrainData;
 
-	TKvFile TdFile;
+	mutable TKvFile TdFile;
+
+	mutable TKvFile ObjFile;
+
+	TKvFile VdFile;
 
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 
@@ -533,10 +573,7 @@ private:
 	// mesh data storage
 	//===============================================================================
 
-	TMeshDataPtr LoadMeshDataByIndex(const TVoxelIndex& Index);
-
-	void LoadObjectDataByIndex(UTerrainZoneComponent* Zone, TInstanceMeshTypeMap& ZoneInstMeshMap);
-
+	bool LoadMeshAndObjectDataByIndex(const TVoxelIndex& Index, TMeshDataPtr& MeshData, TInstanceMeshTypeMap& ZoneInstMeshMap) const;
 
 	//===============================================================================
 	// inst. meshes
@@ -549,8 +586,6 @@ private:
 	//===============================================================================
 
 	TMap<uint32, FSandboxFoliage> FoliageMap;
-
-	void LoadFoliage(UTerrainZoneComponent* Zone);
 
 	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
 
@@ -567,12 +602,6 @@ private:
 	TMap<uint16, FSandboxTerrainMaterial> MaterialMap;
 
 	//===============================================================================
-	// collision
-	//===============================================================================
-
-	int GetCollisionMeshSectionLodIndex();
-
-	//===============================================================================
 	// 
 	//===============================================================================
 
@@ -581,26 +610,50 @@ private:
     void OnLoadZone(const TVoxelIndex& Index, UTerrainZoneComponent* Zone);
     
 	//===============================================================================
-	// pipeline
+	// 
 	//===============================================================================
 
 	void SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
-	void UnloadFarZones(FVector PlayerLocation, float Radius);
+	void UnloadFarZones(const FVector& PlayerLocation);
+
+	//===============================================================================
+	// network
+	//===============================================================================
+
+	UTerrainClientComponent* TerrainClientComponent;
+
+	UTerrainServerComponent* TerrainServerComponent;
+
+	TMap<TVoxelIndex, TZoneModificationData> ModifiedVdMap;
+
+	std::mutex ModifiedVdMapMutex;
+
+	void SaveTerrainMetadata();
+
+	void LoadTerrainMetadata();
+
+	void IncrementChangeCounter(const TVoxelIndex& ZoneIndex);
+
+	TArray<std::tuple<TVoxelIndex, TZoneModificationData>> NetworkServerMapInfo();
+
+	void OnReceiveServerMapInfo(const TMap<TVoxelIndex, TZoneModificationData>& ServerDataMap);
 
 protected:
 
 	FMapInfo MapInfo;
 
-	virtual void BeginTerrainLoad();
+	virtual void BeginServerTerrainLoad();
 
-	FVector BeginTerrainLoadLocation;
+	FVector BeginServerTerrainLoadLocation;
 
 	virtual void InitializeTerrainController();
 
 	virtual void BeginPlayServer();
+
+	virtual void BeginPlayClient();
 
 	bool IsWorkFinished();
 
@@ -609,6 +662,8 @@ protected:
 	//===============================================================================
 	// save/load
 	//===============================================================================
+
+	FString GetSaveDir();
 
 	bool LoadJson();
 
@@ -620,7 +675,7 @@ protected:
 
 	void Save(std::function<void(uint32, uint32)> OnProgress = nullptr, std::function<void(uint32)> OnFinish = nullptr);
 
-	void MarkZoneNeedsToSave(TVoxelIndex ZoneIndex);
+	void MarkZoneNeedsToSaveObjects(const TVoxelIndex& ZoneIndex);
 
 	void ZoneHardUnload(UTerrainZoneComponent* ZoneComponent, const TVoxelIndex& ZoneIndex);
 
@@ -636,17 +691,7 @@ protected:
 	// voxel data storage
 	//===============================================================================
 
-	bool IsVdExistsInFile(const TVoxelIndex& ZoneIndex);
-
 	std::shared_ptr<TMeshData> GenerateMesh(TVoxelData* Vd);
-
-	//===============================================================================
-	// perlin noise
-	//===============================================================================
-
-	float PerlinNoise(const FVector& Pos) const;
-
-	float NormalizedPerlinNoise(const FVector& Pos) const;
 
 	//===============================================================================
 	// NewVoxelData
@@ -660,7 +705,7 @@ protected:
 
 	virtual UTerrainGeneratorComponent* NewTerrainGenerator();
     
-	virtual void OnOverlapActorDuringTerrainEdit(const FHitResult& OverlapResult, const FVector& Pos);
+	virtual void OnOverlapActorTerrainEdit(const FOverlapResult& OverlapResult, const FVector& Pos);
 
 	virtual void OnFinishGenerateNewZone(const TVoxelIndex& Index);
 
@@ -671,6 +716,8 @@ protected:
 	virtual void OnFinishBackgroundSaveTerrain();
 
 	virtual void OnProgressBackgroundSaveTerrain(float Progress);
+
+	virtual void OnFinishInitialLoad();
 
 	//===============================================================================
 	// pipeline
@@ -687,6 +734,8 @@ protected:
 	//===============================================================================
 	// core
 	//===============================================================================
+
+	void InvokeSafe(std::function<void()> Function);
 
 	void ShutdownThreads();
 

@@ -1,6 +1,6 @@
 
 #include "SandboxTerrainController.h"
-
+#include "VoxelMeshData.h"
 
 //======================================================================================================================================================================
 // Materials
@@ -26,33 +26,8 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 
 		if (MaterialMap.Contains(MaterialId)) {
 			FSandboxTerrainMaterial Mat = MaterialMap[MaterialId];
-
-			if (Mat.TextureTopMicro) {
-				DynMaterial->SetTextureParameterValue("TextureTopMicro", Mat.TextureTopMicro);
-				DynMaterial->SetTextureParameterValue("TextureSideMicro", Mat.TextureSideMicro);
-			}
-			else {
-				DynMaterial->SetTextureParameterValue("TextureTopMicro", Mat.TextureSideMicro);
-				DynMaterial->SetTextureParameterValue("TextureSideMicro", Mat.TextureSideMicro);
-			}
-
-			if (Mat.TextureTopMacro) {
-				DynMaterial->SetTextureParameterValue("TextureTopMacro", Mat.TextureTopMacro);
-				DynMaterial->SetTextureParameterValue("TextureSideMacro", Mat.TextureSideMacro);
-			}
-			else {
-				DynMaterial->SetTextureParameterValue("TextureTopMacro", Mat.TextureSideMacro);
-				DynMaterial->SetTextureParameterValue("TextureSideMacro", Mat.TextureSideMacro);
-			}
-
-			if (Mat.TextureTopNormal) {
-				DynMaterial->SetTextureParameterValue("TextureTopNormal", Mat.TextureTopNormal);
-				DynMaterial->SetTextureParameterValue("TextureSideNormal", Mat.TextureSideNormal);
-			}
-			else {
-				DynMaterial->SetTextureParameterValue("TextureSideNormal", Mat.TextureSideNormal);
-				DynMaterial->SetTextureParameterValue("TextureSideNormal", Mat.TextureSideNormal);
-			}
+			DynMaterial->SetTextureParameterValue("TextureDiffuse", Mat.TextureDiffuse);
+			DynMaterial->SetTextureParameterValue("TextureNormal", Mat.TextureNormal);
 		}
 
 		RegularMaterialCache.Add(MaterialId, DynMaterial);
@@ -79,29 +54,10 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(cons
 		for (unsigned short MatId : MaterialIdSet) {
 			if (MaterialMap.Contains(MatId)) {
 				FSandboxTerrainMaterial Mat = MaterialMap[MatId];
-
-				FName TextureTopMicroParam = FName(*FString::Printf(TEXT("TextureTopMicro%d"), Idx));
-				FName TextureSideMicroParam = FName(*FString::Printf(TEXT("TextureSideMicro%d"), Idx));
-				FName TextureTopNormalParam = FName(*FString::Printf(TEXT("TextureTopNormal%d"), Idx));
-				FName TextureSideNormalParam = FName(*FString::Printf(TEXT("TextureSideNormal%d"), Idx));
-
-				if (Mat.TextureTopMicro) {
-					DynMaterial->SetTextureParameterValue(TextureTopMicroParam, Mat.TextureTopMicro);
-					DynMaterial->SetTextureParameterValue(TextureSideMicroParam, Mat.TextureSideMicro);
-				}
-				else {
-					DynMaterial->SetTextureParameterValue(TextureTopMicroParam, Mat.TextureSideMicro);
-					DynMaterial->SetTextureParameterValue(TextureSideMicroParam, Mat.TextureSideMicro);
-				}
-
-				if (Mat.TextureTopNormal) {
-					DynMaterial->SetTextureParameterValue(TextureTopNormalParam, Mat.TextureTopNormal);
-					DynMaterial->SetTextureParameterValue(TextureSideNormalParam, Mat.TextureSideNormal);
-				}
-				else {
-					DynMaterial->SetTextureParameterValue(TextureTopNormalParam, Mat.TextureSideNormal);
-					DynMaterial->SetTextureParameterValue(TextureSideNormalParam, Mat.TextureSideNormal);
-				}
+				FName TextureDiffuseParam = FName(*FString::Printf(TEXT("TextureDiffuse%d"), Idx));
+				FName TextureNormalParam = FName(*FString::Printf(TEXT("TextureNormal%d"), Idx));
+				DynMaterial->SetTextureParameterValue(TextureDiffuseParam, Mat.TextureDiffuse);
+				DynMaterial->SetTextureParameterValue(TextureNormalParam, Mat.TextureNormal);
 			}
 
 			Idx++;

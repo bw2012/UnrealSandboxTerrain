@@ -88,11 +88,9 @@ extern FVector sandboxSnapToGrid(FVector vec, float grid_range) {
     return FVector((int)tmp2.X, (int)tmp2.Y, (int)tmp2.Z);
 }
 
-
 extern FVector sandboxConvertVectorToCubeIndex(FVector vec) {
     return sandboxSnapToGrid(vec, 200);
 }
-
 
 FVector sandboxGridIndex(const FVector& v, int range) {
     FVector tmp(v);
@@ -107,7 +105,6 @@ FVector sandboxGridIndex(const FVector& v, int range) {
 
     return FVector((int)tmp.X, (int)tmp.Y, (int)tmp.Z);
 }
-
 
 inline unsigned int CRC32(unsigned char* buf, unsigned long len) {
 	unsigned long crc_table[256];

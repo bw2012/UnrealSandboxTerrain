@@ -11,6 +11,7 @@
 #include "VoxelMeshComponent.generated.h"
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
+typedef uint8 TTerrainLodMask;
 
 /**
 *
@@ -43,7 +44,6 @@ public:
 	bool bLodFlag;
 
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-
 
 	// ======================================================================
 	// collision 

@@ -44,7 +44,7 @@ typedef struct TMeshMaterialTransitionSection : TMeshMaterialSection {
 	static uint64 GenerateTransitionCode(const std::set<unsigned short>& MaterialIdSet) {
 		TTransitionMaterialCode TransMat;
 		for (int i = 0; i < 4; i++) { 
-			TransMat.TriangleMatId[i] = 0; 
+			TransMat.TriangleMatId[i] = 0; //TODO incorrect material
 		}
 
 		int i = 0;

@@ -42,10 +42,13 @@ private:
     volatile double LastMeshGeneration;
     volatile double LastCacheCheck;
 
-	TMeshDataPtr MeshDataCachePtr = nullptr;
+    std::atomic<TMeshDataPtr> MeshDataCachePtr = nullptr;
 
-	//std::shared_timed_mutex ZoneMutex;
-	std::atomic<UTerrainZoneComponent*> ZoneComponentAtomicPtr = nullptr;
+    std::atomic<UTerrainZoneComponent*> ZoneComponentAtomicPtr = nullptr;
+
+    std::atomic<bool> bNeedTerrainSave { false };
+    std::atomic<bool> bNeedObjectsSave { false };
+    std::atomic<bool> bSpawnFinished { false };
 
 	std::shared_timed_mutex InstanceObjectMapMutex;
 	std::shared_ptr<TInstanceMeshTypeMap> InstanceMeshTypeMapPtr = nullptr;
@@ -62,7 +65,6 @@ public:
     volatile TVoxelDataState DataState = TVoxelDataState::UNDEFINED;
     
     TVoxelDataInfo() {
-		//VdMutexPtr = std::make_shared<std::mutex>();
 		LastChange = 0;
 		LastSave = 0;
 		LastMeshGeneration = 0;
@@ -70,7 +72,6 @@ public:
     }
     
     ~TVoxelDataInfo() { 
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("~TVoxelDataInfo()"));
 		if (Vd != nullptr) {
 			delete Vd;
 			Vd = nullptr;
@@ -94,7 +95,43 @@ public:
         VdMutex.Unlock();
     }
 
-    bool CanSave() const {
+    void SetSpawnFinished() {
+        bSpawnFinished = true;
+    }
+
+    void ResetSpawnFinished() {
+        bSpawnFinished = false;
+    }
+
+    bool IsSpawnFinished() {
+        return bSpawnFinished;
+    }
+
+    bool IsNeedObjectsSave() {
+        return bNeedObjectsSave;
+    }
+
+    void SetNeedObjectsSave() {
+        bNeedObjectsSave = true;
+    }
+
+    void ResetNeedObjectsSave() {
+        bNeedObjectsSave = false;
+    }
+
+    bool IsNeedTerrainSave() {
+        return bNeedTerrainSave;
+    }
+
+    void SetNeedTerrainSave() {
+        bNeedTerrainSave = true;;
+    }
+
+    void ResetNeedTerrainSave() {
+        bNeedTerrainSave = false;;
+    }
+
+    bool CanSaveVd() const {
         return DataState == TVoxelDataState::GENERATED || DataState == TVoxelDataState::LOADED;
     }
 
@@ -156,12 +193,15 @@ public:
     }
 
 	void PushMeshDataCache(TMeshDataPtr MeshDataPtr) {
-		std::atomic_store(&MeshDataCachePtr, MeshDataPtr);
+		MeshDataCachePtr.store(MeshDataPtr);
 	}
 
+    TMeshDataPtr GetMeshDataCache() {
+        return MeshDataCachePtr.load();
+    }
+
 	TMeshDataPtr PopMeshDataCache() {
-		TMeshDataPtr NullPtr = nullptr;
-		TMeshDataPtr MeshDataPtr = std::atomic_exchange(&MeshDataCachePtr, NullPtr);
+        TMeshDataPtr MeshDataPtr = MeshDataCachePtr.exchange(nullptr);
 		return MeshDataPtr;
 	}
 
@@ -192,5 +232,27 @@ public:
     }
 };
 
-
 typedef std::shared_ptr<TVoxelDataInfo> TVoxelDataInfoPtr;
+
+
+class TVdInfoLockGuard {
+
+private:
+
+    TVoxelDataInfoPtr VdInfoPtr = nullptr;
+
+public:
+
+    TVdInfoLockGuard(const TVdInfoLockGuard&) = delete;
+
+    TVdInfoLockGuard& operator=(TVdInfoLockGuard&) = delete;
+
+    TVdInfoLockGuard(TVoxelDataInfoPtr VdiPtr) {
+        VdiPtr->Lock();
+        VdInfoPtr = VdiPtr;
+    }
+
+    ~TVdInfoLockGuard() {
+        VdInfoPtr->Unlock();
+    }
+};

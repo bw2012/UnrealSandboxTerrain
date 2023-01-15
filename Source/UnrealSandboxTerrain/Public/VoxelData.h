@@ -81,7 +81,7 @@ namespace vd {
 
 		void makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step);
 		void makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step);
-		unsigned long caseCode(int8(&corner)[8]);
+		unsigned long caseCode(const int8(&corner)[8]);
 		int clcLinearIndex(int n, int x, int y, int z);
 		int clcLinearIndex(int n, const TVoxelIndex& vi);
 		size_t getCacheSize(const TVoxelData* vd, int lod);
@@ -134,6 +134,8 @@ public:
 
 	void initializeDensity();
 	void initializeMaterial();
+
+	void setBaseMatId(TMaterialId base_mat_id);
 
 	int clcLinearIndex(const TVoxelIndex& v) const;
 	int clcLinearIndex(int x, int y, int z) const;
@@ -196,11 +198,5 @@ public:
 
 	std::shared_ptr<std::vector<uint8>> serialize();
 
-	friend void serializeVoxelData(TVoxelData& vd, FBufferArchive& binaryData);
-	friend void deserializeVoxelData(TVoxelData &vd, FMemoryReader& binaryData);
-	friend void deserializeVoxelDataFast(TVoxelData* vd, TArray<uint8>& Data, bool createSubstanceCache);
-
 	friend bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);
 };
-
-//bool deserializeVoxelData(TVoxelData* vd, std::vector<uint8>& data);

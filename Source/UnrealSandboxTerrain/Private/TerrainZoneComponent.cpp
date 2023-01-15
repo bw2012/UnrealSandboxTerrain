@@ -18,10 +18,9 @@ UTerrainInstancedStaticMesh::UTerrainInstancedStaticMesh(const FObjectInitialize
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
     CurrentTerrainLodMask = 0xff;
-	bIsObjectsNeedSave = false;
 }
 
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgnoreCollision, const TTerrainLodMask TerrainLodMask) {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	double start = FPlatformTime::Seconds();
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -35,7 +34,8 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	}
 
 	if (MeshDataTimeStamp > MeshDataPtr->TimeStamp) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
+		// TODO 
+		//UE_LOG(LogSandboxTerrain, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
 	}
 
 	MeshDataTimeStamp = MeshDataPtr->TimeStamp;
@@ -56,11 +56,15 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	}
 		
 	MainTerrainMesh->SetMeshData(MeshDataPtr, TargetTerrainLodMask);
+
+	if (!bIgnoreCollision) {
+		MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
+	}
+
     MainTerrainMesh->bCastShadowAsTwoSided = true;    
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
-
-	MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
+	MainTerrainMesh->bAffectDistanceFieldLighting = false;
 	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
 
 	double end = FPlatformTime::Seconds();
@@ -68,24 +72,9 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, const TTe
 	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
-typedef struct TInstantMeshData {
-	float X;
-	float Y;
-	float Z;
-
-	float Roll;
-	float Pitch;
-	float Yaw;
-
-	float ScaleX;
-	float ScaleY;
-	float ScaleZ;
-} TInstantMeshData;
-
 TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
     const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
     TValueDataPtr Data = SerializeInstancedMeshes();
-    bIsObjectsNeedSave = false;
     return Data;
 }
 
@@ -172,54 +161,6 @@ std::shared_ptr<std::vector<uint8>> UTerrainZoneComponent::SerializeInstancedMes
 	return Serializer.data();
 }
 
-void UTerrainZoneComponent::DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap) {
-	usbt::TFastUnsafeDeserializer Deserializer(Data.data());
-
-	int32 MeshCount;
-	Deserializer >> MeshCount;
-
-	for (int Idx = 0; Idx < MeshCount; Idx++) {
-		uint32 MeshTypeId;
-		uint32 MeshVariantId;
-		int32 MeshInstanceCount;
-
-		Deserializer >> MeshTypeId;
-		Deserializer >> MeshVariantId;
-		Deserializer >> MeshInstanceCount;
-
-		FTerrainInstancedMeshType MeshType;
-		if (GetTerrainController()->FoliageMap.Contains(MeshTypeId)) {
-			FSandboxFoliage FoliageType = GetTerrainController()->FoliageMap[MeshTypeId];
-			if ((uint32)FoliageType.MeshVariants.Num() > MeshVariantId) {
-				MeshType.Mesh = FoliageType.MeshVariants[MeshVariantId];
-				MeshType.MeshTypeId = MeshTypeId;
-				MeshType.MeshVariantId = MeshVariantId;
-				MeshType.StartCullDistance = FoliageType.StartCullDistance;
-				MeshType.EndCullDistance = FoliageType.EndCullDistance;
-			}
-		} else {
-			const FTerrainInstancedMeshType* MeshTypePtr = GetTerrainController()->GetInstancedMeshType(MeshTypeId, MeshVariantId);
-			if (MeshTypePtr) {
-				MeshType = *MeshTypePtr;
-			}
-		}
-
-		TInstanceMeshArray& InstMeshArray = ZoneInstMeshMap.FindOrAdd(MeshType.GetMeshTypeCode());
-		InstMeshArray.MeshType = MeshType;
-		InstMeshArray.TransformArray.Reserve(MeshInstanceCount);
-
-		for (int32 InstanceIdx = 0; InstanceIdx < MeshInstanceCount; InstanceIdx++) {
-			TInstantMeshData P;
-			Deserializer >> P;
-			FTransform Transform(FRotator(P.Pitch, P.Yaw, P.Roll), FVector(P.X, P.Y, P.Z), FVector(P.ScaleX, P.ScaleY, P.ScaleZ));
-
-			if (MeshType.Mesh != nullptr) {
-				InstMeshArray.TransformArray.Add(Transform);
-			}
-		}
-	}
-}
-
 void UTerrainZoneComponent::SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap) {
 	const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
 	for (const auto& Elem : InstanceMeshMap) {
@@ -233,9 +174,11 @@ void SetCollisionTree(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent)
 }
 
 void SetCollisionGrass(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
+	
 	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	//InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
 	
+	/*
 	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Overlap);
 	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Ignore);
@@ -247,7 +190,9 @@ void SetCollisionGrass(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent
 
 	InstancedStaticMeshComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	InstancedStaticMeshComponent->SetGenerateOverlapEvents(false);
+	*/
 
+	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); // workaround bad UE5 performance
 	InstancedStaticMeshComponent->SetCastShadow(false);
 }
 
@@ -265,7 +210,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - [%d, %d]-> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, MeshType.MeshVariantId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
 		InstancedStaticMeshComponent = NewObject<UTerrainInstancedStaticMesh>(this, FName(*InstancedStaticMeshCompName));
-
+		InstancedStaticMeshComponent->bIsFoliage = bIsFoliage;
 		InstancedStaticMeshComponent->RegisterComponent();
 		InstancedStaticMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
@@ -283,12 +228,10 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 
 		if (bIsFoliage) {
 			auto FoliageType = GetTerrainController()->FoliageMap[MeshType.MeshTypeId];
-
 			if (FoliageType.Type == ESandboxFoliageType::Tree) {
 				SetCollisionTree(InstancedStaticMeshComponent);
 			} else {
 				SetCollisionGrass(InstancedStaticMeshComponent);
-				//InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); // workaround bad UE5 performance
 			}
 		} else {
 			InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -305,15 +248,6 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 	//UE_LOG(LogSandboxTerrain, Warning, TEXT("AddInstances -> %d"), InstMeshTransArray.TransformArray.Num());
 }
 
-
-void UTerrainZoneComponent::SetNeedSave() {
-	bIsObjectsNeedSave = true;
-}
-
-bool UTerrainZoneComponent::IsNeedSave() {
-	return bIsObjectsNeedSave;
-}
-
 TTerrainLodMask UTerrainZoneComponent::GetTerrainLodMask() {
 	return CurrentTerrainLodMask;
 }
@@ -321,3 +255,7 @@ TTerrainLodMask UTerrainZoneComponent::GetTerrainLodMask() {
 ASandboxTerrainController* UTerrainZoneComponent::GetTerrainController() {
 	return (ASandboxTerrainController*)GetAttachmentRootActor();
 };
+
+bool UTerrainInstancedStaticMesh::IsFoliage() {
+	return bIsFoliage;
+}

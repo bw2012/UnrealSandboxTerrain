@@ -5,18 +5,26 @@
 #include "EngineMinimal.h"
 #include "VoxelMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "kvdb.hpp"
 #include "TerrainZoneComponent.generated.h"
 
 
 class ASandboxTerrainController;
+struct TInstanceMeshArray;
+struct FTerrainInstancedMeshType;
+typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
+
+class UTerrainZoneComponent;
 
 /**
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainInstancedStaticMesh : public UHierarchicalInstancedStaticMeshComponent {
+class UNREALSANDBOXTERRAIN_API UTerrainInstancedStaticMesh : public UHierarchicalInstancedStaticMeshComponent { //UHierarchicalInstancedStaticMeshComponent
 	GENERATED_UCLASS_BODY()
+
+	friend class UTerrainZoneComponent;
 
 public:
 
@@ -26,6 +34,11 @@ public:
 	UPROPERTY()
 	uint32 MeshVariantId = 0;
 
+	bool IsFoliage();
+
+private:
+
+	bool bIsFoliage;
 };
 
 
@@ -48,36 +61,19 @@ public:
 
 	ASandboxTerrainController* GetTerrainController();
 
-	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
+	void ApplyTerrainMesh(std::shared_ptr<TMeshData> MeshDataPtr, bool bIgnoreCollision = false, const TTerrainLodMask TerrainLodMask = 0);
 
 	std::shared_ptr<std::vector<uint8>> SerializeInstancedMeshes();
-
-	void DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap);
 
 	void SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap);
 
 	void SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const TInstanceMeshArray& InstMeshTransArray);
 
-	//TMeshData const * GetCachedMeshData();
-    //TMeshDataPtr GetCachedMeshData();
-    
-    //bool HasCachedMeshData();
-    
-    //TValueDataPtr SerializeAndClearCachedMeshData();
-
-	//void ClearCachedMeshData();
-
     TValueDataPtr SerializeAndResetObjectData();
 
 	static TValueDataPtr SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceMeshMap);
     
-	void SetNeedSave();
-
-	bool IsNeedSave();
-
 	TTerrainLodMask GetTerrainLodMask();
-    
-	volatile bool bIsSpawnFinished = false;
 
 private:
     
@@ -88,8 +84,4 @@ private:
     std::mutex InstancedMeshMutex;
     
     TTerrainLodMask CurrentTerrainLodMask;
-
-	//TMeshDataPtr CachedMeshDataPtr;
-
-	volatile bool bIsObjectsNeedSave = false;
 };

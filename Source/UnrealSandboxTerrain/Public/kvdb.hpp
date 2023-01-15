@@ -15,10 +15,11 @@
 #include <type_traits>
 #include <cassert>
 #include <cstring> 
-
+#include <functional> 
 
 #define KVDB_KEY_SIZE 12 // 3 x int32 (X, Y, Z)
 #define KVDB_RESERVED_TABLE_SIZE 1000
+#define KVDB_MIN_DATA_SIZE 256
 
 typedef uint32_t uint32;
 typedef unsigned long long ulong64;
@@ -37,7 +38,7 @@ namespace std {
 		std::size_t operator()(const TKeyData& keyData) const {
 			std::size_t h = 0;
 			for (auto elem : keyData) {
-				h ^= std::hash<int>{}(elem)+0x9e3779b9 + (h << 6) + (h >> 2);
+				h ^= std::hash<int>{}(elem) + 0x9e3779b9 + (h << 6) + (h >> 2);
 			}
 			return h;
 		}
@@ -57,7 +58,7 @@ namespace kvdb {
 	}
 
 	template <typename T>
-	void read(std::istream* is, const T& obj) {
+	void read(std::istream* is, T& obj) {
 		if (is != nullptr) {
 			is->read((char*)&obj, sizeof(obj));
 		}
@@ -129,7 +130,6 @@ namespace kvdb {
 		ulong64 dataPos = 0;
 		ulong64 dataLength = 0;
 		ulong64 initialDataLength = 0;
-
 		TKeyData freeKeyData;
 	} TKeyEntry;
 
@@ -173,7 +173,7 @@ namespace kvdb {
 		mutable std::mutex fileSharedMutex;
 
 		uint32 reservedKeys = KVDB_RESERVED_TABLE_SIZE;
-		uint32 reservedValueSize = 0;
+		const uint32 reservedValueSize = 0;
 
 	private:
 
@@ -184,21 +184,21 @@ namespace kvdb {
 				return std::static_pointer_cast<TValueData>(dataPtr);
 			} else {
 				V* temp = new V();
-				memcpy(temp, dataPtr->data(), dataPtr->size());
+				std::memcpy(temp, dataPtr->data(), sizeof(V));
 				return std::shared_ptr<V>(temp);
 			}
 		}
 
 		static TKeyData toKeyData(K key) {
-			byte temp[KVDB_KEY_SIZE];
-			for (int i = 0; i < KVDB_KEY_SIZE; i++) temp[i] = 0;
+			TKeyData kd;
+			std::memcpy(&kd[0], &key, sizeof(K));
+			return kd;
+		}
 
-			memcpy(&temp, &key, sizeof(K));
-
-			TKeyData arrayOfByte;
-			for (int i = 0; i < KVDB_KEY_SIZE; i++) arrayOfByte[i] = temp[i];
-
-			return arrayOfByte;
+		static K keyFromKeyData(const TKeyData& kd) {
+			K key;
+			std::memcpy(&key, &kd, sizeof(K));
+			return key;
 		}
 
 		static void toValueData(V value, TValueData& valueData) {
@@ -210,7 +210,6 @@ namespace kvdb {
 			// rewrite value data
 			filePtr->seekp(keyInfo().dataPos);
 			filePtr->write((char*)valueData.data(), valueData.size());
-
 			// rewrite key data
 			keyInfo().dataLength = valueData.size(); // new length
 			filePtr << keyInfo;
@@ -220,20 +219,14 @@ namespace kvdb {
 			// rewrite key data
 			keyInfo().dataLength = 0; // new length
 			filePtr << keyInfo;
-
 			deletedKeyList.insert(keyInfo);
 			dataMap.erase(keyInfo().freeKeyData);
 		}
 
-		void expandValueData(const TValueData& valueDataSrc, TValueData& valueDataNew) {
-			valueDataNew.resize(reservedValueSize);
-			for (uint32 i = 0; i < reservedValueSize; i++) {
-				if (i < valueDataSrc.size()) {
-					valueDataNew[i] = valueDataSrc[i];
-				} else {
-					valueDataNew[i] = 0;
-				}
-			}
+		void expandValueData(const TValueData& valueDataSrc, TValueData& valueDataNew, size_t size) {
+			valueDataNew.resize(size);
+			std::fill(valueDataNew.begin(), valueDataNew.end(), 0);
+			std::memcpy(valueDataNew.data(), valueDataSrc.data(), valueDataSrc.size());
 		}
 
 		void newPairFromReserved(const TKeyData& keyData, const TValueData& valueData) {
@@ -241,8 +234,9 @@ namespace kvdb {
 			TKeyEntryInfo& keyInfo = reservedKeyList.front();
 			TValueData valueDataExp;
 
-			if (valueData.size() < reservedValueSize) {
-				expandValueData(valueData, valueDataExp);
+			if (reservedValueSize > 0) {
+				uint32 n = (uint32)std::round((float)valueData.size() / (float)reservedValueSize) + 1;
+				expandValueData(valueData, valueDataExp, n * reservedValueSize);
 			} else {
 				valueDataExp = std::move(valueData);
 			}
@@ -271,7 +265,6 @@ namespace kvdb {
 
 			for (unsigned int i = 0; i < tableHeader.recordCount; i++) {
 				ulong64 pos = (ulong64)filePtr->tellg();
-
 				TKeyEntry keyEntry;
 				filePtr >> keyEntry;
 				TKeyEntryInfo keyInfo(keyEntry, pos);
@@ -298,18 +291,14 @@ namespace kvdb {
 			ulong64 newTablePos = (ulong64)filePtr->tellp();
 
 			// write new table
-			TTableHeader newTable;
-			newTable.recordCount = reservedKeys;
-			newTable.nextTable = 0;
+			TTableHeader newTable{reservedKeys, 0};
 			filePtr << newTable;
 
 			// write reserved keys
 			for (uint32 i = 0; i < reservedKeys; i++) {
 				uint32 newReservedKeyPos = (uint32)filePtr->tellp();
-
 				TKeyEntry newReservedKey;
 				filePtr << newReservedKey;
-
 				TKeyEntryInfo keyInfo(newReservedKey, newReservedKeyPos);
 				reservedKeyList.push_back(keyInfo);
 			}
@@ -385,12 +374,12 @@ namespace kvdb {
 			assert(sizeof(K) <= KVDB_KEY_SIZE);
 		}
 
-		~KvFile() {
-			close();
+		KvFile(uint32 s) : reservedValueSize(s) {
+			assert(sizeof(K) <= KVDB_KEY_SIZE);
 		}
 
-		void setReservedValueSize(uint32 val) {
-			reservedValueSize = val;
+		~KvFile() {
+			close();
 		}
 
 		void close() {
@@ -423,7 +412,7 @@ namespace kvdb {
 			return true;
 		}
 
-		int size() {
+		size_t size() {
 			if (!isOpen()) {
 				return 0;
 			} else {
@@ -437,7 +426,12 @@ namespace kvdb {
 			std::lock_guard<std::mutex> guard(fileSharedMutex);
 			return !(dataMap.find(keyData) == dataMap.end());
 		}
-
+		
+		void forEachKey(std::function<void(K key)> func) const {
+			if (!isOpen()) return;
+			std::lock_guard<std::mutex> guard(fileSharedMutex);
+			for (const auto& kv : dataMap) { func(keyFromKeyData(kv.first)); }
+		}
 
 		TValueDataPtr loadData(const K& k) {
 			TKeyData keyData = toKeyData(k);
@@ -490,7 +484,7 @@ namespace kvdb {
 			TKeyData keyData = toKeyData(k);
 			TValueData valueData;
 
-			if (std::is_same<V, TValueData>::value) {
+			if constexpr(std::is_same<V, TValueData>::value) {
 				valueData = static_cast<TValueData>(v);
 			} else {
 				toValueData(v, valueData);
@@ -526,22 +520,18 @@ namespace kvdb {
 
 			outFilePtr << fileHeader;
 
-			TTableHeader tableHeader;
-			tableHeader.recordCount = keyRecords;
+			TTableHeader tableHeader{keyRecords, 0};
 			outFilePtr << tableHeader;
 
 			ulong64 bodyDataOffset = (ulong64)(outFile.tellp()) + sizeof(TKeyEntry) * keyRecords;
-
 			std::vector<byte> dataBody;
-
 			for (auto& e : test) {
 				TKeyEntry entry;
 				entry.freeKeyData = toKeyData(e.first);
 				entry.dataPos = dataBody.size() + bodyDataOffset;
 
 				TValueData valueData;
-
-				if (std::is_same<V, TValueData>::value) { //constexpr
+				if constexpr (std::is_same<V, TValueData>::value) {
 					valueData = static_cast<TValueData>(e.second);
 				} else {
 					toValueData(e.second, valueData);
@@ -550,7 +540,6 @@ namespace kvdb {
 				entry.dataLength = valueData.size();
 				entry.initialDataLength = valueData.size();
 				dataBody.insert(std::end(dataBody), std::begin(valueData), std::end(valueData));
-
 				outFilePtr << entry;
 			}
 
@@ -565,11 +554,30 @@ namespace kvdb {
 
 			outFilePtr->write((char*)dataBody.data(), dataBody.size());
 			outFile.close();
-
 			return true;
 		}
+
+
+		// ====================================================================================
+		void test() {
+
+			for (auto& kv : dataMap) {
+				auto v = kv.second;
+				printf("%ld <- %ld\n", v().dataLength, v().initialDataLength);
+			}
+
+			for (auto& r : reservedKeyList) {
+				//printf("reserved: %ld\n", r.pos);
+			}
+
+			for (auto& r : deletedKeyList) {
+				//printf("deleted: %ld\n", r.pos);
+			}
+
+
+		}
+		// ====================================================================================
+
 	};
-
 	//-----------------------------------------------------------------------------
-
 }

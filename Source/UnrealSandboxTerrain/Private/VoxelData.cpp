@@ -70,7 +70,7 @@ void TVoxelData::copyCacheUnsafe(const int* cache_data, const int* len) {
 	setCacheToValid();
 }
 
-FORCEINLINE void TVoxelData::initializeDensity() {
+void TVoxelData::initializeDensity() {
 	const int s = voxel_num * voxel_num * voxel_num;
 	density_data = new TDensityVal[s];
 	const TDensityVal d = (density_state == TVoxelDataFillState::FULL) ? 0xff : 0x00;
@@ -85,7 +85,7 @@ FORCEINLINE void TVoxelData::initializeDensity() {
 	}
 }
 
-FORCEINLINE void TVoxelData::initializeMaterial() {
+void TVoxelData::initializeMaterial() {
 	const int s = voxel_num * voxel_num * voxel_num;
 	material_data = new TMaterialId[s];
 
@@ -98,15 +98,15 @@ FORCEINLINE void TVoxelData::initializeMaterial() {
 	}
 }
 
-FORCEINLINE TDensityVal TVoxelData::clcFloatToByte(float v) {
-	return 255 * v;
+TDensityVal TVoxelData::clcFloatToByte(float v) {
+	return 255 * v; //TODO separate function
 }
 
-FORCEINLINE float TVoxelData::clcByteToFloat(TDensityVal v) {
-	return (float)v / 255.0f;
+float TVoxelData::clcByteToFloat(TDensityVal v) {
+	return (float)v / 255.0f; //TODO separate function
 }
 
-FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
+void TVoxelData::setDensity(int x, int y, int z, float density) {
 	if (density_data == NULL) {
 		if (density_state == TVoxelDataFillState::ZERO && density == 0) {
 			return;
@@ -130,14 +130,14 @@ FORCEINLINE void TVoxelData::setDensity(int x, int y, int z, float density) {
 	}
 }
 
-FORCEINLINE void TVoxelData::setDensityAndMaterial(const TVoxelIndex& vi, float density, TMaterialId materialId) {
+void TVoxelData::setDensityAndMaterial(const TVoxelIndex& vi, float density, TMaterialId materialId) {
 	const int index = clcLinearIndex(vi.X, vi.Y, vi.Z);
 	density_state = TVoxelDataFillState::MIXED;
 	density_data[index] = clcFloatToByte(density);
 	material_data[index] = materialId;
 }
 
-FORCEINLINE float TVoxelData::getDensity(int x, int y, int z) const {
+float TVoxelData::getDensity(int x, int y, int z) const {
 	if (density_data == NULL) {
 		if (density_state == TVoxelDataFillState::FULL) {
 			return 1;
@@ -172,7 +172,7 @@ FORCEINLINE unsigned short TVoxelData::getRawMaterialUnsafe(int x, int y, int z)
 	return material_data[index];
 }
 
-FORCEINLINE void TVoxelData::setMaterial(const int x, const int y, const int z, const unsigned short material) {
+void TVoxelData::setMaterial(const int x, const int y, const int z, const unsigned short material) {
 	if (material_data == NULL) {
 		initializeMaterial();
 	}
@@ -183,16 +183,20 @@ FORCEINLINE void TVoxelData::setMaterial(const int x, const int y, const int z, 
 	}
 }
 
-FORCEINLINE unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
+unsigned short TVoxelData::getMaterial(int x, int y, int z) const {
 	if (material_data == NULL) {
 		return base_fill_mat;
 	}
 
 	if (x < voxel_num && y < voxel_num && z < voxel_num) {
 		const int index = clcLinearIndex(x, y, z);
-		return material_data[index];
-	}
-	else {
+		auto mat_id = material_data[index];
+		if (mat_id == 0) {
+			return base_fill_mat;
+		}
+
+		return mat_id;
+	} else {
 		return 0;
 	}
 }
@@ -217,17 +221,16 @@ FORCEINLINE void TVoxelData::getNormal(int x, int y, int z, FVector& normal) con
 		const int index = x * voxel_num * voxel_num + y * voxel_num + z;
 		FVector tmp = normal_data[index];
 		normal.Set(tmp.X, tmp.Y, tmp.Z);
-	}
-	else {
+	} else {
 		normal.Set(0, 0, 0);
 	}
 }
 
-FORCEINLINE FVector TVoxelData::voxelIndexToVector(TVoxelIndex Idx) const {
+FVector TVoxelData::voxelIndexToVector(TVoxelIndex Idx) const {
 	return voxelIndexToVector(Idx.X, Idx.Y, Idx.Z);
 }
 
-FORCEINLINE FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
+FVector TVoxelData::voxelIndexToVector(int x, int y, int z) const {
 	const float step = size() / (num() - 1);
 	const float s = -size() / 2;
 	FVector v(s, s, s);
@@ -254,19 +257,15 @@ const FVector& TVoxelData::getOrigin() const {
 	return origin;
 }
 
-//void getOrigin(FVector& o) const {
-	//o = origin;
-//};
-
 FORCEINLINE float TVoxelData::size() const {
 	return volume_size;
 }
 
-FORCEINLINE int TVoxelData::num() const {
+int TVoxelData::num() const {
 	return voxel_num;
 }
 
-FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState State) {
+void TVoxelData::deinitializeDensity(TVoxelDataFillState State) {
 	if (State == TVoxelDataFillState::MIXED) {
 		return;
 	}
@@ -279,7 +278,7 @@ FORCEINLINE void TVoxelData::deinitializeDensity(TVoxelDataFillState State) {
 	density_data = NULL;
 }
 
-FORCEINLINE void TVoxelData::deinitializeMaterial(unsigned short base_mat) {
+void TVoxelData::deinitializeMaterial(unsigned short base_mat) {
 	base_fill_mat = base_mat;
 
 	if (material_data != NULL) {
@@ -370,16 +369,8 @@ void TVoxelData::forEachWithCache(std::function<void(int x, int y, int z)> func,
 void TVoxelData::forEachCacheItem(const int lod, std::function<void(const TSubstanceCacheItem& itm)> func) const{
 	substanceCacheLOD[lod].forEach([=](const TSubstanceCacheItem& itm) {
 		func(itm);
-		//const int index = itm.index;
-		//const int x = index / (vd.num() * vd.num());
-		//const int y = (index / vd.num()) % vd.num();
-		//const int z = index % vd.num();
 	});
 }
-
-//const TSubstanceCache& TVoxelData::getCacheByLod(int lod) const {
-//	return substanceCacheLOD[lod];
-//}
 
 FORCEINLINE int TVoxelData::clcLinearIndex(int x, int y, int z) const {
 	//return x * voxel_num * voxel_num + y * voxel_num + z;
@@ -390,7 +381,7 @@ FORCEINLINE int TVoxelData::clcLinearIndex(const TVoxelIndex& v) const {
 	return vd::tools::clcLinearIndex(voxel_num, v.X, v.Y, v.Z);
 };
 
-FORCEINLINE void TVoxelData::clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const {
+void TVoxelData::clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uint32& z) const {
 	x = idx / (voxel_num * voxel_num);
 	y = (idx / voxel_num) % voxel_num;
 	z = idx % voxel_num;
@@ -399,15 +390,6 @@ FORCEINLINE void TVoxelData::clcVoxelIndex(uint32 idx, uint32& x, uint32& y, uin
 void TVoxelData::makeSubstanceCache() {
 	clearSubstanceCache();
 	initCache();
-
-	/*
-	const int s = num() * num() * num();
-	for (int i = 0; i < s; i++) {
-		uint32 x, y, z;
-		clcVoxelIndex(i, x, y, z);
-		performSubstanceCacheLOD(x, y, z);
-	}
-	*/
 	
 	for (int x = 0u; x < num(); x++) {
 		for (int y = 0u; y < num(); y++) {
@@ -476,6 +458,9 @@ std::shared_ptr<std::vector<uint8>> TVoxelData::serialize() {
 	return serializer.data();
 }
 
+void TVoxelData::setBaseMatId(TMaterialId base_mat_id) {
+	base_fill_mat = base_mat_id;
+}
 
 bool TVoxelData::isSubstanceCacheValid() const {
 	return cache_state >= 0;
@@ -502,7 +487,6 @@ TSubstanceCache::TSubstanceCache() {
 TSubstanceCacheItem* TSubstanceCache::emplace() {
 	auto s = cellArray.size();
 	if (s == idx) {
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("resize -> %d"), cellArray.size());
 		cellArray.resize(s + s / 2 + 1);
 	}
 
@@ -546,20 +530,20 @@ const TSubstanceCacheItem& TSubstanceCache::operator[](std::size_t index) const 
 }
 
 
-FORCEINLINE void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod) {
+void vd::tools::unsafe::forceAddToCache(TVoxelData* vd, int x, int y, int z, int lod) {
 	auto const index = vd->clcLinearIndex(x, y, z);
 	TSubstanceCache& lodCache = vd->substanceCacheLOD[lod];
 	TSubstanceCacheItem* cacheItm = lodCache.emplace();
 	cacheItm->index = index;
 }
 
-FORCEINLINE void vd::tools::unsafe::setDensity(TVoxelData* vd, const TVoxelIndex& vi, float density) {
+void vd::tools::unsafe::setDensity(TVoxelData* vd, const TVoxelIndex& vi, float density) {
 	const int index = vd::tools::clcLinearIndex(vd->num(), vi);
 	vd->density_state = TVoxelDataFillState::MIXED;
 	vd->density_data[index] = vd->clcFloatToByte(density);
 }
 
-FORCEINLINE void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
+void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z, int step) {
 	d[0] = TVoxelIndex(x, y + step, z);
 	d[1] = TVoxelIndex(x, y, z);
 	d[2] = TVoxelIndex(x + step, y + step, z);
@@ -570,14 +554,14 @@ FORCEINLINE void vd::tools::makeIndexes(TVoxelIndex(&d)[8], int x, int y, int z,
 	d[7] = TVoxelIndex(x + step, y, z + step);
 }
 
-FORCEINLINE void vd::tools::makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step) {
+void vd::tools::makeIndexes(TVoxelIndex(&d)[8], const TVoxelIndex& vi, int step) {
 	const int x = vi.X;
 	const int y = vi.Y;
 	const int z = vi.Z;
 	vd::tools::makeIndexes(d, x, y, z, step);
 }
 
-FORCEINLINE unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
+unsigned long vd::tools::caseCode(const int8 (&corner)[8]) {
 	unsigned long caseCode = ((corner[0] >> 7) & 0x01)
 		| ((corner[1] >> 6) & 0x02)
 		| ((corner[2] >> 5) & 0x04)
@@ -590,23 +574,23 @@ FORCEINLINE unsigned long vd::tools::caseCode(int8 (&corner)[8]) {
 	return caseCode;
 }
 
-FORCEINLINE int vd::tools::clcLinearIndex(int n,  int x, int y, int z) {
+int vd::tools::clcLinearIndex(int n,  int x, int y, int z) {
 	return x * n * n + y * n + z;
 };
 
-FORCEINLINE int vd::tools::clcLinearIndex(int n, const TVoxelIndex& vi) {
+int vd::tools::clcLinearIndex(int n, const TVoxelIndex& vi) {
 	return vd::tools::clcLinearIndex(n, vi.X, vi.Y, vi.Z);
 };
 
 
-FORCEINLINE int vd::tools::memory::getVdCount() {
+int vd::tools::memory::getVdCount() {
 	return vd_counter;
 };
 
-FORCEINLINE size_t vd::tools::getCacheSize(const TVoxelData* vd, int lod) {
+size_t vd::tools::getCacheSize(const TVoxelData* vd, int lod) {
 	return vd->substanceCacheLOD[lod].size();
 };
 
-FORCEINLINE const TSubstanceCacheItem& vd::tools::getCacheItmByNumber(const TVoxelData* vd, int lod, int number) {
+const TSubstanceCacheItem& vd::tools::getCacheItmByNumber(const TVoxelData* vd, int lod, int number) {
 	return vd->substanceCacheLOD[lod][number];
 };

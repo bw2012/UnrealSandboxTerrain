@@ -7,8 +7,9 @@ public class UnrealSandboxTerrain : ModuleRules
 	public UnrealSandboxTerrain(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.AddRange(
+        CppStandard = CppStandardVersion.Latest;
+
+        PublicIncludePaths.AddRange(
 			new string[] {
 				// ... add public include paths required here ...
 			}
@@ -42,6 +43,10 @@ public class UnrealSandboxTerrain : ModuleRules
 				"RHI",
 				"Json",
 				"JsonUtilities",
+				"Networking",
+				"Sockets",
+
+				
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

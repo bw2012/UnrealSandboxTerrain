@@ -6,7 +6,7 @@
 
 typedef uint8 TTerrainLodMask;
 
-typedef struct TSpawnZoneParam {
+struct TSpawnZoneParam {
 
 	TSpawnZoneParam() { };
 
@@ -16,16 +16,33 @@ typedef struct TSpawnZoneParam {
 
 	TTerrainLodMask TerrainLodMask = 0;
 
-} TSpawnZoneParam;
+};
+
+struct TEditTerrainParam {
+
+	TEditTerrainParam() { };
+
+	TEditTerrainParam(const FVector& Origin_) : Origin(Origin_) { };
+
+	FVector Origin;
+
+	float Radius = 0;
+
+	float Extend = 0;
+
+	float Strength = 0;
+
+};
 
 UENUM(BlueprintType)
 enum class ESandboxFoliageType : uint8 {
-	Grass = 0		UMETA(DisplayName = "Grass"),
-	Tree = 1		UMETA(DisplayName = "Tree"),
-	Cave = 2		UMETA(DisplayName = "Cave foliage"),
-	Custom = 3		UMETA(DisplayName = "Custom"),
-	Bush = 4		UMETA(DisplayName = "Bush"),
-	Flower = 5		UMETA(DisplayName = "Flower"),
+	Grass = 0			UMETA(DisplayName = "Grass"),
+	Tree = 1			UMETA(DisplayName = "Tree"),
+	Cave = 2			UMETA(DisplayName = "Cave foliage"),
+	Custom = 3			UMETA(DisplayName = "Custom"),
+	Bush = 4			UMETA(DisplayName = "Bush"),
+	Flower = 5			UMETA(DisplayName = "Flower"),
+	ForestFoliage = 6	UMETA(DisplayName = "Forest foliage"),
 };
 
 USTRUCT()

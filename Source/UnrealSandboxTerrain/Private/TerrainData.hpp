@@ -17,46 +17,11 @@
 #include <atomic>
 #include <unordered_set>
 
-static const uint64 StorageZoneCap = 100;
-static const uint64 StorageSize = (StorageZoneCap + StorageZoneCap + 1) * (StorageZoneCap + StorageZoneCap + 1) * (StorageZoneCap + StorageZoneCap + 1);
-
-template<class T>
-class TStorage {
-
-private:
-	std::array<std::shared_ptr<T>, StorageSize> PtrArray;
-
-public:
-
-	TStorage() {
-		// initialize
-		for (auto& Ptr : PtrArray) {
-			Ptr = nullptr;
-		}
-	}
-
-	std::shared_ptr<T> Get(uint64 Index) {
-		std::shared_ptr<T> Current = std::atomic_load(&PtrArray[Index]);
-		if (!Current) {
-			std::shared_ptr<T> New = std::make_shared<T>();
-			if (std::atomic_compare_exchange_weak(&PtrArray[Index], &Current, New)) {
-				return New;
-			}
-		}
-		return Current;
-	}
-
-	std::shared_ptr<T> operator[](uint64 Index) { 
-		return Get(Index);
-	}
-};
-
 
 class TTerrainData {
     
 private:
 
-	TStorage<TVoxelDataInfo> Storage;
 
 	std::shared_timed_mutex StorageMapMutex;
 	std::unordered_map<TVoxelIndex, std::shared_ptr<TVoxelDataInfo>> StorageMap;
@@ -64,14 +29,6 @@ private:
 	std::shared_timed_mutex SaveIndexSetpMutex;
 	std::unordered_set<TVoxelIndex> SaveIndexSet;
 
-	int64 ClcStorageLinearindex(const TVoxelIndex& Index) {
-		int32 x = Index.X + StorageZoneCap;
-		int32 y = Index.Y + StorageZoneCap;
-		int32 z = Index.Z + StorageZoneCap;
-		static const int n = (StorageZoneCap + StorageZoneCap + 1);
-		int64 LinearIndex = x * n * n + y * n + z;
-		return LinearIndex;
-	}
     
 public:
 
@@ -116,7 +73,9 @@ public:
     }
 
 	void RemoveZone(const TVoxelIndex& Index) {
-		return GetVoxelDataInfo(Index)->RemoveZone();
+		auto Ptr = GetVoxelDataInfo(Index);
+		Ptr->ResetSpawnFinished();
+		Ptr->RemoveZone();
 	}
     
 	//=====================================================================================
@@ -124,18 +83,13 @@ public:
 	//=====================================================================================
     
 	TVoxelDataInfoPtr GetVoxelDataInfo(const TVoxelIndex& Index) {
-		int64 LinearIndex = ClcStorageLinearindex(Index);
-		if (LinearIndex > 0 && LinearIndex < StorageSize) {
-			return Storage.Get(LinearIndex);
+		std::unique_lock<std::shared_timed_mutex> Lock(StorageMapMutex);
+		if (StorageMap.find(Index) != StorageMap.end()) {
+			return StorageMap[Index];
 		} else {
-			std::unique_lock<std::shared_timed_mutex> Lock(StorageMapMutex);
-			if (StorageMap.find(Index) != StorageMap.end()) {
-				return StorageMap[Index];
-			} else {
-				TVoxelDataInfoPtr NewVdinfo = std::make_shared<TVoxelDataInfo>();
-				StorageMap.insert({ Index, NewVdinfo });
-				return NewVdinfo;
-			}
+			TVoxelDataInfoPtr NewVdinfo = std::make_shared<TVoxelDataInfo>();
+			StorageMap.insert({ Index, NewVdinfo });
+			return NewVdinfo;
 		}
     }
 

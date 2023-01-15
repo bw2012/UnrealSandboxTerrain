@@ -20,11 +20,8 @@ typedef struct TVoxelDataGenerationParam {
 
     TVoxelDataGenerationParam(const TVoxelDataParam& vdp) {
         bGenerateLOD = vdp.bGenerateLOD;
-
-        //collisionLOD = vdp.collisionLOD;
-        //ZCutLevel = vdp.ZCutLevel;
-        //bZCut = vdp.bZCut;
     }
+
 } TVoxelDataGenerationParam;
 
 //====================================================================================
@@ -325,14 +322,6 @@ private:
 	}
 
 	FORCEINLINE float getDensity(int x, int y, int z) {
-		//if (voxel_data_param.bZCut) {
-		//	FVector p = voxel_data.voxelIndexToVector(x, y, z);
-		//	p += voxel_data.getOrigin();
-		//	if (p.Z > voxel_data_param.ZCutLevel) {
-		//		return 0;
-		//	}
-		//}
-
 		return voxel_data.getDensity(x, y, z);
 	}
 
@@ -480,8 +469,6 @@ private:
 			new_point1 = pointB;
 			new_point2 = pointA;
 		}
-
-		//mesh_data.DebugPointList.Add(point1.pos);
 	}
 
 	FORCEINLINE TmpPoint vertexClc(TPointInfo& point1, TPointInfo& point2) {
@@ -541,7 +528,6 @@ private:
 			const unsigned short v0 = (edgeCode >> 4) & 0x0F;
 			const unsigned short v1 = edgeCode & 0x0F;
 			struct TmpPoint tp = vertexClc(d[v0], d[v1]);
-
 			materialIdSet.insert(tp.matId);
 			vertexList.push_back(tp);
 		}
@@ -737,19 +723,6 @@ public:
 		extractRegularCell(d);
         extractAllTransitionCell(d, x, y, z);
     }
-
-	/*
-	FORCEINLINE void generateCell (const TSubstanceCacheItem& cacheItm) {
-		const int x = cacheItm.x;
-		const int y = cacheItm.y;
-		const int z = cacheItm.z;
-
-		Point d[8];
-        makeVoxelpointArray(d, x, y, z);
-		extractRegularCell(d, cacheItm.caseCode);
-        extractAllTransitionCell(d, x, y, z);
-    }
-	*/
 };
 
 typedef std::shared_ptr<VoxelMeshExtractor> VoxelMeshExtractorPtr;
