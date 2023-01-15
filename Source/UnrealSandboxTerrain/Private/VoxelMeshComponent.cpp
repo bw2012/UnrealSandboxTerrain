@@ -696,7 +696,7 @@ void UVoxelMeshComponent::UpdateLocalBounds() {
 	const FVector BoxExt(USBT_ZONE_SIZE / 2.f);
 
 #if ENGINE_MAJOR_VERSION == 5
-	// const double Radius = BoxExt.Length(); 
+	const double Radius = BoxExt.Length(); 
 #else
 	const double Radius = BoxExt.Size();
 #endif
