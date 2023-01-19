@@ -680,8 +680,10 @@ void ASandboxTerrainController::AddInitialZone(const TVoxelIndex& ZoneIndex) {
 void ASandboxTerrainController::SpawnInitialZone() {
 	const int32 DebugArea = CVarDebugArea.GetValueOnGameThread();
 	if (DebugArea > 0) {
+		TArray<TSpawnZoneParam> SpawnList;
+
 		if (DebugArea == 1) {
-			AddInitialZone(TVoxelIndex(0, 0, 0));
+			SpawnList.Add(TSpawnZoneParam(TVoxelIndex(0, 0, 0)));
 		}
 
 		if (DebugArea == 2) {
@@ -690,21 +692,19 @@ void ASandboxTerrainController::SpawnInitialZone() {
 			for (auto Z = SZ; Z >= -SZ; Z--) {
 				for (auto X = -S; X <= S; X++) {
 					for (auto Y = -S; Y <= S; Y++) {
-						AddInitialZone(TVoxelIndex(X, Y, Z));
+						SpawnList.Add(TSpawnZoneParam(TVoxelIndex(X, Y, Z)));
 					}
 				}
 			}
 		}
 
+		BatchSpawnZone(SpawnList);
 		return;
 	}
 
 	TArray<TSpawnZoneParam> SpawnList;
 	for (const auto& ZoneIndex : InitialLoadSet) {
-		TSpawnZoneParam SpawnZoneParam;
-		SpawnZoneParam.Index = ZoneIndex;
-		SpawnZoneParam.TerrainLodMask = 0;
-		SpawnList.Add(SpawnZoneParam);
+		SpawnList.Add(TSpawnZoneParam(ZoneIndex));
 	}
 
 	BatchSpawnZone(SpawnList);
