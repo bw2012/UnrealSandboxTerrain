@@ -39,12 +39,6 @@ typedef std::shared_ptr<TMeshData> TMeshDataPtr;
 typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
 
 
-UENUM(BlueprintType)
-enum class ETerrainInitialArea : uint8 {
-	TIA_1_1 = 0	UMETA(DisplayName = "1x1"),
-	TIA_3_3 = 1	UMETA(DisplayName = "3x3"),
-};
-
 USTRUCT()
 struct FMapInfo {
 	GENERATED_BODY()
@@ -279,26 +273,7 @@ public:
     virtual void BeginDestroy() override;
 
 	virtual void FinishDestroy() override;
-    
-	//========================================================================================
-	// debug only
-	//========================================================================================
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool bGenerateOnlySmallSpawnPoint = false;
-    
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-    ETerrainInitialArea TerrainInitialArea = ETerrainInitialArea::TIA_3_3;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool bShowZoneBounds = false;
-        
-    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-    bool bShowStartSwapPos = false;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Debug")
-	bool bShowApplyZone = false;
-    
+       
     //========================================================================================
     // general
     //========================================================================================
@@ -314,6 +289,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
 	uint32 ActiveAreaDepth = 5;
+
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
+	double ConveyorMaxTime = 0.05;
               
 	//========================================================================================
 	// LOD
@@ -367,9 +345,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
 	USandboxTarrainFoliageMap* FoliageDataAsset;
-
-	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Foliage")
-	double ConveyorMaxTime = 0.05;
    
     //========================================================================================
     // networking
@@ -394,6 +369,8 @@ public:
 	void UE51MaterialIssueWorkaround();
 
 	//========================================================================================
+
+	bool IsDebugModeOn();
 
 	uint32 GetZoneVoxelResolution();
 
@@ -642,6 +619,8 @@ private:
 	void OnReceiveServerMapInfo(const TMap<TVoxelIndex, TZoneModificationData>& ServerDataMap);
 
 protected:
+
+	bool bGenerateOnlySmallSpawnPoint = false;
 
 	FMapInfo MapInfo;
 

@@ -16,6 +16,8 @@
 static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
 
+extern TAutoConsoleVariable<int32> CVarGeneratorDebugMode;
+
 class TChunkData {
 
 private:
@@ -457,6 +459,30 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
     Octree.Start();
     VoxelData->setCacheToValid();
 
+    const int LOD = Itm.GenerationLOD;
+    const int S = 1 << LOD;
+
+    for (int X = 0; X < ZoneVoxelResolution; X += S) {
+        for (int Y = 0; Y < ZoneVoxelResolution; Y += S) {
+            B(TVoxelIndex(X, Y, 0), VoxelData, ChunkData);
+            B(TVoxelIndex(X, Y, ZoneVoxelResolution - 1), VoxelData, ChunkData);
+        }
+    }
+
+    for (int X = 0; X < ZoneVoxelResolution; X += S) {
+        for (int Z = 0; Z < ZoneVoxelResolution; Z += S) {
+            B(TVoxelIndex(X, 0, Z), VoxelData, ChunkData);
+            B(TVoxelIndex(X, ZoneVoxelResolution - 1, Z), VoxelData, ChunkData);
+        }
+    }
+
+    for (int Y = 0; Y < ZoneVoxelResolution; Y += S) {
+        for (int Z = 0; Z < ZoneVoxelResolution; Z += S) {
+            B(TVoxelIndex(0, Y, Z), VoxelData, ChunkData);
+            B(TVoxelIndex(ZoneVoxelResolution - 1, Y, Z), VoxelData, ChunkData);
+        }
+    }
+
     double End2 = FPlatformTime::Seconds();
     double Time2 = (End2 - Start2) * 1000;
     float Ratio = (float)Octree.GetCount() / (float)Octree.GetTotal() * 100.f;
@@ -679,6 +705,7 @@ float UTerrainGeneratorComponent::B(const TVoxelIndex& Index, TVoxelData* VoxelD
 
 void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& List) {
     double Start1 = FPlatformTime::Seconds();
+    int32 DebugMode = CVarGeneratorDebugMode.GetValueOnAnyThread();
 
     for (const auto& Itm : List) {
         const TVoxelIndex& ZoneIndex = Itm.ZoneIndex;
@@ -694,11 +721,15 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
 
     double End1 = FPlatformTime::Seconds();
     double Time1 = (End1 - Start1) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
+
+    if (DebugMode > 0) {
+        UE_LOG(LogSandboxTerrain, Warning, TEXT("BatchGenerateComplexVd -> %f ms"), Time1);
+    }
 }
 
 void UTerrainGeneratorComponent::BatchGenerateSlightVd(TArray<TGenerateVdTempItm>& List) {
     double Start1 = FPlatformTime::Seconds();
+    int32 DebugMode = CVarGeneratorDebugMode.GetValueOnAnyThread();
 
     for (const auto& Itm : List) {
         if (Itm.Type == TZoneGenerationType::Landscape) {
@@ -707,12 +738,14 @@ void UTerrainGeneratorComponent::BatchGenerateSlightVd(TArray<TGenerateVdTempItm
         }
 
         // TODO handle others
-        //UE_LOG(LogSandboxTerrain, Error, TEXT("BatchGenerateSlightVd: no handler - %d %d %d"), Itm.ZoneIndex.X, Itm.ZoneIndex.Y, Itm.ZoneIndex.Z);
     }
 
     double End1 = FPlatformTime::Seconds();
     double Time1 = (End1 - Start1) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time1);
+
+    if (DebugMode > 0) {
+        UE_LOG(LogSandboxTerrain, Warning, TEXT("BatchGenerateSlightVd -> %f ms"), Time1);
+    }
 }
 
 TZoneGenerationType UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkDataPtr ChunkData) {
@@ -799,6 +832,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
     NewVdArray.SetNumZeroed(BatchList.Num());
     TArray<TGenerateVdTempItm> ComplexList;
     TArray<TGenerateVdTempItm> FastList;
+    int32 DebugMode = CVarGeneratorDebugMode.GetValueOnAnyThread();
 
     int Idx = 0;
     for (const auto& P : BatchList) {
@@ -820,7 +854,11 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
             NewVd->deinitializeMaterial(0);
             NewVd->setCacheToValid();
         } else if (GenItm.Method == TGenerationMethod::FastSimple) {
-            FastList.Add(GenItm);
+            if (DebugMode == 2) {
+                ComplexList.Add(GenItm);
+            } else {
+                FastList.Add(GenItm);
+            }
         } else if (GenItm.Method == TGenerationMethod::SlowComplex) {
             ComplexList.Add(GenItm);
         } else {
@@ -829,7 +867,6 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
 
         Idx++;
     }
-
 
     double Start2 = FPlatformTime::Seconds();
 
@@ -843,7 +880,10 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
 
     double End2 = FPlatformTime::Seconds();
     double Time2 = (End2 - Start2) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateVd Pass2 -> %f ms"), Time2);
+
+    if (DebugMode > 0) {
+        UE_LOG(LogSandboxTerrain, Warning, TEXT("BatchGenerateVoxelTerrain -> %f ms"), Time2);
+    }
 
     OnBatchGenerationFinished();
 }

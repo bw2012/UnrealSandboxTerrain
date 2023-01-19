@@ -426,6 +426,8 @@ public:
 		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
+			//DrawBox(Collector, ViewIndex, FLinearColor::Blue);
+
 			if (VisibilityMap & (1 << ViewIndex)) {
 				const FSceneView* View = Views[ViewIndex];
 				const FBoxSphereBounds& ProxyBounds = GetBounds();

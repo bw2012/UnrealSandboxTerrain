@@ -189,6 +189,8 @@ protected:
 
 private:
 
+	std::vector<TVoxelIndex> Pvi;
+
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
 
 	std::mutex ChunkDataMapMutex;

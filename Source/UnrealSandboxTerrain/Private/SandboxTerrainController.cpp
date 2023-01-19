@@ -36,6 +36,26 @@ bool IsGameShutdown() {
 // ====================================
 
 extern TAutoConsoleVariable<int32> CVarMainDistance;
+extern TAutoConsoleVariable<int32> CVarDebugArea;
+
+//========================================================================================
+// debug only
+//========================================================================================
+
+bool bShowZoneBounds = false;
+
+bool bShowStartSwapPos = false;
+
+bool bShowApplyZone = false;
+
+
+void ApplyTerrainMesh(UTerrainZoneComponent* Zone, std::shared_ptr<TMeshData> MeshDataPtr, bool bIgnoreCollision = false) {
+	if (bShowApplyZone) {
+		DrawDebugBox(Zone->GetWorld(), Zone->GetComponentLocation(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), false, 5);
+	}
+
+	Zone->ApplyTerrainMesh(MeshDataPtr, bIgnoreCollision, 0);
+}
 
 
 //======================================================================================================================================================================
@@ -99,7 +119,12 @@ void ASandboxTerrainController::BeginPlay() {
 	LoadConsoleVars();
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("Debug mode"));
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("Run as PIE"));
+	bGenerateOnlySmallSpawnPoint = IsDebugModeOn();
+	if (bGenerateOnlySmallSpawnPoint) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Debug mode ON"));
+		bEnableAreaStreaming = false;
+	}
 #else
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Packaged project: debug features are disabled"));
 	bGenerateOnlySmallSpawnPoint = false;
@@ -410,6 +435,8 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
 	SpawnInitialZone(); // spawn initial zones without conveyor
 	bEnableConveyor = true;
     
+
+
     if (!bGenerateOnlySmallSpawnPoint) {
 		TVoxelIndex B = GetZoneIndex(BeginServerTerrainLoadLocation);
 
@@ -651,32 +678,33 @@ void ASandboxTerrainController::AddInitialZone(const TVoxelIndex& ZoneIndex) {
 }
 
 void ASandboxTerrainController::SpawnInitialZone() {
-	const int S = static_cast<int>(TerrainInitialArea);
+	const int32 DebugArea = CVarDebugArea.GetValueOnGameThread();
+	if (DebugArea > 0) {
+		TArray<TSpawnZoneParam> SpawnList;
 
-	if (S > 0) {
-		float SZ = ActiveAreaDepth * USBT_ZONE_SIZE;
-		for (auto Z = SZ; Z >= -SZ; Z--) {
-			for (auto X = -S; X <= S; X++) {
-				for (auto Y = -S; Y <= S; Y++) {
-					AddInitialZone(TVoxelIndex(X, Y, Z));
+		if (DebugArea == 1) {
+			SpawnList.Add(TSpawnZoneParam(TVoxelIndex(0, 0, 0)));
+		}
+
+		if (DebugArea == 2) {
+			const int SZ = ActiveAreaDepth * USBT_ZONE_SIZE;
+			const int S = 1;
+			for (auto Z = SZ; Z >= -SZ; Z--) {
+				for (auto X = -S; X <= S; X++) {
+					for (auto Y = -S; Y <= S; Y++) {
+						SpawnList.Add(TSpawnZoneParam(TVoxelIndex(X, Y, Z)));
+					}
 				}
 			}
 		}
-	} else {
-		AddInitialZone(TVoxelIndex(0, 0, 0));
+
+		BatchSpawnZone(SpawnList);
+		return;
 	}
 
 	TArray<TSpawnZoneParam> SpawnList;
 	for (const auto& ZoneIndex : InitialLoadSet) {
-		TSpawnZoneParam SpawnZoneParam;
-		SpawnZoneParam.Index = ZoneIndex;
-		SpawnZoneParam.TerrainLodMask = 0;
-		SpawnList.Add(SpawnZoneParam);
-
-		AsyncTask(ENamedThreads::GameThread, [=]() {
-			//DrawDebugBox(GetWorld(), GetZonePos(ZoneIndex), FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), true);
-		});
-
+		SpawnList.Add(TSpawnZoneParam(ZoneIndex));
 	}
 
 	BatchSpawnZone(SpawnList);
@@ -783,7 +811,7 @@ void ASandboxTerrainController::ExecGameThreadZoneApplyMesh(const TVoxelIndex& I
 
 				TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 
-				Zone->ApplyTerrainMesh(MeshDataPtr, 0);
+				ApplyTerrainMesh(Zone, MeshDataPtr);
 				VdInfoPtr->SetNeedTerrainSave();
 				TerrainData->AddSaveIndex(Index);
 			}
@@ -810,7 +838,7 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 
 				UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
 				if (Zone) {
-					Zone->ApplyTerrainMesh(MeshDataPtr, 0);
+					ApplyTerrainMesh(Zone, MeshDataPtr);
 
 					if (bIsChanged) {
 						VdInfoPtr->SetNeedTerrainSave();
@@ -1016,7 +1044,7 @@ void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
 
 		auto MeshDataPtr = VdInfoPtr->GetMeshDataCache();
 		if (MeshDataPtr != nullptr) {
-			ZoneComponent->ApplyTerrainMesh(MeshDataPtr, true);
+			ApplyTerrainMesh(ZoneComponent, MeshDataPtr, true);
 		}
 
 		VdInfoPtr->Unlock();
@@ -1028,8 +1056,13 @@ void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
 }
 
 void ASandboxTerrainController::LoadConsoleVars() {
-	int32 MainDistanceOverride = CVarMainDistance.GetValueOnGameThread();
+	const int32 MainDistanceOverride = CVarMainDistance.GetValueOnGameThread();
 	if (MainDistanceOverride > 0) {
 		ActiveAreaSize = MainDistanceOverride;
 	}
+}
+
+bool ASandboxTerrainController::IsDebugModeOn() {
+	const int32 DebugArea = CVarDebugArea.GetValueOnGameThread();
+	return DebugArea > 0;
 }
