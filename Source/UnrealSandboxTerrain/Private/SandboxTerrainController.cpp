@@ -614,7 +614,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 				if (TdFile.isExist(Index)) {
 					TValueDataPtr DataPtr = TdFile.loadData(Index);
 					usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
-					TKvFileZodeData ZoneHeader;
+					TKvFileZoneData ZoneHeader;
 					Deserializer >> ZoneHeader;
 
 					bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
