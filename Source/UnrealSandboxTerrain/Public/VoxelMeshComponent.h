@@ -6,7 +6,7 @@
 #include "Components/MeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "ProcMeshData.h"
-#include "SandboxVoxeldata.h"
+#include "SandboxVoxelCore.h"
 
 #include "VoxelMeshComponent.generated.h"
 

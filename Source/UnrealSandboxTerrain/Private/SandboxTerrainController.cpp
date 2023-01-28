@@ -985,6 +985,7 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 	}
 
 	TMeshDataPtr MeshDataPtr = sandboxVoxelGenerateMesh(*Vd, Vdp);
+	MeshDataPtr->BaseMaterialId = Vd->getBaseMatId();
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;

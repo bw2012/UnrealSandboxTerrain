@@ -1,11 +1,7 @@
 // Copyright blackw 2015-2020
 
 #include "VoxelMeshComponent.h"
-
-#include "SandboxVoxeldata.h"
 #include "SandboxTerrainController.h"
-#include "SandboxVoxeldata.h"
-
 #include "Engine.h"
 #include "DynamicMeshBuilder.h"
 #include "PhysicsEngine/PhysicsSettings.h"
@@ -274,24 +270,24 @@ public:
 
 			// copy regular material mesh
 			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
-			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
+			auto MatProvider = [&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) { return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; };
+			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray, MatProvider);
 
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
 			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
+				[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) { return (TerrainController) ? TerrainController->GetTransitionMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
 
 			for (auto i = 0; i < 6; i++) {
 				// copy regular material mesh
 				TMaterialSectionMap& LodMaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
 				CopyMaterialMesh<TMeshMaterialSection>(Component, LodMaterialMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) {return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
+					[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) { return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
 
 				// copy transition material mesh
 				TMaterialTransitionSectionMap& LodMaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
 				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, LodMaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) {return (TerrainController) ? TerrainController->GetTransitionTerrainMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
+					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) { return (TerrainController) ? TerrainController->GetTransitionMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
 			}
 
 			// Save ref to new section
@@ -582,7 +578,7 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr NewMeshDataPtr, const TTerrai
 				}
 
 				for (const auto& Element : SourceMesh->RegularMeshContainer.MaterialTransitionSectionMap) {
-					LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.MaterialIdSet));
+					LocalMaterials.Add(TerrainController->GetTransitionMaterial(Element.Value.MaterialIdSet));
 				}
 			}
 			if (bLodFlag) {
@@ -597,7 +593,7 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr NewMeshDataPtr, const TTerrai
 						}
 
 						for (const auto& Element : SourceMesh->TransitionPatchArray[i].MaterialTransitionSectionMap) {
-							LocalMaterials.Add(TerrainController->GetTransitionTerrainMaterial(Element.Value.MaterialIdSet));
+							LocalMaterials.Add(TerrainController->GetTransitionMaterial(Element.Value.MaterialIdSet));
 						}
 					}
 

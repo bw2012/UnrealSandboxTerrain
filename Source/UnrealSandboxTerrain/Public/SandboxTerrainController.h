@@ -406,7 +406,7 @@ public:
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
-	UMaterialInterface* GetTransitionTerrainMaterial(const std::set<unsigned short>& MaterialIdSet);
+	UMaterialInterface* GetTransitionMaterial(const std::set<unsigned short>& MaterialIdSet);
 
 	const FTerrainInstancedMeshType* GetInstancedMeshType(uint32 MeshTypeId, uint32 MeshVariantId = 0) const;
 
