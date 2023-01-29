@@ -1,3 +1,12 @@
+/**
+* SandboxVoxelCore.cpp
+*
+* blackw
+* 
+* Created: Wed Aug 3 22:26:27 2016
+* initial file name: SandboxVoxeldata.cpp
+*
+*/
 
 #include "SandboxVoxelCore.h"
 #include "Transvoxel.h"
