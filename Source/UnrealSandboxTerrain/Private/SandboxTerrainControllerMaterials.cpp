@@ -21,7 +21,7 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 	}
 
 	if (!RegularMaterialCache.Contains(MaterialId)) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("create new regular terrain material instance ----> id: %d"), MaterialId);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("create new regular terrain material instance -> id: %d"), MaterialId);
 		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(RegularMaterial, this);
 
 		if (MaterialMap.Contains(MaterialId)) {
@@ -37,7 +37,7 @@ UMaterialInterface* ASandboxTerrainController::GetRegularTerrainMaterial(uint16 
 	return RegularMaterialCache[MaterialId];
 }
 
-UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(const std::set<unsigned short>& MaterialIdSet) {
+UMaterialInterface* ASandboxTerrainController::GetTransitionMaterial(const std::set<unsigned short>& MaterialIdSet) {
 	if (TransitionMaterial == nullptr) {
 		return nullptr;
 	}
@@ -47,7 +47,7 @@ UMaterialInterface* ASandboxTerrainController::GetTransitionTerrainMaterial(cons
 		TTransitionMaterialCode tmp;
 		tmp.Code = Code;
 
-		UE_LOG(LogSandboxTerrain, Log, TEXT("create new transition terrain material instance ----> id: %llu (%lu-%lu-%lu)"), Code, tmp.TriangleMatId[0], tmp.TriangleMatId[1], tmp.TriangleMatId[2]);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("create new transition terrain material instance -> id: %llu (%lu-%lu-%lu)"), Code, tmp.TriangleMatId[0], tmp.TriangleMatId[1], tmp.TriangleMatId[2]);
 		UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(TransitionMaterial, this);
 
 		int Idx = 0;

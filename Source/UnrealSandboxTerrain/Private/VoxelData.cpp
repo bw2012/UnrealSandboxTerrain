@@ -458,6 +458,10 @@ std::shared_ptr<std::vector<uint8>> TVoxelData::serialize() {
 	return serializer.data();
 }
 
+TMaterialId TVoxelData::getBaseMatId() {
+	return base_fill_mat;
+}
+
 void TVoxelData::setBaseMatId(TMaterialId base_mat_id) {
 	base_fill_mat = base_mat_id;
 }

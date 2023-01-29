@@ -1,5 +1,4 @@
-#ifndef __SANDBOXMOBILE_VOXELDATA_H__
-#define __SANDBOXMOBILE_VOXELDATA_H__
+#pragma once
 
 #include "EngineMinimal.h"
 #include "VoxelData.h"
@@ -11,4 +10,3 @@ std::shared_ptr<TMeshData> sandboxVoxelGenerateMesh(const TVoxelData &vd, const 
 
 TMeshDataPtr polygonizeSingleCell(const TVoxelData& vd, const TVoxelDataParam& vdp, int x, int y, int z);
 
-#endif

@@ -614,7 +614,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 				if (TdFile.isExist(Index)) {
 					TValueDataPtr DataPtr = TdFile.loadData(Index);
 					usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
-					TKvFileZodeData ZoneHeader;
+					TKvFileZoneData ZoneHeader;
 					Deserializer >> ZoneHeader;
 
 					bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
@@ -985,6 +985,7 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 	}
 
 	TMeshDataPtr MeshDataPtr = sandboxVoxelGenerateMesh(*Vd, Vdp);
+	MeshDataPtr->BaseMaterialId = Vd->getBaseMatId();
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;

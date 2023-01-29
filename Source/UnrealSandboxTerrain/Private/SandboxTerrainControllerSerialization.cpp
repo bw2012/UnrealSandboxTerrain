@@ -214,7 +214,7 @@ bool ASandboxTerrainController::LoadMeshAndObjectDataByIndex(const TVoxelIndex& 
 	TValueDataPtr DataPtr = LoadDataFromKvFile2(TdFile, Index);
 	if (DataPtr) {
 		usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
-		TKvFileZodeData ZoneHeader;
+		TKvFileZoneData ZoneHeader;
 		Deserializer >> ZoneHeader;
 
 		if (ZoneHeader.LenMd > 0) {
@@ -368,7 +368,7 @@ void ASandboxTerrainController::CloseFile() {
 //======================================================================================================================================================================
 
 uint32 SaveZoneToFile(TKvFile& TerrainDataFile, TKvFile& VoxelDataFile, TKvFile& ObjDataFile, const TVoxelIndex& Index, const TValueDataPtr DataVd, const TValueDataPtr DataMd, const TValueDataPtr DataObj) {
-	TKvFileZodeData ZoneHeader;
+	TKvFileZoneData ZoneHeader;
 	if (!DataVd) {
 		ZoneHeader.SetFlag((int)TZoneFlag::NoVoxelData);
 	}

@@ -214,7 +214,7 @@ enum class TZoneFlag : int {
 	NoVoxelData = 2,
 };
 
-typedef struct TKvFileZodeData {
+typedef struct TKvFileZoneData {
 	uint32 Flags = 0x0;
 	uint32 LenMd = 0;
 
@@ -226,7 +226,7 @@ typedef struct TKvFileZodeData {
 		Flags |= 1UL << Flag;
 	};
 
-} TKvFileZodeData;
+} TKvFileZoneData;
 
 struct TZoneModificationData {
 
@@ -406,7 +406,7 @@ public:
 
 	UMaterialInterface* GetRegularTerrainMaterial(uint16 MaterialId);
 
-	UMaterialInterface* GetTransitionTerrainMaterial(const std::set<unsigned short>& MaterialIdSet);
+	UMaterialInterface* GetTransitionMaterial(const std::set<unsigned short>& MaterialIdSet);
 
 	const FTerrainInstancedMeshType* GetInstancedMeshType(uint32 MeshTypeId, uint32 MeshVariantId = 0) const;
 

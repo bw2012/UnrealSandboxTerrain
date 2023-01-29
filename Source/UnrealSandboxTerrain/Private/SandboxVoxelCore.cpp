@@ -1,5 +1,14 @@
+/**
+* SandboxVoxelCore.cpp
+*
+* blackw
+* 
+* Created: Wed Aug 3 22:26:27 2016
+* initial file name: SandboxVoxeldata.cpp
+*
+*/
 
-#include "SandboxVoxeldata.h"
+#include "SandboxVoxelCore.h"
 #include "Transvoxel.h"
 #include "VoxelIndex.h"
 #include <cmath>
@@ -9,12 +18,15 @@
 #include <map>
 
 
+#define FORCEINLINE2 FORCEINLINE  
+//#define FORCEINLINE2 FORCENOINLINE  //debug
+
 typedef struct TVoxelDataGenerationParam {
     int lod = 0;
     bool bGenerateLOD = false;
 	bool bIgnoreLodPatches = false;
     
-    FORCEINLINE int step() const { 
+	FORCEINLINE2 int step() const {
 		return 1 << lod; 
 	}
 
@@ -26,7 +38,7 @@ typedef struct TVoxelDataGenerationParam {
 
 //====================================================================================
 	
-static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
+static FORCEINLINE2 FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
     float A = p1.Y * (p2.Z - p3.Z) + p2.Y * (p3.Z - p1.Z) + p3.Y * (p1.Z - p2.Z);
     float B = p1.Z * (p2.X - p3.X) + p2.Z * (p3.X - p1.X) + p3.Z * (p1.X - p2.X);
     float C = p1.X * (p2.Y - p3.Y) + p2.X * (p3.Y - p1.Y) + p3.X * (p1.Y - p2.Y);
@@ -43,8 +55,6 @@ static FORCEINLINE FVector clcNormal(FVector &p1, FVector &p2, FVector &p3) {
 //	VoxelMeshExtractor
 //
 //####################################################################################################################################
-
-//#define FORCEINLINE FORCENOINLINE  //debug
 
 class VoxelMeshExtractor {
 
@@ -105,7 +115,6 @@ private:
 			materialSectionMapPtr = &meshMatContainer->MaterialSectionMap;
 			materialTransitionSectionMapPtr = &meshMatContainer->MaterialTransitionSectionMap;
 		}
-
 
 	private:
 
@@ -308,11 +317,11 @@ public:
 private:
 	double isolevel = 0.5f;
 
-	FORCEINLINE TPointInfo getVoxelpoint(TVoxelIndex Idx) {
+	FORCEINLINE2 TPointInfo getVoxelpoint(TVoxelIndex Idx) {
 		return getVoxelpoint(Idx.X, Idx.Y, Idx.Z);
 	}
 
-	FORCEINLINE TPointInfo getVoxelpoint(uint8 x, uint8 y, uint8 z) {
+	FORCEINLINE2 TPointInfo getVoxelpoint(uint8 x, uint8 y, uint8 z) {
 		TPointInfo vp;
 		vp.adr = TVoxelIndex(x, y, z);
 		vp.density = getDensity(x, y, z);
@@ -321,15 +330,15 @@ private:
 		return vp;
 	}
 
-	FORCEINLINE float getDensity(int x, int y, int z) {
+	FORCEINLINE2 float getDensity(int x, int y, int z) {
 		return voxel_data.getDensity(x, y, z);
 	}
 
-	FORCEINLINE unsigned short getMaterial(int x, int y, int z) {
+	FORCEINLINE2 unsigned short getMaterial(int x, int y, int z) {
 		return voxel_data.getMaterial(x, y, z);
 	}
 
-	FORCEINLINE FVector vertexInterpolation(FVector p1, FVector p2, float valp1, float valp2) {
+	FORCEINLINE2 FVector vertexInterpolation(FVector p1, FVector p2, float valp1, float valp2) {
 		if (std::abs(isolevel - valp1) < 0.00001) {
 			return p1;
 		}
@@ -351,7 +360,7 @@ private:
 	}
 
 	// fast material select for LOD0
-	FORCEINLINE void selectMaterialLOD0(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
+	FORCEINLINE2 void selectMaterialLOD0(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
 		if (point1.material_id == point2.material_id) {
 			tp.matId = point1.material_id;
 			return;
@@ -368,14 +377,14 @@ private:
 	}
 
 	// calculate material for LOD1-4
-	FORCEINLINE void selectMaterialLODMedium(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
+	FORCEINLINE2 void selectMaterialLODMedium(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
 		float mu = (isolevel - point1.density) / (point2.density - point1.density);
 		TVoxelIndex tmp = point1.adr + (point2.adr - point1.adr) * mu;
 		tp.matId = getMaterial(tmp.X, tmp.Y, tmp.Z);
 	}
 
 	// calculate material for LOD5-6
-	FORCEINLINE void selectMaterialLODBig(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
+	FORCEINLINE2 void selectMaterialLODBig(struct TmpPoint& tp, TPointInfo& point1, TPointInfo& point2) {
 		TVoxelIndex A;
 		TVoxelIndex B;
 
@@ -471,7 +480,7 @@ private:
 		}
 	}
 
-	FORCEINLINE TmpPoint vertexClc(TPointInfo& point1, TPointInfo& point2) {
+	FORCEINLINE2 TmpPoint vertexClc(TPointInfo& point1, TPointInfo& point2) {
 		struct TmpPoint ret;
 
 		if (voxel_data_param.lod != 0) {
@@ -501,17 +510,17 @@ private:
 		return ret;
 	}
 
-	FORCEINLINE void getConrers(int8 (&corner)[8], TPointInfo(&d)[8]) {
+	FORCEINLINE2 void getConrers(int8 (&corner)[8], TPointInfo(&d)[8]) {
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? 0 : -127;
 		}
 	}
 
-	FORCEINLINE TVoxelIndex clcMediumAddr(const TVoxelIndex& adr1, const TVoxelIndex& adr2) {
+	FORCEINLINE2 TVoxelIndex clcMediumAddr(const TVoxelIndex& adr1, const TVoxelIndex& adr2) {
 		return (adr2 - adr1) / 2 + adr1;
 	}
 
-	FORCEINLINE void extractRegularCell(TPointInfo(&d)[8], unsigned long caseCode) {
+	FORCEINLINE2 void extractRegularCell(TPointInfo(&d)[8], unsigned long caseCode) {
 		if (caseCode == 0) { 
 			return; 
 		}
@@ -564,7 +573,7 @@ private:
 		}
 	}
 
-	FORCEINLINE void extractRegularCell(TPointInfo(&d)[8]) {
+	FORCEINLINE2 void extractRegularCell(TPointInfo(&d)[8]) {
 		int8 corner[8];
 		for (auto i = 0; i < 8; i++) {
 			corner[i] = (d[i].density < isolevel) ? -127 : 0;
@@ -574,7 +583,7 @@ private:
 		extractRegularCell(d, caseCode);
 	}
 
-	FORCEINLINE void extractTransitionCell(int sectionNumber, TPointInfo& d0, TPointInfo& d2, TPointInfo& d6, TPointInfo& d8) {
+	FORCEINLINE2 void extractTransitionCell(int sectionNumber, TPointInfo& d0, TPointInfo& d2, TPointInfo& d6, TPointInfo& d8) {
 		TPointInfo d[14];
 
 		d[0] = d0;
@@ -717,7 +726,7 @@ private:
     //####################################################################################################################################
     
 public:
-	FORCEINLINE void generateCell(int x, int y, int z) {
+	FORCEINLINE2 void generateCell(int x, int y, int z) {
 		TPointInfo d[8];
         makeVoxelpointArray(d, x, y, z);
 		extractRegularCell(d);
@@ -803,8 +812,6 @@ TMeshDataPtr polygonizeVoxelGridNoLOD(const TVoxelData &vd, const TVoxelDataPara
 TMeshDataPtr polygonizeVoxelGridWithLOD(const TVoxelData &vd, const TVoxelDataParam &vdp) {
 	TMeshData* mesh_data = new TMeshData();
 	std::vector<VoxelMeshExtractorPtr> MeshExtractorLod;
-	//VoxelMeshExtractorPtr MeshExtractorLod[LOD_ARRAY_SIZE];
-
 	static const int max_lod = LOD_ARRAY_SIZE;
 
 	// create mesh extractor for each LOD
@@ -851,4 +858,3 @@ TMeshDataPtr sandboxVoxelGenerateMesh(const TVoxelData &vd, const TVoxelDataPara
 	UE_LOG(LogSandboxTerrain, Warning, TEXT("No voxel data cache: %f %f %f"), vd.getOrigin().X, vd.getOrigin().Y, vd.getOrigin().Z);
 	return vdp.bGenerateLOD ? polygonizeVoxelGridWithLOD(vd, vdp) : polygonizeVoxelGridNoLOD(vd, vdp);
 }
-
