@@ -105,13 +105,13 @@ public:
 	/** */
 	TMeshPtrArray NormalPatchPtrArray[6];
 
-	/** Array of transition sections (todo: should be changed to mat sections)*/
-	FProcMeshProxySection* transitionMesh[6];
+	/** Array of transition sections (TODO: should be changed to mat sections)*/
+	FProcMeshProxySection* TransitionMesh[6];
 
 	FMeshProxyLodSection() {
-		for (auto i = 0; i < 6; i++) {
-			transitionMesh[i] = nullptr;
-			NormalPatchPtrArray[i].Empty();
+		for (auto I = 0; I < 6; I++) {
+			TransitionMesh[I] = nullptr;
+			NormalPatchPtrArray[I].Empty();
 		}
 	}
 
@@ -121,12 +121,12 @@ public:
 			delete MatSectionPtr;
 		}
 
-		for (auto i = 0; i < 6; i++) {
-			if (transitionMesh[i] != nullptr) {
-				delete transitionMesh[i];
+		for (auto I = 0; I < 6; I++) {
+			if (TransitionMesh[I] != nullptr) {
+				delete TransitionMesh[I];
 			}
 
-			for (FProcMeshProxySection* Section : NormalPatchPtrArray[i]) {
+			for (FProcMeshProxySection* Section : NormalPatchPtrArray[I]) {
 				if (Section != nullptr) {
 					delete Section;
 				}
@@ -316,6 +316,17 @@ public:
 
 extern float LodScreenSizeArray[LOD_ARRAY_SIZE];
 
+const FVector NDir[6] = {
+	FVector(-USBT_ZONE_SIZE, 0, 0), // -X
+	FVector(USBT_ZONE_SIZE, 0, 0),	// +X
+
+	FVector(0, -USBT_ZONE_SIZE, 0), // -Y
+	FVector(0, USBT_ZONE_SIZE, 0),	// +Y
+
+	FVector(0, 0, -USBT_ZONE_SIZE), // -Z
+	FVector(0, 0, USBT_ZONE_SIZE),	// +Z
+};
+
 class FVoxelMeshSceneProxy final : public FAbstractMeshSceneProxy {
 
 private:
@@ -327,17 +338,6 @@ private:
 	float CullDistance = 20000.f;
 
 	ASandboxTerrainController* Controller;
-
-	const FVector V[6] = {
-		FVector(-USBT_ZONE_SIZE, 0, 0), // -X
-		FVector(USBT_ZONE_SIZE, 0, 0),	// +X
-
-		FVector(0, -USBT_ZONE_SIZE, 0), // -Y
-		FVector(0, USBT_ZONE_SIZE, 0),	// +Y
-
-		FVector(0, 0, -USBT_ZONE_SIZE), // -Z
-		FVector(0, 0, USBT_ZONE_SIZE),	// +Z
-	};
 
 public:
 
@@ -364,7 +364,6 @@ public:
 
 		for (auto& Element : MaterialMap) {
 			unsigned short MatId = Element.Key;
-
 			T& Section = Element.Value;
 
 			TMeshMaterialSection& SrcMaterialSection = static_cast<TMeshMaterialSection&>(Section);
@@ -412,14 +411,14 @@ public:
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
 			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray, MatProviderT);
 
-			for (auto i = 0; i < 6; i++) {
+			for (auto I = 0; I < 6; I++) {
 				// copy regular material mesh
-				TMaterialSectionMap& LodMaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
-				CopyMaterialMesh<TMeshMaterialSection>(Component, LodMaterialMap, NewLodSection->NormalPatchPtrArray[i], MatProviderR);
+				TMaterialSectionMap& LodMaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[I].MaterialSectionMap;
+				CopyMaterialMesh<TMeshMaterialSection>(Component, LodMaterialMap, NewLodSection->NormalPatchPtrArray[I], MatProviderR);
 
 				// copy transition material mesh
-				TMaterialTransitionSectionMap& LodMaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
-				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, LodMaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i], MatProviderT);
+				TMaterialTransitionSectionMap& LodMaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[I].MaterialTransitionSectionMap;
+				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, LodMaterialTransitionMap, NewLodSection->NormalPatchPtrArray[I], MatProviderT);
 			}
 
 			// Save ref to new section
@@ -465,7 +464,7 @@ public:
 		const float ScreenSize = ComputeBoundsScreenSize(Pos, ProxyBounds.SphereRadius, *View);
 
 		int32 I = 0;
-		for (int LODIndex = 0; LODIndex < LOD_ARRAY_SIZE; LODIndex++) { // TODO: fix LODIndex < 4
+		for (int LODIndex = 0; LODIndex < LOD_ARRAY_SIZE; LODIndex++) { 
 			if (ScreenSize < LodScreenSizeArray[LODIndex]) {
 				I = LODIndex;
 			}
@@ -513,7 +512,7 @@ public:
 				if (LodIndex > 0) {
 					// draw transition patches
 					for (auto i = 0; i < 6; i++) {
-						const FVector  NeighborZoneOrigin = ZoneOrigin + V[i];
+						const FVector  NeighborZoneOrigin = ZoneOrigin + NDir[i];
 						const auto NeighborLodIndex = ComputeLodIndexByScreenSize(View, NeighborZoneOrigin);
 						if (NeighborLodIndex < LodIndex) {
 							FMeshProxyLodSection* LodSectionProxy = LodSectionArray[LodIndex];
