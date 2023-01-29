@@ -173,9 +173,8 @@ protected:
 
 public:
 
-	FAbstractMeshSceneProxy(UVoxelMeshComponent* Component) : FPrimitiveSceneProxy(Component) {
-
-	}
+	FAbstractMeshSceneProxy(UVoxelMeshComponent* Component) : FPrimitiveSceneProxy(Component), 
+		MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel())) { }
 
 	SIZE_T GetTypeHash() const override {
 		static size_t UniquePointer;
@@ -322,10 +321,12 @@ class FVoxelMeshSceneProxy final : public FAbstractMeshSceneProxy {
 private:
 	/** Array of lod sections */
 	TArray<FMeshProxyLodSection*> LodSectionArray;
-	UBodySetup* BodySetup;
+
 	FMaterialRelevance MaterialRelevance;
 	FVector ZoneOrigin;
 	float CullDistance = 20000.f;
+
+	ASandboxTerrainController* Controller;
 
 	const FVector V[6] = {
 		FVector(-USBT_ZONE_SIZE, 0, 0), // -X
@@ -340,16 +341,13 @@ private:
 
 public:
 
-	FVoxelMeshSceneProxy(UVoxelMeshComponent* Component) : FAbstractMeshSceneProxy(Component), BodySetup(Component->GetBodySetup()), MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel())) {
+	FVoxelMeshSceneProxy(UVoxelMeshComponent* Component) : FAbstractMeshSceneProxy(Component) {
 		ZoneOrigin = Component->GetComponentLocation();
-
-		ASandboxTerrainController* Controller = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
+		Controller = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
 		if (Controller) {
 			CullDistance = Controller->ActiveAreaSize * 1.5 * USBT_ZONE_SIZE;
+			CopyAll(Component);
 		}
-
-		// Copy each section
-		CopyAll(Component);
 	}
 
 	virtual ~FVoxelMeshSceneProxy() {
@@ -386,20 +384,9 @@ public:
 	}
 
 	void CopyAll(UVoxelMeshComponent* Component) {
-		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-		ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(Component->GetAttachmentRootActor());
-
-		// if not terrain
-		if (TerrainController == nullptr) {
-			// grab default material
-			DefaultMaterial = Component->GetMaterial(0);
-			if (DefaultMaterial == NULL) {
-				DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-			}
-		}
+		ASandboxTerrainController* TerrainController = Controller;
 
 		const int32 NumSections = Component->MeshSectionLodArray.Num();
-
 		if (NumSections == 0) {
 			return;
 		}
@@ -409,26 +396,30 @@ public:
 		for (int SectionIdx = 0; SectionIdx < NumSections; SectionIdx++) {
 			FMeshProxyLodSection* NewLodSection = new FMeshProxyLodSection();
 
+			auto MatProviderR = [&TerrainController](TMeshMaterialSection Ms) { 
+				return TerrainController->GetRegularTerrainMaterial(Ms.MaterialId); 
+			};
+
+			auto MatProviderT = [&TerrainController](TMeshMaterialTransitionSection Ms) { 
+				return TerrainController->GetTransitionMaterial(Ms.MaterialIdSet); 
+			};
+
 			// copy regular material mesh
 			TMaterialSectionMap& MaterialMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialSectionMap;
-			auto MatProvider = [&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) { return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; };
-			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray, MatProvider);
+			CopyMaterialMesh<TMeshMaterialSection>(Component, MaterialMap, NewLodSection->MaterialMeshPtrArray, MatProviderR);
 
 			// copy transition material mesh
 			TMaterialTransitionSectionMap& MaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].RegularMeshContainer.MaterialTransitionSectionMap;
-			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray,
-				[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) { return (TerrainController) ? TerrainController->GetTransitionMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
+			CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, MaterialTransitionMap, NewLodSection->MaterialMeshPtrArray, MatProviderT);
 
 			for (auto i = 0; i < 6; i++) {
 				// copy regular material mesh
 				TMaterialSectionMap& LodMaterialMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialSectionMap;
-				CopyMaterialMesh<TMeshMaterialSection>(Component, LodMaterialMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController, &DefaultMaterial](TMeshMaterialSection Ms) { return (TerrainController) ? TerrainController->GetRegularTerrainMaterial(Ms.MaterialId) : DefaultMaterial; });
+				CopyMaterialMesh<TMeshMaterialSection>(Component, LodMaterialMap, NewLodSection->NormalPatchPtrArray[i], MatProviderR);
 
 				// copy transition material mesh
 				TMaterialTransitionSectionMap& LodMaterialTransitionMap = Component->MeshSectionLodArray[SectionIdx].TransitionPatchArray[i].MaterialTransitionSectionMap;
-				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, LodMaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i],
-					[&TerrainController, &DefaultMaterial](TMeshMaterialTransitionSection Ms) { return (TerrainController) ? TerrainController->GetTransitionMaterial(Ms.MaterialIdSet) : DefaultMaterial; });
+				CopyMaterialMesh<TMeshMaterialTransitionSection>(Component, LodMaterialTransitionMap, NewLodSection->NormalPatchPtrArray[i], MatProviderT);
 			}
 
 			// Save ref to new section
@@ -444,28 +435,30 @@ public:
 		}
 	}
 
-	//================================================================================================
-	// Draw main zone as static mesh
-	//================================================================================================
-
-	void DrawStaticLodSection(FStaticPrimitiveDrawInterface* PDI, const FMeshProxyLodSection* LodSection, int LODIndex) {
-		if (LodSection != nullptr) {
-			for (FProcMeshProxySection* MatSection : LodSection->MaterialMeshPtrArray) {
-				if (MatSection != nullptr) {
-					DrawStaticMeshSection(PDI, MatSection, LODIndex);
-				}
-			}
-		}
+	bool CheckCullDistance(const FSceneView* View) const {
+		const FVector OriginXY(View->ViewMatrices.GetViewOrigin().X, View->ViewMatrices.GetViewOrigin().Y, 0);
+		const FVector ZoneOriginXY(ZoneOrigin.X, ZoneOrigin.Y, 0);
+		const float Distance = FVector::Distance(OriginXY, ZoneOriginXY);
+		return Distance <= CullDistance;
 	}
 
-	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {
-		if (LodSectionArray.Num() > 0) {
-			for (int LODIndex = 0; LODIndex < LodSectionArray.Num(); LODIndex++) {
-				const FMeshProxyLodSection* LodSection = LodSectionArray[LODIndex];
-				DrawStaticLodSection(PDI, LodSection, LODIndex);
-			}
-		}
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
+		FPrimitiveViewRelevance Result;
+
+		Result.bDrawRelevance = CheckCullDistance(View) && IsShown(View);
+		Result.bShadowRelevance = IsShadowCast(View);
+		Result.bDynamicRelevance = true;
+		Result.bStaticRelevance = true;
+		Result.bRenderInMainPass = ShouldRenderInMainPass();
+		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		return Result;
 	}
+
+	//================================================================================================
+	// Lod index by Screen size
+	//================================================================================================
 
 	int32 ComputeLodIndexByScreenSize(const FSceneView* View, const FVector& Pos) const {
 		const FBoxSphereBounds& ProxyBounds = GetBounds();
@@ -479,6 +472,25 @@ public:
 		}
 
 		return I;
+	}
+
+	//================================================================================================
+	// Draw main zone as static mesh
+	//================================================================================================
+
+	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) {
+		if (LodSectionArray.Num() > 0) {
+			for (int LODIndex = 0; LODIndex < LodSectionArray.Num(); LODIndex++) {
+				const FMeshProxyLodSection* LodSection = LodSectionArray[LODIndex];
+				if (LodSection != nullptr) {
+					for (FProcMeshProxySection* MatSection : LodSection->MaterialMeshPtrArray) {
+						if (MatSection != nullptr) {
+							DrawStaticMeshSection(PDI, MatSection, LODIndex);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	//================================================================================================
@@ -521,21 +533,4 @@ public:
 		}
 	}
 
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const {
-		FPrimitiveViewRelevance Result;
-
-		const FVector O(View->ViewMatrices.GetViewOrigin().X, View->ViewMatrices.GetViewOrigin().Y, 0);
-		const FVector ZO(ZoneOrigin.X, ZoneOrigin.Y, 0);
-		const float Distance = FVector::Distance(O, ZO);
-
-		Result.bDrawRelevance = (Distance <= CullDistance) && IsShown(View);
-		Result.bShadowRelevance = IsShadowCast(View);
-		Result.bDynamicRelevance = true;
-		Result.bStaticRelevance = true;
-		Result.bRenderInMainPass = ShouldRenderInMainPass();
-		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
-		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
-		MaterialRelevance.SetPrimitiveViewRelevance(Result);
-		return Result;
-	}
 };
