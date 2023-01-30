@@ -333,7 +333,6 @@ private:
 	/** Array of lod sections */
 	TArray<FMeshProxyLodSection*> LodSectionArray;
 
-	FMaterialRelevance MaterialRelevance;
 	FVector ZoneOrigin;
 	float CullDistance = 20000.f;
 
