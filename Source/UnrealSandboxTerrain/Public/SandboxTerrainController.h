@@ -564,8 +564,6 @@ private:
 
 	TMap<uint32, FSandboxFoliage> FoliageMap;
 
-	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
-
 	//===============================================================================
 	// materials
 	//===============================================================================

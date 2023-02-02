@@ -1088,24 +1088,12 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
     }
 }
 
-void UTerrainGeneratorComponent::SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap) {
-
-}
-
 FSandboxFoliage UTerrainGeneratorComponent::FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos) {
     return FoliageType;
 }
 
 bool UTerrainGeneratorComponent::OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale) {
     return true;
-}
-
-bool UTerrainGeneratorComponent::IsOverrideGroundLevel(const TVoxelIndex& Index) {
-    return false;
-}
-
-float UTerrainGeneratorComponent::GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel) {
-    return GroundLevel;
 }
 
 bool UTerrainGeneratorComponent::IsForcedComplexZone(const TVoxelIndex& ZoneIndex) {
