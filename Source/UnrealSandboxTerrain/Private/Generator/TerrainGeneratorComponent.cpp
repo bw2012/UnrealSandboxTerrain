@@ -2,8 +2,8 @@
 
 #include "TerrainGeneratorComponent.h"
 #include "SandboxTerrainController.h"
-#include "perlin.hpp"
-#include "memstat.h"
+#include "Core/perlin.hpp"
+#include "Core/memstat.h"
 #include <algorithm>
 #include <thread>
 

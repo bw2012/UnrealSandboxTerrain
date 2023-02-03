@@ -1,8 +1,8 @@
 
 #include "SandboxTerrainController.h"
-#include "VoxelDataInfo.hpp"
+#include "Core/VoxelDataInfo.hpp"
 #include "TerrainZoneComponent.h"
-#include "TerrainData.hpp"
+#include "Core/TerrainData.hpp"
 #include "TerrainClientComponent.h"
 
 

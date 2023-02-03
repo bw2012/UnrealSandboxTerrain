@@ -2,10 +2,8 @@
 
 #include "TerrainZoneComponent.h"
 #include "SandboxTerrainController.h"
-#include "SandboxVoxelCore.h"
 #include "VoxelIndex.h"
 #include "serialization.hpp"
-
 #include "DrawDebugHelpers.h"
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);

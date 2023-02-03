@@ -6,8 +6,8 @@
 #include "TerrainZoneComponent.h"
 #include "Json.h"
 #include "JsonObjectConverter.h"
-#include "VoxelDataInfo.hpp"
-#include "TerrainData.hpp"
+#include "Core/VoxelDataInfo.hpp"
+#include "Core/TerrainData.hpp"
 
 
 //======================================================================================================================================================================

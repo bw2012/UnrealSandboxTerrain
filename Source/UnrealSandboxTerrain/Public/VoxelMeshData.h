@@ -11,7 +11,8 @@
 #include <mutex>
 #include <functional>
 
-#include "memstat.h"
+extern std::atomic<int> md_counter;
+extern std::atomic<int> cd_counter;
 
 // translate set of material id to uint64 code
 union TTransitionMaterialCode {

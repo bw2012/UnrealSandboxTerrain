@@ -6,8 +6,7 @@
 #include "Components/MeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "ProcMeshData.h"
-#include "SandboxVoxelCore.h"
-
+#include "VoxelMeshData.h"
 #include "VoxelMeshComponent.generated.h"
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;

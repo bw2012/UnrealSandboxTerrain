@@ -6,7 +6,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Runtime/Launch/Resources/Version.h"
-#include "VoxelMeshProxy.hpp"
+#include "Core/VoxelMeshProxy.hpp"
 
 
 // ================================================================================================================================================

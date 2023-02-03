@@ -12,15 +12,15 @@
 #include <cmath>
 #include <list>
 
+#include "Core/SandboxVoxelCore.h"
 #include "serialization.hpp"
-#include "utils.hpp"
-#include "VoxelDataInfo.hpp"
-#include "TerrainData.hpp"
-#include "TerrainAreaHelper.hpp"
-#include "TerrainEdit.hpp"
-#include "ThreadPool.hpp"
-
-#include "memstat.h"
+#include "Core/utils.hpp"
+#include "Core/VoxelDataInfo.hpp"
+#include "Core/TerrainData.hpp"
+#include "Core/TerrainAreaHelper.hpp"
+#include "Core/TerrainEdit.hpp"
+#include "Core/ThreadPool.hpp"
+#include "Core/memstat.h"
 
 #include "Runtime/Launch/Resources/Version.h"
 
