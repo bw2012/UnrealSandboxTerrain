@@ -42,23 +42,17 @@ void UVoxelMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	OutMaterials.Append(LocalMaterials);
 }
 
-void UVoxelMeshComponent::SetMeshData(TMeshDataPtr NewMeshDataPtr, const TTerrainLodMask TerrainLodMask) {
+void UVoxelMeshComponent::SetMeshData(TMeshDataPtr NewMeshDataPtr) {
 	ASandboxTerrainController* TerrainController = Cast<ASandboxTerrainController>(GetAttachmentRootActor());
 
 	LocalMaterials.Empty();
 	LocalMaterials.Reserve(10);
-
-	static const auto DummyMesh = TMeshLodSection();
 	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
 
 	if (NewMeshDataPtr) {
 		auto LodIndex = 0;
 		for (auto& SectionLOD : NewMeshDataPtr->MeshSectionLodArray) {
 			const auto* SourceMesh = &SectionLOD;
-			bool bIgnoreLod = TerrainLodMask & (1 << LodIndex);
-			if (bIgnoreLod) {
-				SourceMesh = &DummyMesh;
-			}
 
 			MeshSectionLodArray[LodIndex].WholeMesh = SourceMesh->WholeMesh;
 			MeshSectionLodArray[LodIndex].RegularMeshContainer.MaterialSectionMap = SourceMesh->RegularMeshContainer.MaterialSectionMap;

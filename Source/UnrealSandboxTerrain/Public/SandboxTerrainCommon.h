@@ -4,8 +4,6 @@
 #include "VoxelIndex.h"
 #include "SandboxTerrainCommon.generated.h"
 
-typedef uint8 TTerrainLodMask;
-
 struct TSpawnZoneParam {
 
 	TSpawnZoneParam() { };
@@ -13,8 +11,6 @@ struct TSpawnZoneParam {
 	TSpawnZoneParam(const TVoxelIndex& Index_) : Index(Index_) { };
 
 	TVoxelIndex Index;
-
-	TTerrainLodMask TerrainLodMask = 0;
 
 };
 

@@ -76,7 +76,6 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 		TArray<TSpawnZoneParam> SpawnList;
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = Index;
-		SpawnZoneParam.TerrainLodMask = 0;
 		SpawnList.Add(SpawnZoneParam);
 		BatchSpawnZone(SpawnList);
 	}

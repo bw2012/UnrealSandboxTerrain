@@ -10,7 +10,6 @@
 #include "VoxelMeshComponent.generated.h"
 
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
-typedef uint8 TTerrainLodMask;
 
 /**
 *
@@ -25,7 +24,7 @@ public:
 	// zone position inside terrain
 	TVoxelIndex ZoneIndex;
 
-	void SetMeshData(TMeshDataPtr MeshDataPtr, const TTerrainLodMask TerrainLodMask = 0);
+	void SetMeshData(TMeshDataPtr MeshDataPtr);
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

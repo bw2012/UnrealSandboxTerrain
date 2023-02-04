@@ -54,7 +54,7 @@ void ApplyTerrainMesh(UTerrainZoneComponent* Zone, std::shared_ptr<TMeshData> Me
 		DrawDebugBox(Zone->GetWorld(), Zone->GetComponentLocation(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), false, 5);
 	}
 
-	Zone->ApplyTerrainMesh(MeshDataPtr, bIgnoreCollision, 0);
+	Zone->ApplyTerrainMesh(MeshDataPtr, bIgnoreCollision);
 }
 
 
@@ -543,7 +543,7 @@ std::list<TChunkIndex> ASandboxTerrainController::MakeChunkListByAreaSize(const 
 	return ReverseSpiralWalkthrough(AreaRadius);
 }
 
-void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask) {
+void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 	TVoxelDataInfoPtr VdInfoPtr = GetVoxelDataInfo(Index); 
 	TVdInfoLockGuard Lock(VdInfoPtr);
 
@@ -600,7 +600,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 
 	for (const auto& SpawnZoneParam : SpawnZoneParamArray) {
 		const TVoxelIndex Index = SpawnZoneParam.Index;
-		const TTerrainLodMask TerrainLodMask = SpawnZoneParam.TerrainLodMask;
 		bool bIsNoMesh = false;
 
 		//check voxel data in memory
@@ -643,7 +642,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 	}
 
 	for (const auto& P  : LoadList) {
-		SpawnZone(P.Index, P.TerrainLodMask);
+		SpawnZone(P.Index);
 	}
 
 	if (GenerationList.Num() > 0) {
