@@ -2,10 +2,8 @@
 
 #include "TerrainZoneComponent.h"
 #include "SandboxTerrainController.h"
-#include "SandboxVoxelCore.h"
 #include "VoxelIndex.h"
 #include "serialization.hpp"
-
 #include "DrawDebugHelpers.h"
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
@@ -17,10 +15,9 @@ UTerrainInstancedStaticMesh::UTerrainInstancedStaticMesh(const FObjectInitialize
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
-    CurrentTerrainLodMask = 0xff;
 }
 
-void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgnoreCollision, const TTerrainLodMask TerrainLodMask) {
+void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgnoreCollision) {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
 	double start = FPlatformTime::Seconds();
 	TMeshData* MeshData = MeshDataPtr.get();
@@ -36,22 +33,13 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 
 	MeshDataTimeStamp = MeshDataPtr->TimeStamp;
 
-	// do not reduce lod mask
-    TTerrainLodMask TargetTerrainLodMask = 0;
-	if(TerrainLodMask < CurrentTerrainLodMask){
-        TargetTerrainLodMask = TerrainLodMask;
-        CurrentTerrainLodMask = TerrainLodMask;
-    } else {
-        TargetTerrainLodMask = CurrentTerrainLodMask;
-    }
-
 	for (auto TTT : MeshDataPtr->MeshSectionLodArray) {
 		for (auto P : TTT.DebugPointList) {
 			DrawDebugPoint(GetWorld(), P, 5.f, FColor(255, 255, 255, 0), true);
 		}
 	}
 		
-	MainTerrainMesh->SetMeshData(MeshDataPtr, TargetTerrainLodMask);
+	MainTerrainMesh->SetMeshData(MeshDataPtr);
 
 	if (!bIgnoreCollision) {
 		MainTerrainMesh->SetCollisionMeshData(MeshDataPtr);
@@ -242,10 +230,6 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 
 	InstancedStaticMeshComponent->AddInstances(InstMeshTransArray.TransformArray, false);
 	//UE_LOG(LogSandboxTerrain, Warning, TEXT("AddInstances -> %d"), InstMeshTransArray.TransformArray.Num());
-}
-
-TTerrainLodMask UTerrainZoneComponent::GetTerrainLodMask() {
-	return CurrentTerrainLodMask;
 }
 
 ASandboxTerrainController* UTerrainZoneComponent::GetTerrainController() {

@@ -1,8 +1,8 @@
 
 #include "SandboxTerrainController.h"
-#include "VoxelDataInfo.hpp"
+#include "Core/VoxelDataInfo.hpp"
 #include "TerrainZoneComponent.h"
-#include "TerrainData.hpp"
+#include "Core/TerrainData.hpp"
 #include "TerrainClientComponent.h"
 
 
@@ -76,7 +76,6 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 		TArray<TSpawnZoneParam> SpawnList;
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = Index;
-		SpawnZoneParam.TerrainLodMask = 0;
 		SpawnList.Add(SpawnZoneParam);
 		BatchSpawnZone(SpawnList);
 	}

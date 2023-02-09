@@ -143,10 +143,6 @@ public:
 
 	virtual bool OnCheckFoliageSpawn(const TVoxelIndex& ZoneIndex, const FVector& FoliagePos, FVector& Scale);
 
-	virtual bool IsOverrideGroundLevel(const TVoxelIndex& Index);
-
-	virtual float GeneratorGroundLevelFunc(const TVoxelIndex& Index, const FVector& Pos, float GroundLevel);
-
 	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
 protected:
@@ -212,8 +208,6 @@ private:
 	const FTerrainUndergroundLayer* GetMaterialLayer(float Z, float RealGroundLevel) const;
 
 	int GetMaterialLayers(const TChunkDataPtr ChunkData, const FVector& ZoneOrigin, TArray<FTerrainUndergroundLayer>* LayerList) const;
-
-	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, const FVector& Origin, FRandomStream& rnd, const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
 	//====
 

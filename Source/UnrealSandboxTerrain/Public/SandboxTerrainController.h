@@ -179,13 +179,6 @@ public:
 
 };
 
-UENUM(BlueprintType)
-enum class ETerrainLodMaskPreset : uint8 {
-    All      = 0            UMETA(DisplayName = "Show all"),
-    Medium   = 0b00000011   UMETA(DisplayName = "Show medium"),
-    Far      = 0b00011111   UMETA(DisplayName = "Show far"),
-};
-
 USTRUCT()
 struct FTerrainSwapAreaParams {
     GENERATED_BODY()
@@ -564,8 +557,6 @@ private:
 
 	TMap<uint32, FSandboxFoliage> FoliageMap;
 
-	void SpawnFoliage(int32 FoliageTypeId, FSandboxFoliage& FoliageType, FVector& v, FRandomStream& rnd, UTerrainZoneComponent* Zone);
-
 	//===============================================================================
 	// materials
 	//===============================================================================
@@ -590,7 +581,7 @@ private:
 	// 
 	//===============================================================================
 
-	void SpawnZone(const TVoxelIndex& Index, const TTerrainLodMask TerrainLodMask);
+	void SpawnZone(const TVoxelIndex& Index);
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 

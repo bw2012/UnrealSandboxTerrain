@@ -146,7 +146,6 @@ public:
 protected :
 
 	virtual void PerformZone(const TVoxelIndex& Index) override {
-		TTerrainLodMask TerrainLodMask = (TTerrainLodMask)ETerrainLodMaskPreset::All;
 		FVector ZonePos = Controller->GetZonePos(Index);
 		FVector ZonePosXY(ZonePos.X, ZonePos.Y, 0);
 		float Distance = FVector::Distance(AreaOrigin, ZonePosXY);
@@ -156,7 +155,6 @@ protected :
 		TArray<TSpawnZoneParam> SpawnList;
 		TSpawnZoneParam SpawnZoneParam;
 		SpawnZoneParam.Index = Index;
-		SpawnZoneParam.TerrainLodMask = TerrainLodMask;
 		SpawnList.Add(SpawnZoneParam);
 
 		// batch with one zone. CPU only

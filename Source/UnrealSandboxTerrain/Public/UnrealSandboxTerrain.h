@@ -21,8 +21,8 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogSandboxTerrain, Log, All);
 
 
-class FUnrealSandboxTerrainModule : public IModuleInterface
-{
+class FUnrealSandboxTerrainModule : public IModuleInterface {
+
 public:
 
 	/** IModuleInterface implementation */
