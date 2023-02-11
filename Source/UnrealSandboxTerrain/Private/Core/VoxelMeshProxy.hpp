@@ -52,22 +52,6 @@ public:
 	}
 };
 
-/** Index Buffer */
-class FProcMeshIndexBuffer : public FIndexBuffer {
-public:
-	TArray<int32> Indices;
-
-	virtual void InitRHI() override {
-		FRHIResourceCreateInfo CreateInfo(TEXT("FProcMeshIndexBuffer"));
-		void* Buffer = nullptr;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(int32), Indices.Num() * sizeof(int32), BUF_Static, CreateInfo, Buffer);
-
-		// Write the indices to the index buffer.		
-		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(int32));
-		RHIUnlockIndexBuffer(IndexBufferRHI);
-	}
-};
-
 /** Class representing a single section of the proc mesh */
 class FProcMeshProxySection
 {
@@ -77,7 +61,7 @@ public:
 	/** Vertex buffer for this section */
 	FStaticMeshVertexBuffers VertexBuffers;
 	/** Index buffer for this section */
-	FProcMeshIndexBuffer IndexBuffer;
+	FDynamicMeshIndexBuffer32 IndexBuffer;
 	/** Vertex factory for this section */
 	FLocalVertexFactory VertexFactory;
 	/** Whether this section is currently visible */
@@ -285,7 +269,7 @@ public:
 		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
 		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-		DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, DrawsVelocity(), bOutputVelocity);
+		DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, bOutputVelocity, GetCustomPrimitiveData());
 		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 
 		BatchElement.FirstIndex = 0;

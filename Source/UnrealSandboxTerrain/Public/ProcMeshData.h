@@ -53,7 +53,7 @@ public:
 	TArray<FProcMeshVertex> ProcVertexBuffer;
 
 	/** Index buffer for this section */
-	TArray<int32> ProcIndexBuffer;
+	TArray<uint32> ProcIndexBuffer;
 
 	/** Local bounding box of section */
 	FBox SectionLocalBox;
