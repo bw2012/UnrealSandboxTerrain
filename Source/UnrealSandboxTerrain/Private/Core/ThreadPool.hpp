@@ -5,6 +5,7 @@
 #include <list>
 #include <mutex>
 #include <functional>
+#include <thread>
 
 class TConveyour {
 
@@ -83,6 +84,7 @@ public:
         shutdown.clear();
 
         for (int i = 0; i < num; i++) {
+            //TODO linux
             std::thread t(&TThreadPool::run, this);
             thread_list.push_back(std::move(t));
         }
@@ -108,6 +110,8 @@ public:
     void shutdownAndWait() {
         shutdown.test_and_set();
         cv.notify_all();
+
+        //TODO linux 
 
         for (auto& t : thread_list) {
             t.join();
