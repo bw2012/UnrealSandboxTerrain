@@ -6,6 +6,7 @@
 #include "Core/memstat.h"
 #include <algorithm>
 #include <thread>
+#include <atomic>
 
 #include "TerrainZoneComponent.h"
 
@@ -289,10 +290,20 @@ TChunkDataPtr UTerrainGeneratorComponent::GetChunkData(int X, int Y) {
 
     if (ChunkDataCollection.find(Index) == ChunkDataCollection.end()) {
         ChunkData = GenerateChunkData(Index);
-        ChunkDataCollection[Index] = ChunkData;
+
+#ifdef __cpp_lib_atomic_shared_ptr                      
+        ChunkDataCollection[Index] = ChunkData; // TODO linux
+#else
+        auto& Ptr = ChunkDataCollection[Index];
+        std::atomic_store(&Ptr, ChunkData);
+#endif
     } else {
         ChunkData = ChunkDataCollection[Index];
     }
+
+
+
+
 
     return ChunkData;
 };
@@ -894,12 +905,12 @@ void UTerrainGeneratorComponent::OnBatchGenerationFinished() {
 
 void UTerrainGeneratorComponent::Clean() {
     const std::lock_guard<std::mutex> lock(ChunkDataMapMutex);
-    ChunkDataCollection.clear(); 
+    //TODO linux ChunkDataCollection.clear(); 
 }
 
 void UTerrainGeneratorComponent::Clean(const TVoxelIndex& Index) {
     const std::lock_guard<std::mutex> lock(ChunkDataMapMutex);
-    ChunkDataCollection.erase(Index);
+    //TOOD linux ChunkDataCollection.erase(Index);
 }
 
 //======================================================================================================================================================================

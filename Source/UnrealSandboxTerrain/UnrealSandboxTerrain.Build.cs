@@ -6,9 +6,10 @@ public class UnrealSandboxTerrain : ModuleRules
 {
 	public UnrealSandboxTerrain(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-        CppStandard = CppStandardVersion.Latest;
 
+		//PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+        CppStandard = CppStandardVersion.Cpp20;
+        
         PublicIncludePaths.AddRange(
 			new string[] {
 				// ... add public include paths required here ...
