@@ -2,7 +2,7 @@
 
 #include "EngineMinimal.h"
 #include "VoxelData.h"
-#include "ProcMeshData.h"
+#include "Mesh.h"
 #include "VoxelMeshData.h"
 
 

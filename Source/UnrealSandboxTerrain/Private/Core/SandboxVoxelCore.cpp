@@ -126,15 +126,7 @@ private:
 				// new vertex
 				vertexInfo.normal = n;
 
-				FProcMeshVertex Vertex;
-				Vertex.PositionX = v.X;
-				Vertex.PositionY = v.Y;
-				Vertex.PositionZ = v.Z;
-				Vertex.NormalX = n.X;
-				Vertex.NormalY = n.Y;
-				Vertex.NormalZ = n.Z;
-				Vertex.MatIdx = -1;
-
+				TMeshVertex Vertex{v, n, -1};
 				generalMeshSection->ProcIndexBuffer.Add(vertexGeneralIndex);
 				generalMeshSection->AddVertex(Vertex);
 				vertexInfo.vertexIndex = vertexGeneralIndex;
@@ -176,15 +168,7 @@ private:
 			} else { // vertex not exist in mat section
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
 
-				FProcMeshVertex Vertex;
-				Vertex.PositionX = v.X;
-				Vertex.PositionY = v.Y;
-				Vertex.PositionZ = v.Z;
-				Vertex.NormalX = vertexInfo.normal.X;
-				Vertex.NormalY = vertexInfo.normal.Y;
-				Vertex.NormalZ = vertexInfo.normal.Z;
-				Vertex.MatIdx = -1;
-
+				TMeshVertex Vertex{v, vertexInfo.normal, -1};
 				matSectionRef.MaterialMesh.AddVertex(Vertex);
 
 				vertexInfo.indexInMaterialSectionMap[matId] = matSectionRef.vertexIndexCounter;
@@ -218,13 +202,7 @@ private:
 			} else { // vertex not exist in mat section
 				matSectionRef.MaterialMesh.ProcIndexBuffer.Add(matSectionRef.vertexIndexCounter);
 
-				FProcMeshVertex Vertex;
-				Vertex.PositionX = v.X;
-				Vertex.PositionY = v.Y;
-				Vertex.PositionZ = v.Z;
-				Vertex.NormalX = vertexInfo.normal.X;
-				Vertex.NormalY = vertexInfo.normal.Y;
-				Vertex.NormalZ = vertexInfo.normal.Z;
+				TMeshVertex Vertex{v, vertexInfo.normal, -1};
 
 				int i = 0;
 				int32 MatIdx = -1;

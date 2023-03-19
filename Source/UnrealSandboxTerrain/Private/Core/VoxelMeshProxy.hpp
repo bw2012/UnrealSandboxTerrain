@@ -16,9 +16,9 @@
 
 
 /** Resource array to pass  */
-class FProcMeshVertexResourceArray : public FResourceArrayInterface {
+class TMeshVertexResourceArray : public FResourceArrayInterface {
 public:
-	FProcMeshVertexResourceArray(void* InData, uint32 InSize) : Data(InData), Size(InSize) { }
+	TMeshVertexResourceArray(void* InData, uint32 InSize) : Data(InData), Size(InSize) { }
 
 	virtual const void* GetResourceData() const override { return Data; }
 	virtual uint32 GetResourceDataSize() const override { return Size; }
@@ -33,17 +33,17 @@ private:
 };
 
 /** Vertex Buffer */
-class FProcMeshVertexBuffer : public FVertexBuffer {
+class TMeshVertexBuffer : public FVertexBuffer {
 public:
 	TArray<FDynamicMeshVertex> Vertices;
 
 	virtual void InitRHI() override {
 		const uint32 SizeInBytes = Vertices.Num() * sizeof(FDynamicMeshVertex);
 
-		FProcMeshVertexResourceArray ResourceArray(Vertices.GetData(), SizeInBytes);
+		TMeshVertexResourceArray ResourceArray(Vertices.GetData(), SizeInBytes);
 
 #if ENGINE_MAJOR_VERSION == 5
-		FRHIResourceCreateInfo CreateInfo(TEXT("FProcMeshVertexBuffer"), &ResourceArray);
+		FRHIResourceCreateInfo CreateInfo(TEXT("TMeshVertexBuffer"), &ResourceArray);
 #else
 		FRHIResourceCreateInfo CreateInfo(&ResourceArray);
 #endif
@@ -119,10 +119,10 @@ public:
 	}
 };
 
-static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProcMeshVertex& ProcVert) {
-	Vert.Position.X = ProcVert.PositionX;
-	Vert.Position.Y = ProcVert.PositionY;
-	Vert.Position.Z = ProcVert.PositionZ;
+static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const TMeshVertex& ProcVert) {
+	Vert.Position.X = ProcVert.Pos.X;
+	Vert.Position.Y = ProcVert.Pos.Y;
+	Vert.Position.Z = ProcVert.Pos.Z;
 
 	switch (ProcVert.MatIdx) {
 	case 0:  Vert.Color = FColor(255, 0, 0, 0); break;
@@ -140,8 +140,7 @@ static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProc
 
 	// ignore tangent
 	Vert.TangentX = FVector(1.f, 0.f, 0.f);
-	FVector Normal(ProcVert.NormalX, ProcVert.NormalY, ProcVert.NormalZ);
-	Vert.TangentZ = Normal;
+	Vert.TangentZ = ProcVert.Normal;
 	Vert.TangentZ.Vector.W = 0;
 }
 
@@ -188,7 +187,7 @@ public:
 			Vertices.SetNumUninitialized(NumVerts);
 			// Copy verts
 			for (int VertIdx = 0; VertIdx < NumVerts; VertIdx++) {
-				const FProcMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
+				const TMeshVertex& ProcVert = SrcSection.ProcVertexBuffer[VertIdx];
 				FDynamicMeshVertex& Vert = Vertices[VertIdx];
 				ConvertProcMeshToDynMeshVertex(Vert, ProcVert);
 			}

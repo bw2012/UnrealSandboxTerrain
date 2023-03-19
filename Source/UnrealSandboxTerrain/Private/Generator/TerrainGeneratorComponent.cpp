@@ -958,17 +958,15 @@ bool UTerrainGeneratorComponent::SelectRandomSpawnPoint(FRandomStream& Rnd, cons
 
     TVoxelDataParam Param;
     TMeshDataPtr TmpMesh = polygonizeSingleCell(*Vd, Param, X, Y, Z);
-    const TArray<FProcMeshVertex>& Vertexes = TmpMesh->MeshSectionLodArray[0].WholeMesh.ProcVertexBuffer;
+    const TArray<TMeshVertex>& Vertexes = TmpMesh->MeshSectionLodArray[0].WholeMesh.ProcVertexBuffer;
 
     if (Vertexes.Num() > 0) {
         FVector AveragePos(0);
         FVector AverageNormal(0);
 
         for (const auto& Vertex : Vertexes) {
-            FVector Position(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
-            FVector Normal(Vertex.NormalX, Vertex.NormalY, Vertex.NormalZ);
-            AveragePos += Position;
-            AverageNormal += Normal;
+            AveragePos += Vertex.Pos;
+            AverageNormal += Vertex.Normal;
         }
 
         AveragePos /= Vertexes.Num();

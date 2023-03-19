@@ -32,17 +32,27 @@ struct FProcMeshTangent {
 };
 
 /** One vertex for the procedural mesh, used for storing data internally */
-struct FProcMeshVertex {
-	float PositionX;
-	float PositionY;
-	float PositionZ;
+struct TMeshVertex {
+	FVector Pos;
+	FVector Normal;
+	int32 MatIdx = -1;
 
-	float NormalX;
-	float NormalY;
-	float NormalZ;
-
-	int32 MatIdx;
+	void operator = (const TMeshVertex& m) {
+		Pos = m.Pos;
+		Normal = m.Normal;
+		MatIdx = m.MatIdx;
+	}
 };
+
+inline TMeshVertex operator + (const TMeshVertex& m1, const TMeshVertex& m2) {
+	return TMeshVertex{ m1.Pos + m2.Pos, m1.Normal + m2.Normal, -1 };
+}
+
+inline TMeshVertex operator / (const TMeshVertex& m, float k) {
+	return TMeshVertex{ m.Pos / k, m.Normal / k, -1 };
+}
+
+
 
 /** One section of the procedural mesh. Each material has its own section. */
 class FProcMeshSection {
@@ -50,7 +60,7 @@ class FProcMeshSection {
 public:
 
 	/** Vertex buffer for this section */
-	TArray<FProcMeshVertex> ProcVertexBuffer;
+	TArray<TMeshVertex> ProcVertexBuffer;
 
 	/** Index buffer for this section */
 	TArray<uint32> ProcIndexBuffer;
@@ -67,10 +77,16 @@ public:
 		SectionLocalBox.Init();
 	}
 
-	void AddVertex(FProcMeshVertex& Vertex) {
+	void operator = (const FProcMeshSection& A) {
+		Reset();
+		ProcVertexBuffer = A.ProcVertexBuffer;
+		ProcIndexBuffer = A.ProcIndexBuffer;
+		SectionLocalBox = A.SectionLocalBox;
+	}
+
+	void AddVertex(const TMeshVertex& Vertex) {
 		ProcVertexBuffer.Add(Vertex);
-		FVector Pos(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
-		SectionLocalBox += Pos;
+		SectionLocalBox += Vertex.Pos;
 	}
 
 	typedef struct TMeshParamData {

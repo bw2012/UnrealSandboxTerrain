@@ -107,13 +107,12 @@ void UVoxelMeshComponent::AddCollisionSection(struct FTriMeshCollisionData* Coll
 
 	// Copy vert data
 	for (int32 VertIdx = 0; VertIdx < MeshSection.ProcVertexBuffer.Num(); VertIdx++) {
-		FProcMeshVertex Vertex = MeshSection.ProcVertexBuffer[VertIdx];
-		FVector Position(Vertex.PositionX, Vertex.PositionY, Vertex.PositionZ);
+		TMeshVertex Vertex = MeshSection.ProcVertexBuffer[VertIdx];
 
 #if ENGINE_MAJOR_VERSION == 5
-		CollisionData->Vertices.Add((FVector3f)Position); 
+		CollisionData->Vertices.Add((FVector3f)Vertex.Pos);
 #else
-		CollisionData->Vertices.Add(Position);
+		CollisionData->Vertices.Add(Vertex.Pos);
 #endif
 
 		// Copy UV if desired
