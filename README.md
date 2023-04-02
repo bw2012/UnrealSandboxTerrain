@@ -1,22 +1,24 @@
-# [WIP] Procedural smooth voxel terrain plugin for UE4/UE5 
-
-**Work in progress**
+# UE4/UE5 Procedural smooth voxel terrain plugin 
 
 ![Unreal Engine 4 voxel terrian](http://media.indiedb.com/images/games/1/51/50197/ezgif.com-video-to-gif_2.gif)
 
-# Usage
-Example project - https://github.com/bw2012/UE4VoxelTerrain
+Tested with Unreal Engine 4.27 and 5.1
 
-Demo video - https://www.youtube.com/watch?v=Z__-wuxeUsI 
+Provide high terrain detalization with high rendering performance
+
+Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
+
+# Example
+Example UE4 project - https://github.com/bw2012/UE4VoxelTerrain
+
+Example UE5 project - https://github.com/bw2012/UE5VoxelTerrainDemo
 
 # Features
 * Runtime terrain modification
 * Procedural landscape/caves generation
-* Level of details (experimental, still in progress)
+* Level of details
 * Up to 65535 terrain material (dirt, grass, sand, clay etc)
-* Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
-* Tested with Unreal Engine 4.27
-* Network multiplayer (experimental, WIP)
+
 
 # License
 MIT license
