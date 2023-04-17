@@ -427,8 +427,8 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
 				UTerrainInstancedStaticMesh* InstancedMesh = Cast<UTerrainInstancedStaticMesh>(Overlap.GetComponent());
 				if (InstancedMesh) {
-					RemoveInstanceAtMesh(InstancedMesh, Overlap.ItemIndex); //overhead
 					OnDestroyInstanceMesh(InstancedMesh, Overlap.ItemIndex);
+					RemoveInstanceAtMesh(InstancedMesh, Overlap.ItemIndex); //overhead
 				}
 			} else {
 				OnOverlapActorTerrainEdit(Overlap, Handler.Origin);
@@ -447,10 +447,10 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 				if (InstancedMesh && !InstancedMesh->IsCollisionEnabled()) {
 					TArray<int32> Instances = InstancedMesh->GetInstancesOverlappingSphere(Handler.Origin, Handler.Extend, true);
 					if (Instances.Num() > 0) {
-						InstancedMesh->RemoveInstances(Instances);
 						for (int32 Idx : Instances) {
 							OnDestroyInstanceMesh(InstancedMesh, Idx);
 						}
+						InstancedMesh->RemoveInstances(Instances);
 					}
 				}
 			}
