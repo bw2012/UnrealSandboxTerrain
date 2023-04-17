@@ -427,13 +427,8 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 			if (Cast<ASandboxTerrainController>(Overlap.GetActor())) {
 				UTerrainInstancedStaticMesh* InstancedMesh = Cast<UTerrainInstancedStaticMesh>(Overlap.GetComponent());
 				if (InstancedMesh) {
-					//UE_LOG(LogSandboxTerrain, Warning, TEXT("InstancedMesh: %s -> %d"), *InstancedMesh->GetName(), Overlap.ItemIndex);
-					//FTransform Transform;
-					//InstancedMesh->GetInstanceTransform(Overlap.ItemIndex, Transform, true);
-					//DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5.f, FColor(255, 255, 255, 0), false, 10);
-
 					RemoveInstanceAtMesh(InstancedMesh, Overlap.ItemIndex); //overhead
-					//InstancedMesh->RemoveInstance(Overlap.ItemIndex);
+					OnDestroyInstanceMesh(InstancedMesh, Overlap.ItemIndex);
 				}
 			} else {
 				OnOverlapActorTerrainEdit(Overlap, Handler.Origin);
@@ -442,7 +437,6 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	}
 
 	// UE5 bad collision performance workaround
-	//DrawDebugSphere(GetWorld(), Handler.Origin, Handler.Extend, 20, FColor(255, 255, 255, 100), false, 5);
 	PerformEachZone(Handler.Origin, Handler.Extend, [&](TVoxelIndex ZoneIndex, FVector Origin, TVoxelDataInfoPtr VoxelDataInfo) {
 		UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 		if (Zone) {
@@ -454,6 +448,9 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 					TArray<int32> Instances = InstancedMesh->GetInstancesOverlappingSphere(Handler.Origin, Handler.Extend, true);
 					if (Instances.Num() > 0) {
 						InstancedMesh->RemoveInstances(Instances);
+						for (int32 Idx : Instances) {
+							OnDestroyInstanceMesh(InstancedMesh, Idx);
+						}
 					}
 				}
 			}

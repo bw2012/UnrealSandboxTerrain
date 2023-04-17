@@ -939,6 +939,10 @@ void ASandboxTerrainController::OnFinishInitialLoad() {
 
 }
 
+void ASandboxTerrainController::OnDestroyInstanceMesh(UTerrainInstancedStaticMesh* InstancedMeshComp, int32 ItemIndex) {
+
+}
+
 //======================================================================================================================================================================
 // Perlin noise according seed
 //======================================================================================================================================================================

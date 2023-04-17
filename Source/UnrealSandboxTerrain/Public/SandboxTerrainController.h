@@ -31,6 +31,8 @@ class TTerrainLoadHelper;
 class UTerrainClientComponent;
 class UTerrainServerComponent;
 
+class UTerrainInstancedStaticMesh;
+
 class TThreadPool;
 class TConveyour;
 
@@ -688,6 +690,8 @@ protected:
 	virtual void OnProgressBackgroundSaveTerrain(float Progress);
 
 	virtual void OnFinishInitialLoad();
+
+	virtual void OnDestroyInstanceMesh(UTerrainInstancedStaticMesh* InstancedMeshComp, int32 ItemIndex);
 
 	//===============================================================================
 	// pipeline
