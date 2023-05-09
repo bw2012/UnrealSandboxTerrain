@@ -7,20 +7,7 @@
 
 
 UTerrainServerComponent::UTerrainServerComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	/*
-	OpcodeHandlerMap.Add(USBT_NET_OPCODE_DIG_ROUND, [&](FArrayReader& Data) { 
-		FVector Origin(0);
-		float Radius, Strength;
 
-		Data << Origin.X;
-		Data << Origin.Y;
-		Data << Origin.Z;
-		Data << Radius;
-		Data << Strength;
-
-		GetTerrainController()->DigTerrainRoundHole(Origin, Radius, Strength);
-	});
-	*/
 }
 
 void UTerrainServerComponent::BeginPlay() {
@@ -45,7 +32,9 @@ void UTerrainServerComponent::BeginPlay() {
 void UTerrainServerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server:Shutdown voxel data server..."));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Shutdown voxel data server..."));
+
+	//TODO close all sockets
 
 	if (TcpListenerPtr) {
 		TcpListenerPtr->GetSocket()->Close();
@@ -61,7 +50,12 @@ bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIP
 	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 	SocketPtr->GetPeerAddress(*RemoteAddress);
 	const FString RemoteAddressString = RemoteAddress->ToString(true);
-	ConnectedClientsMap.Add(RemoteAddressString, SocketPtr);
+
+	Mutex.lock();
+	uint32 ClientId = ClientCount;
+	ConnectedClientsMap.Add(ClientId, SocketPtr);
+	ClientCount++;
+	Mutex.unlock();
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection accepted -> %s"), *RemoteAddressString);
 
@@ -70,31 +64,51 @@ bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIP
 	//SendVdByIndex(SocketPtr, TestIndex);
 	// test
 
-	// TODO use native threads 
-	GetTerrainController()->AddAsyncTask([=]() {
-		FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
-		while (true) {
-			if (SocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-				UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection finished"));
-				// TODO remove from client list
-				return;
-			}
-
-			if (SocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
-				FArrayReader Data;
-				FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket);
-				HandleRcvData(RemoteAddressString, SocketPtr, Data);
-			}
-
-			if (GetTerrainController()->IsWorkFinished()) {
-				break;
-			}
-		}
-	});
-
+	// TODO use one thread and socket select
+	GetTerrainController()->AddAsyncTask([=]() { HandleClientConnection(ClientId); });
 
 	return true;
 }
+
+void UTerrainServerComponent::HandleClientConnection(uint32 ClientId) {
+	auto SocketPtr = ConnectedClientsMap[ClientId];
+
+	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	SocketPtr->GetPeerAddress(*RemoteAddress);
+	const FString RemoteAddressString = RemoteAddress->ToString(true);
+
+	while (true) {
+		if (SocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
+			UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection finished"));
+			break;
+		}
+
+		if (SocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
+			FArrayReader Data;
+			FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
+			if (FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket)) {
+				HandleRcvData(ClientId, SocketPtr, Data);
+			} else {
+				UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection failed"));
+				break;
+			}
+		}
+
+		if (GetTerrainController()->IsWorkFinished()) {
+			break;
+		}
+	}
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: close connection -> %s"), *RemoteAddressString);
+
+	Mutex.lock();
+	ConnectedClientsMap.Remove(ClientId);
+	Mutex.unlock();
+
+	SocketPtr->Close();
+	delete SocketPtr;
+}
+
 
 /*
 template <typename... Ts>
@@ -126,6 +140,8 @@ void UTerrainServerComponent::SendToAllVdEdit(const TEditTerrainParam& EditParam
 	SendBuffer << Params.Origin.X;
 	SendBuffer << Params.Origin.Y;;
 	SendBuffer << Params.Origin.Z;
+	SendBuffer << Params.Radius;
+	SendBuffer << Params.Extend;
 
 	for (auto& Elem : ConnectedClientsMap) {
 		FSocket* SocketPtr = Elem.Value;
@@ -178,7 +194,11 @@ bool UTerrainServerComponent::SendMapInfo(FSocket* SocketPtr, TArray<std::tuple<
 	return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
 }
 
-void UTerrainServerComponent::HandleRcvData(const FString& ClientRemoteAddr, FSocket* SocketPtr, FArrayReader& Data) {
+void UTerrainServerComponent::HandleRcvData(uint32 ClientId, FSocket* SocketPtr, FArrayReader& Data) {
+	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	SocketPtr->GetPeerAddress(*RemoteAddress);
+	const FString RemoteAddressString = RemoteAddress->ToString(true);
+
 	uint32 OpCode;
 	Data << OpCode;
 
@@ -190,18 +210,18 @@ void UTerrainServerComponent::HandleRcvData(const FString& ClientRemoteAddr, FSo
 
 	if (OpCode == Net_Opcode_RequestVd) {
 		TVoxelIndex Index = DeserializeVoxelIndex(Data);
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *ClientRemoteAddr, Index.X, Index.Y, Index.Z);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *RemoteAddressString, Index.X, Index.Y, Index.Z);
 		SendVdByIndex(SocketPtr, Index);
 	}
 
 	if (OpCode == Net_Opcode_RequestVd) {
 		TVoxelIndex Index = DeserializeVoxelIndex(Data);
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *ClientRemoteAddr, Index.X, Index.Y, Index.Z);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *RemoteAddressString, Index.X, Index.Y, Index.Z);
 		SendVdByIndex(SocketPtr, Index);
 	}
 
 	if (OpCode == Net_Opcode_RequestMapInfo) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests map info"), *ClientRemoteAddr);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests map info"), *RemoteAddressString);
 
 		// TODO remove hardcode
 		TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area = GetTerrainController()->NetworkServerMapInfo();

@@ -418,15 +418,32 @@ void ASandboxTerrainController::BeginPlayServer() {
 	}	
 }
 
-void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex, const TSet<TVoxelIndex>& Ignore) {
+void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex) {
 	TTerrainAreaLoadParams Params(ActiveAreaSize, ActiveAreaDepth);
-	Params.Ignore = Ignore;
 
 	AddAsyncTask([=]() {
 		const TVoxelIndex Index = ZoneIndex;
 		UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: Begin terrain load at location: %f %f %f"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 		TTerrainLoadHelper Loader(TEXT("test_job"), this, Params);
 		Loader.LoadArea(Index);
+
+		if (!bIsWorkFinished) {
+			AsyncTask(ENamedThreads::GameThread, [&] {
+
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION == 1
+				UE51MaterialIssueWorkaround();
+#endif
+				AddTaskToConveyor([=] {
+					OnFinishInitialLoad();
+				});
+
+				AsyncTask(ENamedThreads::GameThread, [&] {
+					//StartPostLoadTimers();
+					//StartCheckArea();
+				});
+			});
+		}
+
 	});
 }
 
@@ -434,8 +451,6 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
 	bEnableConveyor = false;
 	SpawnInitialZone(); // spawn initial zones without conveyor
 	bEnableConveyor = true;
-    
-
 
     if (!bGenerateOnlySmallSpawnPoint) {
 		TVoxelIndex B = GetZoneIndex(BeginServerTerrainLoadLocation);
@@ -477,6 +492,7 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
 
 void ASandboxTerrainController::BeginPlayClient() {
 	LoadTerrainMetadata();
+	bEnableConveyor = true;
 
 	TerrainClientComponent = NewObject<UTerrainClientComponent>(this, TEXT("TerrainClient"));
 	TerrainClientComponent->RegisterComponent();
@@ -600,35 +616,40 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 
 	for (const auto& SpawnZoneParam : SpawnZoneParamArray) {
 		const TVoxelIndex Index = SpawnZoneParam.Index;
+
+		if (TerrainData->IsOutOfSync(Index)) {
+			continue; // skip network zones
+		}
+
 		bool bIsNoMesh = false;
 
 		//check voxel data in memory
 		bool bNewVdGeneration = false;
 
-		{
-			TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
-			TVdInfoLockGuard Lock(VdInfoPtr);
+		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
+		TVdInfoLockGuard Lock(VdInfoPtr);
 
-			if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
-				if (TdFile.isExist(Index)) {
-					TValueDataPtr DataPtr = TdFile.loadData(Index);
-					usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
-					TKvFileZoneData ZoneHeader;
-					Deserializer >> ZoneHeader;
+		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
+			if (TdFile.isExist(Index)) {
+				TValueDataPtr DataPtr = TdFile.loadData(Index);
+				usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
+				TKvFileZoneData ZoneHeader;
+				Deserializer >> ZoneHeader;
 
-					bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
-					bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
-					if (bIsNoVd) {
-						VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
-					} else {
-						//voxel data exist in file
-						VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
-					}
-				} else {
-					// generate new voxel data
-					VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
-					bNewVdGeneration = true;
+				bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
+				bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
+				if (bIsNoVd) {
+					VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 				}
+				else {
+					//voxel data exist in file
+					VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
+				}
+			}
+			else {
+				// generate new voxel data
+				VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
+				bNewVdGeneration = true;
 			}
 		}
 
@@ -1031,7 +1052,7 @@ float ASandboxTerrainController::GetGroundLevel(const FVector& Pos) {
 }
 
 FTerrainDebugInfo ASandboxTerrainController::GetMemstat() {
-	return FTerrainDebugInfo{ vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load(), (int)Conveyor->size(), ThreadPool->size()};
+	return FTerrainDebugInfo{ vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load(), (int)Conveyor->size(), ThreadPool->size(), TerrainData->OutOfSyncCount()};
 }
 
 void ASandboxTerrainController::UE51MaterialIssueWorkaround() {

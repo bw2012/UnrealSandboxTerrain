@@ -10,22 +10,7 @@
 
 
 UTerrainClientComponent::UTerrainClientComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	/*
-	OpcodeHandlerMap.Add(USBT_NET_OPCODE_RESPONSE_VD, [&](FArrayReader& Data) { HandleResponseVd(Data); });
 
-	OpcodeHandlerMap.Add(USBT_NET_OPCODE_DIG_ROUND, [&](FArrayReader& Data) {
-		FVector Origin(0);
-		float Radius, Strength;
-
-		Data << Origin.X;
-		Data << Origin.Y;
-		Data << Origin.Z;
-		Data << Radius;
-		Data << Strength;
-
-		//GetTerrainController()->DigTerrainRoundHole_Internal(Origin, Radius, Strength);
-	});
-	*/
 }
 
 void UTerrainClientComponent::BeginPlay() {
@@ -65,27 +50,8 @@ void UTerrainClientComponent::BeginPlay() {
 					UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Connected to voxel data server"));
 					ClientSocketPtr = SocketPtr;
 
-					// TODO use native threads 
 					GetTerrainController()->AddAsyncTask([=]() {
-						GetTerrainController()->OnClientConnected();
-
-						while (true) {
-							if (ClientSocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-								UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Connection finished"));
-								return;
-							}
-
-							if (ClientSocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
-								FArrayReader Data;
-								FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
-								FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket);
-								HandleRcvData(Data);
-							}
-
-							if (GetTerrainController()->IsWorkFinished()) {
-								break;
-							}
-						}
+						RcvThreadLoop();
 					});
 
 				} else {
@@ -120,7 +86,7 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 
 	if (OpCode == Net_Opcode_EditVd) {
 
-		//float Radius, Strength;
+		float Radius, Extend;
 		double X, Y, Z;
 
 		Data << X;
@@ -131,11 +97,11 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 
 		FVector Origin(X, Y, Z);
 
-		//Data << Radius;
-		//Data << Strength;
+		Data << Radius;
+		Data << Extend;
 
 		AsyncTask(ENamedThreads::GameThread, [=] {
-			GetTerrainController()->DigTerrainRoundHole(Origin, 80);
+			GetTerrainController()->DigTerrainRoundHole(Origin, Radius);
 		});
 	}
 
@@ -185,7 +151,6 @@ void UTerrainClientComponent::SendToServer(uint32 OpCode, Ts... Args) {
 	Super::NetworkSend(ClientSocketPtr, SendBuffer);
 }
 
-
 void UTerrainClientComponent::RequestVoxelData(const TVoxelIndex& ZoneIndex) {
 	TVoxelIndex Index = ZoneIndex;
 	static uint32 OpCode = Net_Opcode_RequestVd;
@@ -212,4 +177,29 @@ void UTerrainClientComponent::RequestMapInfo() {
 
 	FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
 	FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
+}
+
+void UTerrainClientComponent::RcvThreadLoop() {
+	GetTerrainController()->OnClientConnected();
+
+	while (true) {
+		if (ClientSocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
+			UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Connection finished"));
+			return;
+		}
+
+		if (ClientSocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
+			FArrayReader Data;
+			FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
+			FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket);
+			HandleRcvData(Data);
+		}
+
+		if (GetTerrainController()->IsWorkFinished()) {
+			UE_LOG(LogSandboxTerrain, Log, TEXT("Client: close connection"));
+			ClientSocketPtr->Shutdown(ESocketShutdownMode::ReadWrite);
+			ClientSocketPtr->Close();
+			break;
+		}
+	}
 }

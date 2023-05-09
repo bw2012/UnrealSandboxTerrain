@@ -142,7 +142,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			};
 
 			InvokeSafe(Function);
-
+			TerrainData->RemoveOutOfSyncIndex(Index);
 			VdInfoPtr->Unlock();
 		}
 	}
@@ -224,8 +224,9 @@ void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, T
 		// TODO: client cache
 
 		OutOfsyncZones.Add(Index);
-
 	}
+
+	TerrainData->AddOutOfSyncIndex(OutOfsyncZones);
 
 	ModifiedVdMap.Empty();
 	ModifiedVdMap = ServerDataMap;
@@ -235,5 +236,5 @@ void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, T
 	}
 
 	TVoxelIndex Index(0, 0, 0);
-	BeginClientTerrainLoad(Index, OutOfsyncZones);
+	BeginClientTerrainLoad(Index);
 }

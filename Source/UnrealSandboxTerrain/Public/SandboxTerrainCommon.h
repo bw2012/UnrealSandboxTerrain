@@ -16,18 +16,13 @@ struct TSpawnZoneParam {
 
 struct TEditTerrainParam {
 
-	TEditTerrainParam() { };
-
-	TEditTerrainParam(const FVector& Origin_) : Origin(Origin_) { };
-
 	FVector Origin;
+
+	int Type;
 
 	float Radius = 0;
 
 	float Extend = 0;
-
-	float Strength = 0;
-
 };
 
 UENUM(BlueprintType)

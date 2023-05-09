@@ -20,8 +20,6 @@ struct TTerrainAreaLoadParams {
 	int32 TerrainSizeMinZ = -5;
 	int32 TerrainSizeMaxZ = 5;
 
-	TSet<TVoxelIndex> Ignore;
-
 	std::function<void(uint32, uint32)> OnProgress = nullptr;
 };
 
@@ -73,10 +71,7 @@ private:
 		for (int Z = Params.TerrainSizeMinZ; Z <= Params.TerrainSizeMaxZ; Z++) {
 			TVoxelIndex Index(X + OriginIndex.X, Y + OriginIndex.Y, Z + OriginIndex.Z);
 
-			if (!Params.Ignore.Contains(Index)) {
-				PerformZone(Index);
-			}
-
+			PerformZone(Index);
 			Progress++;
 
 			if (Params.OnProgress) {
@@ -146,11 +141,9 @@ public:
 protected :
 
 	virtual void PerformZone(const TVoxelIndex& Index) override {
-		FVector ZonePos = Controller->GetZonePos(Index);
-		FVector ZonePosXY(ZonePos.X, ZonePos.Y, 0);
-		float Distance = FVector::Distance(AreaOrigin, ZonePosXY);
-
-		double Start = FPlatformTime::Seconds();
+		if (Controller->TerrainData->IsOutOfSync(Index)) {
+			return;
+		}
 
 		TArray<TSpawnZoneParam> SpawnList;
 		TSpawnZoneParam SpawnZoneParam;
@@ -159,9 +152,6 @@ protected :
 
 		// batch with one zone. CPU only
 		Controller->BatchSpawnZone(SpawnList);
-
-		double End = FPlatformTime::Seconds();
-		double Time = (End - Start) * 1000;
 	}
 };
 
@@ -170,5 +160,3 @@ public:
 	TMap<uint32, std::shared_ptr<TTerrainLoadHelper>> PlayerStreamingHandler;
 	TMap<uint32, FVector> PlayerStreamingPosition;
 };
-
-

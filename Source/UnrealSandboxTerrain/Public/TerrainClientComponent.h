@@ -42,5 +42,7 @@ private:
 	FSocket* ClientSocketPtr = nullptr;
 
 	void HandleResponseVd(FArrayReader& Data);
+
+	void RcvThreadLoop();
 	
 };

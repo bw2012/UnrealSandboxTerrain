@@ -26,22 +26,51 @@ private:
 	std::shared_timed_mutex StorageMapMutex;
 	std::unordered_map<TVoxelIndex, std::shared_ptr<TVoxelDataInfo>> StorageMap;
 
-	std::shared_timed_mutex SaveIndexSetpMutex;
+	std::shared_timed_mutex SaveIndexSetMutex;
 	std::unordered_set<TVoxelIndex> SaveIndexSet;
 
+	std::shared_timed_mutex OufOfSyncSetMutex;
+	std::unordered_set<TVoxelIndex> OufOfSyncSet;
     
 public:
 
 	void AddSaveIndex(const TVoxelIndex& Index) {
-		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetpMutex);
+		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetMutex);
 		SaveIndexSet.insert(Index);
 	}
 
 	std::unordered_set<TVoxelIndex> PopSaveIndexSet() {
-		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetpMutex);
+		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetMutex);
 		std::unordered_set<TVoxelIndex> Res = SaveIndexSet;
 		SaveIndexSet.clear();
 		return Res;
+	}
+
+	void AddOutOfSyncIndex(const TVoxelIndex& Index) {
+		std::unique_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
+		OufOfSyncSet.insert(Index);
+	}
+
+	void AddOutOfSyncIndex(const TSet<TVoxelIndex>& IndexSet) {
+		std::unique_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
+		for (const auto& Index : IndexSet) {
+			OufOfSyncSet.insert(Index);
+		}
+	}
+
+	void RemoveOutOfSyncIndex(const TVoxelIndex& Index) {
+		std::unique_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
+		OufOfSyncSet.erase(Index);
+	}
+
+	bool IsOutOfSync(const TVoxelIndex& Index) {
+		std::shared_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
+		return OufOfSyncSet.find(Index) != OufOfSyncSet.end();
+	}
+
+	int OutOfSyncCount() {
+		std::shared_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
+		return (int)OufOfSyncSet.size();
 	}
 
 	//=====================================================================================

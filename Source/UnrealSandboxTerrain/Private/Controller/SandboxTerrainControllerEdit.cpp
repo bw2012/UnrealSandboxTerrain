@@ -96,14 +96,9 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 }
 
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, bool bNoise) {
-	if (GetNetMode() == NM_Client) {
-		//return;
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Client: TEST %f %f %f"), Origin.X, Origin.Y, Origin.Z);
-	}
-
 	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
 		if (TerrainServerComponent) {
-			TEditTerrainParam EditParam(Origin);
+			TEditTerrainParam EditParam{ Origin,  1, Radius , 0};
 			TerrainServerComponent->SendToAllVdEdit(EditParam);
 		}
 	}
@@ -399,6 +394,22 @@ void ASandboxTerrainController::RemoveInstanceAtMesh(UInstancedStaticMeshCompone
 		}
 	}
 }
+
+void ASandboxTerrainController::RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex) {
+	auto* Zone = GetZoneByVectorIndex(ZoneIndex);
+	if (Zone) {
+		TArray<USceneComponent*> Childs;
+		Zone->GetChildrenComponents(true, Childs);
+		for (USceneComponent* Child : Childs) {
+			UTerrainInstancedStaticMesh* InstancedMeshComp = Cast<UTerrainInstancedStaticMesh>(Child);
+			if (InstancedMeshComp && InstancedMeshComp->MeshTypeId == TypeId && InstancedMeshComp->MeshVariantId == VariantId) {
+				InstancedMeshComp->RemoveInstance(ItemIndex);
+				MarkZoneNeedsToSaveObjects(ZoneIndex);
+			}
+		}
+	}
+}
+
 
 template<class H>
 void ASandboxTerrainController::PerformTerrainChange(H Handler) {

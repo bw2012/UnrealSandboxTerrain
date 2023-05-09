@@ -7,6 +7,7 @@
 #include "SandboxTerrainCommon.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Common/TcpListener.h"
+#include <mutex>
 #include "TerrainServerComponent.generated.h"
 
 
@@ -41,14 +42,20 @@ public:
 
 private:
 
-	void HandleRcvData(const FString& ClientRemoteAddr, FSocket* SocketPtr, FArrayReader& Data);
+	void HandleRcvData(uint32 ClientId, FSocket* SocketPtr, FArrayReader& Data);
 
 	bool SendVdByIndex(FSocket* SocketPtr, const TVoxelIndex& VoxelIndex);
 
 	bool SendMapInfo(FSocket* SocketPtr, TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area);
 
-	TMap<FString, FSocket*> ConnectedClientsMap;
+	std::mutex Mutex;
+
+	TMap<uint32, FSocket*> ConnectedClientsMap;
 
 	FTcpListener* TcpListenerPtr;
+
+	uint32 ClientCount = 0;
+
+	void HandleClientConnection(uint32 ClientId);
 	
 };

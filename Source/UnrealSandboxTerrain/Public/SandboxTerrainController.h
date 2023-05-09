@@ -76,6 +76,9 @@ struct FTerrainDebugInfo {
 
 	UPROPERTY()
 	int TaskPoolSize = 0;
+
+	UPROPERTY()
+	int OutOfSync = 0;
 };
 
 USTRUCT()
@@ -385,6 +388,8 @@ public:
 
 	void RemoveInstanceAtMesh(UInstancedStaticMeshComponent* InstancedMeshComp, int32 ItemIndex);
 
+	void RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex);
+
 	TVoxelIndex GetZoneIndex(const FVector& Pos);
 
 	FVector GetZonePos(const TVoxelIndex& Index);
@@ -417,7 +422,7 @@ public:
 
 	virtual void OnClientConnected();
 
-	void BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex, const TSet<TVoxelIndex>& Ignore);
+	void BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex);
 
 	void NetworkSerializeZone(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex);
 
