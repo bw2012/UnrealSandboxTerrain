@@ -18,7 +18,7 @@ struct TEditTerrainParam {
 
 	FVector Origin;
 
-	int Type;
+	int32 Type;
 
 	float Radius = 0;
 

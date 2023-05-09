@@ -88,21 +88,29 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 
 		float Radius, Extend;
 		double X, Y, Z;
+		int32 Type;
 
 		Data << X;
 		Data << Y;
 		Data << Z;
-
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Client: %f %f %f"), X, Y, Z);
+		Data << Radius;
+		Data << Extend;
+		Data << Type;
 
 		FVector Origin(X, Y, Z);
 
-		Data << Radius;
-		Data << Extend;
+		if (Type == 1) {
+			AsyncTask(ENamedThreads::GameThread, [=] {
+				GetTerrainController()->DigTerrainRoundHole(Origin, Radius);
+			});
+		}
 
-		AsyncTask(ENamedThreads::GameThread, [=] {
-			GetTerrainController()->DigTerrainRoundHole(Origin, Radius);
-		});
+		if (Type == 2) {
+			AsyncTask(ENamedThreads::GameThread, [=] {
+				GetTerrainController()->DigTerrainCubeHole(Origin, Extend);
+			});
+		}
+
 	}
 
 	if (OpCode == Net_Opcode_ResponseMapInfo) {

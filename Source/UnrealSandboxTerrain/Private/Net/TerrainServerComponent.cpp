@@ -59,11 +59,6 @@ bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIP
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection accepted -> %s"), *RemoteAddressString);
 
-	// test
-	//TVoxelIndex TestIndex(0, 0, 0);
-	//SendVdByIndex(SocketPtr, TestIndex);
-	// test
-
 	// TODO use one thread and socket select
 	GetTerrainController()->AddAsyncTask([=]() { HandleClientConnection(ClientId); });
 
@@ -142,6 +137,7 @@ void UTerrainServerComponent::SendToAllVdEdit(const TEditTerrainParam& EditParam
 	SendBuffer << Params.Origin.Z;
 	SendBuffer << Params.Radius;
 	SendBuffer << Params.Extend;
+	SendBuffer << Params.Type;
 
 	for (auto& Elem : ConnectedClientsMap) {
 		FSocket* SocketPtr = Elem.Value;

@@ -244,9 +244,11 @@ void ASandboxTerrainController::DigTerrainCubeHoleComplex(const FVector& Origin,
 }
 
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator) {
-	if (GetNetMode() != NM_Standalone) {
-		UE_LOG(LogSandboxTerrain, Error, TEXT("Not implemented yet"));
-		return;
+	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
+		if (TerrainServerComponent) {
+			TEditTerrainParam EditParam{ Origin,  2, 0, Extend };
+			TerrainServerComponent->SendToAllVdEdit(EditParam);
+		}
 	}
 
 	struct ZoneHandler : TZoneEditHandler {
