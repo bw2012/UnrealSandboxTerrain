@@ -95,13 +95,17 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
+void ASandboxTerrainNetProxy::MulticastRpcDigSphere_Implementation(int32 MapVer, const FVector& Origin, float Radius, bool bNoise) {
+	if (GetNetMode() == NM_Client) {
+		//TODO check map version hash and start resync if broken
+		Controller->DigTerrainRoundHole(Origin, Radius, bNoise);
+	}
+}
+
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, bool bNoise) {
 	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
-		if (TerrainServerComponent) {
-			TEditTerrainParam EditParam{ Origin,  1, Radius , 0};
-			TerrainServerComponent->SendToAllVdEdit(EditParam);
-		}
-	}
+		NetProxy->MulticastRpcDigSphere(GetMapVersionHash(), Origin, Radius, bNoise);
+	} 
 
 	struct ZoneHandler : TZoneEditHandler {
 		TMap<uint16, FSandboxTerrainMaterial>* MaterialMapPtr;
@@ -243,12 +247,17 @@ void ASandboxTerrainController::DigTerrainCubeHoleComplex(const FVector& Origin,
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
+
+void ASandboxTerrainNetProxy::MulticastRpcDigCube_Implementation(int32 MapVer, const FVector& Origin, float Extend, const FRotator& Rotator) {
+	if (GetNetMode() == NM_Client) {
+		//TODO check map version hash and start resync if broken
+		Controller->DigTerrainCubeHole(Origin, Extend, Rotator);
+	}
+}
+
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator) {
 	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
-		if (TerrainServerComponent) {
-			TEditTerrainParam EditParam{ Origin,  2, 0, Extend };
-			TerrainServerComponent->SendToAllVdEdit(EditParam);
-		}
+
 	}
 
 	struct ZoneHandler : TZoneEditHandler {
@@ -510,8 +519,11 @@ void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoP
 	//}
 }
 
+int32 ASandboxTerrainController::GetMapVersionHash() {
+	return 0; // TODO map version control
+}
+
 void ASandboxTerrainController::IncrementChangeCounter(const TVoxelIndex& ZoneIndex) {
-	// TODO client rcv sync
 	const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
 	TZoneModificationData& Data = ModifiedVdMap.FindOrAdd(ZoneIndex);
 	Data.ChangeCounter++;

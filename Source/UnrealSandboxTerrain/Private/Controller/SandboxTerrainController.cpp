@@ -143,8 +143,14 @@ void ASandboxTerrainController::BeginPlay() {
 	GeneratorComponent = NewTerrainGenerator();
 	GeneratorComponent->RegisterComponent();
 
+	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
+		FTransform Transform = GetActorTransform();
+		NetProxy = (ASandboxTerrainNetProxy*)GetWorld()->SpawnActor(ASandboxTerrainNetProxy::StaticClass(), &Transform);
+	}
+
 	bIsGameShutdown = false;
-    
+
+	    
 	FoliageMap.Empty();
 	if (FoliageDataAsset) {
 		FoliageMap = FoliageDataAsset->FoliageMap;
@@ -1090,4 +1096,23 @@ void ASandboxTerrainController::LoadConsoleVars() {
 bool ASandboxTerrainController::IsDebugModeOn() {
 	const int32 DebugArea = CVarDebugArea.GetValueOnGameThread();
 	return DebugArea > 0;
+}
+
+ASandboxTerrainNetProxy::ASandboxTerrainNetProxy(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
+	bReplicates = true;
+	bAlwaysRelevant = true;
+}
+
+
+void ASandboxTerrainNetProxy::BeginPlay() {
+	Super::BeginPlay();
+
+	for (TActorIterator<ASandboxTerrainController> ActorItr(GetWorld()); ActorItr; ++ActorItr) {
+		ASandboxTerrainController* Ctrl = Cast<ASandboxTerrainController>(*ActorItr);
+		if (Ctrl) {
+			Controller = Ctrl;
+			break;
+		}
+	}
+
 }

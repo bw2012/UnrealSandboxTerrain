@@ -123,28 +123,6 @@ void UTerrainServerComponent::SendToAllClients(uint32 OpCode, Ts... Args) {
 }
 */
 
-void UTerrainServerComponent::SendToAllVdEdit(const TEditTerrainParam& EditParams) {
-	TEditTerrainParam Params = EditParams; // workaround
-	FBufferArchive SendBuffer;
-
-	static uint32 OpCode = Net_Opcode_EditVd;
-	static uint32 OpCodeExt = 1;
-
-	SendBuffer << OpCode;
-	SendBuffer << OpCodeExt;
-	SendBuffer << Params.Origin.X;
-	SendBuffer << Params.Origin.Y;;
-	SendBuffer << Params.Origin.Z;
-	SendBuffer << Params.Radius;
-	SendBuffer << Params.Extend;
-	SendBuffer << Params.Type;
-
-	for (auto& Elem : ConnectedClientsMap) {
-		FSocket* SocketPtr = Elem.Value;
-		Super::NetworkSend(SocketPtr, SendBuffer);
-	}
-}
-
 bool UTerrainServerComponent::SendVdByIndex(FSocket* SocketPtr, const TVoxelIndex& ZoneIndex) {
 	TVoxelIndex Index = ZoneIndex;
 	static uint32 OpCode = Net_Opcode_ResponseVd;
@@ -158,6 +136,8 @@ bool UTerrainServerComponent::SendVdByIndex(FSocket* SocketPtr, const TVoxelInde
 	SendBuffer << Index.X;
 	SendBuffer << Index.Y;
 	SendBuffer << Index.Z;
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: SendVdByIndex %d %d %d "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 	GetTerrainController()->NetworkSerializeZone(SendBuffer, Index);
 	return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
@@ -184,7 +164,7 @@ bool UTerrainServerComponent::SendMapInfo(FSocket* SocketPtr, TArray<std::tuple<
 		ConvertVoxelIndex(SendBuffer, ElemIndex);
 		SendBuffer << ElemData.ChangeCounter;
 
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: change counter %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, ElemData.ChangeCounter);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: change counter %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, ElemData.ChangeCounter);
 	}
 
 	return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
@@ -201,23 +181,17 @@ void UTerrainServerComponent::HandleRcvData(uint32 ClientId, FSocket* SocketPtr,
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCode -> %d"), OpCode);
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCodeExt -> %d"), OpCodeExt);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCode -> %d"), OpCode);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCodeExt -> %d"), OpCodeExt);
 
 	if (OpCode == Net_Opcode_RequestVd) {
 		TVoxelIndex Index = DeserializeVoxelIndex(Data);
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *RemoteAddressString, Index.X, Index.Y, Index.Z);
-		SendVdByIndex(SocketPtr, Index);
-	}
-
-	if (OpCode == Net_Opcode_RequestVd) {
-		TVoxelIndex Index = DeserializeVoxelIndex(Data);
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *RemoteAddressString, Index.X, Index.Y, Index.Z);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *RemoteAddressString, Index.X, Index.Y, Index.Z);
 		SendVdByIndex(SocketPtr, Index);
 	}
 
 	if (OpCode == Net_Opcode_RequestMapInfo) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests map info"), *RemoteAddressString);
+		//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests map info"), *RemoteAddressString);
 
 		// TODO remove hardcode
 		TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area = GetTerrainController()->NetworkServerMapInfo();

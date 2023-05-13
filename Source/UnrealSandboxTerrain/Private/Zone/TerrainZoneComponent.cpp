@@ -198,6 +198,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 		InstancedStaticMeshComponent->RegisterComponent();
 		InstancedStaticMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
+		InstancedStaticMeshComponent->SetIsReplicated(true);
 
 		int32 StartCullDistance = MeshType.StartCullDistance;
 		int32 EndCullDistance = MeshType.EndCullDistance;

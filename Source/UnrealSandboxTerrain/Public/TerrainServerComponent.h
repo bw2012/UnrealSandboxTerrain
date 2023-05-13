@@ -35,11 +35,6 @@ public:
 
 	bool OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint);
 
-	//template <typename... Ts>
-	//void SendToAllClients(uint32 OpCode, Ts... Args);
-
-	void SendToAllVdEdit(const TEditTerrainParam& EditParams);
-
 private:
 
 	void HandleRcvData(uint32 ClientId, FSocket* SocketPtr, FArrayReader& Data);

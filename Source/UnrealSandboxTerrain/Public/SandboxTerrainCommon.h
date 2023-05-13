@@ -14,17 +14,6 @@ struct TSpawnZoneParam {
 
 };
 
-struct TEditTerrainParam {
-
-	FVector Origin;
-
-	int32 Type;
-
-	float Radius = 0;
-
-	float Extend = 0;
-};
-
 UENUM(BlueprintType)
 enum class ESandboxFoliageType : uint8 {
 	Grass = 0			UMETA(DisplayName = "Grass"),

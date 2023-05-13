@@ -50,7 +50,7 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 	}
 
 	int32 Size2 = (DataObj == nullptr) ? 0 : DataObj->size();
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("Server: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, Size2);
+	//UE_LOG(LogSandboxTerrain, Warning, TEXT("Server: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, Size2);
 	Buffer << Size2;
 	if (Size2 > 0) {
 		AppendDataToBuffer(DataObj, Buffer);
@@ -113,7 +113,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			int32 SizeObj;
 			BinaryData << SizeObj;
 			TInstanceMeshTypeMap ZoneInstanceMeshMap;
-			UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
+			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
 
 			if (SizeObj > 0) {
 				TValueData ObjData;
@@ -194,16 +194,18 @@ TArray<std::tuple<TVoxelIndex, TZoneModificationData>> ASandboxTerrainController
 }
 
 void ASandboxTerrainController::OnClientConnected() {
-	FString Text = TEXT("Connected to voxel data server");
+	//FString Text = TEXT("Connected to voxel data server");
 
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Yellow, Text);
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("%s"), *Text);
+	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Yellow, Text);
+	//UE_LOG(LogSandboxTerrain, Warning, TEXT("%s"), *Text);
 
 	TerrainClientComponent->RequestMapInfo();
 }
 
 void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, TZoneModificationData>& ServerDataMap) {
 	const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: OnReceiveServerMapInfo "));
 
 	TSet<TVoxelIndex> OutOfsyncZones;
 
@@ -232,6 +234,7 @@ void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, T
 	ModifiedVdMap = ServerDataMap;
 
 	for (const auto& Index : OutOfsyncZones) {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: RequestVoxelData %d %d %d "), Index.X, Index.Y, Index.Z);
 		TerrainClientComponent->RequestVoxelData(Index);
 	}
 

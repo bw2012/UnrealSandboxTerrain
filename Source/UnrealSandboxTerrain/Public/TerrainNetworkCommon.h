@@ -19,8 +19,6 @@
 #define Net_Opcode_ResponseVd			100
 #define Net_Opcode_ResponseMapInfo		101
 
-#define Net_Opcode_EditVd				200
-
 
 
 

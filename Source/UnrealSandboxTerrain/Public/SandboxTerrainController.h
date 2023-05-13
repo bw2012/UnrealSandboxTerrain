@@ -33,6 +33,8 @@ class UTerrainServerComponent;
 
 class UTerrainInstancedStaticMesh;
 
+class ASandboxTerrainNetProxy;
+
 class TThreadPool;
 class TConveyour;
 
@@ -246,6 +248,7 @@ struct TInstantMeshData {
 	float ScaleZ;
 };
 
+
 UCLASS()
 class UNREALSANDBOXTERRAIN_API ASandboxTerrainController : public AActor {
 	GENERATED_UCLASS_BODY()
@@ -357,6 +360,9 @@ public:
 	UTerrainGeneratorComponent* GeneratorComponent;
 
 	UTerrainGeneratorComponent* GetTerrainGenerator();
+
+	UPROPERTY()
+	ASandboxTerrainNetProxy* NetProxy;
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
 	void ForcePerformHardUnload();
@@ -604,7 +610,11 @@ private:
 
 	TMap<TVoxelIndex, TZoneModificationData> ModifiedVdMap;
 
+	int32 MapVerHash;
+
 	std::mutex ModifiedVdMapMutex;
+
+	int32 GetMapVersionHash();
 
 	void SaveTerrainMetadata();
 
@@ -723,4 +733,28 @@ protected:
 	//===============================================================================
 
 	const FSandboxFoliage& GetFoliageById(uint32 FoliageId) const;
+};
+
+
+
+UCLASS()
+class UNREALSANDBOXTERRAIN_API ASandboxTerrainNetProxy : public AActor {
+	GENERATED_UCLASS_BODY()
+
+public:
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastRpcDigSphere(int32 MapVer, const FVector& Origin, float Radius, bool bNoise);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastRpcDigCube(int32 MapVer, const FVector& Origin, float Extend, const FRotator& Rotator);
+
+protected:
+
+	virtual void BeginPlay() override;
+
+private:
+
+	ASandboxTerrainController* Controller;
+
 };

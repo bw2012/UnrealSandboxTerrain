@@ -77,40 +77,11 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d"), OpCode);
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCodeExt -> %d"), OpCodeExt);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d"), OpCode);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCodeExt -> %d"), OpCodeExt);
 
 	if (OpCode == Net_Opcode_ResponseVd) {
 		HandleResponseVd(Data);
-	}
-
-	if (OpCode == Net_Opcode_EditVd) {
-
-		float Radius, Extend;
-		double X, Y, Z;
-		int32 Type;
-
-		Data << X;
-		Data << Y;
-		Data << Z;
-		Data << Radius;
-		Data << Extend;
-		Data << Type;
-
-		FVector Origin(X, Y, Z);
-
-		if (Type == 1) {
-			AsyncTask(ENamedThreads::GameThread, [=] {
-				GetTerrainController()->DigTerrainRoundHole(Origin, Radius);
-			});
-		}
-
-		if (Type == 2) {
-			AsyncTask(ENamedThreads::GameThread, [=] {
-				GetTerrainController()->DigTerrainCubeHole(Origin, Extend);
-			});
-		}
-
 	}
 
 	if (OpCode == Net_Opcode_ResponseMapInfo) {
@@ -128,7 +99,7 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 			TZoneModificationData MData;
 			MData.ChangeCounter = ChangeCounter;
 			ServerMap.Add(ElemIndex, MData);
-			UE_LOG(LogSandboxTerrain, Log, TEXT("Client: change counter %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, ChangeCounter);
+			//UE_LOG(LogSandboxTerrain, Log, TEXT("Client: change counter %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, ChangeCounter);
 		}
 
 		GetTerrainController()->OnReceiveServerMapInfo(ServerMap);
@@ -141,6 +112,8 @@ void UTerrainClientComponent::HandleResponseVd(FArrayReader& Data) {
 	Data << VoxelIndex.X;
 	Data << VoxelIndex.Y;
 	Data << VoxelIndex.Z;
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: HandleResponseVd %d %d %d"), VoxelIndex.X, VoxelIndex.Y, VoxelIndex.Z);
 
 	GetTerrainController()->NetworkSpawnClientZone(VoxelIndex, Data);
 }
