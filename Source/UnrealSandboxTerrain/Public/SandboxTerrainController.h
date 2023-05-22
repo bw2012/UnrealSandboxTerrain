@@ -392,6 +392,10 @@ public:
 
 	void FillTerrainRound(const FVector& Origin, float Extend, int MatId);
 
+	UTerrainInstancedStaticMesh* GetInstanceMeshComponent(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId);
+
+	UVoxelMeshComponent* GetVoxelMeshComponent(TVoxelIndex ZoneIndex);
+
 	void RemoveInstanceAtMesh(UInstancedStaticMeshComponent* InstancedMeshComp, int32 ItemIndex);
 
 	void RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex);

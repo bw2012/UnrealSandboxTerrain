@@ -406,7 +406,7 @@ void ASandboxTerrainController::RemoveInstanceAtMesh(UInstancedStaticMeshCompone
 	}
 }
 
-void ASandboxTerrainController::RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex) {
+UTerrainInstancedStaticMesh* ASandboxTerrainController::GetInstanceMeshComponent(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId) {
 	auto* Zone = GetZoneByVectorIndex(ZoneIndex);
 	if (Zone) {
 		TArray<USceneComponent*> Childs;
@@ -414,13 +414,38 @@ void ASandboxTerrainController::RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint
 		for (USceneComponent* Child : Childs) {
 			UTerrainInstancedStaticMesh* InstancedMeshComp = Cast<UTerrainInstancedStaticMesh>(Child);
 			if (InstancedMeshComp && InstancedMeshComp->MeshTypeId == TypeId && InstancedMeshComp->MeshVariantId == VariantId) {
-				InstancedMeshComp->RemoveInstance(ItemIndex);
-				MarkZoneNeedsToSaveObjects(ZoneIndex);
+				return InstancedMeshComp;
 			}
 		}
 	}
+
+	return nullptr;
 }
 
+UVoxelMeshComponent* ASandboxTerrainController::GetVoxelMeshComponent(TVoxelIndex ZoneIndex) {
+	auto* Zone = GetZoneByVectorIndex(ZoneIndex);
+	if (Zone) {
+		TArray<USceneComponent*> Childs;
+		Zone->GetChildrenComponents(true, Childs);
+		for (USceneComponent* Child : Childs) {
+			UVoxelMeshComponent* MeshComp = Cast<UVoxelMeshComponent>(Child);
+			if (MeshComp) {
+				return MeshComp;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+
+void ASandboxTerrainController::RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex) {
+	auto* InstMesh = GetInstanceMeshComponent(ZoneIndex, TypeId, VariantId);
+	if (InstMesh) {
+		InstMesh->RemoveInstance(ItemIndex);
+		MarkZoneNeedsToSaveObjects(ZoneIndex);
+	}
+}
 
 template<class H>
 void ASandboxTerrainController::PerformTerrainChange(H Handler) {
