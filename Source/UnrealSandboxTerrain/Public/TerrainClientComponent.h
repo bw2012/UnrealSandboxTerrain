@@ -35,11 +35,15 @@ public:
 
 	void RequestMapInfo();
 
+	void Connect();
+
 private:
 
-	void HandleRcvData(FArrayReader& Data);
-
 	FSocket* ClientSocketPtr = nullptr;
+
+	UE::Tasks::FTask ClientLoopTask;
+
+	void HandleRcvData(FArrayReader& Data);
 
 	void HandleResponseVd(FArrayReader& Data);
 

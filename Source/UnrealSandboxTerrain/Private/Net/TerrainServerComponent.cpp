@@ -59,8 +59,9 @@ bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIP
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection accepted -> %s"), *RemoteAddressString);
 
-	// TODO use one thread and socket select
-	GetTerrainController()->AddAsyncTask([=]() { HandleClientConnection(ClientId); });
+	// TODO use one thread and socket select if possible
+	FString TaskName = FString::Printf(TEXT("vd_srv_%d"), ClientId);
+	UE::Tasks::Launch(*TaskName, [=] { HandleClientConnection(ClientId); });
 
 	return true;
 }

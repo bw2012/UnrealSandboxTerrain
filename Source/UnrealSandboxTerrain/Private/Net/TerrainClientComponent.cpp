@@ -16,6 +16,20 @@ UTerrainClientComponent::UTerrainClientComponent(const FObjectInitializer& Objec
 void UTerrainClientComponent::BeginPlay() {
 	Super::BeginPlay();
 
+	if (GetTerrainController()->bAutoConnect) {
+		Connect();
+	}
+}
+
+void UTerrainClientComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	Super::EndPlay(EndPlayReason);
+}
+
+void UTerrainClientComponent::BeginDestroy() {
+	Super::BeginDestroy();
+}
+
+void UTerrainClientComponent::Connect() {
 	const int Port = 6000;
 	FString ServerHost = GetWorld()->URL.Host;
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Game Server Host -> %s"), *ServerHost);
@@ -49,25 +63,14 @@ void UTerrainClientComponent::BeginPlay() {
 				if (isConnected) {
 					UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Connected to voxel data server"));
 					ClientSocketPtr = SocketPtr;
-
-					GetTerrainController()->AddAsyncTask([=]() {
-						RcvThreadLoop();
-					});
-
+					ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=]{ RcvThreadLoop(); });
 				} else {
 					UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Not connected"));
 				}
+
 			} while (!isConnected);
 		}
 	}
-}
-
-void UTerrainClientComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
-	Super::EndPlay(EndPlayReason);
-}
-
-void UTerrainClientComponent::BeginDestroy() {
-	Super::BeginDestroy();
 }
 
 void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
@@ -172,8 +175,13 @@ void UTerrainClientComponent::RcvThreadLoop() {
 		if (ClientSocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
 			FArrayReader Data;
 			FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
-			FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket);
-			HandleRcvData(Data);
+			if (FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket)) {
+				HandleRcvData(Data);
+			} else {
+				UE_LOG(LogSandboxTerrain, Error, TEXT("Client: connection lost"));
+				break;
+			}
+
 		}
 
 		if (GetTerrainController()->IsWorkFinished()) {

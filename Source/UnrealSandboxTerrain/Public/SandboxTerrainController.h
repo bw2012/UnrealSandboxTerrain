@@ -351,6 +351,9 @@ public:
     // networking
     //========================================================================================
 
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Streaming")
+	bool bAutoConnect = false;
+
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain Network")
     uint32 ServerPort;
 
@@ -677,6 +680,8 @@ protected:
 	virtual void OnRestoreZoneSoftUnload(const TVoxelIndex& ZoneIndex);
 
 	virtual bool OnZoneHardUnload(const TVoxelIndex& ZoneIndex);
+
+	void ClientConnect();
 
 	//===============================================================================
 	// voxel data storage

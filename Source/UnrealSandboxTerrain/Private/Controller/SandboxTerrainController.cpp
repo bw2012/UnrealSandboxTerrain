@@ -150,7 +150,6 @@ void ASandboxTerrainController::BeginPlay() {
 
 	bIsGameShutdown = false;
 
-	    
 	FoliageMap.Empty();
 	if (FoliageDataAsset) {
 		FoliageMap = FoliageDataAsset->FoliageMap;
@@ -503,6 +502,11 @@ void ASandboxTerrainController::BeginPlayClient() {
 	TerrainClientComponent = NewObject<UTerrainClientComponent>(this, TEXT("TerrainClient"));
 	TerrainClientComponent->RegisterComponent();
 	TerrainClientComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
+}
+
+
+void ASandboxTerrainController::ClientConnect() {
+	TerrainClientComponent->Connect();
 }
 
 void ASandboxTerrainController::OnStartBackgroundSaveTerrain() {
