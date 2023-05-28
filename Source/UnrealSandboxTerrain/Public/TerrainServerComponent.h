@@ -37,6 +37,10 @@ public:
 
 private:
 
+	void MainLoop();
+
+	void CloseSocket(uint32 ClientId);
+
 	void HandleRcvData(uint32 ClientId, FSocket* SocketPtr, FArrayReader& Data);
 
 	bool SendVdByIndex(FSocket* SocketPtr, const TVoxelIndex& VoxelIndex);
@@ -50,7 +54,5 @@ private:
 	FTcpListener* TcpListenerPtr;
 
 	uint32 ClientCount = 0;
-
-	void HandleClientConnection(uint32 ClientId);
 	
 };

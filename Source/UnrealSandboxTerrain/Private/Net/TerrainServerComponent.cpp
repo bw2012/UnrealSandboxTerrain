@@ -25,6 +25,8 @@ void UTerrainServerComponent::BeginPlay() {
 	int32 NewSize = 0;
 	ListenerSocketPtr->SetReceiveBufferSize(ReceiveBufferSize, NewSize);
 
+	UE::Tasks::Launch(TEXT("vd_srv_loop"), [=] { MainLoop(); });
+
 	TcpListenerPtr = new FTcpListener(*ListenerSocketPtr);
 	TcpListenerPtr->OnConnectionAccepted().BindUObject(this, &UTerrainServerComponent::OnConnectionAccepted);
 }
@@ -46,10 +48,58 @@ void UTerrainServerComponent::BeginDestroy() {
 	Super::BeginDestroy();
 }
 
+FString GetAddr(FSocket* Socket) {
+	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	Socket->GetPeerAddress(*RemoteAddress);
+	return RemoteAddress->ToString(true);
+}
+
+void UTerrainServerComponent::CloseSocket(uint32 ClientId) {
+	auto* Socket = ConnectedClientsMap[ClientId];
+
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: %d connection closed %s"), ClientId, *GetAddr(Socket));
+
+	Mutex.lock(); // TODO lock guard
+	ConnectedClientsMap.Remove(ClientId);
+	Mutex.unlock();
+
+	Socket->Close();
+	delete Socket;
+}
+
+void UTerrainServerComponent::MainLoop() {
+
+	while (!GetTerrainController()->IsWorkFinished()) {
+		for (auto P : ConnectedClientsMap) {
+			uint32 ClientId = P.Key;
+			FSocket* Socket = P.Value;
+
+			if (Socket->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
+				CloseSocket(ClientId);
+				continue;
+			}
+
+			uint32 PendingDataSize = 0;
+			if (Socket->HasPendingData(PendingDataSize)) {
+				FArrayReader Data;
+				FSimpleAbstractSocket_FSocket SimpleAbstractSocket(Socket);
+				if (FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket)) {
+					HandleRcvData(ClientId, Socket, Data);
+				} else {
+					CloseSocket(ClientId);
+				}
+			}
+		}
+	}
+}
+
 bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint) {
 	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 	SocketPtr->GetPeerAddress(*RemoteAddress);
 	const FString RemoteAddressString = RemoteAddress->ToString(true);
+
+	SocketPtr->SetNonBlocking(true);
 
 	Mutex.lock();
 	uint32 ClientId = ClientCount;
@@ -59,52 +109,8 @@ bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIP
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection accepted -> %s"), *RemoteAddressString);
 
-	// TODO use one thread and socket select if possible
-	FString TaskName = FString::Printf(TEXT("vd_srv_%d"), ClientId);
-	UE::Tasks::Launch(*TaskName, [=] { HandleClientConnection(ClientId); });
-
 	return true;
 }
-
-void UTerrainServerComponent::HandleClientConnection(uint32 ClientId) {
-	auto SocketPtr = ConnectedClientsMap[ClientId];
-
-	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-	SocketPtr->GetPeerAddress(*RemoteAddress);
-	const FString RemoteAddressString = RemoteAddress->ToString(true);
-
-	while (true) {
-		if (SocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-			UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection finished"));
-			break;
-		}
-
-		if (SocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
-			FArrayReader Data;
-			FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
-			if (FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket)) {
-				HandleRcvData(ClientId, SocketPtr, Data);
-			} else {
-				UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection failed"));
-				break;
-			}
-		}
-
-		if (GetTerrainController()->IsWorkFinished()) {
-			break;
-		}
-	}
-
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: close connection -> %s"), *RemoteAddressString);
-
-	Mutex.lock();
-	ConnectedClientsMap.Remove(ClientId);
-	Mutex.unlock();
-
-	SocketPtr->Close();
-	delete SocketPtr;
-}
-
 
 /*
 template <typename... Ts>
