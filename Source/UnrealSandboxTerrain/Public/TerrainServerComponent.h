@@ -5,15 +5,16 @@
 #include "EngineMinimal.h"
 #include "TerrainNetworkCommon.h"
 #include "SandboxTerrainCommon.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "Common/TcpListener.h"
-#include <mutex>
+//#include "Interfaces/IPv4/IPv4Endpoint.h"
+//#include "Common/TcpListener.h"
+//#include <mutex>
 #include "TerrainServerComponent.generated.h"
 
 
 
 class ASandboxTerrainController;
 struct TZoneModificationData;
+
 
 /**
 *
@@ -31,28 +32,20 @@ public:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
-public:
-
-	bool OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint);
-
 private:
 
-	void MainLoop();
+	void UdpRecv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPoint);
 
-	void CloseSocket(uint32 ClientId);
+	void HandleRcvData(const FIPv4Endpoint& EndPoint, FArrayReader& Data);
 
-	void HandleRcvData(uint32 ClientId, FSocket* SocketPtr, FArrayReader& Data);
+	bool SendVdByIndex(const FIPv4Endpoint& EndPoint, const TVoxelIndex& VoxelIndex);
 
-	bool SendVdByIndex(FSocket* SocketPtr, const TVoxelIndex& VoxelIndex);
+	bool SendMapInfo(const FIPv4Endpoint& EndPoint, TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area);
 
-	bool SendMapInfo(FSocket* SocketPtr, TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area);
+	//std::mutex Mutex;
 
-	std::mutex Mutex;
+	//TMap<uint32, FSocket*> ClientMap;
 
-	TMap<uint32, FSocket*> ConnectedClientsMap;
-
-	FTcpListener* TcpListenerPtr;
-
-	uint32 ClientCount = 0;
+	FUdpSocketReceiver* UDPReceiver;
 	
 };

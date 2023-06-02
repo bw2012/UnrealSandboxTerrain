@@ -34,43 +34,21 @@ void UTerrainClientComponent::Connect() {
 	FString ServerHost = GetWorld()->URL.Host;
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Game Server Host -> %s"), *ServerHost);
 
-	ISocketSubsystem* const SocketSubSystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	if (SocketSubSystem) {
-		auto ResolveInfo = SocketSubSystem->GetHostByName(TCHAR_TO_ANSI(*ServerHost));
-		while (!ResolveInfo->IsComplete());
+	RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 
-		if (ResolveInfo->GetErrorCode() == 0) {
-			const int Port1 = 6000;
+	bool bIsValid;
+	RemoteAddr->SetIp(TEXT("127.0.0.1"), bIsValid);
+	RemoteAddr->SetPort(6000);
 
-			const FInternetAddr* Addr = &ResolveInfo->GetResolvedAddress();
-			uint32 OutIP = 0;
-			Addr->GetIp(OutIP);
+	int32 BufferSize = 2 * 1024 * 1024;
 
-			UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Try to connect to server IP -> %d.%d.%d.%d:%d"), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP, Port1);
+	UdpSocket = FUdpSocketBuilder(TEXT("test_udp")).AsReusable().WithBroadcast();
+	UdpSocket->SetSendBufferSize(BufferSize, BufferSize);
+	UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
 
-			FIPv4Address IP(0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
+	ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=] { RcvThreadLoop(); });
 
-			TSharedRef<FInternetAddr> ServerAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-			ServerAddr->SetIp(IP.Value);
-			ServerAddr->SetPort(Port1);
-
-			FSocket* SocketPtr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("default"), false);
-
-			bool isConnected = false;
-			do {
-				isConnected = SocketPtr->Connect(*ServerAddr);
-
-				if (isConnected) {
-					UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Connected to voxel data server"));
-					ClientSocketPtr = SocketPtr;
-					ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=]{ RcvThreadLoop(); });
-				} else {
-					UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Not connected"));
-				}
-
-			} while (!isConnected);
-		}
-	}
+	RequestMapInfo();
 }
 
 void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
@@ -80,8 +58,8 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	//UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d"), OpCode);
-	//UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCodeExt -> %d"), OpCodeExt);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d"), OpCode);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCodeExt -> %d"), OpCodeExt);
 
 	if (OpCode == Net_Opcode_ResponseVd) {
 		HandleResponseVd(Data);
@@ -121,20 +99,6 @@ void UTerrainClientComponent::HandleResponseVd(FArrayReader& Data) {
 	GetTerrainController()->NetworkSpawnClientZone(VoxelIndex, Data);
 }
 
-template <typename... Ts>
-void UTerrainClientComponent::SendToServer(uint32 OpCode, Ts... Args) {
-	FBufferArchive SendBuffer;
-
-	SendBuffer << OpCode;
-
-	for (auto& Arg : { Args... }) {
-		auto Tmp = Arg; // workaround - avoid 'const' 
-		SendBuffer << Tmp;
-	}
-
-	Super::NetworkSend(ClientSocketPtr, SendBuffer);
-}
-
 void UTerrainClientComponent::RequestVoxelData(const TVoxelIndex& ZoneIndex) {
 	TVoxelIndex Index = ZoneIndex;
 	static uint32 OpCode = Net_Opcode_RequestVd;
@@ -147,8 +111,7 @@ void UTerrainClientComponent::RequestVoxelData(const TVoxelIndex& ZoneIndex) {
 	SendBuffer << Index.Y;
 	SendBuffer << Index.Z;
 
-	FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
-	FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
+	UdpSend(SendBuffer, *RemoteAddr);
 }
 
 void UTerrainClientComponent::RequestMapInfo() {
@@ -159,36 +122,34 @@ void UTerrainClientComponent::RequestMapInfo() {
 	SendBuffer << OpCode;
 	SendBuffer << OpCodeExt;
 
-	FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
-	FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
+	UdpSend(SendBuffer, *RemoteAddr);
 }
 
 void UTerrainClientComponent::RcvThreadLoop() {
-	GetTerrainController()->OnClientConnected();
 
-	while (true) {
-		if (ClientSocketPtr->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-			UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Connection finished"));
-			return;
-		}
+	while (!GetTerrainController()->bIsWorkFinished) {
+		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+		uint32 Size;
+		while (UdpSocket->HasPendingData(Size)) {
 
-		if (ClientSocketPtr->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(1))) {
+			uint32 MaxReadBufferSize = 2 * 1024 * 1024;
+			//FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
+
 			FArrayReader Data;
-			FSimpleAbstractSocket_FSocket SimpleAbstractSocket(ClientSocketPtr);
-			if (FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket)) {
+
+			Data.SetNumUninitialized(FMath::Min(Size, MaxReadBufferSize));
+
+			int32 Read = 0;
+
+			if (UdpSocket->RecvFrom(Data.GetData(), Data.Num(), Read, *Sender)) {
+
+				UE_LOG(LogSandboxTerrain, Log, TEXT("Client: udp rcv %d"), Read);
+
 				HandleRcvData(Data);
-			} else {
-				UE_LOG(LogSandboxTerrain, Error, TEXT("Client: connection lost"));
-				break;
+
 			}
-
-		}
-
-		if (GetTerrainController()->IsWorkFinished()) {
-			UE_LOG(LogSandboxTerrain, Log, TEXT("Client: close connection"));
-			ClientSocketPtr->Shutdown(ESocketShutdownMode::ReadWrite);
-			ClientSocketPtr->Close();
-			break;
 		}
 	}
+	
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: finish rcv loop"));
 }

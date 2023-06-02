@@ -9,27 +9,6 @@ UTerrainNetworkworkComponent::UTerrainNetworkworkComponent(const FObjectInitiali
 
 }
 
-void UTerrainNetworkworkComponent::NetworkSend(FSocket* SocketPtr, FBufferArchive& Buffer) {
-	FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
-	FNFSMessageHeader::WrapAndSendPayload(Buffer, SimpleAbstractSocket);
-}
-
-/*
-void UTerrainNetworkworkComponent::HandleRcvData(FArrayReader& Data) {
-	uint32 OpCode;
-	Data << OpCode;
-
-	uint32 OpCodeExt;
-	Data << OpCodeExt;
-
-	UE_LOG(LogSandboxTerrain, Log, TEXT("OpCode -> %d"), OpCode);
-
-	if (OpcodeHandlerMap.Contains(OpCode)) {
-		OpcodeHandlerMap[OpCode](Data);
-	}
-}
-*/
-
 void ConvertVoxelIndex(FArchive& Data, TVoxelIndex& Index) {
 	Data << Index.X;
 	Data << Index.Y;
@@ -42,3 +21,19 @@ TVoxelIndex DeserializeVoxelIndex(FArrayReader& Data) {
 	return Index;
 }
 
+int32 UTerrainNetworkworkComponent::UdpSend(FBufferArchive SendBuffer, const FIPv4Endpoint& EndPoint) {
+		int32 BytesSent = 0;
+		UdpSocket->SendTo(SendBuffer.GetData(), SendBuffer.Num(), BytesSent, *EndPoint.ToInternetAddr());
+		return BytesSent;
+}
+
+int32 UTerrainNetworkworkComponent::UdpSend(FBufferArchive SendBuffer, const FInternetAddr& Addr) {
+	int32 BytesSent = 0;
+	UdpSocket->SendTo(SendBuffer.GetData(), SendBuffer.Num(), BytesSent, Addr);
+	return BytesSent;
+}
+
+
+ASandboxTerrainController* UTerrainNetworkworkComponent::GetTerrainController() {
+	return (ASandboxTerrainController*)GetAttachmentRootActor();
+};

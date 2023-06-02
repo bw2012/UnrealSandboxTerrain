@@ -28,9 +28,6 @@ public:
 
 public:
 
-	template <typename... Ts>
-	void SendToServer(uint32 OpCode, Ts... Args);
-
 	void RequestVoxelData(const TVoxelIndex& Index);
 
 	void RequestMapInfo();
@@ -39,7 +36,7 @@ public:
 
 private:
 
-	FSocket* ClientSocketPtr = nullptr;
+	TSharedPtr<FInternetAddr> RemoteAddr;
 
 	UE::Tasks::FTask ClientLoopTask;
 

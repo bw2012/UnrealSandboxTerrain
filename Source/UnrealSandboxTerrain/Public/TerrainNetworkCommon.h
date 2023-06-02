@@ -6,6 +6,7 @@
 #pragma once
 
 #include "EngineMinimal.h"
+#include "Networking.h"
 #include "Net/UnrealNetwork.h"
 #include "VoxelIndex.h"
 #include "TerrainNetworkCommon.generated.h"
@@ -36,15 +37,13 @@ public:
 
 protected:
 
-	void NetworkSend(FSocket* SocketPtr, FBufferArchive& Buffer);
+	FSocket* UdpSocket = nullptr;
 
-	ASandboxTerrainController* GetTerrainController() {
-		return (ASandboxTerrainController*)GetAttachmentRootActor();
-	};
+	ASandboxTerrainController* GetTerrainController();
 
-	//void HandleRcvData(FArrayReader& Data);
+	int32 UdpSend(FBufferArchive SendBuffer, const FIPv4Endpoint& EndPoint);
 
-	//TMap<uint32, std::function<void(FArrayReader&)>> OpcodeHandlerMap;
+	int32 UdpSend(FBufferArchive SendBuffer, const FInternetAddr& Addr);
 
 };
 

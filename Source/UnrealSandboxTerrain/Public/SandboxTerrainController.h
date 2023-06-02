@@ -433,8 +433,6 @@ public:
 	// network
 	//========================================================================================
 
-	virtual void OnClientConnected();
-
 	void BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex);
 
 	void NetworkSerializeZone(FBufferArchive& Buffer, const TVoxelIndex& VoxelIndex);

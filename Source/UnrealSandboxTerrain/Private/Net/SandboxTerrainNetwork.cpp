@@ -193,15 +193,6 @@ TArray<std::tuple<TVoxelIndex, TZoneModificationData>> ASandboxTerrainController
 	return Result;
 }
 
-void ASandboxTerrainController::OnClientConnected() {
-	//FString Text = TEXT("Connected to voxel data server");
-
-	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Yellow, Text);
-	//UE_LOG(LogSandboxTerrain, Warning, TEXT("%s"), *Text);
-
-	TerrainClientComponent->RequestMapInfo();
-}
-
 void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, TZoneModificationData>& ServerDataMap) {
 	const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
 

@@ -19,16 +19,25 @@ void UTerrainServerComponent::BeginPlay() {
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Start at port %d"), Port);
 
 	FIPv4Endpoint Endpoint(FIPv4Address(0, 0, 0, 0), Port);
-	FSocket* ListenerSocketPtr = FTcpSocketBuilder(*VdServerSocketName).AsReusable().BoundToEndpoint(Endpoint).Listening(8);
 
-	const int32 ReceiveBufferSize = 2 * 1024 * 1024;
-	int32 NewSize = 0;
-	ListenerSocketPtr->SetReceiveBufferSize(ReceiveBufferSize, NewSize);
+	const static int32 BufferSize = 2 * 1024 * 1024;
 
-	UE::Tasks::Launch(TEXT("vd_srv_loop"), [=] { MainLoop(); });
+	UdpSocket = FUdpSocketBuilder(*VdServerSocketName).AsNonBlocking().AsReusable().BoundToEndpoint(Endpoint).WithReceiveBufferSize(BufferSize);
 
-	TcpListenerPtr = new FTcpListener(*ListenerSocketPtr);
-	TcpListenerPtr->OnConnectionAccepted().BindUObject(this, &UTerrainServerComponent::OnConnectionAccepted);
+	if (UdpSocket) {
+		FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(100);
+		UDPReceiver = new FUdpSocketReceiver(UdpSocket, ThreadWaitTime, TEXT("UDP RECEIVER"));
+		UDPReceiver->OnDataReceived().BindUObject(this, &UTerrainServerComponent::UdpRecv);
+		UDPReceiver->Start();
+	} else {
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("Server: Failed to start udp server"));
+	}
+
+}
+
+void UTerrainServerComponent::UdpRecv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPoint) {
+	FArrayReader& Data = *ArrayReaderPtr.Get();
+	HandleRcvData(EndPoint, Data);
 }
 
 void UTerrainServerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -36,11 +45,14 @@ void UTerrainServerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) 
 
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Shutdown voxel data server..."));
 
-	//TODO close all sockets
+	if (UDPReceiver) {
+		delete UDPReceiver;
+		UDPReceiver = nullptr;
+	}
 
-	if (TcpListenerPtr) {
-		TcpListenerPtr->GetSocket()->Close();
-		delete TcpListenerPtr;
+	if (UdpSocket) {
+		UdpSocket->Close();
+		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(UdpSocket);
 	}
 }
 
@@ -54,88 +66,10 @@ FString GetAddr(FSocket* Socket) {
 	return RemoteAddress->ToString(true);
 }
 
-void UTerrainServerComponent::CloseSocket(uint32 ClientId) {
-	auto* Socket = ConnectedClientsMap[ClientId];
-
-
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: %d connection closed %s"), ClientId, *GetAddr(Socket));
-
-	Mutex.lock(); // TODO lock guard
-	ConnectedClientsMap.Remove(ClientId);
-	Mutex.unlock();
-
-	Socket->Close();
-	delete Socket;
-}
-
-void UTerrainServerComponent::MainLoop() {
-
-	while (!GetTerrainController()->IsWorkFinished()) {
-		for (auto P : ConnectedClientsMap) {
-			uint32 ClientId = P.Key;
-			FSocket* Socket = P.Value;
-
-			if (Socket->GetConnectionState() != ESocketConnectionState::SCS_Connected) {
-				CloseSocket(ClientId);
-				continue;
-			}
-
-			uint32 PendingDataSize = 0;
-			if (Socket->HasPendingData(PendingDataSize)) {
-				FArrayReader Data;
-				FSimpleAbstractSocket_FSocket SimpleAbstractSocket(Socket);
-				if (FNFSMessageHeader::ReceivePayload(Data, SimpleAbstractSocket)) {
-					HandleRcvData(ClientId, Socket, Data);
-				} else {
-					CloseSocket(ClientId);
-				}
-			}
-		}
-	}
-}
-
-bool UTerrainServerComponent::OnConnectionAccepted(FSocket* SocketPtr, const FIPv4Endpoint& Endpoint) {
-	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-	SocketPtr->GetPeerAddress(*RemoteAddress);
-	const FString RemoteAddressString = RemoteAddress->ToString(true);
-
-	SocketPtr->SetNonBlocking(true);
-
-	Mutex.lock();
-	uint32 ClientId = ClientCount;
-	ConnectedClientsMap.Add(ClientId, SocketPtr);
-	ClientCount++;
-	Mutex.unlock();
-
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: connection accepted -> %s"), *RemoteAddressString);
-
-	return true;
-}
-
-/*
-template <typename... Ts>
-void UTerrainServerComponent::SendToAllClients(uint32 OpCode, Ts... Args) {
-	FBufferArchive SendBuffer;
-
-	SendBuffer << OpCode;
-
-	for (auto Arg : { Args... }) {
-		SendBuffer << Arg;
-	}
-
-	for (auto& Elem : ConnectedClientsMap) {
-		FSocket* SocketPtr = Elem.Value;
-		Super::NetworkSend(SocketPtr, SendBuffer);
-	}
-}
-*/
-
-bool UTerrainServerComponent::SendVdByIndex(FSocket* SocketPtr, const TVoxelIndex& ZoneIndex) {
+bool UTerrainServerComponent::SendVdByIndex(const FIPv4Endpoint& EndPoint, const TVoxelIndex& ZoneIndex) {
 	TVoxelIndex Index = ZoneIndex;
 	static uint32 OpCode = Net_Opcode_ResponseVd;
 	static uint32 OpCodeExt = Net_Opcode_None;
-
-	FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
 	FBufferArchive SendBuffer;
 
 	SendBuffer << OpCode;
@@ -147,16 +81,17 @@ bool UTerrainServerComponent::SendVdByIndex(FSocket* SocketPtr, const TVoxelInde
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: SendVdByIndex %d %d %d "), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 	GetTerrainController()->NetworkSerializeZone(SendBuffer, Index);
-	return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
+	//return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
+
+	UdpSend(SendBuffer, EndPoint);
+
+	return true;
 }
 
-bool UTerrainServerComponent::SendMapInfo(FSocket* SocketPtr, TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area) {
+bool UTerrainServerComponent::SendMapInfo(const FIPv4Endpoint& EndPoint, TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area) {
 	static uint32 OpCode = Net_Opcode_ResponseMapInfo;
 	static uint32 OpCodeExt = Net_Opcode_None;
-
-	FSimpleAbstractSocket_FSocket SimpleAbstractSocket(SocketPtr);
 	FBufferArchive SendBuffer;
-
 	uint32 Size = Area.Num();
 
 	SendBuffer << OpCode;
@@ -174,13 +109,16 @@ bool UTerrainServerComponent::SendMapInfo(FSocket* SocketPtr, TArray<std::tuple<
 		//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: change counter %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, ElemData.ChangeCounter);
 	}
 
-	return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
+	UdpSend(SendBuffer, EndPoint);
+
+	return true;
 }
 
-void UTerrainServerComponent::HandleRcvData(uint32 ClientId, FSocket* SocketPtr, FArrayReader& Data) {
-	TSharedRef<FInternetAddr> RemoteAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-	SocketPtr->GetPeerAddress(*RemoteAddress);
-	const FString RemoteAddressString = RemoteAddress->ToString(true);
+void UTerrainServerComponent::HandleRcvData(const FIPv4Endpoint& EndPoint, FArrayReader& Data) {
+	
+	FString Str = EndPoint.ToString();
+
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: %s"), *Str);
 
 	uint32 OpCode;
 	Data << OpCode;
@@ -188,20 +126,18 @@ void UTerrainServerComponent::HandleRcvData(uint32 ClientId, FSocket* SocketPtr,
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCode -> %d"), OpCode);
-	//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCodeExt -> %d"), OpCodeExt);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCode -> %d"), OpCode);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCodeExt -> %d"), OpCodeExt);
 
 	if (OpCode == Net_Opcode_RequestVd) {
 		TVoxelIndex Index = DeserializeVoxelIndex(Data);
 		//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests vd at %d %d %d"), *RemoteAddressString, Index.X, Index.Y, Index.Z);
-		SendVdByIndex(SocketPtr, Index);
+		SendVdByIndex(EndPoint, Index);
 	}
 
 	if (OpCode == Net_Opcode_RequestMapInfo) {
 		//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: Client %s requests map info"), *RemoteAddressString);
-
-		// TODO remove hardcode
 		TArray<std::tuple<TVoxelIndex, TZoneModificationData>> Area = GetTerrainController()->NetworkServerMapInfo();
-		SendMapInfo(SocketPtr, Area);
+		SendMapInfo(EndPoint, Area);
 	}
 }
