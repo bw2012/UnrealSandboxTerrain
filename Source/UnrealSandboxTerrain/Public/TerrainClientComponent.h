@@ -32,7 +32,9 @@ public:
 
 	void RequestMapInfo();
 
-	void Connect();
+	void Init();
+
+	void Start();
 
 private:
 

@@ -15,10 +15,7 @@ UTerrainClientComponent::UTerrainClientComponent(const FObjectInitializer& Objec
 
 void UTerrainClientComponent::BeginPlay() {
 	Super::BeginPlay();
-
-	if (GetTerrainController()->bAutoConnect) {
-		Connect();
-	}
+	Init();
 }
 
 void UTerrainClientComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -29,25 +26,45 @@ void UTerrainClientComponent::BeginDestroy() {
 	Super::BeginDestroy();
 }
 
-void UTerrainClientComponent::Connect() {
-	const int Port = 6000;
+void UTerrainClientComponent::Init() {
+	const int Port = (GetTerrainController()->ServerPort == 0) ? 6000 : GetTerrainController()->ServerPort;
 	FString ServerHost = GetWorld()->URL.Host;
 	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Game Server Host -> %s"), *ServerHost);
 
-	RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	auto SocketSubSystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 
-	bool bIsValid;
-	RemoteAddr->SetIp(TEXT("127.0.0.1"), bIsValid);
-	RemoteAddr->SetPort(6000);
+	auto* ResolveInfo = SocketSubSystem->GetHostByName(TCHAR_TO_ANSI(*ServerHost));
+	while (!ResolveInfo->IsComplete());
 
-	int32 BufferSize = 2 * 1024 * 1024;
+	if (ResolveInfo->GetErrorCode() == 0) {
 
-	UdpSocket = FUdpSocketBuilder(TEXT("test_udp")).AsReusable().WithBroadcast();
-	UdpSocket->SetSendBufferSize(BufferSize, BufferSize);
-	UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
+		const FInternetAddr* Addr = &ResolveInfo->GetResolvedAddress();
+		uint32 OutIP = 0;
+		Addr->GetIp(OutIP);
 
-	ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=] { RcvThreadLoop(); });
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Client: server IP -> %d.%d.%d.%d:%d"), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP, Port);
 
+		FIPv4Address IP(0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
+
+		RemoteAddr = SocketSubSystem->CreateInternetAddr();
+		RemoteAddr->SetIp(IP.Value);
+		RemoteAddr->SetPort(Port);
+
+		int32 BufferSize = 2 * 1024 * 1024;
+
+		UdpSocket = FUdpSocketBuilder(TEXT("vd_client_udp")).AsReusable().WithBroadcast();
+		UdpSocket->SetSendBufferSize(BufferSize, BufferSize);
+		UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
+
+		ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=] { RcvThreadLoop(); });
+
+		if (GetTerrainController()->bAutoConnect) {
+			Start();
+		}
+	}
+}
+
+void UTerrainClientComponent::Start() {
 	RequestMapInfo();
 }
 
@@ -58,8 +75,7 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d"), OpCode);
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCodeExt -> %d"), OpCodeExt);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d, OpCodeExt -> %d"), OpCode, OpCodeExt);
 
 	if (OpCode == Net_Opcode_ResponseVd) {
 		HandleResponseVd(Data);
@@ -68,11 +84,14 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 	if (OpCode == Net_Opcode_ResponseMapInfo) {
 		UE_LOG(LogSandboxTerrain, Log, TEXT("Client: ResponseMapInfo"));
 
-		int32 Size = 0;
+		uint32 MapVStamp = 0;
+		uint32 Size = 0;
+
+		Data << MapVStamp;
 		Data << Size;
 
 		TMap<TVoxelIndex, TZoneModificationData> ServerMap;
-		for (int32 I = 0; I < Size; I++) {
+		for (uint32 I = 0; I < Size; I++) {
 			TVoxelIndex ElemIndex;
 			uint32 ChangeCounter = 0;
 			ConvertVoxelIndex(Data, ElemIndex);

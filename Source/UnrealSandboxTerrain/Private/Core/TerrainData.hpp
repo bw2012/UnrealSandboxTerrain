@@ -34,6 +34,11 @@ private:
     
 public:
 
+	bool IsSaveIndexEmpty() {
+		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetMutex);
+		return SaveIndexSet.size() == 0;
+	}
+
 	void AddSaveIndex(const TVoxelIndex& Index) {
 		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetMutex);
 		SaveIndexSet.insert(Index);

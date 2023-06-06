@@ -679,7 +679,7 @@ protected:
 
 	virtual bool OnZoneHardUnload(const TVoxelIndex& ZoneIndex);
 
-	void ClientConnect();
+	void ClientStart();
 
 	//===============================================================================
 	// voxel data storage

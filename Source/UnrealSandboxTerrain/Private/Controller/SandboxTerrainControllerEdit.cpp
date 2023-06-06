@@ -458,8 +458,9 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	CollisionQueryParams.bTraceComplex = false;
 	CollisionQueryParams.bSkipNarrowPhase = true;
 
-	double Start = FPlatformTime::Seconds();
+	TVoxelIndex BaseZoneIndex = GetZoneIndex(Handler.Origin);
 
+	double Start = FPlatformTime::Seconds();
 	const float R = Handler.Extend;
 
 	//DrawDebugSphere(GetWorld(), Handler.Origin, R, 20, FColor(255, 255, 255, 100), false, 5);
@@ -467,7 +468,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	bool bIsOverlap = GetWorld()->OverlapMultiByChannel(Result, Handler.Origin, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(R)); // ECC_Visibility
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Trace terrain -> %f ms"), Time);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Trace terrain meshes: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
 
 	if (bIsOverlap) {
 		for (FOverlapResult& Overlap : Result) {
@@ -607,12 +608,10 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 			VoxelDataInfo->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
 
 			if (VoxelDataInfo->Vd == nullptr) {
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
-
+				//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 				TVoxelData* NewVd = NewVoxelData();
 				NewVd->setOrigin(GetZonePos(ZoneIndex));
 				VoxelDataInfo->Vd = NewVd;
-
 			} else {
 				UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED but Vd is not null"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 			}
@@ -639,5 +638,5 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Edit terrain -> %f ms"), Time);
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Edit terrain: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
 }

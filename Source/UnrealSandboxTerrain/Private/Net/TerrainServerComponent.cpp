@@ -93,10 +93,11 @@ bool UTerrainServerComponent::SendMapInfo(const FIPv4Endpoint& EndPoint, TArray<
 	static uint32 OpCodeExt = Net_Opcode_None;
 	FBufferArchive SendBuffer;
 	uint32 Size = Area.Num();
+	uint32 MapVStamp = 0;
 
 	SendBuffer << OpCode;
 	SendBuffer << OpCodeExt;
-
+	SendBuffer << MapVStamp;
 	SendBuffer << Size;
 
 	for (int32 I = 0; I != Area.Num(); ++I) {
@@ -126,8 +127,7 @@ void UTerrainServerComponent::HandleRcvData(const FIPv4Endpoint& EndPoint, FArra
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCode -> %d"), OpCode);
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCodeExt -> %d"), OpCodeExt);
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("Server: OpCode -> %d, OpCodeExt -> %d"), OpCode, OpCodeExt);
 
 	if (OpCode == Net_Opcode_RequestVd) {
 		TVoxelIndex Index = DeserializeVoxelIndex(Data);

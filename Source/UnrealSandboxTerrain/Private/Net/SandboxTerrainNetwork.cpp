@@ -28,7 +28,7 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 		TVoxelData* Vd = LoadVoxelDataByIndex(Index);
 		Data = SerializeVd(Vd);
 		delete Vd;
-	} else if (VdInfoPtr->DataState == TVoxelDataState::LOADED) {
+	} else if (VdInfoPtr->DataState == TVoxelDataState::LOADED || VdInfoPtr->DataState == TVoxelDataState::GENERATED) {
 		Data = SerializeVd(VdInfoPtr->Vd);
 	} 
 
@@ -71,6 +71,8 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 	int32 State;
 	BinaryData << State;
 
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("NetworkSpawnClientZone: %d %d %d remote state = %d"), Index.X, Index.Y, Index.Z, State);
+
 	TVoxelDataState ServerVdState = (TVoxelDataState)State;
 	if (ServerVdState == TVoxelDataState::UNGENERATED) {
 		TArray<TSpawnZoneParam> SpawnList;
@@ -80,11 +82,13 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 		BatchSpawnZone(SpawnList);
 	}
 
-	if (ServerVdState == TVoxelDataState::READY_TO_LOAD || ServerVdState == TVoxelDataState::LOADED) {
+	if (ServerVdState == TVoxelDataState::READY_TO_LOAD || ServerVdState == TVoxelDataState::LOADED || ServerVdState == TVoxelDataState::GENERATED) {
 		int32 Size;
 		BinaryData << Size;
 
-		if(Size > 0){
+		UE_LOG(LogSandboxTerrain, Warning, TEXT("NetworkSpawnClientZone: BinaryData %d "), Size);
+
+		if(Size > 0) {
 			TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 			VdInfoPtr->Lock();
 
@@ -113,7 +117,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			int32 SizeObj;
 			BinaryData << SizeObj;
 			TInstanceMeshTypeMap ZoneInstanceMeshMap;
-			//UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
+			UE_LOG(LogSandboxTerrain, Warning, TEXT("Client: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
 
 			if (SizeObj > 0) {
 				TValueData ObjData;
@@ -146,35 +150,6 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			VdInfoPtr->Unlock();
 		}
 	}
-
-
-	/*
-	TVoxelDataInfo VdInfo;
-	VdInfo.Vd = NewVoxelData();
-	VdInfo.Vd->setOrigin(Pos);
-
-	FMemoryReader BinaryData = FMemoryReader(RawVdData, true);
-	BinaryData.Seek(RawVdData.Tell());
-	//deserializeVoxelDataFast(*VdInfo.Vd, BinaryData, true);
-
-	VdInfo.DataState = TVoxelDataState::GENERATED;
-	VdInfo.SetChanged();
-	VdInfo.Vd->setCacheToValid();
-
-	//TerrainData->RegisterVoxelData(VdInfo, Index);
-	//TerrainData->RegisterVoxelData(VdInfo, Index);
-
-	if (VdInfo.Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
-		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfo.Vd);
-		
-		InvokeSafe([=]() {
-			UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
-			//Zone->ApplyTerrainMesh(MeshDataPtr);
-		});
-		
-	}
-	*/
-
 }
 
 std::list<TChunkIndex> ReverseSpiralWalkthrough(const unsigned int r);

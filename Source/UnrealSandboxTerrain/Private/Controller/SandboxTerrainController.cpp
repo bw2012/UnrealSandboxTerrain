@@ -99,7 +99,7 @@ ASandboxTerrainController::ASandboxTerrainController() {
 
 void ASandboxTerrainController::PostLoad() {
 	Super::PostLoad();
-	UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::PostLoad()"));
+	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainController::PostLoad()"));
 	bIsGameShutdown = false;
 }
 
@@ -130,9 +130,11 @@ void ASandboxTerrainController::BeginPlay() {
 	bGenerateOnlySmallSpawnPoint = false;
 #endif
 
+	UE_LOG(LogSandboxTerrain, Warning, TEXT("Initialize terrain parameters..."));
+	
 	float ScreenSize = 1.f;
 	for (auto LodIdx = 0; LodIdx < LOD_ARRAY_SIZE; LodIdx++) {
-		UE_LOG(LogSandboxTerrain, Warning, TEXT("Lod %d -> %f"), LodIdx, ScreenSize);
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Lod %d -> %f"), LodIdx, ScreenSize);
 		LodScreenSizeArray[LodIdx] = ScreenSize;
 		ScreenSize *= LodRatio;
 	}
@@ -160,9 +162,10 @@ void ASandboxTerrainController::BeginPlay() {
 	if (TerrainParameters) {
 		MaterialMap = TerrainParameters->MaterialMap;
 
+		UE_LOG(LogSandboxTerrain, Log, TEXT("Register terrain instance meshes:"));
 		for (const auto& InstMesh : TerrainParameters->InstanceMeshes) {
 			uint64 MeshTypeCode = InstMesh.GetMeshTypeCode();
-			UE_LOG(LogSandboxTerrain, Log, TEXT("MeshTypeCode -> %lld"), MeshTypeCode);
+			UE_LOG(LogSandboxTerrain, Log, TEXT("MeshTypeCode = %lld"), MeshTypeCode);
 			InstMeshMap.Add(MeshTypeCode, InstMesh);
 		}
 	}
@@ -205,12 +208,20 @@ void ASandboxTerrainController::ShutdownThreads() {
 
 void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason) {
 	Super::EndPlay(EndPlayReason);
-	UE_LOG(LogSandboxTerrain, Warning, TEXT("ASandboxTerrainController::EndPlay"));
+	UE_LOG(LogSandboxTerrain, Log, TEXT("Shutdown terrain controller..."));
 
 	ShutdownThreads();
 
 	if (bSaveOnEndPlay || GetNetMode() == NM_DedicatedServer) {
-		Save();
+
+		std::function<void(uint32, uint32)> OnProgress = [=](uint32 Processed, uint32 Total) {
+			if (Processed % 10 == 0) {
+				float Progress = (float)Processed / (float)Total;
+				UE_LOG(LogSandboxTerrain, Log, TEXT("Save terrain: %d / %d - %f%%"), Processed, Total, Progress * 100);
+			}
+		};
+
+		Save(OnProgress);
 	}
 
 	CloseFile();
@@ -444,7 +455,7 @@ void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIn
 
 				AsyncTask(ENamedThreads::GameThread, [&] {
 					//StartPostLoadTimers();
-					//StartCheckArea();
+					StartCheckArea();
 				});
 			});
 		}
@@ -504,9 +515,10 @@ void ASandboxTerrainController::BeginPlayClient() {
 	TerrainClientComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 }
 
-
-void ASandboxTerrainController::ClientConnect() {
-	TerrainClientComponent->Connect();
+void ASandboxTerrainController::ClientStart() {
+	if (TerrainClientComponent) {
+		TerrainClientComponent->Start();
+	}
 }
 
 void ASandboxTerrainController::OnStartBackgroundSaveTerrain() {
@@ -527,7 +539,7 @@ void ASandboxTerrainController::SaveMapAsync() {
 		std::function<void(uint32, uint32)> OnProgress = [=](uint32 Processed, uint32 Total) {
 			if (Processed % 10 == 0) {
 				float Progress = (float)Processed / (float)Total;
-				//UE_LOG(LogSandboxTerrain, Log, TEXT("Save terrain: %d / %d - %f%%"), Processed, Total, Progress * 100);
+				UE_LOG(LogSandboxTerrain, Log, TEXT("Save terrain: %d / %d - %f%%"), Processed, Total, Progress * 100);
 				AsyncTask(ENamedThreads::GameThread, [=]() { OnProgressBackgroundSaveTerrain(Progress); });
 			}
 		};
@@ -542,6 +554,10 @@ void ASandboxTerrainController::SaveMapAsync() {
 }
 
 void ASandboxTerrainController::AutoSaveByTimer() {
+	if (TerrainData->IsSaveIndexEmpty()) {
+		return;
+	}
+
     UE_LOG(LogSandboxTerrain, Log, TEXT("Start auto save..."));
 	SaveMapAsync();
 }
@@ -1066,6 +1082,10 @@ FTerrainDebugInfo ASandboxTerrainController::GetMemstat() {
 }
 
 void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
+	if (GetNetMode() == NM_DedicatedServer) {
+		return;
+	}
+
 	double Start = FPlatformTime::Seconds();
 
 	TArray<UTerrainZoneComponent*> Components;
