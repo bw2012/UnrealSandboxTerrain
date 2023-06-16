@@ -5,6 +5,7 @@
 #include "SandboxTerrainController.h"
 #include "NetworkMessage.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "IPAddressAsyncResolve.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 
@@ -29,7 +30,7 @@ void UTerrainClientComponent::BeginDestroy() {
 void UTerrainClientComponent::Init() {
 	const int Port = (GetTerrainController()->ServerPort == 0) ? 6000 : GetTerrainController()->ServerPort;
 	FString ServerHost = GetWorld()->URL.Host;
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: Game Server Host -> %s"), *ServerHost);
+	UE_LOG(LogVt, Log, TEXT("Client: Game Server Host -> %s"), *ServerHost);
 
 	auto SocketSubSystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 
@@ -42,7 +43,7 @@ void UTerrainClientComponent::Init() {
 		uint32 OutIP = 0;
 		Addr->GetIp(OutIP);
 
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Client: server IP -> %d.%d.%d.%d:%d"), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP, Port);
+		UE_LOG(LogVt, Log, TEXT("Client: server IP -> %d.%d.%d.%d:%d"), 0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP, Port);
 
 		FIPv4Address IP(0xff & (OutIP >> 24), 0xff & (OutIP >> 16), 0xff & (OutIP >> 8), 0xff & OutIP);
 
@@ -69,20 +70,19 @@ void UTerrainClientComponent::Start() {
 }
 
 void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
+
 	uint32 OpCode;
 	Data << OpCode;
 
 	uint32 OpCodeExt;
 	Data << OpCodeExt;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: OpCode -> %d, OpCodeExt -> %d"), OpCode, OpCodeExt);
+	//UE_LOG(LogVt, Log, TEXT("Client: OpCode -> %d, OpCodeExt -> %d"), OpCode, OpCodeExt);
 
 	if (OpCode == Net_Opcode_ResponseVd) {
 		HandleResponseVd(Data);
-	}
-
-	if (OpCode == Net_Opcode_ResponseMapInfo) {
-		UE_LOG(LogSandboxTerrain, Log, TEXT("Client: ResponseMapInfo"));
+	} else if (OpCode == Net_Opcode_ResponseMapInfo) {
+		UE_LOG(LogVt, Log, TEXT("Client: ResponseMapInfo"));
 
 		uint32 MapVStamp = 0;
 		uint32 Size = 0;
@@ -90,19 +90,25 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 		Data << MapVStamp;
 		Data << Size;
 
+		UE_LOG(LogVt, Warning, TEXT("Client: MapVStamp %d"), MapVStamp);
+
 		TMap<TVoxelIndex, TZoneModificationData> ServerMap;
 		for (uint32 I = 0; I < Size; I++) {
 			TVoxelIndex ElemIndex;
-			uint32 ChangeCounter = 0;
+			uint32 VStamp = 0;
 			ConvertVoxelIndex(Data, ElemIndex);
-			Data << ChangeCounter;
+			Data << VStamp;
 			TZoneModificationData MData;
-			MData.ChangeCounter = ChangeCounter;
+			MData.VStamp = VStamp;
 			ServerMap.Add(ElemIndex, MData);
-			//UE_LOG(LogSandboxTerrain, Log, TEXT("Client: change counter %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, ChangeCounter);
+			//UE_LOG(LogVt, Log, TEXT("Client: vstamp %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, VStamp);
 		}
 
+		StoredVStamp = MapVStamp;
+
 		GetTerrainController()->OnReceiveServerMapInfo(ServerMap);
+	} else {
+		UE_LOG(LogVt, Warning, TEXT("Invalid OpCode = %d"), OpCode);
 	}
 }
 
@@ -113,7 +119,7 @@ void UTerrainClientComponent::HandleResponseVd(FArrayReader& Data) {
 	Data << VoxelIndex.Y;
 	Data << VoxelIndex.Z;
 
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: HandleResponseVd %d %d %d"), VoxelIndex.X, VoxelIndex.Y, VoxelIndex.Z);
+	UE_LOG(LogVt, Log, TEXT("Client: HandleResponseVd %d %d %d"), VoxelIndex.X, VoxelIndex.Y, VoxelIndex.Z);
 
 	GetTerrainController()->NetworkSpawnClientZone(VoxelIndex, Data);
 }
@@ -144,31 +150,37 @@ void UTerrainClientComponent::RequestMapInfo() {
 	UdpSend(SendBuffer, *RemoteAddr);
 }
 
+void UTerrainClientComponent::RequestMapInfoIfStaled() {
+	static uint32 OpCode = Net_Opcode_RequestMapInfo;
+	static uint32 OpCodeExt = 1;
+
+	FBufferArchive SendBuffer;
+	SendBuffer << OpCode;
+	SendBuffer << OpCodeExt;
+	SendBuffer << StoredVStamp;
+
+	UdpSend(SendBuffer, *RemoteAddr);
+}
+
 void UTerrainClientComponent::RcvThreadLoop() {
 
 	while (!GetTerrainController()->bIsWorkFinished) {
 		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 		uint32 Size;
 		while (UdpSocket->HasPendingData(Size)) {
-
 			uint32 MaxReadBufferSize = 2 * 1024 * 1024;
-			//FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
 
 			FArrayReader Data;
-
-			Data.SetNumUninitialized(FMath::Min(Size, MaxReadBufferSize));
+			Data.SetNumZeroed(MaxReadBufferSize);
 
 			int32 Read = 0;
-
 			if (UdpSocket->RecvFrom(Data.GetData(), Data.Num(), Read, *Sender)) {
-
-				UE_LOG(LogSandboxTerrain, Log, TEXT("Client: udp rcv %d"), Read);
-
+				//UE_LOG(LogVt, Log, TEXT("Client: udp rcv %d"), Read);
+				Data.SetNum(Read);
 				HandleRcvData(Data);
-
 			}
 		}
 	}
 	
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Client: finish rcv loop"));
+	UE_LOG(LogVt, Log, TEXT("Client: finish rcv loop"));
 }

@@ -230,7 +230,7 @@ typedef struct TKvFileZoneData {
 
 struct TZoneModificationData {
 
-	uint32 ChangeCounter = 0;
+	uint32 VStamp = 0;
 
 };
 
@@ -470,6 +470,8 @@ public:
 
 private:
 
+	volatile bool bInitialLoad = true;
+
 	volatile bool bEnableConveyor = false;
 
 	volatile bool bForcePerformHardUnload = false;
@@ -603,7 +605,9 @@ private:
 
 	UTerrainZoneComponent* AddTerrainZone(FVector pos);
 
-	void UnloadFarZones(const FVector& PlayerLocation);
+	void UnloadUnreachableZones(const TArray<TVoxelIndex>& UnreachableZones);
+
+	void CheckUnreachableZones(const TArray<FVector>& PlayerLocationList);
 
 	//===============================================================================
 	// network
@@ -613,23 +617,19 @@ private:
 
 	UTerrainServerComponent* TerrainServerComponent;
 
-	TMap<TVoxelIndex, TZoneModificationData> ModifiedVdMap;
-
-	int32 MapVerHash;
-
-	std::mutex ModifiedVdMapMutex;
-
-	int32 GetMapVersionHash();
+	int32 GetMapVStamp();
 
 	void SaveTerrainMetadata();
 
 	void LoadTerrainMetadata();
 
-	void IncrementChangeCounter(const TVoxelIndex& ZoneIndex);
-
 	TArray<std::tuple<TVoxelIndex, TZoneModificationData>> NetworkServerMapInfo();
 
 	void OnReceiveServerMapInfo(const TMap<TVoxelIndex, TZoneModificationData>& ServerDataMap);
+
+	FTimerHandle TimerPingServer;
+
+	void PingServer();
 
 protected:
 

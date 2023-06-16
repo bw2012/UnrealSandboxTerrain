@@ -40,7 +40,7 @@ struct TZoneEditHandler {
 
 void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float Radius, const float Length, const FRotator& Rotator, const bool bNoise) {
 	if (GetNetMode() != NM_Standalone) {
-		UE_LOG(LogSandboxTerrain, Error, TEXT("Not implemented yet"));
+		UE_LOG(LogVt, Error, TEXT("Not implemented yet"));
 		return;
 	}
 
@@ -97,14 +97,13 @@ void ASandboxTerrainController::DigCylinder(const FVector& Origin, const float R
 
 void ASandboxTerrainNetProxy::MulticastRpcDigSphere_Implementation(int32 MapVer, const FVector& Origin, float Radius, bool bNoise) {
 	if (GetNetMode() == NM_Client) {
-		//TODO check map version hash and start resync if broken
 		Controller->DigTerrainRoundHole(Origin, Radius, bNoise);
 	}
 }
 
 void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float Radius, bool bNoise) {
 	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
-		NetProxy->MulticastRpcDigSphere(GetMapVersionHash(), Origin, Radius, bNoise);
+		NetProxy->MulticastRpcDigSphere(GetMapVStamp(), Origin, Radius, bNoise);
 	} 
 
 	struct ZoneHandler : TZoneEditHandler {
@@ -152,7 +151,7 @@ void ASandboxTerrainController::DigTerrainRoundHole(const FVector& Origin, float
 
 void ASandboxTerrainController::DigTerrainCubeHoleComplex(const FVector& Origin, const FBox& Box, float Extend, const FRotator& Rotator) {
 	if (GetNetMode() != NM_Standalone) {
-		UE_LOG(LogSandboxTerrain, Error, TEXT("Not implemented yet"));
+		UE_LOG(LogVt, Error, TEXT("Not implemented yet"));
 		return;
 	}
 
@@ -250,14 +249,13 @@ void ASandboxTerrainController::DigTerrainCubeHoleComplex(const FVector& Origin,
 
 void ASandboxTerrainNetProxy::MulticastRpcDigCube_Implementation(int32 MapVer, const FVector& Origin, float Extend, const FRotator& Rotator) {
 	if (GetNetMode() == NM_Client) {
-		//TODO check map version hash and start resync if broken
 		Controller->DigTerrainCubeHole(Origin, Extend, Rotator);
 	}
 }
 
 void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float Extend, const FRotator& Rotator) {
 	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
-
+		NetProxy->MulticastRpcDigCube(GetMapVStamp(), Origin, Extend, Rotator);
 	}
 
 	struct ZoneHandler : TZoneEditHandler {
@@ -313,7 +311,7 @@ void ASandboxTerrainController::DigTerrainCubeHole(const FVector& Origin, float 
 
 void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Extend, int MatId) {
 	if (GetNetMode() != NM_Standalone) {
-		UE_LOG(LogSandboxTerrain, Error, TEXT("Not implemented yet"));
+		UE_LOG(LogVt, Error, TEXT("Not implemented yet"));
 		return;
 	}
 
@@ -349,7 +347,7 @@ void ASandboxTerrainController::FillTerrainCube(const FVector& Origin, float Ext
 
 void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Extend, int MatId) {
 	if (GetNetMode() != NM_Standalone) {
-		UE_LOG(LogSandboxTerrain, Error, TEXT("Not implemented yet"));
+		UE_LOG(LogVt, Error, TEXT("Not implemented yet"));
 		return;
 	}
 
@@ -468,7 +466,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	bool bIsOverlap = GetWorld()->OverlapMultiByChannel(Result, Handler.Origin, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(R)); // ECC_Visibility
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Trace terrain meshes: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
+	UE_LOG(LogVt, Log, TEXT("Trace terrain meshes: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
 
 	if (bIsOverlap) {
 		for (FOverlapResult& Overlap : Result) {
@@ -545,17 +543,9 @@ void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoP
 	//}
 }
 
-int32 ASandboxTerrainController::GetMapVersionHash() {
-	return 0; // TODO map version control
+int32 ASandboxTerrainController::GetMapVStamp() {
+	return TerrainData->GetMapVStamp();
 }
-
-void ASandboxTerrainController::IncrementChangeCounter(const TVoxelIndex& ZoneIndex) {
-	const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
-	TZoneModificationData& Data = ModifiedVdMap.FindOrAdd(ZoneIndex);
-	Data.ChangeCounter++;
-}
-
-TMap<TVoxelIndex, TZoneModificationData> ModifiedVdMap;
 
 // TODO refactor concurency according new terrain data system
 template<class H>
@@ -569,7 +559,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	PerformEachZone(ZoneHandler.Origin, ZoneHandler.Extend, [&](TVoxelIndex ZoneIndex, FVector Origin, TVoxelDataInfoPtr VoxelDataInfo) {
 		if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-			UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> Invalid zone vd state (UNDEFINED)"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+			UE_LOG(LogVt, Warning, TEXT("Zone: %d %d %d -> Invalid zone vd state (UNDEFINED)"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 			AsyncTask(ENamedThreads::GameThread, [=]() {
 				DrawDebugBox(GetWorld(), GetZonePos(ZoneIndex), FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5);
@@ -588,7 +578,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 		UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 
 		if (VoxelDataInfo->DataState == TVoxelDataState::UNDEFINED) {
-			UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNDEFINED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+			UE_LOG(LogVt, Warning, TEXT("Zone: %d %d %d -> UNDEFINED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 			VoxelDataInfo->Unlock();
 			return;
 		}
@@ -608,12 +598,12 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 			VoxelDataInfo->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
 
 			if (VoxelDataInfo->Vd == nullptr) {
-				//UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+				//UE_LOG(LogVt, Warning, TEXT("Zone: %d %d %d -> UNGENERATED"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 				TVoxelData* NewVd = NewVoxelData();
 				NewVd->setOrigin(GetZonePos(ZoneIndex));
 				VoxelDataInfo->Vd = NewVd;
 			} else {
-				UE_LOG(LogSandboxTerrain, Warning, TEXT("Zone: %d %d %d -> UNGENERATED but Vd is not null"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+				UE_LOG(LogVt, Warning, TEXT("Zone: %d %d %d -> UNGENERATED but Vd is not null"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 			}
 
 			GetTerrainGenerator()->ForceGenerateZone(VoxelDataInfo->Vd, ZoneIndex);
@@ -621,7 +611,10 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 		}
 
 		if (VoxelDataInfo->DataState == TVoxelDataState::LOADED || VoxelDataInfo->DataState == TVoxelDataState::GENERATED) {
-			IncrementChangeCounter(ZoneIndex);
+			if (GetNetMode() != NM_Client) {
+				TerrainData->IncreaseVStamp(ZoneIndex);
+			}
+
 			if (Zone == nullptr) {
 				PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 					ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr, false, true);
@@ -638,5 +631,5 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 
 	double End = FPlatformTime::Seconds();
 	double Time = (End - Start) * 1000;
-	UE_LOG(LogSandboxTerrain, Log, TEXT("Edit terrain: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
+	UE_LOG(LogVt, Log, TEXT("Edit terrain: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
 }

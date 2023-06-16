@@ -90,7 +90,7 @@ public:
             VdMutex.lock();
         } catch (std::exception e) {
             FString ExceptionString(e.what());
-            UE_LOG(LogSandboxTerrain, Warning, TEXT("Exception: %s"), *ExceptionString);
+            UE_LOG(LogVt, Warning, TEXT("Exception: %s"), *ExceptionString);
         }
         */
     }

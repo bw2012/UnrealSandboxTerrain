@@ -22,9 +22,9 @@ TVoxelIndex DeserializeVoxelIndex(FArrayReader& Data) {
 }
 
 int32 UTerrainNetworkworkComponent::UdpSend(FBufferArchive SendBuffer, const FIPv4Endpoint& EndPoint) {
-		int32 BytesSent = 0;
-		UdpSocket->SendTo(SendBuffer.GetData(), SendBuffer.Num(), BytesSent, *EndPoint.ToInternetAddr());
-		return BytesSent;
+	int32 BytesSent = 0;
+	UdpSocket->SendTo(SendBuffer.GetData(), SendBuffer.Num(), BytesSent, *EndPoint.ToInternetAddr());
+	return BytesSent;
 }
 
 int32 UTerrainNetworkworkComponent::UdpSend(FBufferArchive SendBuffer, const FInternetAddr& Addr) {

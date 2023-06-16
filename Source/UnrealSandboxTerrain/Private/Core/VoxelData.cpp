@@ -62,7 +62,7 @@ void TVoxelData::copyCacheUnsafe(const int* cache_data, const int* len) {
 	for (auto lod = 0; lod < LOD_ARRAY_SIZE; lod++) {
 		int n = (num() - 1) >> lod;
 		int l = len[lod];
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("test ----> %d"), l);
+		//UE_LOG(LogVt, Log, TEXT("test ----> %d"), l);
 		substanceCacheLOD[lod].copy(offset + cache_data, l);
 		offset += n * n * n;
 	}

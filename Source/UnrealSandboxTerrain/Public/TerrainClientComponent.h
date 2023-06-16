@@ -32,6 +32,8 @@ public:
 
 	void RequestMapInfo();
 
+	void RequestMapInfoIfStaled();
+
 	void Init();
 
 	void Start();
@@ -47,5 +49,7 @@ private:
 	void HandleResponseVd(FArrayReader& Data);
 
 	void RcvThreadLoop();
+
+	int32 StoredVStamp = 0;
 	
 };

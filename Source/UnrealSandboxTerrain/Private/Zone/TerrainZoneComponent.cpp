@@ -28,7 +28,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 
 	if (MeshDataTimeStamp > MeshDataPtr->TimeStamp) {
 		// TODO 
-		//UE_LOG(LogSandboxTerrain, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
+		//UE_LOG(LogVt, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
 	}
 
 	MeshDataTimeStamp = MeshDataPtr->TimeStamp;
@@ -53,7 +53,7 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 
 	double end = FPlatformTime::Seconds();
 	double time = (end - start) * 1000;
-	//UE_LOG(LogSandboxTerrain, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+	//UE_LOG(LogVt, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
 TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
@@ -190,7 +190,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 
 	bool bIsFoliage = GetTerrainController()->FoliageMap.Contains(MeshType.MeshTypeId);
 	if (InstancedStaticMeshComponent == nullptr) {
-		//UE_LOG(LogSandboxTerrain, Log, TEXT("SpawnInstancedMesh -> %d %d"), MeshType.MeshVariantId, MeshType.MeshTypeId);
+		//UE_LOG(LogVt, Log, TEXT("SpawnInstancedMesh -> %d %d"), MeshType.MeshVariantId, MeshType.MeshTypeId);
 		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - [%d, %d]-> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, MeshType.MeshVariantId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
 		InstancedStaticMeshComponent = NewObject<UTerrainInstancedStaticMesh>(this, FName(*InstancedStaticMeshCompName));
@@ -230,7 +230,7 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 	}
 
 	InstancedStaticMeshComponent->AddInstances(InstMeshTransArray.TransformArray, false);
-	//UE_LOG(LogSandboxTerrain, Warning, TEXT("AddInstances -> %d"), InstMeshTransArray.TransformArray.Num());
+	//UE_LOG(LogVt, Warning, TEXT("AddInstances -> %d"), InstMeshTransArray.TransformArray.Num());
 }
 
 ASandboxTerrainController* UTerrainZoneComponent::GetTerrainController() {

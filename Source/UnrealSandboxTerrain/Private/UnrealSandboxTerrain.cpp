@@ -15,6 +15,7 @@ TAutoConsoleVariable<int32> CVarMainDistance (
 	TEXT(" 0...30 = View and terrain stream distance \n"),
 	ECVF_Scalability);
 
+
 TAutoConsoleVariable<int32> CVarDebugArea (
 	TEXT("vt.DebugArea"),
 	0,
@@ -33,6 +34,17 @@ TAutoConsoleVariable<int32> CVarGeneratorDebugMode (
 	TEXT(" 1 = Trace generation time \n")
 	TEXT(" 2 = Trace generation time and disable fast generation \n"),
 	ECVF_Default);
+
+
+TAutoConsoleVariable<int32> CVarAutoSavePeriod (
+	TEXT("vt.AutoSave"),
+	-1,
+	TEXT("Voxel terrain auto save period \n")
+	TEXT(" 0 = Off. Use actor settings \n")
+	TEXT(" 0...100 = auto save period in seconds \n"),
+	ECVF_SetBySystemSettingsIni);
+
+
 
 void FUnrealSandboxTerrainModule::StartupModule() {
 	float LodRatio = 2.f;
@@ -57,4 +69,4 @@ void FUnrealSandboxTerrainModule::ShutdownModule() {
 	
 IMPLEMENT_MODULE(FUnrealSandboxTerrainModule, UnrealSandboxTerrain)
 
-DEFINE_LOG_CATEGORY(LogSandboxTerrain);
+DEFINE_LOG_CATEGORY(LogVt);

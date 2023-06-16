@@ -278,7 +278,7 @@ TChunkDataPtr UTerrainGeneratorComponent::GenerateChunkData(const TVoxelIndex& I
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("Generate height map  ----> %f ms --  %d %d"), Time, X, Y);
+    //UE_LOG(LogVt, Log, TEXT("Generate height map  ----> %f ms --  %d %d"), Time, X, Y);
     return ChunkData;
 }
 
@@ -591,7 +591,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    //UE_LOG(LogVt, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;
@@ -669,7 +669,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolume(const TGenerateVdTempItm& It
 
     double End = FPlatformTime::Seconds();
     double Time = (End - Start) * 1000;
-    //UE_LOG(LogSandboxTerrain, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+    //UE_LOG(LogVt, Log, TEXT("GenerateZoneVolume -> %f ms - %d %d %d"), Time, ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
     int n = VoxelData->num();
     int s = n * n * n;
@@ -734,7 +734,7 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
     double Time1 = (End1 - Start1) * 1000;
 
     if (DebugMode > 0) {
-        UE_LOG(LogSandboxTerrain, Warning, TEXT("BatchGenerateComplexVd -> %f ms"), Time1);
+        UE_LOG(LogVt, Warning, TEXT("BatchGenerateComplexVd -> %f ms"), Time1);
     }
 }
 
@@ -755,7 +755,7 @@ void UTerrainGeneratorComponent::BatchGenerateSlightVd(TArray<TGenerateVdTempItm
     double Time1 = (End1 - Start1) * 1000;
 
     if (DebugMode > 0) {
-        UE_LOG(LogSandboxTerrain, Warning, TEXT("BatchGenerateSlightVd -> %f ms"), Time1);
+        UE_LOG(LogVt, Warning, TEXT("BatchGenerateSlightVd -> %f ms"), Time1);
     }
 }
 
@@ -893,7 +893,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
     double Time2 = (End2 - Start2) * 1000;
 
     if (DebugMode > 0) {
-        UE_LOG(LogSandboxTerrain, Warning, TEXT("BatchGenerateVoxelTerrain -> %f ms"), Time2);
+        UE_LOG(LogVt, Warning, TEXT("BatchGenerateVoxelTerrain -> %f ms"), Time2);
     }
 
     OnBatchGenerationFinished();

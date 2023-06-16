@@ -88,9 +88,15 @@ private:
 		const unsigned int AreaRadius = Params.Radius / 1000;
 		Total = (AreaRadius * 2 + 1) * (AreaRadius * 2 + 1) * (Params.TerrainSizeMinZ + Params.TerrainSizeMaxZ + 1);
 		auto List = ReverseSpiralWalkthrough(AreaRadius);
+		int Idx = 1;
 		for (auto& Itm : List) {
 			int RelX = Itm.X;
 			int RelY = Itm.Y;
+
+			if (Idx % 100 == 0 || Idx == List.size()) {
+				const float P = ((float)Idx / (float)Total) * 100;
+				UE_LOG(LogVt, Log, TEXT("Chunk loader '%s': process chunk %d / %d - %.1f%%"), *Name, Idx, List.size(), P);
+			}
 
 			BeginChunk(RelX + OriginIndex.X, RelY + OriginIndex.Y);
 			PerformChunk(RelX, RelY);
@@ -99,6 +105,8 @@ private:
 			if (Controller->IsWorkFinished() || bIsStopped) {
 				return;
 			}
+
+			Idx++;
 		}
 	}
 

@@ -18,6 +18,13 @@
 #include <unordered_set>
 
 
+struct TSyncItem {
+
+	double Timestamp = 0;
+
+	int Cnt = 0;
+};
+
 class TTerrainData {
     
 private:
@@ -29,10 +36,51 @@ private:
 	std::shared_timed_mutex SaveIndexSetMutex;
 	std::unordered_set<TVoxelIndex> SaveIndexSet;
 
-	std::shared_timed_mutex OufOfSyncSetMutex;
-	std::unordered_set<TVoxelIndex> OufOfSyncSet;
+	std::shared_timed_mutex SyncMapMutex;
+	std::unordered_map<TVoxelIndex, TSyncItem> SyncMap;
+
+	TMap<TVoxelIndex, TZoneModificationData> ModifiedVdMap;
+	std::atomic<int32> MapVerHash = 0;
+	std::mutex ModifiedVdMapMutex;
     
 public:
+
+	int32 GetMapVStamp() {
+		return MapVerHash;
+	}
+
+	void SetZoneVStamp(const TVoxelIndex& ZoneIndex, const int32 VStamp) {
+		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+		ModifiedVdMap.FindOrAdd(ZoneIndex).VStamp = VStamp;
+	}
+
+	TZoneModificationData GetZoneVStamp(const TVoxelIndex& ZoneIndex) {
+		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+		return ModifiedVdMap[ZoneIndex];
+	}
+
+	void SwapVStampMap(const TMap<TVoxelIndex, TZoneModificationData>& NewDataMap) {
+		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+		ModifiedVdMap.Empty();
+		ModifiedVdMap = NewDataMap;
+	}
+
+	void AddUnsafe(const TVoxelIndex& ZoneIndex, const TZoneModificationData& Data) {
+		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+		ModifiedVdMap.Add(ZoneIndex, Data);
+	}
+
+	TMap<TVoxelIndex, TZoneModificationData> CloneVStampMap() {
+		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+		return ModifiedVdMap;
+	}
+
+	void IncreaseVStamp(const TVoxelIndex& ZoneIndex) {
+		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
+		TZoneModificationData& Data = ModifiedVdMap.FindOrAdd(ZoneIndex);
+		Data.VStamp++;
+		MapVerHash++;
+	}
 
 	bool IsSaveIndexEmpty() {
 		std::unique_lock<std::shared_timed_mutex> Lock(SaveIndexSetMutex);
@@ -51,31 +99,51 @@ public:
 		return Res;
 	}
 
-	void AddOutOfSyncIndex(const TVoxelIndex& Index) {
-		std::unique_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
-		OufOfSyncSet.insert(Index);
+	void AddSyncItem(const TVoxelIndex& Index) {
+		std::unique_lock<std::shared_timed_mutex> Lock(SyncMapMutex);
+		SyncMap[Index].Timestamp = FPlatformTime::Seconds();
+		SyncMap[Index].Cnt++;
 	}
 
-	void AddOutOfSyncIndex(const TSet<TVoxelIndex>& IndexSet) {
-		std::unique_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
+	void AddSyncItem(const TSet<TVoxelIndex>& IndexSet) {
+		std::unique_lock<std::shared_timed_mutex> Lock(SyncMapMutex);
 		for (const auto& Index : IndexSet) {
-			OufOfSyncSet.insert(Index);
+			SyncMap[Index].Timestamp = FPlatformTime::Seconds();
+			SyncMap[Index].Cnt++;
 		}
 	}
 
-	void RemoveOutOfSyncIndex(const TVoxelIndex& Index) {
-		std::unique_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
-		OufOfSyncSet.erase(Index);
+	void RemoveSyncItem(const TVoxelIndex& Index) {
+		std::unique_lock<std::shared_timed_mutex> Lock(SyncMapMutex);
+		SyncMap.erase(Index);
 	}
 
 	bool IsOutOfSync(const TVoxelIndex& Index) {
-		std::shared_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
-		return OufOfSyncSet.find(Index) != OufOfSyncSet.end();
+		std::shared_lock<std::shared_timed_mutex> Lock(SyncMapMutex);
+		return SyncMap.find(Index) != SyncMap.end();
 	}
 
-	int OutOfSyncCount() {
-		std::shared_lock<std::shared_timed_mutex> Lock(OufOfSyncSetMutex);
-		return (int)OufOfSyncSet.size();
+	int SyncMapSize() {
+		std::shared_lock<std::shared_timed_mutex> Lock(SyncMapMutex);
+		return (int)SyncMap.size();
+	}
+
+	std::unordered_set<TVoxelIndex> StaledSyncItems(const double Timeout) {
+		std::shared_lock<std::shared_timed_mutex> Lock(SyncMapMutex);
+		std::unordered_set<TVoxelIndex> result;
+
+		const auto Timestamp = FPlatformTime::Seconds();
+
+		for (const auto& P : SyncMap) {
+			const auto& Index = P.first;
+			const auto& Itm = P.second;
+			
+			if (Timestamp - Itm.Timestamp > Timeout) {
+				result.insert(Index);
+			}
+		}
+
+		return result;
 	}
 
 	//=====================================================================================
@@ -134,6 +202,7 @@ public:
     void Clean(){
 		// no locking because end play only
 		StorageMap.clear();
+		ModifiedVdMap.Empty();
     }
 };
 

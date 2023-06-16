@@ -18,7 +18,7 @@
 
 #define USBT_ENABLE_LOD true
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSandboxTerrain, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogVt, Log, All);
 
 
 class FUnrealSandboxTerrainModule : public IModuleInterface {
