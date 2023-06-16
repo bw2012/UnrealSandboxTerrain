@@ -398,8 +398,8 @@ public:
             Processed[I] = 0x0;
         }
 
-        Handler = [](const TVoxelIndex& V, int Idx, TVoxelData* VoxelData, int LOD) {  };
-        CheckVoxel = [](const TVoxelIndex& V, int S, int LOD, const TVoxelData* VoxelData) { return true;  };
+        Handler = [](const TVoxelIndex& V, int Idx, TVoxelData* VoxelData_, int LOD) {  };
+        CheckVoxel = [](const TVoxelIndex& V, int S, int LOD, const TVoxelData* VoxelData_) { return true;  };
     };
 
     ~TPseudoOctree() {
