@@ -23,6 +23,8 @@ class TChunkData;
 struct TInstanceMeshArray;
 struct FSandboxFoliage;
 
+class UTerrainGeneratorComponent;
+
 typedef std::shared_ptr<TChunkData> TChunkDataPtr;
 typedef const std::shared_ptr<const TChunkData> TConstChunkData;
 
@@ -90,13 +92,31 @@ struct TZoneStructureHandler {
 };
 
 
+class UNREALSANDBOXTERRAIN_API TStructuresGenerator {
+
+	friend UTerrainGeneratorComponent;
+
+public:
+
+	bool HasStructures(const TVoxelIndex& ZoneIndex) const;
+
+	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
+
+private:
+
+	std::unordered_map<TVoxelIndex, std::vector<TZoneStructureHandler>> StructureMap;
+
+};
+
+
 /**
 *
 */
 UCLASS()
-class UNREALSANDBOXTERRAIN_API UTerrainGeneratorComponent : public UActorComponent
-{
+class UNREALSANDBOXTERRAIN_API UTerrainGeneratorComponent : public UActorComponent {
 	GENERATED_UCLASS_BODY()
+
+	friend TStructuresGenerator;
 
 public:
 		
@@ -145,6 +165,8 @@ public:
 
 	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
+	TStructuresGenerator* GetStructuresGenerator();
+
 protected:
 
 	int32 ZoneVoxelResolution;
@@ -183,7 +205,11 @@ protected:
 
 	virtual void GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
 
+	virtual TStructuresGenerator* NewStructuresGenerator();
+
 private:
+
+	TStructuresGenerator* StructuresGenerator;
 
 	std::vector<TVoxelIndex> Pvi;
 
@@ -220,8 +246,6 @@ private:
 	float B(const TVoxelIndex& Index, TVoxelData* VoxelData, TConstChunkData ChunkData) const;
 
 	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
-
-	std::unordered_map<TVoxelIndex, std::vector<TZoneStructureHandler>> StructureMap;
 
 	//====
 

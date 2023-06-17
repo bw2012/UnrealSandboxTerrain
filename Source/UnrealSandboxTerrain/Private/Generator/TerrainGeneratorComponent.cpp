@@ -78,9 +78,15 @@ public:
     };
 };
 
+
+TStructuresGenerator* UTerrainGeneratorComponent::NewStructuresGenerator() {
+    return new TStructuresGenerator();
+}
+
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
     this->Pn = new TPerlinNoise();
     this->DfaultGrassMaterialId = USBT_DEFAULT_GRASS_MATERIAL_ID;
+    this->StructuresGenerator = NewStructuresGenerator();
 }
 
 void UTerrainGeneratorComponent::BeginPlay() {
@@ -108,6 +114,10 @@ void UTerrainGeneratorComponent::BeginPlay() {
     PrepareMetaData();
 }
 
+TStructuresGenerator* UTerrainGeneratorComponent::GetStructuresGenerator() {
+    return this->StructuresGenerator;
+}
+
 void UTerrainGeneratorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) {
     Super::EndPlay(EndPlayReason);
 }
@@ -115,6 +125,7 @@ void UTerrainGeneratorComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 void UTerrainGeneratorComponent::FinishDestroy() {
     Super::FinishDestroy();
     delete this->Pn;
+    delete this->StructuresGenerator;
 }
 
 ASandboxTerrainController* UTerrainGeneratorComponent::GetController() const {
@@ -721,7 +732,7 @@ void UTerrainGeneratorComponent::BatchGenerateComplexVd(TArray<TGenerateVdTempIt
     for (const auto& Itm : List) {
         const TVoxelIndex& ZoneIndex = Itm.ZoneIndex;
 
-        auto ZoneHandlerList = StructureMap[ZoneIndex];
+        auto ZoneHandlerList = StructuresGenerator->StructureMap[ZoneIndex];
         if (ZoneHandlerList.size() > 0) {
             GenerateZoneVolumeWithFunction(Itm, ZoneHandlerList);
             continue;
@@ -1057,7 +1068,7 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
 
                                     bool bIsValidPosition = true;
                                     if (HasStructures(Index)) {
-                                        auto ZoneHandlerList = StructureMap[Index];
+                                        auto ZoneHandlerList = StructuresGenerator->StructureMap[Index];
                                         if (ZoneHandlerList.size() > 0) {
                                             for (const auto& ZoneHandler : ZoneHandlerList) {
                                                 if (ZoneHandler.LandscapeFoliageFilter) {
@@ -1110,7 +1121,7 @@ bool UTerrainGeneratorComponent::IsForcedComplexZone(const TVoxelIndex& ZoneInde
 }
 
 bool UTerrainGeneratorComponent::HasStructures(const TVoxelIndex& ZoneIndex) const {
-    return StructureMap.find(ZoneIndex) != StructureMap.end();
+    return this->StructuresGenerator->HasStructures(ZoneIndex);
 }
 
 void UTerrainGeneratorComponent::PrepareMetaData() {
@@ -1118,8 +1129,7 @@ void UTerrainGeneratorComponent::PrepareMetaData() {
 }
 
 void UTerrainGeneratorComponent::AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure) {
-    auto& StructureList = StructureMap[ZoneIndex];
-    StructureList.push_back(Structure);
+    this->GetStructuresGenerator()->AddZoneStructure(ZoneIndex, Structure);
 }
 
 const FString* UTerrainGeneratorComponent::GetExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name) const {
@@ -1141,3 +1151,19 @@ bool UTerrainGeneratorComponent::CheckExtZoneParam(const TVoxelIndex& ZoneIndex,
 
     return false;
 }
+
+
+//======================================================================================================================================================================
+// Structures 
+//======================================================================================================================================================================
+
+bool TStructuresGenerator::HasStructures(const TVoxelIndex& ZoneIndex) const {
+    return StructureMap.find(ZoneIndex) != StructureMap.end();
+}
+
+void TStructuresGenerator::AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure) {
+    auto& StructureList = StructureMap[ZoneIndex];
+    StructureList.push_back(Structure);
+}
+
+
