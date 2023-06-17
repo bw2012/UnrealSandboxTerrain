@@ -393,6 +393,8 @@ public:
 
 	uint32 GetRegionSize();
 
+	TVoxelIndex ClcRegionOrigin(const TVoxelIndex& RegionIndex);
+
 	//========================================================================================
 
 	bool IsDebugModeOn();

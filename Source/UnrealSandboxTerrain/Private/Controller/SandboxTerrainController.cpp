@@ -889,6 +889,14 @@ TVoxelIndex ASandboxTerrainController::ClcRegionByZoneIndex(const TVoxelIndex& Z
 	return TVoxelIndex(X, Y, 0);
 }
 
+
+TVoxelIndex ASandboxTerrainController::ClcRegionOrigin(const TVoxelIndex& RegionIndex) {
+	const int N = GetRegionSize() * 2 + 1;
+	TVoxelIndex Tmp(RegionIndex.X, RegionIndex.Y, 0);
+	Tmp =  Tmp * N;
+	return Tmp;
+}
+
 //======================================================================================================================================================================
 // invoke async
 //======================================================================================================================================================================
@@ -1156,16 +1164,6 @@ void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
 
 	double Start = FPlatformTime::Seconds();
 
-	for (auto& Itm : RegularMaterialCache) {
-		UMaterialInterface* MaterialInterface = Itm.Value;
-		UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInterface);
-
-		if (MaterialInstanceDynamic) {
-			MaterialInstanceDynamic->UpdateCachedData();
-		}
-
-	}
-
 	TArray<UTerrainZoneComponent*> Components;
 	GetComponents<UTerrainZoneComponent>(Components);
 	for (UTerrainZoneComponent* ZoneComponent : Components) {
@@ -1177,7 +1175,7 @@ void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
 
 		auto MeshDataPtr = VdInfoPtr->GetMeshDataCache();
 		if (MeshDataPtr != nullptr) {
-			//ApplyTerrainMesh(ZoneComponent, MeshDataPtr, true);
+			ApplyTerrainMesh(ZoneComponent, MeshDataPtr, true);
 		}
 
 		VdInfoPtr->Unlock();
