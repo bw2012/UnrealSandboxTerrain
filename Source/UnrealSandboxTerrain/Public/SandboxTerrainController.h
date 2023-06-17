@@ -209,7 +209,7 @@ typedef struct TChunkIndex {
 } TChunkIndex;
 
 enum class TZoneFlag : int {
-	Generated = 0, // Not used?
+	Generated = 0, // Not used
 	NoMesh = 1,
 	NoVoxelData = 2,
 };
@@ -376,12 +376,26 @@ public:
 	void UE51MaterialIssueWorkaround();
 
 	//========================================================================================
-
-	bool IsDebugModeOn();
+	// basic coordinates and parameters
+	//========================================================================================
 
 	uint32 GetZoneVoxelResolution();
 
 	float GetZoneSize();
+
+	TVoxelIndex GetZoneIndex(const FVector& Pos);
+
+	FVector GetZonePos(const TVoxelIndex& Index);
+
+	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
+
+	TVoxelIndex ClcRegionByZoneIndex(const TVoxelIndex& ZoneIndex);
+
+	uint32 GetRegionSize();
+
+	//========================================================================================
+
+	bool IsDebugModeOn();
 
 	void DigTerrainRoundHole(const FVector& Origin, float Radius, bool bNoise = true);
 
@@ -402,12 +416,6 @@ public:
 	void RemoveInstanceAtMesh(UInstancedStaticMeshComponent* InstancedMeshComp, int32 ItemIndex);
 
 	void RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex);
-
-	TVoxelIndex GetZoneIndex(const FVector& Pos);
-
-	FVector GetZonePos(const TVoxelIndex& Index);
-
-	UTerrainZoneComponent* GetZoneByVectorIndex(const TVoxelIndex& Index);
 
 	template<class H>
 	void PerformTerrainChange(H handler);

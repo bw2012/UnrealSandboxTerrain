@@ -32,9 +32,6 @@ struct FSandboxFoliage {
 	UPROPERTY(EditAnywhere)
 	ESandboxFoliageType Type;
 
-	//UPROPERTY(EditAnywhere)
-	//UStaticMesh* Mesh;
-
 	UPROPERTY(EditAnywhere)
 	TArray<UStaticMesh*> MeshVariants;
 

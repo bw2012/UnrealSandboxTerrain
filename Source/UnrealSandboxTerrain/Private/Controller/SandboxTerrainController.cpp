@@ -491,7 +491,7 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
 			if (!bIsWorkFinished) {
 				AsyncTask(ENamedThreads::GameThread, [&] {
 
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION == 1
+#if ENGINE_MAJOR_VERSION == 5 && (ENGINE_MINOR_VERSION == 1 || ENGINE_MINOR_VERSION == 2)
 					UE51MaterialIssueWorkaround();
 #endif
 					AddTaskToConveyor([=] { 
@@ -547,7 +547,7 @@ void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIn
 		if (!bIsWorkFinished) {
 			AsyncTask(ENamedThreads::GameThread, [&] {
 
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION == 1
+#if ENGINE_MAJOR_VERSION == 5 && (ENGINE_MINOR_VERSION == 1 || ENGINE_MINOR_VERSION == 2)
 				UE51MaterialIssueWorkaround();
 #endif
 				AddTaskToConveyor([=] {
@@ -845,11 +845,11 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 }
 
 //======================================================================================================================================================================
-//
+// basic coordinates and parameters
 //======================================================================================================================================================================
 
 TVoxelIndex ASandboxTerrainController::GetZoneIndex(const FVector& Pos) {
-	FVector Tmp = sandboxGridIndex(Pos, USBT_ZONE_SIZE);
+	const FVector Tmp = sandboxGridIndex(Pos, USBT_ZONE_SIZE);
 	return TVoxelIndex(Tmp.X, Tmp.Y, Tmp.Z);
 }
 
@@ -863,6 +863,30 @@ UTerrainZoneComponent* ASandboxTerrainController::GetZoneByVectorIndex(const TVo
 
 TVoxelDataInfoPtr ASandboxTerrainController::GetVoxelDataInfo(const TVoxelIndex& Index) {
     return TerrainData->GetVoxelDataInfo(Index);
+}
+
+uint32 ASandboxTerrainController::GetRegionSize() {
+	return 100;
+}
+
+TVoxelIndex ASandboxTerrainController::ClcRegionByZoneIndex(const TVoxelIndex& ZoneIndex) {
+	const int N = GetRegionSize() * 2 + 1;
+	float X = (float)ZoneIndex.X / (float)N;
+	float Y = (float)ZoneIndex.Y / (float)N;
+
+	if (X > 0) {
+		X += 0.5f;
+	} else {
+		X -= 0.5f;
+	}
+	
+	if (Y > 0) {
+		Y += 0.5f;
+	} else {
+		Y -= 0.5f;
+	}
+
+	return TVoxelIndex(X, Y, 0);
 }
 
 //======================================================================================================================================================================
@@ -1132,6 +1156,16 @@ void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
 
 	double Start = FPlatformTime::Seconds();
 
+	for (auto& Itm : RegularMaterialCache) {
+		UMaterialInterface* MaterialInterface = Itm.Value;
+		UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInterface);
+
+		if (MaterialInstanceDynamic) {
+			MaterialInstanceDynamic->UpdateCachedData();
+		}
+
+	}
+
 	TArray<UTerrainZoneComponent*> Components;
 	GetComponents<UTerrainZoneComponent>(Components);
 	for (UTerrainZoneComponent* ZoneComponent : Components) {
@@ -1143,7 +1177,7 @@ void ASandboxTerrainController::UE51MaterialIssueWorkaround() {
 
 		auto MeshDataPtr = VdInfoPtr->GetMeshDataCache();
 		if (MeshDataPtr != nullptr) {
-			ApplyTerrainMesh(ZoneComponent, MeshDataPtr, true);
+			//ApplyTerrainMesh(ZoneComponent, MeshDataPtr, true);
 		}
 
 		VdInfoPtr->Unlock();
