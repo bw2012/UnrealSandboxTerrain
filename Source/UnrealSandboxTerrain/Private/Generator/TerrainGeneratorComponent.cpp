@@ -80,7 +80,9 @@ public:
 
 
 TStructuresGenerator* UTerrainGeneratorComponent::NewStructuresGenerator() {
-    return new TStructuresGenerator();
+    auto* Gen = new TStructuresGenerator();
+    Gen->MasterGenerator = this;
+    return Gen;
 }
 
 UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
@@ -1166,4 +1168,7 @@ void TStructuresGenerator::AddZoneStructure(const TVoxelIndex& ZoneIndex, const 
     StructureList.push_back(Structure);
 }
 
+ASandboxTerrainController* TStructuresGenerator::GetController() {
+    return MasterGenerator->GetController();
+}
 

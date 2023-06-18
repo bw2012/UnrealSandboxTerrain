@@ -24,10 +24,14 @@ struct TInstanceMeshArray;
 struct FSandboxFoliage;
 
 class UTerrainGeneratorComponent;
+class TStructuresGenerator;
+struct TZoneStructureHandler;
 
 typedef std::shared_ptr<TChunkData> TChunkDataPtr;
 typedef const std::shared_ptr<const TChunkData> TConstChunkData;
-
+typedef std::tuple<float, TMaterialId> TGenerationResult;
+typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
+typedef std::function<TGenerationResult(const float, const TMaterialId, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
@@ -73,14 +77,6 @@ struct TGenerateZoneResult {
 	TGenerationMethod Method;
 };
 
-typedef std::tuple<float, TMaterialId> TGenerationResult;
-
-typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
-
-struct TZoneStructureHandler;
-
-typedef std::function<TGenerationResult(const float, const TMaterialId, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
-
 struct TZoneStructureHandler {
 	TVoxelIndex ZoneIndex;
 	int Type = 0;
@@ -91,6 +87,21 @@ struct TZoneStructureHandler {
 	float Val2;
 };
 
+class TMetaStructure2 {
+
+protected:
+
+	TVoxelIndex OriginIndex;
+
+public:
+
+	virtual ~TMetaStructure2() { };
+
+	virtual TArray<TVoxelIndex> GetRelevantZones(TStructuresGenerator* Generator) const;
+
+	virtual void MakeMetaData(TStructuresGenerator* Generator) const;
+};
+
 
 class UNREALSANDBOXTERRAIN_API TStructuresGenerator {
 
@@ -98,11 +109,15 @@ class UNREALSANDBOXTERRAIN_API TStructuresGenerator {
 
 public:
 
+	ASandboxTerrainController* GetController();
+
 	bool HasStructures(const TVoxelIndex& ZoneIndex) const;
 
 	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
 private:
+
+	UTerrainGeneratorComponent* MasterGenerator;
 
 	std::unordered_map<TVoxelIndex, std::vector<TZoneStructureHandler>> StructureMap;
 
