@@ -87,7 +87,7 @@ struct TZoneStructureHandler {
 	float Val2;
 };
 
-class UNREALSANDBOXTERRAIN_API TMetaStructure2 {
+class UNREALSANDBOXTERRAIN_API TMetaStructure {
 
 protected:
 
@@ -95,7 +95,7 @@ protected:
 
 public:
 
-	virtual ~TMetaStructure2() { };
+	virtual ~TMetaStructure() { };
 
 	virtual TArray<TVoxelIndex> GetRelevantZones(TStructuresGenerator* Generator) const = 0;
 
