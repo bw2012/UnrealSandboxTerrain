@@ -1154,6 +1154,9 @@ bool UTerrainGeneratorComponent::CheckExtZoneParam(const TVoxelIndex& ZoneIndex,
     return false;
 }
 
+float UTerrainGeneratorComponent::PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const {
+    return StructuresGenerator->PerformLandscapeZone(ZoneIndex, WorldPos, Lvl);
+}
 
 //======================================================================================================================================================================
 // Structures 
@@ -1170,5 +1173,30 @@ void TStructuresGenerator::AddZoneStructure(const TVoxelIndex& ZoneIndex, const 
 
 ASandboxTerrainController* TStructuresGenerator::GetController() {
     return MasterGenerator->GetController();
+}
+
+UTerrainGeneratorComponent* TStructuresGenerator::GetGeneratorComponent() {
+    return MasterGenerator;
+}
+
+void TStructuresGenerator::AddLandscapeStructure(const TLandscapeZoneHandler& Structure) {
+    auto& StructureList = LandscapeStructureMap[Structure.ZoneIndex];
+    StructureList.push_back(Structure);
+}
+
+float TStructuresGenerator::PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const {
+    float L = Lvl;
+    if (LandscapeStructureMap.find(ZoneIndex) != LandscapeStructureMap.end()) {
+        const auto& StructureList = LandscapeStructureMap.at(ZoneIndex);
+        if (StructureList.size() > 0) {
+            for (const auto& LandscapeHandler : StructureList) {
+                if (LandscapeHandler.Function) {
+                    L = LandscapeHandler.Function(Lvl, ZoneIndex, WorldPos);
+                }
+            }
+        }
+    }
+
+    return L;
 }
 

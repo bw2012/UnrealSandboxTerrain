@@ -87,7 +87,7 @@ struct TZoneStructureHandler {
 	float Val2;
 };
 
-class TMetaStructure2 {
+class UNREALSANDBOXTERRAIN_API TMetaStructure2 {
 
 protected:
 
@@ -97,9 +97,17 @@ public:
 
 	virtual ~TMetaStructure2() { };
 
-	virtual TArray<TVoxelIndex> GetRelevantZones(TStructuresGenerator* Generator) const;
+	virtual TArray<TVoxelIndex> GetRelevantZones(TStructuresGenerator* Generator) const = 0;
 
-	virtual void MakeMetaData(TStructuresGenerator* Generator) const;
+	virtual void MakeMetaData(TStructuresGenerator* Generator) const = 0;
+};
+
+
+struct TLandscapeZoneHandler {
+
+	TVoxelIndex ZoneIndex;
+
+	std::function<float(const float, const TVoxelIndex&, const FVector&)> Function = nullptr;
 };
 
 
@@ -115,12 +123,19 @@ public:
 
 	void AddZoneStructure(const TVoxelIndex& ZoneIndex, const TZoneStructureHandler& Structure);
 
+	UTerrainGeneratorComponent* GetGeneratorComponent();
+
+	void AddLandscapeStructure(const TLandscapeZoneHandler& Structure);
+
+	float PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const;
+
 private:
 
 	UTerrainGeneratorComponent* MasterGenerator;
 
 	std::unordered_map<TVoxelIndex, std::vector<TZoneStructureHandler>> StructureMap;
 
+	std::unordered_map<TVoxelIndex, std::vector<TLandscapeZoneHandler>> LandscapeStructureMap;
 };
 
 
@@ -190,6 +205,8 @@ protected:
 
 	TMap<TVoxelIndex, TMap<FString, FString>> ZoneExtData;
 
+	TStructuresGenerator* StructuresGenerator;
+
 	const FString* GetExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name) const;
 
 	bool CheckExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;
@@ -222,9 +239,9 @@ protected:
 
 	virtual TStructuresGenerator* NewStructuresGenerator();
 
-private:
+	float PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const;
 
-	TStructuresGenerator* StructuresGenerator;
+private:
 
 	std::vector<TVoxelIndex> Pvi;
 
