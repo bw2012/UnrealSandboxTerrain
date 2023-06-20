@@ -18,6 +18,7 @@ Example UE5 project - https://github.com/bw2012/UE5VoxelTerrainDemo
 * Procedural landscape/caves generation
 * Level of details
 * Up to 65535 terrain material (dirt, grass, sand, clay etc)
+* Network multiplayer support
 
 
 # License
