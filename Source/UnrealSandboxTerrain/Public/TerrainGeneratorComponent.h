@@ -203,13 +203,21 @@ protected:
 
 	TPerlinNoise* Pn;
 
-	TMap<TVoxelIndex, TMap<FString, FString>> ZoneExtData;
-
 	TStructuresGenerator* StructuresGenerator;
 
-	const FString* GetExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name) const;
+	//========================================================================================
+	// tags
+	//========================================================================================
 
-	bool CheckExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;
+	const FString* GetZoneTag(const TVoxelIndex& ZoneIndex, FString Name) const;
+
+	bool CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;
+
+	void SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value);
+
+	void SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value);
+
+	//========================================================================================
 
 	virtual void BatchGenerateComplexVd(TArray<TGenerateVdTempItm>& List);
 
@@ -243,7 +251,15 @@ protected:
 
 private:
 
-	std::vector<TVoxelIndex> Pvi;
+	//========================================================================================
+	// tags
+	//========================================================================================
+
+	TMap<TVoxelIndex, TMap<FString, FString>> ZoneTagData;
+
+	TMap<TVoxelIndex, TMap<FString, FString>> ChunkTagData;
+
+	//========================================================================================
 
 	TArray<FTerrainUndergroundLayer> UndergroundLayersTmp;
 

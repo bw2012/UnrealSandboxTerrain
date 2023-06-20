@@ -1134,28 +1134,45 @@ void UTerrainGeneratorComponent::AddZoneStructure(const TVoxelIndex& ZoneIndex, 
     this->GetStructuresGenerator()->AddZoneStructure(ZoneIndex, Structure);
 }
 
-const FString* UTerrainGeneratorComponent::GetExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name) const {
-    if (ZoneExtData.Contains(ZoneIndex)) {
-        const TMap<FString, FString>& ExtData = ZoneExtData[ZoneIndex];
+const FString* UTerrainGeneratorComponent::GetZoneTag(const TVoxelIndex& ZoneIndex, FString Name) const {
+    if (ZoneTagData.Contains(ZoneIndex)) {
+        const TMap<FString, FString>& ExtData = ZoneTagData[ZoneIndex];
         return ExtData.Find(Name);
     }
 
     return nullptr;
 }
 
-bool UTerrainGeneratorComponent::CheckExtZoneParam(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const{
-    const FString* Param = GetExtZoneParam(ZoneIndex, Name);
-    if (Param) {
-        if (*Param == Value) {
+bool UTerrainGeneratorComponent::CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const{
+    const FString* Param = GetZoneTag(ZoneIndex, Name);
+    if (Param && *Param == Value) {
+            return true;
+    }
+
+    TVoxelIndex ChunkIndex(ZoneIndex.X, ZoneIndex.Y, 0);
+    if (ChunkTagData.Contains(ChunkIndex)) {
+        const TMap<FString, FString>& ExtData = ChunkTagData[ChunkIndex];
+        const FString* Param2 = ExtData.Find(Name);
+
+        if (Param2 && *Param2 == Value) {
             return true;
         }
     }
+
 
     return false;
 }
 
 float UTerrainGeneratorComponent::PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const {
     return StructuresGenerator->PerformLandscapeZone(ZoneIndex, WorldPos, Lvl);
+}
+
+void UTerrainGeneratorComponent::SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) {
+    ZoneTagData.FindOrAdd(ZoneIndex).Add(Name, Value);
+}
+
+void UTerrainGeneratorComponent::SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value) {
+    ZoneTagData.FindOrAdd(TVoxelIndex(ChunkIndex.X, ChunkIndex.Y, 0)).Add(Name, Value);
 }
 
 //======================================================================================================================================================================
