@@ -206,7 +206,7 @@ void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, T
 		const TVoxelIndex& Index = Itm.Key;
 		const TZoneModificationData& Remote = Itm.Value;
 
-		if (bInitialLoad) {
+		if (bInitialLoad || bForceResync) {
 			OutOfsyncZones.Add(Index);
 			continue;
 		}
@@ -223,6 +223,8 @@ void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, T
 			}
 		}
 	}
+
+	bForceResync = false;
 
 	TerrainData->AddSyncItem(OutOfsyncZones);
 

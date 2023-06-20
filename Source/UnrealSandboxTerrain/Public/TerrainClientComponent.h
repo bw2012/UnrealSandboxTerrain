@@ -51,5 +51,4 @@ private:
 	void RcvThreadLoop();
 
 	int32 StoredVStamp = 0;
-	
 };

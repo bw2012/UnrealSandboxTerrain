@@ -370,6 +370,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
 	void ForcePerformHardUnload();
 
+	UFUNCTION(BlueprintCallable, Category = "UnrealSandbox")
+	void ForceTerrainNetResync();
+
 	//========================================================================================
 
 	UFUNCTION(BlueprintCallable, Category = "UnrealSandboxWorkaround")
@@ -479,6 +482,8 @@ public:
 	void OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex);
 
 private:
+
+	volatile bool bForceResync = false;
 
 	volatile bool bInitialLoad = true;
 

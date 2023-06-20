@@ -377,6 +377,13 @@ void ASandboxTerrainController::ForcePerformHardUnload() {
 	bForcePerformHardUnload = true;
 }
 
+void ASandboxTerrainController::ForceTerrainNetResync() {
+	if (TerrainClientComponent) {
+		bForceResync = true;
+		TerrainClientComponent->RequestMapInfo();
+	}
+}
+
 void RemoveAllChilds(UTerrainZoneComponent* ZoneComponent) {
 	TArray<USceneComponent*> ChildList;
 	ZoneComponent->GetChildrenComponents(true, ChildList);
