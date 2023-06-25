@@ -212,6 +212,7 @@ enum class TZoneFlag : int {
 	Generated = 0, // Not used
 	NoMesh = 1,
 	NoVoxelData = 2,
+	InternalSolid = 3,
 };
 
 typedef struct TKvFileZoneData {
@@ -397,6 +398,10 @@ public:
 	uint32 GetRegionSize();
 
 	TVoxelIndex ClcRegionOrigin(const TVoxelIndex& RegionIndex);
+
+	//========================================================================================
+
+	int CheckPlayerPositionZone(const FVector& Pos);
 
 	//========================================================================================
 

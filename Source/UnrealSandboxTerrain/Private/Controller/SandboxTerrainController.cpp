@@ -618,10 +618,7 @@ void ASandboxTerrainController::AutoSaveByTimer() {
 //======================================================================================================================================================================
 
 uint32 ASandboxTerrainController::GetZoneVoxelResolution() {
-	int L = LOD_ARRAY_SIZE - 1;
-	int R = 1 << L;
-	int RRR = R + 1;
-	return RRR;
+	return (1 << (LOD_ARRAY_SIZE - 1)) + 1;
 }
 
 float ASandboxTerrainController::GetZoneSize() {
@@ -717,13 +714,16 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 				bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
 				if (bIsNoVd) {
 					VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
-				}
-				else {
+				} else {
 					//voxel data exist in file
 					VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
 				}
-			}
-			else {
+
+				if (ZoneHeader.Is(TZoneFlag::InternalSolid)) {
+					VdInfoPtr->SetFlagInternalFullSolid();
+				}
+
+			} else {
 				// generate new voxel data
 				VdInfoPtr->DataState = TVoxelDataState::GENERATION_IN_PROGRESS;
 				bNewVdGeneration = true;
@@ -751,6 +751,10 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(P.Index);
 		TVdInfoLockGuard Lock(VoxelDataInfoPtr);
 
+		if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
+			VoxelDataInfoPtr->SetFlagInternalFullSolid();
+		}
+
 		if (VoxelDataInfoPtr->Vd && VoxelDataInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
 			TMeshDataPtr MeshDataPtr = GenerateMesh(VoxelDataInfoPtr->Vd);
 			VoxelDataInfoPtr->CleanUngenerated(); //TODO refactor
@@ -759,7 +763,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		} else {
 			VoxelDataInfoPtr->SetNeedTerrainSave();
 			TerrainData->AddSaveIndex(P.Index);
-
 		}
 
 		VoxelDataInfoPtr->SetSpawnFinished();
@@ -1214,11 +1217,25 @@ bool ASandboxTerrainController::IsDebugModeOn() {
 	return DebugArea > 0;
 }
 
+int ASandboxTerrainController::CheckPlayerPositionZone(const FVector& Pos) {
+	TVoxelIndex ZoneIndex = GetZoneIndex(Pos);
+	auto State = TerrainData->GetVoxelDataInfo(ZoneIndex)->DataState;
+
+	if (TerrainData->GetVoxelDataInfo(ZoneIndex)->DataState == TVoxelDataState::UNDEFINED) {
+		return -1;
+	}
+
+	if (TerrainData->GetVoxelDataInfo(ZoneIndex)->GetFlagInternal() == 2) {
+		return -2;
+	}
+
+	return 0;
+}
+
 ASandboxTerrainNetProxy::ASandboxTerrainNetProxy(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	bReplicates = true;
 	bAlwaysRelevant = true;
 }
-
 
 void ASandboxTerrainNetProxy::BeginPlay() {
 	Super::BeginPlay();

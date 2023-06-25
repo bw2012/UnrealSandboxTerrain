@@ -366,7 +366,7 @@ void ASandboxTerrainController::CloseFile() {
 // save
 //======================================================================================================================================================================
 
-uint32 SaveZoneToFile(TKvFile& TerrainDataFile, TKvFile& VoxelDataFile, TKvFile& ObjDataFile, const TVoxelIndex& Index, const TValueDataPtr DataVd, const TValueDataPtr DataMd, const TValueDataPtr DataObj) {
+uint32 SaveZoneToFile(TVoxelDataInfoPtr VdInfoPtr, TKvFile& TerrainDataFile, TKvFile& VoxelDataFile, TKvFile& ObjDataFile, const TVoxelIndex& Index, const TValueDataPtr DataVd, const TValueDataPtr DataMd, const TValueDataPtr DataObj) {
 	TKvFileZoneData ZoneHeader;
 	if (!DataVd) {
 		ZoneHeader.SetFlag((int)TZoneFlag::NoVoxelData);
@@ -376,6 +376,10 @@ uint32 SaveZoneToFile(TKvFile& TerrainDataFile, TKvFile& VoxelDataFile, TKvFile&
 		ZoneHeader.LenMd = DataMd->size();
 	} else {
 		ZoneHeader.SetFlag((int)TZoneFlag::NoMesh);
+
+		if (VdInfoPtr->GetFlagInternal() == 2) {
+			ZoneHeader.SetFlag((int)TZoneFlag::InternalSolid);
+		}
 	}
 
 	usbt::TFastUnsafeSerializer ZoneSerializer;
@@ -493,7 +497,7 @@ void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgr
 		}
 
 		if (bSave) {
-			uint32 CRC = SaveZoneToFile(TdFile, VdFile, ObjFile, Index, DataVd, DataMd, DataObj);
+			uint32 CRC = SaveZoneToFile(VdInfoPtr, TdFile, VdFile, ObjFile, Index, DataVd, DataMd, DataObj);
 		}
 
 		SavedCount++;

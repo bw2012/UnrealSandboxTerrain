@@ -54,6 +54,8 @@ private:
     std::atomic<bool> bNeedObjectsSave { false };
     std::atomic<bool> bSpawnFinished { false };
 
+    std::atomic<int> FlagInternal { 0 };
+
 	std::shared_timed_mutex InstanceObjectMapMutex;
 	std::shared_ptr<TInstanceMeshTypeMap> InstanceMeshTypeMapPtr = nullptr;
 
@@ -97,6 +99,14 @@ public:
 
     void Unlock() {
         VdMutex.Unlock();
+    }
+
+    int GetFlagInternal() {
+        return FlagInternal;
+    }
+
+    void SetFlagInternalFullSolid() {
+        FlagInternal = 2;
     }
 
     void SetSpawnFinished() {
@@ -202,6 +212,8 @@ public:
 #else
         std::atomic_store(&MeshDataCachePtr, MeshDataPtr);
 #endif
+
+        FlagInternal = 1;
 	}
 
     TMeshDataPtr GetMeshDataCache() {
