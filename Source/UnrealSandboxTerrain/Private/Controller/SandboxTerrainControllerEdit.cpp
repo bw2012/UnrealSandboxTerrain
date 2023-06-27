@@ -437,11 +437,22 @@ UVoxelMeshComponent* ASandboxTerrainController::GetVoxelMeshComponent(TVoxelInde
 }
 
 
+void ASandboxTerrainNetProxy::MulticastRpcDestroyInstanceMesh_Implementation(int32 MapVer, int32 X, int32 Y, int32 Z, uint32 TypeId, uint32 VariantId, int32 ItemIndex) {
+	if (GetNetMode() == NM_Client) {
+		Controller->RemoveInstanceAtMesh(TVoxelIndex(X, Y, Z), TypeId, VariantId, ItemIndex);
+	}
+}
+
 void ASandboxTerrainController::RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint32 TypeId, uint32 VariantId, int32 ItemIndex) {
+	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
+		NetProxy->MulticastRpcDestroyInstanceMesh(GetMapVStamp(), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, TypeId, VariantId, ItemIndex);
+	}
+
 	auto* InstMesh = GetInstanceMeshComponent(ZoneIndex, TypeId, VariantId);
 	if (InstMesh) {
 		InstMesh->RemoveInstance(ItemIndex);
 		MarkZoneNeedsToSaveObjects(ZoneIndex);
+		TerrainData->IncreaseVStamp(ZoneIndex);
 	}
 }
 
@@ -562,7 +573,7 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 			UE_LOG(LogVt, Warning, TEXT("Zone: %d %d %d -> Invalid zone vd state (UNDEFINED)"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 
 			AsyncTask(ENamedThreads::GameThread, [=]() {
-				DrawDebugBox(GetWorld(), GetZonePos(ZoneIndex), FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5);
+				//DrawDebugBox(GetWorld(), GetZonePos(ZoneIndex), FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5);
 			});
 
 			bIsValid = false;

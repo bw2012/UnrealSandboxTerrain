@@ -1247,5 +1247,4 @@ void ASandboxTerrainNetProxy::BeginPlay() {
 			break;
 		}
 	}
-
 }

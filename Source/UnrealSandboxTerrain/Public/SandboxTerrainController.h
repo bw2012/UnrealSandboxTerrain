@@ -776,6 +776,9 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastRpcDigCube(int32 MapVer, const FVector& Origin, float Extend, const FRotator& Rotator);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastRpcDestroyInstanceMesh(int32 MapVer, int32 X, int32 Y, int32 Z, uint32 TypeId, uint32 VariantId, int32 ItemIndex);
+
 protected:
 
 	virtual void BeginPlay() override;
