@@ -5,7 +5,6 @@
 #include "NetworkMessage.h"
 
 
-
 UTerrainServerComponent::UTerrainServerComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 
 }
@@ -32,7 +31,6 @@ void UTerrainServerComponent::BeginPlay() {
 	} else {
 		UE_LOG(LogVt, Warning, TEXT("Server: Failed to start udp server"));
 	}
-
 }
 
 void UTerrainServerComponent::UdpRecv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPoint) {
@@ -82,8 +80,6 @@ bool UTerrainServerComponent::SendVdByIndex(const FIPv4Endpoint& EndPoint, const
 
 	GetTerrainController()->NetworkSerializeZone(SendBuffer, Index);
 	//return FNFSMessageHeader::WrapAndSendPayload(SendBuffer, SimpleAbstractSocket);
-
-	//UE_LOG(LogVt, Log, TEXT("Server: buffer: %d"), SendBuffer.Num());
 
 	int32 Sent = UdpSend(SendBuffer, EndPoint);
 
