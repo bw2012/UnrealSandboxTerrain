@@ -45,6 +45,15 @@ TAutoConsoleVariable<int32> CVarAutoSavePeriod (
 	ECVF_SetBySystemSettingsIni);
 
 
+TAutoConsoleVariable<int32> CVarLodRatio (
+	TEXT("vt.TerrainLodRatio"),
+	-1,
+	TEXT("Overrides voxel terrain zones lod factor \n")
+	TEXT(" 0 = Off. Use actor settings \n")
+	TEXT(" 0...1 = lod ratio \n"),
+	ECVF_SetBySystemSettingsIni);
+
+
 
 void FUnrealSandboxTerrainModule::StartupModule() {
 	float LodRatio = 2.f;

@@ -484,7 +484,7 @@ public:
 		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) {
-			//DrawBox(Collector, ViewIndex, FLinearColor::Blue);
+			//DrawBox(Collector, ViewIndex, FLinearColor::Blue, ZoneOrigin);
 
 			if (VisibilityMap & (1 << ViewIndex)) {
 				const FSceneView* View = Views[ViewIndex];

@@ -38,6 +38,7 @@ bool IsGameShutdown() {
 extern TAutoConsoleVariable<int32> CVarMainDistance;
 extern TAutoConsoleVariable<int32> CVarDebugArea;
 extern TAutoConsoleVariable<int32> CVarAutoSavePeriod;
+extern TAutoConsoleVariable<int32> CVarLodRatio;
 
 //========================================================================================
 // debug only
@@ -132,7 +133,8 @@ void ASandboxTerrainController::BeginPlay() {
 #endif
 
 	UE_LOG(LogVt, Warning, TEXT("Initialize terrain parameters..."));
-	
+	UE_LOG(LogVt, Warning, TEXT("LodRatio = %f"), LodRatio);
+
 	float ScreenSize = 1.f;
 	for (auto LodIdx = 0; LodIdx < LOD_ARRAY_SIZE; LodIdx++) {
 		UE_LOG(LogVt, Log, TEXT("Lod %d -> %f"), LodIdx, ScreenSize);
@@ -1208,6 +1210,14 @@ void ASandboxTerrainController::LoadConsoleVars() {
 			UE_LOG(LogVt, Warning, TEXT("Override AutoSavePeriod = %d <- %d"), AutoSavePeriod, AutoSavePeriodOverride);
 		}
 		AutoSavePeriod = AutoSavePeriodOverride;
+	}
+
+	const int32 LodRatioOverride = CVarLodRatio.GetValueOnGameThread();
+	if (LodRatioOverride > 0) {
+		if (LodRatio != LodRatioOverride) {
+			UE_LOG(LogVt, Warning, TEXT("Override LodRatio = %f <- %f"), LodRatio, LodRatioOverride);
+		}
+		LodRatio = LodRatioOverride;
 	}
 
 }
