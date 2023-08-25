@@ -97,7 +97,7 @@ bool UTerrainServerComponent::SendMapInfo(const FIPv4Endpoint& EndPoint, TArray<
 	uint32 Size = Area.Num();
 	uint32 MapVStamp = GetTerrainController()->GetMapVStamp();
 
-	//UE_LOG(LogVt, Log, TEXT("Server: MapVStamp %d"), MapVStamp);
+	UE_LOG(LogVt, Log, TEXT("Server: MapVStamp %d"), MapVStamp);
 
 	SendBuffer << OpCode;
 	SendBuffer << OpCodeExt;

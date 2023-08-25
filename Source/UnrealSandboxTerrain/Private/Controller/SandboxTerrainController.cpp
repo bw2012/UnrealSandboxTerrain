@@ -703,7 +703,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		bool bNewVdGeneration = false;
 
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
-		TVdInfoLockGuard Lock(VdInfoPtr);
+		TVdInfoLockGuard Lock(VdInfoPtr); // TODO lock order
 
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 			if (TdFile.isExist(Index)) {
@@ -747,9 +747,13 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 
 	if (GenerationList.Num() > 0) {
 		BatchGenerateZone(GenerationList);
+		PostBatchGenerateZone(GenerationList);
 	}
+}
 
+void ASandboxTerrainController::PostBatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList) {
 	for (const auto& P : GenerationList) {
+
 		TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(P.Index);
 		TVdInfoLockGuard Lock(VoxelDataInfoPtr);
 
