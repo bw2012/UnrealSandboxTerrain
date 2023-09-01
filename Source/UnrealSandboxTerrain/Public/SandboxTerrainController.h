@@ -745,6 +745,8 @@ protected:
 
 	void BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
 
+	void PostBatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
+
 	std::list<TChunkIndex> MakeChunkListByAreaSize(const uint32 AreaRadius);
 
 	//===============================================================================
