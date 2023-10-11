@@ -57,7 +57,7 @@ void UTerrainClientComponent::Init() {
 		UdpSocket->SetSendBufferSize(BufferSize, BufferSize);
 		UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
 
-		ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=] { RcvThreadLoop(); });
+		ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=, this] { RcvThreadLoop(); });
 
 		if (GetTerrainController()->bAutoConnect) {
 			Start();

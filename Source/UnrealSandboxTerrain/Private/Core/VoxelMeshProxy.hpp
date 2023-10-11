@@ -32,26 +32,6 @@ private:
 	uint32 Size;
 };
 
-/** Vertex Buffer */
-class TMeshVertexBuffer : public FVertexBuffer {
-public:
-	TArray<FDynamicMeshVertex> Vertices;
-
-	virtual void InitRHI() override {
-		const uint32 SizeInBytes = Vertices.Num() * sizeof(FDynamicMeshVertex);
-
-		TMeshVertexResourceArray ResourceArray(Vertices.GetData(), SizeInBytes);
-
-#if ENGINE_MAJOR_VERSION == 5
-		FRHIResourceCreateInfo CreateInfo(TEXT("TMeshVertexBuffer"), &ResourceArray);
-#else
-		FRHIResourceCreateInfo CreateInfo(&ResourceArray);
-#endif
-
-		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_Static, CreateInfo);
-	}
-};
-
 /** Class representing a single section of the proc mesh */
 class FProcMeshProxySection
 {

@@ -444,7 +444,7 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
     VoxelData->deinitializeMaterial(DfaultGrassMaterialId);
 
     TPseudoOctree Octree(VoxelData);
-    Octree.Handler = [=] (const TVoxelIndex& V, int Idx, TVoxelData* VoxelData, int LOD) {
+    Octree.Handler = [=, this] (const TVoxelIndex& V, int Idx, TVoxelData* VoxelData, int LOD) {
         if (LOD == 0) {
             const FVector& LocalPos = VoxelData->voxelIndexToVector(V.X, V.Y, V.Z);
             const FVector& WorldPos = LocalPos + VoxelData->getOrigin();

@@ -164,7 +164,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 				DeserializeInstancedMeshes(ObjData, ZoneInstanceMeshMap);
 			}
 
-			TFunction<void()> Function = [=]() {
+			TFunction<void()> Function = [=, this]() {
 				if (!IsGameShutdown()) {
 					UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
 					if (Zone) {
@@ -235,7 +235,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 				VdInfoPtr->CleanUngenerated(); //TODO refactor
 				TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 
-				TFunction<void()> Function = [=]() {
+				TFunction<void()> Function = [=, this]() {
 					if (!IsGameShutdown()) {
 						UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
 						if (Zone) {
