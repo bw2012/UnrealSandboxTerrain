@@ -699,6 +699,8 @@ protected:
 
 	virtual bool OnZoneHardUnload(const TVoxelIndex& ZoneIndex);
 
+	virtual void GetAnchorObjectsLocation(TArray<FVector>& List) const;
+
 	void ClientStart();
 
 	//===============================================================================

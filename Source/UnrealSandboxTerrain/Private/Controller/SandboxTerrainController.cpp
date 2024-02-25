@@ -333,8 +333,14 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 		UE_LOG(LogVt, Warning, TEXT("DedicatedServer: No players found. Unload all zones."));
 	}
 
+	TArray<FVector> AnchorObjectList;
+	GetAnchorObjectsLocation(AnchorObjectList);
+
 	int RestoredCount = 0;
-	const float Radius = ActiveAreaSize * USBT_ZONE_SIZE;
+
+	const float RadiusByPlayerPos = ActiveAreaSize * USBT_ZONE_SIZE;
+	const static float RadiusByAnchorObject = USBT_ZONE_SIZE * 1.4142; // sqrt(2)
+
 	TArray<UTerrainZoneComponent*> Components;
 	GetComponents<UTerrainZoneComponent>(Components);
 	for (UTerrainZoneComponent* ZoneComponent : Components) {
@@ -346,10 +352,10 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 		for (const auto& PlayerLocation : PlayerLocationList) {
 			float ZoneDistance = FVector::Distance(ZonePos, PlayerLocation);
 
-			if (ZoneDistance < Radius * 1.5f) {
+			if (ZoneDistance < RadiusByPlayerPos * 1.5f) {
 				bUnload = false;
 
-				if (ZoneDistance < Radius) {
+				if (ZoneDistance < RadiusByPlayerPos) {
 					// restore soft unload
 					TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(ZoneIndex);
 					if (VoxelDataInfoPtr->IsSoftUnload()) {
@@ -358,6 +364,14 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 						RestoredCount++;
 					}
 				}
+			}
+		}
+
+		for (const auto& Location : AnchorObjectList) {
+			if (FVector::Distance(ZonePos, Location) < RadiusByAnchorObject) {
+				bUnload = false;
+
+				DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true);
 			}
 		}
 
@@ -1079,6 +1093,10 @@ void ASandboxTerrainController::OnFinishInitialLoad() {
 }
 
 void ASandboxTerrainController::OnDestroyInstanceMesh(UTerrainInstancedStaticMesh* InstancedMeshComp, int32 ItemIndex) {
+
+}
+
+void ASandboxTerrainController::GetAnchorObjectsLocation(TArray<FVector>& List) const {
 
 }
 
