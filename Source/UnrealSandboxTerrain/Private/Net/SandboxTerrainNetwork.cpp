@@ -26,12 +26,12 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 	int32 VStamp = TerrainData->GetZoneVStamp(Index).VStamp;
 	Buffer << VStamp;
 
-	TValueDataPtr Data = nullptr;
+	TValueDataPtr DataVd = nullptr;
 	TValueDataPtr DataObj = nullptr;
 
 	if (VdInfoPtr->DataState == TVoxelDataState::READY_TO_LOAD) {
 		TVoxelData* Vd = LoadVoxelDataByIndex(Index);
-		Data = SerializeVd(Vd);
+		DataVd = SerializeVd(Vd);
 		delete Vd;
 
 		double Start = FPlatformTime::Seconds();
@@ -39,6 +39,7 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 		TMeshDataPtr MeshDataPtr = nullptr;
 		TInstanceMeshTypeMap InstMeshes;
 		LoadMeshAndObjectDataByIndex(Index, MeshDataPtr, InstMeshes);
+
 		DataObj = UTerrainZoneComponent::SerializeInstancedMesh(InstMeshes);
 
 		double End = FPlatformTime::Seconds();
@@ -47,7 +48,7 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 		UE_LOG(LogVt, Log, TEXT("Loading mesh and objects data block -> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
 
 	} else if (VdInfoPtr->DataState == TVoxelDataState::LOADED || VdInfoPtr->DataState == TVoxelDataState::GENERATED) {
-		Data = SerializeVd(VdInfoPtr->Vd);
+		DataVd = SerializeVd(VdInfoPtr->Vd);
 
 		UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
 		if (Zone) {
@@ -58,12 +59,24 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 				DataObj = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
 			}
 		}
-	} 
+	} else if (VdInfoPtr->DataState == TVoxelDataState::UNGENERATED) {
+		// send only objects
 
-	int32 Size = (Data == nullptr) ? 0 : Data->size();
+		UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
+		if (Zone) {
+			DataObj = Zone->SerializeAndResetObjectData();
+		} else {
+			auto InstanceObjectMapPtr = VdInfoPtr->GetOrCreateInstanceObjectMap();
+			if (InstanceObjectMapPtr) {
+				DataObj = UTerrainZoneComponent::SerializeInstancedMesh(*InstanceObjectMapPtr);
+			}
+		}
+	}
+
+	int32 Size = (DataVd == nullptr) ? 0 : DataVd->size();
 	Buffer << Size;
 	if (Size > 0) {
-		AppendDataToBuffer(Data, Buffer);
+		AppendDataToBuffer(DataVd, Buffer);
 	}
 	
 	int32 Size2 = (DataObj == nullptr) ? 0 : DataObj->size();
@@ -151,17 +164,15 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 				DeserializeInstancedMeshes(ObjData, ZoneInstanceMeshMap);
 			}
 
-			FVector ZonePos = GetZonePos(Index);
-			ASandboxTerrainController* Controller = this;
-
-			TFunction<void()> Function = [=]() {
+			TFunction<void()> Function = [=, this]() {
 				if (!IsGameShutdown()) {
-					if (MeshDataPtr) {
-						UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
-						if (Zone) {
-							Zone->ApplyTerrainMesh(MeshDataPtr, 0);
-							Zone->SpawnAll(ZoneInstanceMeshMap);
+					UTerrainZoneComponent* Zone = AddTerrainZone(Pos);
+					if (Zone) {
+						if (MeshDataPtr) {
+							Zone->ApplyTerrainMesh(MeshDataPtr);
 						}
+
+						Zone->SpawnAll(ZoneInstanceMeshMap);
 					}
 				}
 			};
@@ -170,7 +181,95 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			TerrainData->RemoveSyncItem(Index);
 			VdInfoPtr->Unlock();
 		}
+	} if (ServerVdState == TVoxelDataState::GENERATED || ServerVdState == TVoxelDataState::UNGENERATED) {
+
+		int32 SizeVd;
+		BinaryData << SizeVd;
+
+		//UE_LOG(LogVt, Warning, TEXT("Client: TEST1 vd %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeVd);
+
+		if (SizeVd == 0) {
+
+			//DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
+
+			TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
+			VdInfoPtr->Lock();
+
+			int32 SizeObj;
+			BinaryData << SizeObj;
+			TInstanceMeshTypeMap ZoneInstanceMeshMap;
+
+			//UE_LOG(LogVt, Warning, TEXT("Client: TEST2 obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
+
+			if (SizeObj > 0) {
+				TValueData ObjData;
+				for (int I = 0; I < SizeObj; I++) {
+					uint8 Byte;
+					BinaryData << Byte;
+					ObjData.push_back(Byte);
+				}
+
+				DeserializeInstancedMeshes(ObjData, ZoneInstanceMeshMap);
+			}
+
+			FVector ZonePos = GetZonePos(Index);
+
+
+			TArray<TSpawnZoneParam> GenerationList;
+			GenerationList.Add(TSpawnZoneParam(Index));
+
+			double Start = FPlatformTime::Seconds();
+
+			BatchGenerateZone(GenerationList);
+
+			double End = FPlatformTime::Seconds();
+			double Time = (End - Start) * 1000;
+			UE_LOG(LogVt, Log, TEXT("GenerateZone --> %d %d %d -> %f ms"), Index.X, Index.Y, Index.Z, Time);
+
+			if (VdInfoPtr->Vd && VdInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::FULL) {
+				VdInfoPtr->SetFlagInternalFullSolid();
+			}
+
+			if (VdInfoPtr->Vd && VdInfoPtr->Vd->getDensityFillState() == TVoxelDataFillState::MIXED) {
+				TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
+				VdInfoPtr->CleanUngenerated(); //TODO refactor
+				TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
+
+				TFunction<void()> Function = [=, this]() {
+					if (!IsGameShutdown()) {
+						UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
+						if (Zone) {
+							if (MeshDataPtr) {
+								Zone->ApplyTerrainMesh(MeshDataPtr);
+							}
+
+							Zone->SpawnAll(ZoneInstanceMeshMap);
+						}
+					}
+				};
+
+				InvokeSafe(Function);
+
+			} else {
+				VdInfoPtr->SetNeedTerrainSave();
+				TerrainData->AddSaveIndex(Index);
+			}
+
+			VdInfoPtr->SetSpawnFinished();
+
+
+
+			TerrainData->RemoveSyncItem(Index);
+			VdInfoPtr->Unlock();
+
+		} else {
+			// TODO handle error
+		}
+
+
 	}
+
+
 }
 
 std::list<TChunkIndex> ReverseSpiralWalkthrough(const unsigned int r);
@@ -182,22 +281,19 @@ TArray<std::tuple<TVoxelIndex, TZoneModificationData>> ASandboxTerrainController
 	auto Vm = TerrainData->CloneVStampMap();
 
 	for (auto Itm : Vm) {
-		TVoxelIndex Index = Itm.Key;
+		const TVoxelIndex& Index = Itm.Key;
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 
-		// skip without real changes
-		if (VdInfoPtr->DataState == TVoxelDataState::LOADED || VdInfoPtr->DataState == TVoxelDataState::READY_TO_LOAD) {
-			TZoneModificationData Mdata = Itm.Value;
-			std::tuple<TVoxelIndex, TZoneModificationData> Entry = std::make_tuple(Index, Mdata);
-			Result.Add(Entry);
-		}
+		const TZoneModificationData& Mdata = Itm.Value;
+		std::tuple<TVoxelIndex, TZoneModificationData> Entry = std::make_tuple(Index, Mdata);
+		Result.Add(Entry);
 	}
 	
 	return Result;
 }
 
 void ASandboxTerrainController::OnReceiveServerMapInfo(const TMap<TVoxelIndex, TZoneModificationData>& ServerDataMap) {
-	UE_LOG(LogVt, Warning, TEXT("Client: OnReceiveServerMapInfo "));
+	UE_LOG(LogVt, Warning, TEXT("Client: OnReceiveServerMapInfo -> %d items"), ServerDataMap.Num());
 
 	auto Vm = TerrainData->CloneVStampMap();
 

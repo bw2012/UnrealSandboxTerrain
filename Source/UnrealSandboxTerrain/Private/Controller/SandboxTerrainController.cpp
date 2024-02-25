@@ -333,8 +333,14 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 		UE_LOG(LogVt, Warning, TEXT("DedicatedServer: No players found. Unload all zones."));
 	}
 
+	TArray<FVector> AnchorObjectList;
+	GetAnchorObjectsLocation(AnchorObjectList);
+
 	int RestoredCount = 0;
-	const float Radius = ActiveAreaSize * USBT_ZONE_SIZE;
+
+	const float RadiusByPlayerPos = ActiveAreaSize * USBT_ZONE_SIZE;
+	const static float RadiusByAnchorObject = USBT_ZONE_SIZE * 1.4142; // sqrt(2)
+
 	TArray<UTerrainZoneComponent*> Components;
 	GetComponents<UTerrainZoneComponent>(Components);
 	for (UTerrainZoneComponent* ZoneComponent : Components) {
@@ -346,10 +352,10 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 		for (const auto& PlayerLocation : PlayerLocationList) {
 			float ZoneDistance = FVector::Distance(ZonePos, PlayerLocation);
 
-			if (ZoneDistance < Radius * 1.5f) {
+			if (ZoneDistance < RadiusByPlayerPos * 1.5f) {
 				bUnload = false;
 
-				if (ZoneDistance < Radius) {
+				if (ZoneDistance < RadiusByPlayerPos) {
 					// restore soft unload
 					TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(ZoneIndex);
 					if (VoxelDataInfoPtr->IsSoftUnload()) {
@@ -358,6 +364,14 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 						RestoredCount++;
 					}
 				}
+			}
+		}
+
+		for (const auto& Location : AnchorObjectList) {
+			if (FVector::Distance(ZonePos, Location) < RadiusByAnchorObject) {
+				bUnload = false;
+
+				DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true);
 			}
 		}
 
@@ -489,7 +503,7 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
 
         // async loading other zones
 		TTerrainAreaLoadParams Params(ActiveAreaSize, ActiveAreaDepth);
-        AddAsyncTask([=]() {            
+        AddAsyncTask([=, this]() {            
 			UE_LOG(LogVt, Warning, TEXT("Server: Begin terrain load at location: %f %f %f"), BeginServerTerrainLoadLocation.X, BeginServerTerrainLoadLocation.Y, BeginServerTerrainLoadLocation.Z);
 
 			TTerrainLoadHelper Loader(TEXT("initial_load"), this, Params);
@@ -503,7 +517,7 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
 #if ENGINE_MAJOR_VERSION == 5 && (ENGINE_MINOR_VERSION == 1 || ENGINE_MINOR_VERSION == 2)
 					UE51MaterialIssueWorkaround();
 #endif
-					AddTaskToConveyor([=] { 
+					AddTaskToConveyor([=, this] {
 						OnFinishInitialLoad(); 
 						if (bSaveAfterInitialLoad) {
 							SaveMapAsync();
@@ -545,7 +559,7 @@ void ASandboxTerrainController::ClientStart() {
 void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIndex) {
 	TTerrainAreaLoadParams Params(ActiveAreaSize, ActiveAreaDepth);
 
-	AddAsyncTask([=]() {
+	AddAsyncTask([=, this]() {
 		const TVoxelIndex Index = ZoneIndex;
 		UE_LOG(LogVt, Warning, TEXT("Client: Begin terrain load at location: %f %f %f"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
 		TTerrainLoadHelper Loader(TEXT("client_initial_load"), this, Params);
@@ -559,7 +573,7 @@ void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIn
 #if ENGINE_MAJOR_VERSION == 5 && (ENGINE_MINOR_VERSION == 1 || ENGINE_MINOR_VERSION == 2)
 				UE51MaterialIssueWorkaround();
 #endif
-				AddTaskToConveyor([=] {
+				AddTaskToConveyor([=, this] {
 					OnFinishInitialLoad();
 				});
 
@@ -590,17 +604,17 @@ void ASandboxTerrainController::OnProgressBackgroundSaveTerrain(float Progress) 
 void ASandboxTerrainController::SaveMapAsync() {
 	UE_LOG(LogVt, Log, TEXT("Start save terrain async"));
 	AddAsyncTask([&]() {
-		std::function<void(uint32, uint32)> OnProgress = [=](uint32 Processed, uint32 Total) {
+		std::function<void(uint32, uint32)> OnProgress = [=, this](uint32 Processed, uint32 Total) {
 			if (Processed % 10 == 0) {
 				float Progress = (float)Processed / (float)Total;
-				AsyncTask(ENamedThreads::GameThread, [=]() { OnProgressBackgroundSaveTerrain(Progress); });
+				AsyncTask(ENamedThreads::GameThread, [=, this]() { OnProgressBackgroundSaveTerrain(Progress); });
 			}
 		};
 
-		AsyncTask(ENamedThreads::GameThread, [=]() { OnStartBackgroundSaveTerrain(); });
+		AsyncTask(ENamedThreads::GameThread, [=, this]() { OnStartBackgroundSaveTerrain(); });
 		Save(OnProgress);
 		bForcePerformHardUnload = true;
-		AsyncTask(ENamedThreads::GameThread, [=]() { OnFinishBackgroundSaveTerrain(); });
+		AsyncTask(ENamedThreads::GameThread, [=, this]() { OnFinishBackgroundSaveTerrain(); });
 
 		UE_LOG(LogVt, Log, TEXT("Finish save terrain async"));
 	});
@@ -703,7 +717,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		bool bNewVdGeneration = false;
 
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
-		TVdInfoLockGuard Lock(VdInfoPtr);
+		TVdInfoLockGuard Lock(VdInfoPtr); // TODO lock order
 
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 			if (TdFile.isExist(Index)) {
@@ -747,9 +761,13 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 
 	if (GenerationList.Num() > 0) {
 		BatchGenerateZone(GenerationList);
+		PostBatchGenerateZone(GenerationList);
 	}
+}
 
+void ASandboxTerrainController::PostBatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList) {
 	for (const auto& P : GenerationList) {
+
 		TVoxelDataInfoPtr VoxelDataInfoPtr = GetVoxelDataInfo(P.Index);
 		TVdInfoLockGuard Lock(VoxelDataInfoPtr);
 
@@ -937,7 +955,7 @@ void ASandboxTerrainController::AddTaskToConveyor(std::function<void()> Function
 void ASandboxTerrainController::ExecGameThreadZoneApplyMesh(const TVoxelIndex& Index, UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr) {
 	ASandboxTerrainController* Controller = this;
 
-	std::function<void()> Function = [=]() {
+	std::function<void()> Function = [=, this]() {
 		if (!bIsGameShutdown) {
 			if (MeshDataPtr) {		
 				TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
@@ -963,7 +981,7 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 	FVector ZonePos = GetZonePos(Index);
 	ASandboxTerrainController* Controller = this;
 
-	std::function<void()> Function = [=]() {
+	std::function<void()> Function = [=, this]() {
 		if (!bIsGameShutdown) {
 			if (MeshDataPtr) {
 				TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
@@ -1075,6 +1093,10 @@ void ASandboxTerrainController::OnFinishInitialLoad() {
 }
 
 void ASandboxTerrainController::OnDestroyInstanceMesh(UTerrainInstancedStaticMesh* InstancedMeshComp, int32 ItemIndex) {
+
+}
+
+void ASandboxTerrainController::GetAnchorObjectsLocation(TArray<FVector>& List) const {
 
 }
 

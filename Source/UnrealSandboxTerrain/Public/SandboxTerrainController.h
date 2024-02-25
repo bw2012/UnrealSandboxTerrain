@@ -699,6 +699,8 @@ protected:
 
 	virtual bool OnZoneHardUnload(const TVoxelIndex& ZoneIndex);
 
+	virtual void GetAnchorObjectsLocation(TArray<FVector>& List) const;
+
 	void ClientStart();
 
 	//===============================================================================
@@ -744,6 +746,8 @@ protected:
 	void BatchSpawnZone(const TArray<TSpawnZoneParam>& SpawnZoneParamArray);
 
 	void BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
+
+	void PostBatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList);
 
 	std::list<TChunkIndex> MakeChunkListByAreaSize(const uint32 AreaRadius);
 

@@ -458,7 +458,7 @@ void ASandboxTerrainController::RemoveInstanceAtMesh(TVoxelIndex ZoneIndex, uint
 
 template<class H>
 void ASandboxTerrainController::PerformTerrainChange(H Handler) {
-	AddAsyncTask([=] {
+	AddAsyncTask([=, this] {
 		EditTerrain(Handler);
 	});
 

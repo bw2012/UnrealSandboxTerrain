@@ -57,7 +57,7 @@ void UTerrainClientComponent::Init() {
 		UdpSocket->SetSendBufferSize(BufferSize, BufferSize);
 		UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
 
-		ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=] { RcvThreadLoop(); });
+		ClientLoopTask = UE::Tasks::Launch(TEXT("vd_client"), [=, this] { RcvThreadLoop(); });
 
 		if (GetTerrainController()->bAutoConnect) {
 			Start();
@@ -90,7 +90,7 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 		Data << MapVStamp;
 		Data << Size;
 
-		UE_LOG(LogVt, Warning, TEXT("Client: MapVStamp %d"), MapVStamp);
+		UE_LOG(LogVt, Warning, TEXT("Client: remote MapVStamp %d"), MapVStamp);
 
 		TMap<TVoxelIndex, TZoneModificationData> ServerMap;
 		for (uint32 I = 0; I < Size; I++) {
@@ -101,7 +101,7 @@ void UTerrainClientComponent::HandleRcvData(FArrayReader& Data) {
 			TZoneModificationData MData;
 			MData.VStamp = VStamp;
 			ServerMap.Add(ElemIndex, MData);
-			//UE_LOG(LogVt, Log, TEXT("Client: vstamp %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, VStamp);
+			UE_LOG(LogVt, Log, TEXT("Client: vstamp %d %d %d - %d"), ElemIndex.X, ElemIndex.Y, ElemIndex.Z, VStamp);
 		}
 
 		StoredVStamp = MapVStamp;
