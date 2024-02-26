@@ -370,8 +370,6 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 		for (const auto& Location : AnchorObjectList) {
 			if (FVector::Distance(ZonePos, Location) < RadiusByAnchorObject) {
 				bUnload = false;
-
-				DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true);
 			}
 		}
 
