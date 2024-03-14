@@ -84,10 +84,10 @@ void ASandboxTerrainController::BeginDestroy() {
 }
 
 void ASandboxTerrainController::FinishDestroy() {
-	Super::FinishDestroy();
 	delete TerrainData;
 	delete CheckAreaMap;
 
+	Super::FinishDestroy();
 	//UE_LOG(LogVt, Warning, TEXT("vd -> %d, md -> %d, cd -> %d"), vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load());
 }
 
@@ -344,16 +344,18 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 	TArray<UTerrainZoneComponent*> Components;
 	GetComponents<UTerrainZoneComponent>(Components);
 	for (UTerrainZoneComponent* ZoneComponent : Components) {
-		FVector ZonePos = ZoneComponent->GetComponentLocation();
+		const FVector ZonePos = ZoneComponent->GetComponentLocation();
 		const TVoxelIndex ZoneIndex = GetZoneIndex(ZonePos);
 
 		bool bUnload = true;
 
 		for (const auto& PlayerLocation : PlayerLocationList) {
-			float ZoneDistance = FVector::Distance(ZonePos, PlayerLocation);
+			const float ZoneDistance = FVector::Distance(ZonePos, PlayerLocation);
 
 			if (ZoneDistance < RadiusByPlayerPos * 1.5f) {
 				bUnload = false;
+
+				//AsyncTask(ENamedThreads::GameThread, [=, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), false, 5); });
 
 				if (ZoneDistance < RadiusByPlayerPos) {
 					// restore soft unload
@@ -367,9 +369,15 @@ void ASandboxTerrainController::CheckUnreachableZones(const TArray<FVector>& Pla
 			}
 		}
 
-		for (const auto& Location : AnchorObjectList) {
-			if (FVector::Distance(ZonePos, Location) < RadiusByAnchorObject) {
-				bUnload = false;
+		if (bUnload) {
+			for (const auto& Location : AnchorObjectList) {
+
+				//AsyncTask(ENamedThreads::GameThread, [&]() { DrawDebugBox(GetWorld(), Location, FVector(500), FColor(0, 0, 255, 0), true); });
+
+				if (FVector::Distance(ZonePos, Location) < RadiusByAnchorObject) {
+					bUnload = false;
+					//AsyncTask(ENamedThreads::GameThread, [=, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
+				}
 			}
 		}
 
@@ -424,6 +432,10 @@ void ASandboxTerrainController::UnloadUnreachableZones(const TArray<TVoxelIndex>
 		}
 	}
 
+	if (HardCount > 0) {
+		GEngine->ForceGarbageCollection();
+	}
+
 	if (bForcePerformHardUnload) {
 		bForcePerformHardUnload = false;
 	}
@@ -444,14 +456,10 @@ void ASandboxTerrainController::ZoneHardUnload(UTerrainZoneComponent* ZoneCompon
 			TerrainData->RemoveZone(ZoneIndex);
 			ZoneComponent->DestroyComponent(true);
 		} else {
-			AsyncTask(ENamedThreads::GameThread, [=]() {
-				//DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5);
-			});
+			//AsyncTask(ENamedThreads::GameThread, [&, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5); });
 		}
 	} else {
-		AsyncTask(ENamedThreads::GameThread, [=]() {
-			//DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5);
-		});
+		//AsyncTask(ENamedThreads::GameThread, [&, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 0), false, 5); });
 	}
 }
 
@@ -849,6 +857,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
         ZoneComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
         ZoneComponent->SetWorldLocation(Pos);
 		ZoneComponent->SetMobility(EComponentMobility::Movable);
+		zone_counter++;
 
         FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
         UVoxelMeshComponent* TerrainMeshComp = NewObject<UVoxelMeshComponent>(this, FName(*TerrainMeshCompName));
@@ -984,13 +993,14 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 			if (MeshDataPtr) {
 				TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(Index);
 				TVdInfoLockGuard Lock(VdInfoPtr);
-				TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
+				//TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 
 				UTerrainZoneComponent* Zone = AddTerrainZone(ZonePos);
 				if (Zone) {
 					ApplyTerrainMesh(Zone, MeshDataPtr);
 
 					if (bIsChanged) {
+						TerrainData->PutMeshDataToCache(Index, MeshDataPtr);
 						VdInfoPtr->SetNeedTerrainSave();
 						TerrainData->AddSaveIndex(Index);
 					}
@@ -1186,7 +1196,7 @@ float ASandboxTerrainController::GetGroundLevel(const FVector& Pos) {
 }
 
 FTerrainDebugInfo ASandboxTerrainController::GetMemstat() {
-	return FTerrainDebugInfo{ vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load(), (int)Conveyor->size(), ThreadPool->size(), TerrainData->SyncMapSize()};
+	return FTerrainDebugInfo{ vd::tools::memory::getVdCount(), md_counter.load(), cd_counter.load(), (int)Conveyor->size(), ThreadPool->size(), TerrainData->SyncMapSize(), zone_counter.load()};
 }
 
 void ASandboxTerrainController::UE51MaterialIssueWorkaround() {

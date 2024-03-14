@@ -17,6 +17,7 @@ typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 class UTerrainZoneComponent;
 
+
 /**
 *
 */
@@ -58,6 +59,10 @@ public:
 	TMap<uint64, UTerrainInstancedStaticMesh*> InstancedMeshMap;
 
 public:
+
+	virtual void FinishDestroy() override;
+
+	virtual void DestroyComponent(bool bPromoteChildren) override;
 
 	ASandboxTerrainController* GetTerrainController();
 

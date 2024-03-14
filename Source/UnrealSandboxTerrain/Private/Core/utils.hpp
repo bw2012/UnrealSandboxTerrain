@@ -10,6 +10,7 @@
 
 std::atomic<int> md_counter{ 0 };
 std::atomic<int> cd_counter{ 0 };
+std::atomic<int> zone_counter{ 0 };
 
 
 //  https://www.geeksforgeeks.org/print-given-matrix-reverse-spiral-form/

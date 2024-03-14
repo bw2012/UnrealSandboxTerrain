@@ -5,16 +5,27 @@
 #include "VoxelIndex.h"
 #include "serialization.hpp"
 #include "DrawDebugHelpers.h"
+#include "Core/memstat.h"
+
 
 TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 
-
 UTerrainInstancedStaticMesh::UTerrainInstancedStaticMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-
+	//zone_counter++;
 }
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
+	//zone_counter++;
+}
+
+void UTerrainZoneComponent::FinishDestroy() {
+	Super::FinishDestroy();
+}
+
+void UTerrainZoneComponent::DestroyComponent(bool bPromoteChildren) {
+	Super::DestroyComponent(bPromoteChildren);
+	zone_counter--;
 }
 
 void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgnoreCollision) {

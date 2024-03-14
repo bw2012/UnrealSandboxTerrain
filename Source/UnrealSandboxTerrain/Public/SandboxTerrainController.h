@@ -81,6 +81,9 @@ struct FTerrainDebugInfo {
 
 	UPROPERTY()
 	int OutOfSync = 0;
+
+	UPROPERTY()
+	int CountZones = 0;
 };
 
 USTRUCT()

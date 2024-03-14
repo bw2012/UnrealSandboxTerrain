@@ -42,6 +42,8 @@ private:
 	TMap<TVoxelIndex, TZoneModificationData> ModifiedVdMap;
 	std::atomic<int32> MapVerHash = 0;
 	std::mutex ModifiedVdMapMutex;
+
+	std::atomic<int32> ZonesCount = 0;
     
 public:
 
@@ -168,6 +170,7 @@ public:
 
     void AddZone(const TVoxelIndex& Index, UTerrainZoneComponent* ZoneComponent){
 		GetVoxelDataInfo(Index)->AddZone(ZoneComponent);
+		ZonesCount++;
     }
     
     UTerrainZoneComponent* GetZone(const TVoxelIndex& Index){
@@ -178,6 +181,7 @@ public:
 		auto Ptr = GetVoxelDataInfo(Index);
 		Ptr->ResetSpawnFinished();
 		Ptr->RemoveZone();
+		ZonesCount--;
 	}
     
 	//=====================================================================================
