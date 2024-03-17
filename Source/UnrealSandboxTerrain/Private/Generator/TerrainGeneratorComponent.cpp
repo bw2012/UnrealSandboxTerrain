@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <thread>
 #include <atomic>
+#include "Math/UnrealMathUtility.h"
 
 #include "TerrainZoneComponent.h"
 
@@ -870,6 +871,7 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
         NewVdArray[Idx].Vd = NewVd;
         NewVdArray[Idx].Type = GenItm.Type;
         NewVdArray[Idx].Method = GenItm.Method;
+        NewVdArray[Idx].OreData = GenItm.OreData;
 
         if (GenItm.Method == TGenerationMethod::SetEmpty) {
             GenerateSimpleVd(P.Index, NewVd, GenItm.Type, GenItm.ChunkData);
@@ -930,7 +932,7 @@ void UTerrainGeneratorComponent::Clean(const TVoxelIndex& Index) {
 // Foliage
 //======================================================================================================================================================================
 
-void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) {
+void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap, const TGenerateZoneResult& GenResult) {
     TChunkDataPtr ChunkData = GetChunkData(Index.X, Index.Y);
     auto Type = ZoneGenType(Index, ChunkData);
 
@@ -945,11 +947,63 @@ void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Inde
         }
     }
 
+    // generate minerals as inst. meshes
+    if (GenResult.OreData != nullptr) {
+        if (Type == TZoneGenerationType::Other) {
+            const FVector ZonePos = Vd->getOrigin();
+
+            AsyncTask(ENamedThreads::GameThread, [=, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
+
+            FRandomStream Rnd = MakeNewRandomStream(ZonePos);
+            GenerateRandomInstMesh(ZoneInstanceMeshMap, 910, Rnd, Index, Vd, 5, 10);
+        } 
+
+        //TODO: FullSolid
+        //const TZoneOreData* ZoneOreData = GenItm->OreData.get();
+    }
+
     PostGenerateNewInstanceObjects(Index, Type, Vd, ZoneInstanceMeshMap);
+}
+
+FRandomStream UTerrainGeneratorComponent::MakeNewRandomStream(const FVector& ZonePos) const {
+    int32 Hash = ZoneHash(ZonePos);
+    FRandomStream Rnd = FRandomStream();
+    Rnd.Initialize(Hash);
+    Rnd.Reset();
+    return Rnd;
 }
 
 void UTerrainGeneratorComponent::PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TZoneGenerationType ZoneType, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const {
 
+}
+
+void UTerrainGeneratorComponent::GenerateRandomInstMesh(TInstanceMeshTypeMap& ZoneInstanceMeshMap, uint32 MeshTypeId, FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, int Min, int Max) const {
+    FVector WorldPos(0);
+    FVector Normal(0);
+
+    FVector ZonePos = Vd->getOrigin();
+
+    int Num = (Min != Max) ? Rnd.RandRange(Min, Max) : 1;
+
+    for (int I = 0; I < Num; I++) {
+        if (SelectRandomSpawnPoint(Rnd, ZoneIndex, Vd, WorldPos, Normal)) {
+            const FVector LocalPos = WorldPos - ZonePos;
+            const FVector Scale = FVector(1, 1, 1);
+            FRotator Rotation = Normal.Rotation();
+            Rotation.Pitch -= 90;
+            const FQuat Q = FQuat(Normal, (Rnd.FRandRange(0.f, 360.f) * PI / 180));
+            FTransform T(Q, LocalPos, Scale);
+
+            //AsyncTask(ENamedThreads::GameThread, [=, this] () { DrawDebugLine(GetWorld(), WorldPos, WorldPos + (Normal * 100 ), FColor(255, 255, 255, 0), true); });
+
+            const FTerrainInstancedMeshType* MeshType = GetController()->GetInstancedMeshType(MeshTypeId, 0);
+            if (MeshType) {
+                auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(MeshType->GetMeshTypeCode());
+                InstanceMeshContainer.MeshType = *MeshType;
+                InstanceMeshContainer.TransformArray.Add(T);
+            }
+        }
+    }
 }
 
 bool UTerrainGeneratorComponent::SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal) const {
