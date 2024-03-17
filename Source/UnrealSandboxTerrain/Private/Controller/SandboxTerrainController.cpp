@@ -681,18 +681,20 @@ void ASandboxTerrainController::SpawnZone(const TVoxelIndex& Index) {
 }
 
 void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>& GenerationList) {
-	TArray<TGenerateZoneResult> NewVdArray;
-	GetTerrainGenerator()->BatchGenerateVoxelTerrain(GenerationList, NewVdArray);
+	TArray<TGenerateZoneResult> GenResultArray;
+	GetTerrainGenerator()->BatchGenerateVoxelTerrain(GenerationList, GenResultArray);
 
 	int Idx = 0;
 	for (const auto& P : GenerationList) {
 		TVoxelDataInfoPtr VdInfoPtr = TerrainData->GetVoxelDataInfo(P.Index);
 		TVdInfoLockGuard Lock(VdInfoPtr);
 
-		VdInfoPtr->Vd = NewVdArray[Idx].Vd;
+		const auto& GenResult = GenResultArray[Idx];
+
+		VdInfoPtr->Vd = GenResult.Vd;
 		FVector v = VdInfoPtr->Vd->getOrigin();
 
-		if (NewVdArray[Idx].Method == TGenerationMethod::FastSimple || NewVdArray[Idx].Method == Skip) {
+		if (GenResult.Method == TGenerationMethod::FastSimple || GenResult.Method == Skip) {
 			//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), v, FVector(USBT_ZONE_SIZE / 2), FColor(0, 0, 255, 100), true); });
 			VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 		} else {
@@ -701,7 +703,7 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 
 		VdInfoPtr->SetChanged();
 		TInstanceMeshTypeMap& ZoneInstanceObjectMap = *TerrainData->GetOrCreateInstanceObjectMap(P.Index);
-		GeneratorComponent->GenerateInstanceObjects(P.Index, VdInfoPtr->Vd, ZoneInstanceObjectMap);
+		GeneratorComponent->GenerateInstanceObjects(P.Index, VdInfoPtr->Vd, ZoneInstanceObjectMap, GenResult);
 		Idx++;
 	}
 }

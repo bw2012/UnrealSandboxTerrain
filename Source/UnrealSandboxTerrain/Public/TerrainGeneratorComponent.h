@@ -55,8 +55,11 @@ enum TGenerationMethod : int32 {
 struct TZoneOreData {
 	TVoxelIndex ZoneIndex;
 	FVector Origin;
-	TMaterialId MatId;
+	TMaterialId MatId = 0;
+	uint32 MeshTypeId = 0;
 };
+
+typedef std::shared_ptr<TZoneOreData> TZoneOreDataPtr;
 
 struct TGenerateVdTempItm {
 	int Idx = 0;
@@ -68,13 +71,15 @@ struct TGenerateVdTempItm {
 	TGenerationMethod Method;
 	bool bHasStructures = false; // tunnels and etc
 
-	std::shared_ptr<TZoneOreData> OreData = nullptr;
+	TZoneOreDataPtr OreData = nullptr;
 };
 
 struct TGenerateZoneResult {
 	TVoxelData* Vd = nullptr;
 	TZoneGenerationType Type;
 	TGenerationMethod Method;
+
+	TZoneOreDataPtr OreData = nullptr;
 };
 
 struct TZoneStructureHandler {
@@ -187,7 +192,7 @@ public:
 	// foliage etc.
 	//========================================================================================
 
-	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap);
+	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap, const TGenerateZoneResult& GenResult);
 
 	virtual FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
 
@@ -233,6 +238,8 @@ protected:
 
 	virtual void PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TZoneGenerationType ZoneType, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
 
+	void GenerateRandomInstMesh(TInstanceMeshTypeMap& ZoneInstanceMeshMap, uint32 MeshTypeId, FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, int Min = 1, int Max = 1) const;
+
 	virtual TChunkDataPtr NewChunkData();
 
 	virtual TChunkDataPtr GenerateChunkData(const TVoxelIndex& Index);
@@ -248,6 +255,8 @@ protected:
 	virtual TStructuresGenerator* NewStructuresGenerator();
 
 	float PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const;
+
+	FRandomStream MakeNewRandomStream(const FVector& ZonePos) const;
 
 private:
 
