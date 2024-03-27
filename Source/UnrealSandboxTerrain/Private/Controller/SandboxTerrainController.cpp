@@ -167,9 +167,13 @@ void ASandboxTerrainController::BeginPlay() {
 
 		UE_LOG(LogVt, Log, TEXT("Register terrain instance meshes:"));
 		for (const auto& InstMesh : TerrainParameters->InstanceMeshes) {
-			uint64 MeshTypeCode = InstMesh.GetMeshTypeCode();
-			UE_LOG(LogVt, Log, TEXT("MeshTypeCode = %lld"), MeshTypeCode);
-			InstMeshMap.Add(MeshTypeCode, InstMesh);
+			if (InstMesh.Mesh != nullptr) {
+				uint64 MeshTypeCode = InstMesh.GetMeshTypeCode();
+				UE_LOG(LogVt, Log, TEXT("MeshTypeCode = %lld - %s"), MeshTypeCode, *InstMesh.Mesh->GetName());
+				InstMeshMap.Add(MeshTypeCode, InstMesh);
+			} else {
+				//TODO handle error
+			}
 		}
 	}
 
@@ -1165,7 +1169,7 @@ std::shared_ptr<TMeshData> ASandboxTerrainController::GenerateMesh(TVoxelData* V
 	return MeshDataPtr;
 }
 
-const FSandboxFoliage& ASandboxTerrainController::GetFoliageById(uint32 FoliageId) const {
+FSandboxFoliage ASandboxTerrainController::GetFoliageById(uint32 FoliageId) const {
 	return FoliageMap[FoliageId];
 }
 

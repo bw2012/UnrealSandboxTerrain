@@ -92,6 +92,11 @@ struct TZoneStructureHandler {
 	float Val2;
 };
 
+struct TInstanceMeshSpawnParams {
+	bool bIgnoreNormalNegativeZ = false;
+};
+
+
 class UNREALSANDBOXTERRAIN_API TMetaStructure {
 
 protected:
@@ -238,7 +243,7 @@ protected:
 
 	virtual void PostGenerateNewInstanceObjects(const TVoxelIndex& ZoneIndex, const TZoneGenerationType ZoneType, const TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
 
-	void GenerateRandomInstMesh(TInstanceMeshTypeMap& ZoneInstanceMeshMap, uint32 MeshTypeId, FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, int Min = 1, int Max = 1) const;
+	void GenerateRandomInstMesh(TInstanceMeshTypeMap& ZoneInstanceMeshMap, uint32 MeshTypeId, FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, int Min = 1, int Max = 1, const TInstanceMeshSpawnParams& Params = TInstanceMeshSpawnParams()) const;
 
 	virtual TChunkDataPtr NewChunkData();
 
@@ -315,6 +320,6 @@ public:
 
 	//void Test(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd) const;
 
-	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal) const;
+	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal, const TInstanceMeshSpawnParams& Params = TInstanceMeshSpawnParams()) const;
 
 };

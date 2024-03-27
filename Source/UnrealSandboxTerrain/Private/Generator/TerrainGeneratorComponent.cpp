@@ -776,6 +776,14 @@ void UTerrainGeneratorComponent::BatchGenerateSlightVd(TArray<TGenerateVdTempItm
 TZoneGenerationType UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& ZoneIndex, const TChunkDataPtr ChunkData) {
     const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
 
+    if (IsLandscapeZone(Pos, ChunkData)) {
+        return TZoneGenerationType::Landscape;
+    }
+
+    if (HasStructures(ZoneIndex)) {
+        return TZoneGenerationType::Other;
+    }
+
     if (IsForcedComplexZone(ZoneIndex)) {
         return TZoneGenerationType::Other;
     }
@@ -791,10 +799,6 @@ TZoneGenerationType UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& Z
         } else {
             return TZoneGenerationType::FullSolidMultipleMaterials;
         }
-    }
-
-    if (IsLandscapeZone(Pos, ChunkData)) {
-        return TZoneGenerationType::Landscape;
     }
 
     return TZoneGenerationType::Other;
@@ -846,8 +850,6 @@ TGenerateVdTempItm UTerrainGeneratorComponent::CollectVdGenerationData(const TVo
             VdGenerationData.Method = TGenerationMethod::FastSimple;
         }
     }
-
-    ExtVdGenerationData(VdGenerationData);
     
     return VdGenerationData;
 }
@@ -868,6 +870,9 @@ void UTerrainGeneratorComponent::BatchGenerateVoxelTerrain(const TArray<TSpawnZo
         TGenerateVdTempItm GenItm = CollectVdGenerationData(P.Index);
         GenItm.Idx = Idx;
         GenItm.Vd = NewVd;
+
+        ExtVdGenerationData(GenItm);
+
         NewVdArray[Idx].Vd = NewVd;
         NewVdArray[Idx].Type = GenItm.Type;
         NewVdArray[Idx].Method = GenItm.Method;
@@ -948,14 +953,14 @@ void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Inde
     }
 
     // generate minerals as inst. meshes
-    if (GenResult.OreData != nullptr) {
+    if (GenResult.OreData != nullptr && GenResult.OreData->MeshTypeId > 0) {
         if (Type == TZoneGenerationType::Other) {
             const FVector ZonePos = Vd->getOrigin();
 
-            AsyncTask(ENamedThreads::GameThread, [=, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
+            //AsyncTask(ENamedThreads::GameThread, [=, this]() { DrawDebugBox(GetWorld(), ZonePos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
 
             FRandomStream Rnd = MakeNewRandomStream(ZonePos);
-            GenerateRandomInstMesh(ZoneInstanceMeshMap, 910, Rnd, Index, Vd, 5, 10);
+            GenerateRandomInstMesh(ZoneInstanceMeshMap, GenResult.OreData->MeshTypeId, Rnd, Index, Vd, 3, 5);
         } 
 
         //TODO: FullSolid
@@ -977,7 +982,7 @@ void UTerrainGeneratorComponent::PostGenerateNewInstanceObjects(const TVoxelInde
 
 }
 
-void UTerrainGeneratorComponent::GenerateRandomInstMesh(TInstanceMeshTypeMap& ZoneInstanceMeshMap, uint32 MeshTypeId, FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, int Min, int Max) const {
+void UTerrainGeneratorComponent::GenerateRandomInstMesh(TInstanceMeshTypeMap& ZoneInstanceMeshMap, uint32 MeshTypeId, FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, int Min, int Max, const TInstanceMeshSpawnParams& Params) const {
     FVector WorldPos(0);
     FVector Normal(0);
 
@@ -1006,7 +1011,7 @@ void UTerrainGeneratorComponent::GenerateRandomInstMesh(TInstanceMeshTypeMap& Zo
     }
 }
 
-bool UTerrainGeneratorComponent::SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal) const {
+bool UTerrainGeneratorComponent::SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal, const TInstanceMeshSpawnParams& Params) const {
     int VoxelArraySize = vd::tools::getCacheSize(Vd, 0);
 
     if (VoxelArraySize == 0) {

@@ -489,6 +489,13 @@ public:
 
 	void OnFinishAsyncPhysicsCook(const TVoxelIndex& ZoneIndex);
 
+
+	//===============================================================================
+	// foliage
+	//===============================================================================
+
+	FSandboxFoliage GetFoliageById(uint32 FoliageId) const;
+
 private:
 
 	volatile bool bForceResync = false;
@@ -761,12 +768,6 @@ protected:
 	void InvokeSafe(std::function<void()> Function);
 
 	void ShutdownThreads();
-
-	//===============================================================================
-	// foliage
-	//===============================================================================
-
-	const FSandboxFoliage& GetFoliageById(uint32 FoliageId) const;
 };
 
 
