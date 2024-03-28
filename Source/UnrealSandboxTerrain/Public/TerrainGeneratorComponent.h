@@ -177,6 +177,8 @@ public:
 
 	float PerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const;
 
+	float NormalizedPerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const;
+
 	void ForceGenerateZone(TVoxelData* VoxelData, const TVoxelIndex& ZoneIndex);
 
 	void BatchGenerateVoxelTerrain(const TArray<TSpawnZoneParam>& GenerationList, TArray<TGenerateZoneResult>& ResultArray);

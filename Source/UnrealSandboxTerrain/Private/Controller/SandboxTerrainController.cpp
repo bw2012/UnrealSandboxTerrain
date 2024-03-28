@@ -1129,7 +1129,11 @@ float ASandboxTerrainController::PerlinNoise(const FVector& Pos, const float Pos
 
 // range 0..1
 float ASandboxTerrainController::NormalizedPerlinNoise(const FVector& Pos, const float PositionScale, const float ValueScale) const {
-	return (PerlinNoise(Pos, PositionScale, 1.f) + 0.87f) / 1.73f * ValueScale;
+	if (GeneratorComponent) {
+		return GeneratorComponent->NormalizedPerlinNoise(Pos, PositionScale, ValueScale);
+	}
+
+	return 0;
 }
 
 //======================================================================================================================================================================
