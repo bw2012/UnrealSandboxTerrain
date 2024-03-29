@@ -139,6 +139,10 @@ public:
 
 	float PerformLandscapeZone(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float Lvl) const;
 
+	void SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value);
+
+	void SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value);
+
 private:
 
 	UTerrainGeneratorComponent* MasterGenerator;
@@ -209,6 +213,20 @@ public:
 
 	TStructuresGenerator* GetStructuresGenerator();
 
+	//========================================================================================
+	// tags
+	//========================================================================================
+
+	const FString* GetZoneTag(const TVoxelIndex& ZoneIndex, FString Name) const;
+
+	bool CheckZoneTagExists(const TVoxelIndex& ZoneIndex, FString Name) const;
+
+	bool CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;
+
+	void SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value);
+
+	void SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value);
+
 protected:
 
 	int32 ZoneVoxelResolution;
@@ -216,18 +234,6 @@ protected:
 	TPerlinNoise* Pn;
 
 	TStructuresGenerator* StructuresGenerator;
-
-	//========================================================================================
-	// tags
-	//========================================================================================
-
-	const FString* GetZoneTag(const TVoxelIndex& ZoneIndex, FString Name) const;
-
-	bool CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;
-
-	void SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value);
-
-	void SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value);
 
 	//========================================================================================
 

@@ -1208,10 +1208,29 @@ const FString* UTerrainGeneratorComponent::GetZoneTag(const TVoxelIndex& ZoneInd
     return nullptr;
 }
 
-bool UTerrainGeneratorComponent::CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const{
+bool UTerrainGeneratorComponent::CheckZoneTagExists(const TVoxelIndex& ZoneIndex, FString Name) const {
+    const FString* Param = GetZoneTag(ZoneIndex, Name);
+    if (Param) {
+        return true;
+    }
+
+    TVoxelIndex ChunkIndex(ZoneIndex.X, ZoneIndex.Y, 0);
+    if (ChunkTagData.Contains(ChunkIndex)) {
+        const TMap<FString, FString>& ExtData = ChunkTagData[ChunkIndex];
+        const FString* Param2 = ExtData.Find(Name);
+
+        if (Param2) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UTerrainGeneratorComponent::CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const {
     const FString* Param = GetZoneTag(ZoneIndex, Name);
     if (Param && *Param == Value) {
-            return true;
+        return true;
     }
 
     TVoxelIndex ChunkIndex(ZoneIndex.X, ZoneIndex.Y, 0);
@@ -1223,7 +1242,6 @@ bool UTerrainGeneratorComponent::CheckZoneTag(const TVoxelIndex& ZoneIndex, FStr
             return true;
         }
     }
-
 
     return false;
 }
@@ -1237,7 +1255,7 @@ void UTerrainGeneratorComponent::SetZoneTag(const TVoxelIndex& ZoneIndex, FStrin
 }
 
 void UTerrainGeneratorComponent::SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value) {
-    ZoneTagData.FindOrAdd(TVoxelIndex(ChunkIndex.X, ChunkIndex.Y, 0)).Add(Name, Value);
+    ChunkTagData.FindOrAdd(TVoxelIndex(ChunkIndex.X, ChunkIndex.Y, 0)).Add(Name, Value);
 }
 
 //======================================================================================================================================================================
@@ -1273,12 +1291,20 @@ float TStructuresGenerator::PerformLandscapeZone(const TVoxelIndex& ZoneIndex, c
         if (StructureList.size() > 0) {
             for (const auto& LandscapeHandler : StructureList) {
                 if (LandscapeHandler.Function) {
-                    L = LandscapeHandler.Function(Lvl, ZoneIndex, WorldPos);
+                    L = LandscapeHandler.Function(L, ZoneIndex, WorldPos);
                 }
             }
         }
     }
 
     return L;
+}
+
+void TStructuresGenerator::SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) {
+    GetGeneratorComponent()->SetZoneTag(ZoneIndex, Name, Value);
+}
+
+void TStructuresGenerator::SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value) {
+    GetGeneratorComponent()->SetChunkTag(ChunkIndex, Name, Value);
 }
 
