@@ -1061,6 +1061,19 @@ bool UTerrainGeneratorComponent::SelectRandomSpawnPoint(FRandomStream& Rnd, cons
     return false;
 }
 
+void UTerrainGeneratorComponent::SpawnFoliageAsInstanceMesh(const FTransform& Transform, uint32 MeshTypeId, uint32 MeshVariantId, const FSandboxFoliage& FoliageType, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const {
+    FTerrainInstancedMeshType MeshType;
+    MeshType.MeshTypeId = MeshTypeId;
+    MeshType.MeshVariantId = MeshVariantId;
+    MeshType.Mesh = FoliageType.MeshVariants[MeshVariantId];
+    MeshType.StartCullDistance = FoliageType.StartCullDistance;
+    MeshType.EndCullDistance = FoliageType.EndCullDistance;
+
+    auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(MeshType.GetMeshTypeCode());
+    InstanceMeshContainer.MeshType = MeshType;
+    InstanceMeshContainer.TransformArray.Add(Transform);
+}
+
 void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& Index, TInstanceMeshTypeMap& ZoneInstanceMeshMap) {
     FVector ZonePos = GetController()->GetZonePos(Index);
     int32 Hash = ZoneHash(ZonePos);
@@ -1091,7 +1104,7 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                 if ((int)X % (int)FoliageType.SpawnStep == 0 && (int)Y % (int)FoliageType.SpawnStep == 0) {
                     float Chance = rnd.FRandRange(0.f, 1.f);
 
-                    FSandboxFoliage FoliageType2 = FoliageExt(FoliageTypeId, FoliageType, Index, V);
+                    const FSandboxFoliage FoliageType2 = FoliageExt(FoliageTypeId, FoliageType, Index, V);
                     float Probability = FoliageType2.Probability;
 
                     if (Chance <= Probability) {
@@ -1153,6 +1166,8 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                                     }
    
                                     FTransform Transform(FRotator(0, Angle, 0), NewPos, Scale);
+
+                                    /*
                                     FTerrainInstancedMeshType MeshType;
                                     MeshType.MeshTypeId = FoliageTypeId;
                                     MeshType.MeshVariantId = MeshVariantId;
@@ -1163,6 +1178,9 @@ void UTerrainGeneratorComponent::GenerateNewFoliageLandscape(const TVoxelIndex& 
                                     auto& InstanceMeshContainer = ZoneInstanceMeshMap.FindOrAdd(MeshType.GetMeshTypeCode());
                                     InstanceMeshContainer.MeshType = MeshType;
                                     InstanceMeshContainer.TransformArray.Add(Transform);
+                                    */
+
+                                    SpawnFoliageAsInstanceMesh(Transform, FoliageTypeId, MeshVariantId, FoliageType2, ZoneInstanceMeshMap);
 
                                     Counter++;
                                 }

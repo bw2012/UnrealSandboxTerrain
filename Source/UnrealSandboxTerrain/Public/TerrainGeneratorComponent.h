@@ -203,6 +203,8 @@ public:
 	// foliage etc.
 	//========================================================================================
 
+	void SpawnFoliageAsInstanceMesh(const FTransform& Transform, uint32 MeshTypeId, uint32 MeshVariantId, const FSandboxFoliage& FoliageType, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
+
 	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap, const TGenerateZoneResult& GenResult);
 
 	virtual FSandboxFoliage FoliageExt(const int32 FoliageTypeId, const FSandboxFoliage& FoliageType, const TVoxelIndex& ZoneIndex, const FVector& WorldPos);
