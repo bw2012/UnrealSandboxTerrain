@@ -274,6 +274,15 @@ FORCEINLINE float UTerrainGeneratorComponent::ClcDensityByGroundLevel(const FVec
     }
 
     float DensityByGroundLevel = 1 - (1 / (1 + exp(-(Z - GroundLevel) / 20)));
+
+    if (DensityByGroundLevel > 1.f) {
+        DensityByGroundLevel = 1.f;
+    }
+
+    if (DensityByGroundLevel < 0.f) {
+        DensityByGroundLevel = 0.f;
+    }
+
     return DensityByGroundLevel;
 }
 
