@@ -9,6 +9,7 @@
 #include <atomic>
 #include "Math/UnrealMathUtility.h"
 
+
 #include "TerrainZoneComponent.h"
 
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
@@ -17,67 +18,88 @@
 
 static const float ZoneHalfSize = USBT_ZONE_SIZE / 2;
 
-
 extern TAutoConsoleVariable<int32> CVarGeneratorDebugMode;
 
-class TChunkData {
 
-private:
 
-    int Size;
-    float* HeightLevelArray;
-    float MaxHeightLevel = -999999.f;
-    float MinHeightLevel = 999999.f;
+TChunkFloatMatrix::TChunkFloatMatrix(int Size) {
+    this->Size = Size;
+    FloatArray = new float[Size * Size * Size];
+    Max = -MAX_FLT;
+    Min = MAX_FLT;
+}
 
-public:
 
-    TChunkData(int Size) {
-        this->Size = Size;
-        HeightLevelArray = new float[Size * Size * Size];
-        cd_counter++;
-    }
+TChunkFloatMatrix::~TChunkFloatMatrix() {
+    delete[] FloatArray;
+}
 
-    ~TChunkData() {
-        delete[] HeightLevelArray;
-        cd_counter--;
-    }
+FORCEINLINE void TChunkFloatMatrix::SetVal(const int X, const int Y, float Val) {
+    if (X < Size && Y < Size) {
+        int Index = X * Size + Y;
+        FloatArray[Index] = Val;
 
-    float const* const GetHeightLevelArrayPtr() const {
-        return HeightLevelArray;
-    }
+        if (Val > this->Max) {
+            this->Max = Val;
+        }
 
-    FORCEINLINE void SetHeightLevel(const int X, const int Y, float HeightLevel) {
-        if (X < Size && Y < Size) {
-            int Index = X * Size + Y;
-            HeightLevelArray[Index] = HeightLevel;
-
-            if (HeightLevel > this->MaxHeightLevel) {
-                this->MaxHeightLevel = HeightLevel;
-            }
-
-            if (HeightLevel < this->MinHeightLevel) {
-                this->MinHeightLevel = HeightLevel;
-            }
+        if (Val < this->Min) {
+            this->Min = Val;
         }
     }
+}
 
-    FORCEINLINE float GetHeightLevel(const int X, const int Y) const {
-        if (X < Size && Y < Size) {
-            int Index = X * Size + Y;
-            return HeightLevelArray[Index];
-        } else {
-            return 0;
-        }
+FORCEINLINE float TChunkFloatMatrix::GetVal(const int X, const int Y) const {
+    if (X < Size && Y < Size) {
+        int Index = X * Size + Y;
+        return FloatArray[Index];
+    } else {
+        return 0;
     }
+}
 
-    FORCEINLINE float GetMaxHeightLevel() const {
-        return this->MaxHeightLevel;
-    };
+FORCEINLINE float TChunkFloatMatrix::GetMax() const {
+    return this->Max;
+}
 
-    FORCEINLINE float GetMinHeightLevel() const {
-        return this->MinHeightLevel;
-    };
-};
+FORCEINLINE float TChunkFloatMatrix::GetMin() const {
+    return this->Min;
+}
+
+TChunkData::TChunkData(int Size) {
+    Height = new TChunkFloatMatrix(Size);
+    cd_counter++;
+}
+
+TChunkData::~TChunkData() {
+    delete Height;
+    cd_counter--;
+}
+
+float const* const TChunkData::GetHeightLevelArrayPtr() const {
+    return Height->GetArrayPtr();
+}
+
+FORCEINLINE void TChunkData::SetHeightLevel(const int X, const int Y, float HeightLevel) {
+    Height->SetVal(X, Y, HeightLevel);
+}
+
+FORCEINLINE float TChunkData::GetHeightLevel(const int X, const int Y) const {
+    return Height->GetVal(X, Y);
+}
+
+FORCEINLINE float TChunkData::GetMaxHeightLevel() const {
+    return Height->GetMax();
+}
+
+FORCEINLINE float TChunkData::GetMinHeightLevel() const {
+    return Height->GetMin();
+}
+
+
+
+
+
 
 
 TStructuresGenerator* UTerrainGeneratorComponent::NewStructuresGenerator() {
@@ -110,7 +132,7 @@ void UTerrainGeneratorComponent::BeginPlay() {
 
     FTerrainUndergroundLayer LastLayer;
     LastLayer.MatId = 0;
-    LastLayer.StartDepth = 9999999.f;
+    LastLayer.StartDepth = MAX_FLT;
     LastLayer.Name = TEXT("");
     UndergroundLayersTmp.Add(LastLayer);
 

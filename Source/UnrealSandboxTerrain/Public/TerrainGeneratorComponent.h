@@ -8,6 +8,7 @@
 #include "EngineMinimal.h"
 #include "VoxelData.h"
 #include "VoxelIndex.h"
+#include "TerrainChunk.h"
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
 #include <vector>
@@ -19,7 +20,6 @@
 
 class TPerlinNoise;
 class ASandboxTerrainController;
-class TChunkData;
 struct TInstanceMeshArray;
 struct FSandboxFoliage;
 
@@ -229,6 +229,18 @@ public:
 
 	void SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value);
 
+	//========================================================================================
+	// generator
+	//========================================================================================
+
+	float FunctionMakeBox(const float InDensity, const FVector& P, const FBox& InBox) const;
+
+	float FunctionMakeVerticalCylinder(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float Top, const float Bottom, const float NoiseFactor = 1.f) const;
+
+	float FunctionMakeSphere(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float NoiseFactor) const;
+
+	TGenerationResult FunctionMakeSolidSphere(const float InDensity, const TMaterialId InMaterialId, const FVector& V, const FVector& Origin, const float Radius, const TMaterialId ShellMaterialId) const;
+
 protected:
 
 	int32 ZoneVoxelResolution;
@@ -321,14 +333,8 @@ private:
 
 	//====
 
-	//float TestFunctionMakeCaveLayer(float Density, const FVector& WorldPos) const;
-
-	//void Test(const TGenerateVdTempItm& Itm) const;
-
 public:
 	bool HasStructures(const TVoxelIndex& ZoneIndex) const;
-
-	//void Test(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd) const;
 
 	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal, const TInstanceMeshSpawnParams& Params = TInstanceMeshSpawnParams()) const;
 
