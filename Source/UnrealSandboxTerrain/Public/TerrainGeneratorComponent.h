@@ -29,8 +29,13 @@ struct TZoneStructureHandler;
 
 typedef std::shared_ptr<TChunkData> TChunkDataPtr;
 typedef const std::shared_ptr<const TChunkData> TConstChunkData;
+
 typedef std::tuple<float, TMaterialId> TGenerationResult;
 typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
+
+// const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, const FVector& WorldPos, const FVector& LocalPos, TConstChunkData ChunkData
+typedef std::tuple<const TVoxelIndex&, const TVoxelIndex&, const FVector&, const FVector&, TConstChunkData> TFunctionIn;
+
 typedef std::function<TGenerationResult(const float, const TMaterialId, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
@@ -189,7 +194,7 @@ public:
 
 	virtual float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
 
-	virtual float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
+	virtual float DensityFunctionExt(float Density, const TFunctionIn& In) const;
 
 	int32 ZoneHash(const FVector& ZonePos) const;
 
@@ -271,7 +276,9 @@ protected:
 
 	virtual TChunkDataPtr GenerateChunkData(const TVoxelIndex& Index);
 
-	virtual TMaterialId MaterialFuncionExt(const TGenerateVdTempItm* GenItm, const TMaterialId MatId, const FVector& WorldPos) const;
+	virtual void GenerateChunkDataExt(TChunkDataPtr ChunkData, const TVoxelIndex& Index, int X, int Y, const FVector& WorldPos) const;
+
+	virtual TMaterialId MaterialFuncionExt(const TGenerateVdTempItm* GenItm, const TMaterialId MatId, const FVector& WorldPos, const TVoxelIndex VoxelIndex) const;
 
 	virtual TGenerateVdTempItm CollectVdGenerationData(const TVoxelIndex& ZoneIndex);
 
@@ -327,7 +334,7 @@ private:
 
 	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TGenerateVdTempItm& Itm) const;
 
-	float B(const TVoxelIndex& Index, TVoxelData* VoxelData, TConstChunkData ChunkData) const;
+	float B(const TVoxelIndex& ZoneIndex, const TVoxelIndex& Index, TVoxelData* VoxelData, TConstChunkData ChunkData) const;
 
 	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
 
