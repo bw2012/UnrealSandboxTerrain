@@ -12,6 +12,10 @@
 #include <functional>
 #include <vector>
 
+#define TRIM_FLOAT_VAL(V) if (V < 0.f) V = 0.f; if (V > 1.f) V = 1.f; 
+
+#define FLOAT_TO_BYTE(V) (255 * V) 
+
 typedef unsigned char TDensityVal;
 typedef unsigned short TMaterialId;
 

@@ -99,7 +99,8 @@ void TVoxelData::initializeMaterial() {
 }
 
 TDensityVal TVoxelData::clcFloatToByte(float v) {
-	return 255 * v; //TODO separate function
+	TRIM_FLOAT_VAL(v);
+	return FLOAT_TO_BYTE(v); 
 }
 
 float TVoxelData::clcByteToFloat(TDensityVal v) {
