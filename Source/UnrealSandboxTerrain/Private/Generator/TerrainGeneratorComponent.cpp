@@ -8,9 +8,8 @@
 #include <thread>
 #include <atomic>
 #include "Math/UnrealMathUtility.h"
-
-
 #include "TerrainZoneComponent.h"
+
 
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
 #define USBT_DEFAULT_GRASS_MATERIAL_ID      2
@@ -34,7 +33,7 @@ TChunkFloatMatrix::~TChunkFloatMatrix() {
     delete[] FloatArray;
 }
 
-FORCEINLINE void TChunkFloatMatrix::SetVal(const int X, const int Y, float Val) {
+void TChunkFloatMatrix::SetVal(const int X, const int Y, float Val) {
     if (X < Size && Y < Size) {
         int Index = X * Size + Y;
         FloatArray[Index] = Val;
@@ -49,7 +48,7 @@ FORCEINLINE void TChunkFloatMatrix::SetVal(const int X, const int Y, float Val) 
     }
 }
 
-FORCEINLINE float TChunkFloatMatrix::GetVal(const int X, const int Y) const {
+float TChunkFloatMatrix::GetVal(const int X, const int Y) const {
     if (X < Size && Y < Size) {
         int Index = X * Size + Y;
         return FloatArray[Index];
@@ -58,11 +57,11 @@ FORCEINLINE float TChunkFloatMatrix::GetVal(const int X, const int Y) const {
     }
 }
 
-FORCEINLINE float TChunkFloatMatrix::GetMax() const {
+float TChunkFloatMatrix::GetMax() const {
     return this->Max;
 }
 
-FORCEINLINE float TChunkFloatMatrix::GetMin() const {
+float TChunkFloatMatrix::GetMin() const {
     return this->Min;
 }
 
@@ -964,7 +963,7 @@ void UTerrainGeneratorComponent::Clean(const TVoxelIndex& Index) {
 
 void UTerrainGeneratorComponent::GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap, const TGenerateZoneResult& GenResult) {
     TChunkDataPtr ChunkData = GetChunkData(Index.X, Index.Y);
-    auto Type = ZoneGenType(Index, ChunkData);
+    auto Type = GenResult.Type; // ZoneGenType(Index, ChunkData);
 
     if (Type == TZoneGenerationType::AirOnly || Type == TZoneGenerationType::FullSolidOneMaterial || Type == TZoneGenerationType::FullSolidMultipleMaterials) {
         //AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(GetWorld(), Vd->getOrigin(), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
