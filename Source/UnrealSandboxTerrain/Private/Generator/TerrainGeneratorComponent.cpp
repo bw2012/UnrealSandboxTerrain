@@ -497,7 +497,7 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
                 return true;
             }
         }
-        
+
         TMinMax MinMax;
         MinMax << ChunkData->GetHeightLevel(X, Y) << ChunkData->GetHeightLevel(X + S, Y) << ChunkData->GetHeightLevel(X, Y + S) << ChunkData->GetHeightLevel(X + S, Y + S);
         const static float F = 5.f;
@@ -588,6 +588,13 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
 
                 float Density = (Itm.Type == TZoneGenerationType::AirOnly) ? 0. : 1.f;
 
+                if (Itm.Type == TZoneGenerationType::Other) {
+                    const FVector& Pos = GetController()->GetZonePos(ZoneIndex);
+                    if (ChunkData->GetMaxHeightLevel() < Pos.Z - ZoneHalfSize){
+                        Density = 0.f;
+                    }
+                }
+
                 TMaterialId MaterialId = MaterialFuncion(ZoneIndex, WorldPos, GroundLevel);
 
                 if (bIsLandscape) {
@@ -605,6 +612,7 @@ void UTerrainGeneratorComponent::GenerateZoneVolumeWithFunction(const TGenerateV
                 MaterialId = MaterialFuncionExt(&Itm, MaterialId, WorldPos, Index);
 
                 const float Density2 = DensityFunctionExt(Density, std::make_tuple(ZoneIndex, Index, WorldPos, LocalPos, ChunkData));
+
                 VoxelData->setDensityAndMaterial(Index, Density2, MaterialId);
                 VoxelData->performSubstanceCacheLOD(Index.X, Index.Y, Index.Z, LOD);
 
