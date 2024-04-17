@@ -94,8 +94,7 @@ float UTerrainGeneratorComponent::FunctionMakeVerticalCylinder(const float InDen
 			if (R < Radius + E) {
 				if (R < Radius - E) {
 					return 0.f;
-				}
-				else {
+				} else {
 					const float N = PerlinNoise(P, NoisePositionScale, NoiseValueScale);
 					float Density = 1 / (1 + exp((Radius - R) / 100)) + N;
 					if (Density < InDensity) {
