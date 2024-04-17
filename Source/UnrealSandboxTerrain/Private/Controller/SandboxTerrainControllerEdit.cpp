@@ -469,14 +469,14 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 
 	TVoxelIndex BaseZoneIndex = GetZoneIndex(Handler.Origin);
 
-	double Start = FPlatformTime::Seconds();
+	const double Start = FPlatformTime::Seconds();
 	const float R = Handler.Extend;
 
 	//DrawDebugSphere(GetWorld(), Handler.Origin, R, 20, FColor(255, 255, 255, 100), false, 5);
 
 	bool bIsOverlap = GetWorld()->OverlapMultiByChannel(Result, Handler.Origin, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(R)); // ECC_Visibility
-	double End = FPlatformTime::Seconds();
-	double Time = (End - Start) * 1000;
+	const double End = FPlatformTime::Seconds();
+	const double Time = (End - Start) * 1000;
 	UE_LOG(LogVt, Log, TEXT("Trace terrain meshes: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
 
 	if (bIsOverlap) {

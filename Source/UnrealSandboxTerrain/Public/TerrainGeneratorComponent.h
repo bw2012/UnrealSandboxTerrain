@@ -8,6 +8,7 @@
 #include "EngineMinimal.h"
 #include "VoxelData.h"
 #include "VoxelIndex.h"
+#include "TerrainChunk.h"
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
 #include <vector>
@@ -19,7 +20,6 @@
 
 class TPerlinNoise;
 class ASandboxTerrainController;
-class TChunkData;
 struct TInstanceMeshArray;
 struct FSandboxFoliage;
 
@@ -29,8 +29,13 @@ struct TZoneStructureHandler;
 
 typedef std::shared_ptr<TChunkData> TChunkDataPtr;
 typedef const std::shared_ptr<const TChunkData> TConstChunkData;
+
 typedef std::tuple<float, TMaterialId> TGenerationResult;
 typedef std::tuple<FVector, FVector, float, TMaterialId> ResultA;
+
+// const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, const FVector& WorldPos, const FVector& LocalPos, TConstChunkData ChunkData
+typedef std::tuple<const TVoxelIndex&, const TVoxelIndex&, const FVector&, const FVector&, TConstChunkData> TFunctionIn;
+
 typedef std::function<TGenerationResult(const float, const TMaterialId, const TVoxelIndex&, const FVector&, const FVector&)> TZoneGenerationFunction;
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
@@ -189,7 +194,7 @@ public:
 
 	virtual float GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const;
 
-	virtual float DensityFunctionExt(float Density, const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) const;
+	virtual float DensityFunctionExt(float Density, const TFunctionIn& In) const;
 
 	int32 ZoneHash(const FVector& ZonePos) const;
 
@@ -202,6 +207,8 @@ public:
 	//========================================================================================
 	// foliage etc.
 	//========================================================================================
+
+	void SpawnFoliageAsInstanceMesh(const FTransform& Transform, uint32 MeshTypeId, uint32 MeshVariantId, const FSandboxFoliage& FoliageType, TInstanceMeshTypeMap& ZoneInstanceMeshMap) const;
 
 	virtual void GenerateInstanceObjects(const TVoxelIndex& Index, TVoxelData* Vd, TInstanceMeshTypeMap& ZoneInstanceMeshMap, const TGenerateZoneResult& GenResult);
 
@@ -226,6 +233,18 @@ public:
 	void SetZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value);
 
 	void SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value);
+
+	//========================================================================================
+	// generator
+	//========================================================================================
+
+	float FunctionMakeBox(const float InDensity, const FVector& P, const FBox& InBox) const;
+
+	float FunctionMakeVerticalCylinder(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float Top, const float Bottom, const float NoiseFactor = 1.f) const;
+
+	float FunctionMakeSphere(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float NoiseFactor) const;
+
+	TGenerationResult FunctionMakeSolidSphere(const float InDensity, const TMaterialId InMaterialId, const FVector& V, const FVector& Origin, const float Radius, const TMaterialId ShellMaterialId) const;
 
 protected:
 
@@ -257,7 +276,9 @@ protected:
 
 	virtual TChunkDataPtr GenerateChunkData(const TVoxelIndex& Index);
 
-	virtual TMaterialId MaterialFuncionExt(const TGenerateVdTempItm* GenItm, const TMaterialId MatId, const FVector& WorldPos) const;
+	virtual void GenerateChunkDataExt(TChunkDataPtr ChunkData, const TVoxelIndex& Index, int X, int Y, const FVector& WorldPos) const;
+
+	virtual TMaterialId MaterialFuncionExt(const TGenerateVdTempItm* GenItm, const TMaterialId MatId, const FVector& WorldPos, const TVoxelIndex VoxelIndex) const;
 
 	virtual TGenerateVdTempItm CollectVdGenerationData(const TVoxelIndex& ZoneIndex);
 
@@ -313,20 +334,14 @@ private:
 
 	ResultA A(const TVoxelIndex& ZoneIndex, const TVoxelIndex& VoxelIndex, TVoxelData* VoxelData, const TGenerateVdTempItm& Itm) const;
 
-	float B(const TVoxelIndex& Index, TVoxelData* VoxelData, TConstChunkData ChunkData) const;
+	float B(const TVoxelIndex& ZoneIndex, const TVoxelIndex& Index, TVoxelData* VoxelData, TConstChunkData ChunkData) const;
 
 	void GenerateLandscapeZoneSlight(const TGenerateVdTempItm& Itm) const;
 
 	//====
 
-	//float TestFunctionMakeCaveLayer(float Density, const FVector& WorldPos) const;
-
-	//void Test(const TGenerateVdTempItm& Itm) const;
-
 public:
 	bool HasStructures(const TVoxelIndex& ZoneIndex) const;
-
-	//void Test(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd) const;
 
 	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal, const TInstanceMeshSpawnParams& Params = TInstanceMeshSpawnParams()) const;
 

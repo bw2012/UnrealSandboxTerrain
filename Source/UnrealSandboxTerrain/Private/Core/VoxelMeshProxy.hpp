@@ -13,6 +13,7 @@
 #include "DynamicMeshBuilder.h"
 #include "SceneManagement.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "MaterialDomain.h"
 
 
 /** Resource array to pass  */

@@ -4,6 +4,7 @@
 
 #include "EngineMinimal.h"
 #include "TerrainNetworkCommon.h"
+#include "Tasks/Task.h"
 #include "TerrainClientComponent.generated.h"
 
 
