@@ -491,9 +491,11 @@ void ASandboxTerrainController::BeginPlayServer() {
 		// return; // TODO fix UE4 create directory false positive issue
 	}
 
-	LoadJson();
+	if (LoadJson()) {
+		WorldSeed = MapInfo.WorldSeed;
+	}
 
-	WorldSeed = MapInfo.WorldSeed;
+	UE_LOG(LogVt, Warning, TEXT("WorldSeed: %d"), WorldSeed);
 
 	LoadTerrainMetadata();
 
