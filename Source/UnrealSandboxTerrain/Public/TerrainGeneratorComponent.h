@@ -346,3 +346,8 @@ public:
 	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal, const TInstanceMeshSpawnParams& Params = TInstanceMeshSpawnParams()) const;
 
 };
+
+
+UNREALSANDBOXTERRAIN_API void StructureDiagonalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom, const int Dir);
+UNREALSANDBOXTERRAIN_API void StructureVerticalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom);
+UNREALSANDBOXTERRAIN_API void StructureHotizontalBoxTunnel(TStructuresGenerator * Generator, const FBox TunnelBox, TSet<TVoxelIndex>&Res);

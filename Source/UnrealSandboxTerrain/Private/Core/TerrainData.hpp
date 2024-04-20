@@ -58,7 +58,7 @@ public:
 
 	TZoneModificationData GetZoneVStamp(const TVoxelIndex& ZoneIndex) {
 		const std::lock_guard<std::mutex> Lock(ModifiedVdMapMutex);
-		return ModifiedVdMap[ZoneIndex];
+		return ModifiedVdMap.FindOrAdd(ZoneIndex);
 	}
 
 	void SwapVStampMap(const TMap<TVoxelIndex, TZoneModificationData>& NewDataMap) {

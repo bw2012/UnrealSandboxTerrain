@@ -849,8 +849,9 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 	}
     
     TVoxelIndex Index = GetZoneIndex(Pos);
+	auto* Zone = GetZoneByVectorIndex(Index);
 	if (GetZoneByVectorIndex(Index)) {
-		return nullptr; // no duplicate
+		return Zone;
 	}
 
     FVector IndexTmp(Index.X, Index.Y,Index.Z);
@@ -1016,7 +1017,7 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 					} else {
 						OnLoadZone(Index, Zone);
 					}
-				} 
+				}
 			}
 		} else {
 			// TODO remove

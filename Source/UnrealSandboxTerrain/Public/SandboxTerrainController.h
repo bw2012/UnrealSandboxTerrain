@@ -527,7 +527,7 @@ private:
 	//===============================================================================
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(const TVoxelIndex& Zoneindex, std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	void PerformEachZone(const FVector& Origin, const float Extend, std::function<void(TVoxelIndex, FVector, std::shared_ptr<TVoxelDataInfo>)>);
 
