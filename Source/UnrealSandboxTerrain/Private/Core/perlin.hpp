@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "Math/RandomStream.h"
+
 class TPerlinNoise {
 
 private:
@@ -34,7 +36,18 @@ public:
     
     TPerlinNoise(){
         for (int i = 0; i < 256 ; i++) {
-            p[256+i] = p[i] = permutation[i];
+            p[256 + i] = p[i] = permutation[i];
+        }
+    }
+
+    void reinit(int seed) {
+
+        FRandomStream rnd = FRandomStream();
+        rnd.Initialize(seed);
+        rnd.Reset();
+
+        for (int i = 0; i < 256; i++) {
+            p[256 + i] = p[i] = (int)rnd.RandRange(0, 255);
         }
     }
     

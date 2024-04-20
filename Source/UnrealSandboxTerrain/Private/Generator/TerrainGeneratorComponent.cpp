@@ -114,6 +114,11 @@ UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer&
 
 void UTerrainGeneratorComponent::BeginPlay() {
     Super::BeginPlay();
+
+    if (GetController()->WorldSeed != 0) {
+        this->Pn->reinit(GetController()->WorldSeed);
+    }
+
     ZoneVoxelResolution = GetController()->GetZoneVoxelResolution();
 
     UndergroundLayersTmp.Empty();
@@ -860,6 +865,8 @@ void UTerrainGeneratorComponent::ExtVdGenerationData(TGenerateVdTempItm& VdGener
 TGenerateVdTempItm UTerrainGeneratorComponent::CollectVdGenerationData(const TVoxelIndex& ZoneIndex) {
     TGenerateVdTempItm VdGenerationData;
 
+    HandleRegionByZoneIndex(ZoneIndex.X, ZoneIndex.Y);
+
     VdGenerationData.ZoneIndex = ZoneIndex;
     VdGenerationData.ChunkData = GetChunkData(ZoneIndex.X, ZoneIndex.Y);
     VdGenerationData.Type = ZoneGenType(ZoneIndex, VdGenerationData.ChunkData);
@@ -1300,6 +1307,24 @@ void UTerrainGeneratorComponent::SetZoneTag(const TVoxelIndex& ZoneIndex, FStrin
 
 void UTerrainGeneratorComponent::SetChunkTag(const TVoxelIndex& ChunkIndex, FString Name, FString Value) {
     ChunkTagData.FindOrAdd(TVoxelIndex(ChunkIndex.X, ChunkIndex.Y, 0)).Add(Name, Value);
+}
+
+void UTerrainGeneratorComponent::HandleRegionByZoneIndex(int X, int Y) {
+    auto RegionIndex = GetController()->ClcRegionByZoneIndex(TVoxelIndex(X, Y, 0));
+    auto& Region = RegionMap.FindOrAdd(RegionIndex);
+    if (!Region.bGenerated) {
+        Region.X = RegionIndex.X;
+        Region.Y = RegionIndex.Y;
+
+        UE_LOG(LogTemp, Warning, TEXT("GenerateRegion: %d %d"), Region.X, Region.Y);
+        GenerateRegion(Region);
+
+        Region.bGenerated = true;
+    }
+}
+
+void UTerrainGeneratorComponent::GenerateRegion(TTerrainRegion& Region) {
+
 }
 
 //======================================================================================================================================================================

@@ -492,6 +492,9 @@ void ASandboxTerrainController::BeginPlayServer() {
 	}
 
 	LoadJson();
+
+	WorldSeed = MapInfo.WorldSeed;
+
 	LoadTerrainMetadata();
 
 	BeginServerTerrainLoad();

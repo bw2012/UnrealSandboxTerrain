@@ -9,6 +9,7 @@
 #include "VoxelData.h"
 #include "VoxelIndex.h"
 #include "TerrainChunk.h"
+#include "TerrainRegion.h"
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
 #include <vector>
@@ -292,6 +293,8 @@ protected:
 
 	FRandomStream MakeNewRandomStream(const FVector& ZonePos) const;
 
+	virtual void GenerateRegion(TTerrainRegion& Region);
+
 private:
 
 	//========================================================================================
@@ -301,6 +304,14 @@ private:
 	TMap<TVoxelIndex, TMap<FString, FString>> ZoneTagData;
 
 	TMap<TVoxelIndex, TMap<FString, FString>> ChunkTagData;
+
+	//========================================================================================
+	// regions
+	//========================================================================================
+
+	TMap<TVoxelIndex, TTerrainRegion> RegionMap;
+
+	void HandleRegionByZoneIndex(int X, int Y);
 
 	//========================================================================================
 

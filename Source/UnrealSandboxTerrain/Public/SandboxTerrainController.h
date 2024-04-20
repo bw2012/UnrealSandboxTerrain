@@ -58,6 +58,9 @@ struct FMapInfo {
 
 	UPROPERTY()
 	FString Status;
+
+	UPROPERTY()
+	int32 WorldSeed;
 };
 
 USTRUCT(BlueprintType, Blueprintable)
@@ -287,7 +290,7 @@ public:
     FString MapName;
 
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
-    int32 Seed;
+    int32 WorldSeed = 0;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
 	uint32 ActiveAreaSize = 10;
