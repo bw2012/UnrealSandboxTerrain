@@ -493,9 +493,12 @@ void ASandboxTerrainController::BeginPlayServer() {
 
 	if (LoadJson()) {
 		WorldSeed = MapInfo.WorldSeed;
+	} else {
+		BeginNewWorld();
 	}
 
 	UE_LOG(LogVt, Warning, TEXT("WorldSeed: %d"), WorldSeed);
+	GeneratorComponent->ReInit();
 
 	LoadTerrainMetadata();
 
@@ -506,6 +509,10 @@ void ASandboxTerrainController::BeginPlayServer() {
 		TerrainServerComponent->RegisterComponent();
 		TerrainServerComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 	}	
+}
+
+void ASandboxTerrainController::BeginNewWorld() {
+
 }
 
 void ASandboxTerrainController::BeginServerTerrainLoad() {

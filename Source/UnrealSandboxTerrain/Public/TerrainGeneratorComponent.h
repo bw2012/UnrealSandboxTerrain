@@ -181,6 +181,8 @@ public:
 
 	ASandboxTerrainController* GetController() const;
 
+	void ReInit();
+
 	float PerlinNoise(const float X, const float Y, const float Z) const;
 
 	float PerlinNoise(const FVector& Pos) const;

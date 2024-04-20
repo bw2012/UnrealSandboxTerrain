@@ -115,10 +115,6 @@ UTerrainGeneratorComponent::UTerrainGeneratorComponent(const FObjectInitializer&
 void UTerrainGeneratorComponent::BeginPlay() {
     Super::BeginPlay();
 
-    if (GetController()->WorldSeed != 0) {
-        this->Pn->reinit(GetController()->WorldSeed);
-    }
-
     ZoneVoxelResolution = GetController()->GetZoneVoxelResolution();
 
     UndergroundLayersTmp.Empty();
@@ -140,6 +136,14 @@ void UTerrainGeneratorComponent::BeginPlay() {
     UndergroundLayersTmp.Add(LastLayer);
 
     PrepareMetaData();
+}
+
+void UTerrainGeneratorComponent::ReInit() {
+    UE_LOG(LogTemp, Warning, TEXT("UTerrainGeneratorComponent::BeginPlay() WorldSeed: %d"), GetController()->WorldSeed);
+
+    if (GetController()->WorldSeed != 0) {
+        this->Pn->reinit(GetController()->WorldSeed);
+    }
 }
 
 TStructuresGenerator* UTerrainGeneratorComponent::GetStructuresGenerator() {

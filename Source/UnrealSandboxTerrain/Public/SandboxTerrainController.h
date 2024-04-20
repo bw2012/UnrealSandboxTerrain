@@ -680,6 +680,8 @@ protected:
 
 	virtual void BeginPlayClient();
 
+	virtual void BeginNewWorld();
+
 	bool IsWorkFinished();
 
 	void AddInitialZone(const TVoxelIndex& ZoneIndex);
