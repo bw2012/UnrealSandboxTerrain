@@ -727,12 +727,17 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& SpawnZoneParamArray) {
 	TArray<TSpawnZoneParam> GenerationList;
 	TArray<TSpawnZoneParam> LoadList;
+	TArray<TVoxelIndex> NoMeshList;
 
 	for (const auto& SpawnZoneParam : SpawnZoneParamArray) {
 		const TVoxelIndex Index = SpawnZoneParam.Index;
 
 		if (TerrainData->IsOutOfSync(Index)) {
 			continue; // skip network zones
+		}
+
+		if (Index.X == 0 && Index.Y == 0 && Index.Z == 1) {
+			UE_LOG(LogTemp, Log, TEXT("TEST1"));
 		}
 
 		bool bIsNoMesh = false;
@@ -773,7 +778,9 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		if (bNewVdGeneration) {
 			GenerationList.Add(SpawnZoneParam);
 		} else {
-			if (!bIsNoMesh) {
+			if (bIsNoMesh) {
+				NoMeshList.Add(Index);
+			} else {
 				LoadList.Add(SpawnZoneParam);
 			}
 		}
@@ -786,6 +793,19 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 	if (GenerationList.Num() > 0) {
 		BatchGenerateZone(GenerationList);
 		PostBatchGenerateZone(GenerationList);
+	}
+
+	ExecGameThreadMoMeshZoneSpawn(NoMeshList);
+}
+
+void ASandboxTerrainController::ExecGameThreadMoMeshZoneSpawn(const TArray<TVoxelIndex>& IndexList) {
+	for (const auto& Index : IndexList) {
+
+		std::function<void()> Function = [=, this]() {
+			OnFinishLoadZone(Index);
+		};
+
+		AddTaskToConveyor(Function);
 	}
 }
 

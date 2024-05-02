@@ -568,6 +568,8 @@ private:
 
 	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const bool bIsNewGenerated = false, const bool bIsChanged = false);
 
+	void ExecGameThreadMoMeshZoneSpawn(const TArray<TVoxelIndex>& IndexList);
+
 	//void ExecGameThreadRestoreSoftUnload(const TVoxelIndex& ZoneIndex);
 
 	//===============================================================================
