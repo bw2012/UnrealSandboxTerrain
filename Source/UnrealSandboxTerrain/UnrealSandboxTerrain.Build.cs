@@ -1,4 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -14,5 +13,8 @@ public class UnrealSandboxTerrain : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[] { "CoreUObject", "Engine", "Slate", "SlateCore", "RenderCore", "RHI" });
         PrivateDependencyModuleNames.AddRange(new string[] { "Json", "JsonUtilities", "Networking", "Sockets" });
+
+        DynamicallyLoadedModuleNames.AddRange(new string[] { });
     }
+
 }

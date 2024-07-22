@@ -18,13 +18,18 @@
 		{
 			"Name": "UnrealSandboxTerrain",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "UnrealSandboxData",
 			"Enabled": true
-		}
+		},
+		{
+            "Name": "UnrealSandboxTerrainEditor",
+            "Type": "Editor",
+            "LoadingPhase": "Default"
+        }
+
 	]
 }
