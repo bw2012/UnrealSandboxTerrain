@@ -87,7 +87,9 @@ typedef struct TMeshLodSection {
 typedef struct TMeshData {
 	TArray<TMeshLodSection> MeshSectionLodArray;
 	FProcMeshSection* CollisionMeshPtr;
+
 	double TimeStamp = 0;
+	uint32 VStamp = 0;
    
 	unsigned short BaseMaterialId = 0;
 

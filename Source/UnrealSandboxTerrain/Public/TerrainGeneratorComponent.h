@@ -9,6 +9,7 @@
 #include "VoxelData.h"
 #include "VoxelIndex.h"
 #include "TerrainChunk.h"
+#include "TerrainRegion.h"
 #include "SandboxTerrainCommon.h"
 #include <unordered_map>
 #include <vector>
@@ -180,6 +181,8 @@ public:
 
 	ASandboxTerrainController* GetController() const;
 
+	void ReInit();
+
 	float PerlinNoise(const float X, const float Y, const float Z) const;
 
 	float PerlinNoise(const FVector& Pos) const;
@@ -292,6 +295,8 @@ protected:
 
 	FRandomStream MakeNewRandomStream(const FVector& ZonePos) const;
 
+	virtual void GenerateRegion(TTerrainRegion& Region);
+
 private:
 
 	//========================================================================================
@@ -301,6 +306,14 @@ private:
 	TMap<TVoxelIndex, TMap<FString, FString>> ZoneTagData;
 
 	TMap<TVoxelIndex, TMap<FString, FString>> ChunkTagData;
+
+	//========================================================================================
+	// regions
+	//========================================================================================
+
+	TMap<TVoxelIndex, TTerrainRegion> RegionMap;
+
+	void HandleRegionByZoneIndex(int X, int Y);
 
 	//========================================================================================
 
@@ -346,3 +359,8 @@ public:
 	bool SelectRandomSpawnPoint(FRandomStream& Rnd, const TVoxelIndex& ZoneIndex, const TVoxelData* Vd, FVector& SectedLocation, FVector& SectedNormal, const TInstanceMeshSpawnParams& Params = TInstanceMeshSpawnParams()) const;
 
 };
+
+
+UNREALSANDBOXTERRAIN_API void StructureDiagonalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom, const int Dir);
+UNREALSANDBOXTERRAIN_API void StructureVerticalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom);
+UNREALSANDBOXTERRAIN_API void StructureHotizontalBoxTunnel(TStructuresGenerator * Generator, const FBox TunnelBox, TSet<TVoxelIndex>&Res);

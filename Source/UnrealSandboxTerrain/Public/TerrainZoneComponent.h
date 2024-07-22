@@ -82,6 +82,8 @@ private:
     
 	double MeshDataTimeStamp;
 
+	uint32 VStamp = 0;
+
     std::mutex TerrainMeshMutex;
     
     std::mutex InstancedMeshMutex;

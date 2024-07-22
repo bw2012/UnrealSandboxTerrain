@@ -36,13 +36,19 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 	if (MeshData == nullptr) {
 		return;
 	}
-
+	
 	if (MeshDataTimeStamp > MeshDataPtr->TimeStamp) {
-		// TODO 
-		//UE_LOG(LogVt, Warning, TEXT("ASandboxTerrainZone::applyTerrainMesh skip late thread -> %f"), MeshDataPtr->TimeStamp);
+		//UE_LOG(LogVt, Warning, TEXT("Zone: %f %f %f - trying to apply stale mesh -> new mesh = %f < existing mesh = %f"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, MeshDataPtr->TimeStamp, VStamp);
+		//return;
+	}
+
+	if (VStamp > MeshDataPtr->VStamp) {
+		UE_LOG(LogVt, Warning, TEXT("Zone: %f %f %f - trying to apply stale mesh -> new mesh = %d < existing mesh = %d"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, MeshDataPtr->VStamp, VStamp);
+		return;
 	}
 
 	MeshDataTimeStamp = MeshDataPtr->TimeStamp;
+	VStamp = MeshDataPtr->VStamp;
 
 	for (auto TTT : MeshDataPtr->MeshSectionLodArray) {
 		for (auto P : TTT.DebugPointList) {

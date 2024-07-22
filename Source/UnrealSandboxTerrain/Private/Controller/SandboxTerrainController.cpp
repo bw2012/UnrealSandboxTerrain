@@ -491,7 +491,15 @@ void ASandboxTerrainController::BeginPlayServer() {
 		// return; // TODO fix UE4 create directory false positive issue
 	}
 
-	LoadJson();
+	if (LoadJson()) {
+		WorldSeed = MapInfo.WorldSeed;
+	} else {
+		BeginNewWorld();
+	}
+
+	UE_LOG(LogVt, Warning, TEXT("WorldSeed: %d"), WorldSeed);
+	GeneratorComponent->ReInit();
+
 	LoadTerrainMetadata();
 
 	BeginServerTerrainLoad();
@@ -501,6 +509,10 @@ void ASandboxTerrainController::BeginPlayServer() {
 		TerrainServerComponent->RegisterComponent();
 		TerrainServerComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
 	}	
+}
+
+void ASandboxTerrainController::BeginNewWorld() {
+
 }
 
 void ASandboxTerrainController::BeginServerTerrainLoad() {
@@ -715,12 +727,17 @@ void ASandboxTerrainController::BatchGenerateZone(const TArray<TSpawnZoneParam>&
 void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& SpawnZoneParamArray) {
 	TArray<TSpawnZoneParam> GenerationList;
 	TArray<TSpawnZoneParam> LoadList;
+	TArray<TVoxelIndex> NoMeshList;
 
 	for (const auto& SpawnZoneParam : SpawnZoneParamArray) {
 		const TVoxelIndex Index = SpawnZoneParam.Index;
 
 		if (TerrainData->IsOutOfSync(Index)) {
 			continue; // skip network zones
+		}
+
+		if (Index.X == 0 && Index.Y == 0 && Index.Z == 1) {
+			UE_LOG(LogTemp, Log, TEXT("TEST1"));
 		}
 
 		bool bIsNoMesh = false;
@@ -761,7 +778,9 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		if (bNewVdGeneration) {
 			GenerationList.Add(SpawnZoneParam);
 		} else {
-			if (!bIsNoMesh) {
+			if (bIsNoMesh) {
+				NoMeshList.Add(Index);
+			} else {
 				LoadList.Add(SpawnZoneParam);
 			}
 		}
@@ -774,6 +793,19 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 	if (GenerationList.Num() > 0) {
 		BatchGenerateZone(GenerationList);
 		PostBatchGenerateZone(GenerationList);
+	}
+
+	ExecGameThreadMoMeshZoneSpawn(NoMeshList);
+}
+
+void ASandboxTerrainController::ExecGameThreadMoMeshZoneSpawn(const TArray<TVoxelIndex>& IndexList) {
+	for (const auto& Index : IndexList) {
+
+		std::function<void()> Function = [=, this]() {
+			OnFinishLoadZone(Index);
+		};
+
+		AddTaskToConveyor(Function);
 	}
 }
 
@@ -849,8 +881,9 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 	}
     
     TVoxelIndex Index = GetZoneIndex(Pos);
+	auto* Zone = GetZoneByVectorIndex(Index);
 	if (GetZoneByVectorIndex(Index)) {
-		return nullptr; // no duplicate
+		return Zone;
 	}
 
     FVector IndexTmp(Index.X, Index.Y,Index.Z);
@@ -1016,7 +1049,7 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 					} else {
 						OnLoadZone(Index, Zone);
 					}
-				} 
+				}
 			}
 		} else {
 			// TODO remove

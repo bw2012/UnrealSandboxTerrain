@@ -543,13 +543,18 @@ void ASandboxTerrainController::PerformEachZone(const FVector& Origin, const flo
 }
 
 template<class H>
-void ASandboxTerrainController::PerformZoneEditHandler(TVoxelDataInfoPtr VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete) {
+void ASandboxTerrainController::PerformZoneEditHandler(const TVoxelIndex& ZoneIndex, TVoxelDataInfoPtr VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete) {
 	bool bIsChanged = Handler(VdInfoPtr->Vd);
 	//if (bIsChanged) {
 		VdInfoPtr->SetChanged();
 		VdInfoPtr->Vd->setCacheToValid();
 		TMeshDataPtr MeshDataPtr = GenerateMesh(VdInfoPtr->Vd);
 		VdInfoPtr->ResetLastMeshRegenerationTime();
+
+		if (MeshDataPtr) {
+			MeshDataPtr->VStamp = TerrainData->GetZoneVStamp(ZoneIndex).VStamp;
+		}
+
 		OnComplete(MeshDataPtr);
 	//}
 }
@@ -627,11 +632,11 @@ void ASandboxTerrainController::EditTerrain(const H& ZoneHandler) {
 			}
 
 			if (Zone == nullptr) {
-				PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
+				PerformZoneEditHandler(ZoneIndex, VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 					ExecGameThreadAddZoneAndApplyMesh(ZoneIndex, MeshDataPtr, false, true);
 				});
 			} else {
-				PerformZoneEditHandler(VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
+				PerformZoneEditHandler(ZoneIndex, VoxelDataInfo, ZoneHandler, [&](TMeshDataPtr MeshDataPtr) {
 					ExecGameThreadZoneApplyMesh(ZoneIndex, Zone, MeshDataPtr);
 				});
 			}

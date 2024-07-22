@@ -533,6 +533,8 @@ void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgr
 
 void ASandboxTerrainController::SaveJson() {
 	MapInfo.SaveTimestamp = FPlatformTime::Seconds();
+	MapInfo.WorldSeed = WorldSeed;
+
 	FString JsonStr;
 
 	FString FileName = TEXT("terrain.json");

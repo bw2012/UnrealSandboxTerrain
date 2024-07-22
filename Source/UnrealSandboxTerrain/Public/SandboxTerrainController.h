@@ -58,6 +58,9 @@ struct FMapInfo {
 
 	UPROPERTY()
 	FString Status;
+
+	UPROPERTY()
+	int32 WorldSeed;
 };
 
 USTRUCT(BlueprintType, Blueprintable)
@@ -287,7 +290,7 @@ public:
     FString MapName;
 
     UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
-    int32 Seed;
+    int32 WorldSeed = 0;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain General")
 	uint32 ActiveAreaSize = 10;
@@ -527,7 +530,7 @@ private:
 	//===============================================================================
 
 	template<class H>
-	FORCEINLINE void PerformZoneEditHandler(std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
+	FORCEINLINE void PerformZoneEditHandler(const TVoxelIndex& Zoneindex, std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
 
 	void PerformEachZone(const FVector& Origin, const float Extend, std::function<void(TVoxelIndex, FVector, std::shared_ptr<TVoxelDataInfo>)>);
 
@@ -564,6 +567,8 @@ private:
 	void ExecGameThreadZoneApplyMesh(const TVoxelIndex& Index, UTerrainZoneComponent* Zone, TMeshDataPtr MeshDataPtr);
 
 	void ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const bool bIsNewGenerated = false, const bool bIsChanged = false);
+
+	void ExecGameThreadMoMeshZoneSpawn(const TArray<TVoxelIndex>& IndexList);
 
 	//void ExecGameThreadRestoreSoftUnload(const TVoxelIndex& ZoneIndex);
 
@@ -676,6 +681,8 @@ protected:
 	virtual void BeginPlayServer();
 
 	virtual void BeginPlayClient();
+
+	virtual void BeginNewWorld();
 
 	bool IsWorkFinished();
 
