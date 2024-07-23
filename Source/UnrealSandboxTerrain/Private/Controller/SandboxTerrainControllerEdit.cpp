@@ -4,6 +4,7 @@
 #include "TerrainZoneComponent.h"
 #include "Core/TerrainData.hpp"
 #include "TerrainServerComponent.h"
+#include "Engine/OverlapResult.h"
 
 
 struct TZoneEditHandler {

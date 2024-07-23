@@ -583,7 +583,7 @@ void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIn
 
 	AddAsyncTask([=, this]() {
 		const TVoxelIndex Index = ZoneIndex;
-		UE_LOG(LogVt, Warning, TEXT("Client: Begin terrain load at location: %f %f %f"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z);
+		UE_LOG(LogVt, Warning, TEXT("Client: Begin terrain load at location: %f %f %f"), (float)ZoneIndex.X, (float)ZoneIndex.Y, (float)ZoneIndex.Z);
 		TTerrainLoadHelper Loader(TEXT("client_initial_load"), this, Params);
 		Loader.LoadArea(Index);
 		bInitialLoad = false;
@@ -1288,7 +1288,7 @@ void ASandboxTerrainController::LoadConsoleVars() {
 	const int32 LodRatioOverride = CVarLodRatio.GetValueOnGameThread();
 	if (LodRatioOverride > 0) {
 		if (LodRatio != LodRatioOverride) {
-			UE_LOG(LogVt, Warning, TEXT("Override LodRatio = %f <- %f"), LodRatio, LodRatioOverride);
+			UE_LOG(LogVt, Warning, TEXT("Override LodRatio = %f <- %f"), (float)LodRatio, (float)LodRatioOverride);
 		}
 		LodRatio = LodRatioOverride;
 	}
