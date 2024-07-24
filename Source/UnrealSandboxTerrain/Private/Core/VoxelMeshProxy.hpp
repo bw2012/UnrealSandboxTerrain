@@ -100,6 +100,8 @@ public:
 	}
 };
 
+extern float LodScreenSizeArray[LOD_ARRAY_SIZE];
+
 static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const TMeshVertex& ProcVert) {
 	Vert.Position.X = ProcVert.Pos.X;
 	Vert.Position.Y = ProcVert.Pos.Y;
@@ -277,8 +279,6 @@ public:
 // ================================================================================================================================================
 // FVoxelMeshSceneProxy
 // ================================================================================================================================================
-
-extern float LodScreenSizeArray[LOD_ARRAY_SIZE];
 
 const FVector NDir[6] = {
 	FVector(-USBT_ZONE_SIZE, 0, 0), // -X

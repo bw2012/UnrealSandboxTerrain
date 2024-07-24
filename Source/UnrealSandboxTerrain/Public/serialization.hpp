@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <vector>
 #include <cstring> 
+#include <memory> 
 
 namespace usbt {
 

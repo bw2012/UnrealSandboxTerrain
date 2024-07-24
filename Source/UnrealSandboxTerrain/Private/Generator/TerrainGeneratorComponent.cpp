@@ -9,6 +9,7 @@
 #include <atomic>
 #include "Math/UnrealMathUtility.h"
 #include "TerrainZoneComponent.h"
+#include "../Core/SandboxVoxelCore.h"
 
 
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
