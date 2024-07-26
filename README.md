@@ -9,9 +9,11 @@ Provide high terrain detalization with high rendering performance
 Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
 
 # Example
-Example UE4 project - https://github.com/bw2012/UE4VoxelTerrain
+Example UE4 project (discontinued) - https://github.com/bw2012/UE4VoxelTerrain
 
-Example UE5 project - https://github.com/bw2012/UE5VoxelTerrainDemo
+Example UE5 project (with grass and trees) - https://github.com/bw2012/UE5VoxelTerrainDemo
+
+Example UE5 project (minimal working example)- https://github.com/bw2012/UE5VoxelTerrainTemplate
 
 # Features
 * Runtime terrain modification
