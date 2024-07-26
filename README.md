@@ -23,7 +23,7 @@ Example UE5 project (minimal working example)- https://github.com/bw2012/UE5Voxe
 * Network multiplayer support
 
 > [!WARNING]  
-> BluePrints are not supported. C++ only
+> This plugin designed for experienced Unreal Engine developers. Blueprint is not supported. C++ only
 
 # License
 MIT license
