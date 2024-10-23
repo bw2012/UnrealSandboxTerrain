@@ -1356,6 +1356,37 @@ void UTerrainGeneratorComponent::GenerateRegion(TTerrainRegion& Region) {
 }
 
 //======================================================================================================================================================================
+// Save generator metadata 
+//======================================================================================================================================================================
+
+void UTerrainGeneratorComponent::SaveMetadata() const {
+
+    FString FileName = TEXT("generator_meta.dat");
+    FString SaveDir = GetController()->GetSaveDir();
+    FString FullPath = SaveDir + TEXT("/") + FileName;
+
+    UE_LOG(LogVt, Log, TEXT("Save generator metadata: %s"), *FullPath);
+
+    TArray<FString> StrArray;
+
+    for (auto& Elem : RegionMap) {
+
+        const auto RegionIndex = Elem.Key;
+        FString Str = FString::Printf(TEXT("R %d,%d,%d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
+        FPlatformMisc::LocalPrint(*Str);
+        StrArray.Add(Str);
+
+    }
+
+
+    if (!FFileHelper::SaveStringArrayToFile(StrArray, *FullPath)) {
+        UE_LOG(LogVt, Error, TEXT("Save generator metadata failed! %s"), *FullPath);
+        return;
+    }
+}
+
+
+//======================================================================================================================================================================
 // Structures 
 //======================================================================================================================================================================
 

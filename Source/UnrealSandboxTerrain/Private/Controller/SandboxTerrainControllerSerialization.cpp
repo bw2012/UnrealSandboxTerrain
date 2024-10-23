@@ -563,6 +563,13 @@ bool ASandboxTerrainController::LoadJson() {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::SaveTerrainMetadata() {
+
+	FString FileName = TEXT("terrain_meta.dat");
+	FString SaveDir = GetSaveDir();
+	FString FullPath = SaveDir + TEXT("/") + FileName;
+
+	UE_LOG(LogVt, Log, TEXT("Save terrain metadata: %s"), *FullPath);
+
 	FBufferArchive Buffer;
 
 	auto Vm = TerrainData->CloneVStampMap();
@@ -594,10 +601,17 @@ void ASandboxTerrainController::SaveTerrainMetadata() {
 void ASandboxTerrainController::LoadTerrainMetadata() {
 	TDataPtr DataPtr = LoadDataFromKvFile(DataFileId, TVoxelIndex(0, 0, 0), TFileItmType::CHGCNT);
 
+
 	if (DataPtr) {
 		TArray<uint8> Data;
 		Data.SetNumZeroed(DataPtr->size());
 		FMemory::Memcpy(Data.GetData(), DataPtr->data(), DataPtr->size()); // TODO optimize
+
+		UE_LOG(LogVt, Log, TEXT("Load terrain metadata: %s"), *FullPath);
+
+	TArray<uint8> Data;
+	if (FFileHelper::LoadFileToArray(Data, *FullPath)) {
+
 		if (Data.Num() > 0) {
 			FMemoryReader Buffer = FMemoryReader(Data, true); //true, free data after done
 			Buffer.Seek(0);
