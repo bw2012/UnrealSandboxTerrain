@@ -1370,14 +1370,73 @@ void UTerrainGeneratorComponent::SaveMetadata() const {
     TArray<FString> StrArray;
 
     for (auto& Elem : RegionMap) {
+        const auto& RegionIndex = Elem.Key;
+        const auto& RegionData = Elem.Value;
 
-        const auto RegionIndex = Elem.Key;
-        FString Str = FString::Printf(TEXT("R %d,%d,%d"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z);
-        FPlatformMisc::LocalPrint(*Str);
+        FString TagStr;
+        bool bSeparator = false;
+        for (auto& TagElem : RegionData.Tags) {
+            const auto& TagName = TagElem.Key;
+            const auto& TagValue = TagElem.Value;
+
+            if (bSeparator) {
+                TagStr.Append(",");
+            }
+
+            TagStr.Append(FString::Printf(TEXT("%s=%s"), *TagName, *TagValue));
+
+            bSeparator = true;
+        }
+
+        FString Str = FString::Printf(TEXT("R %d,%d,%d %s"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, *TagStr);
         StrArray.Add(Str);
-
     }
 
+    for (auto& Elem : ChunkTagData) {
+        const auto& ChunkIndex = Elem.Key;
+        const auto& Tags = Elem.Value;
+
+        FString TagStr;
+        bool bSeparator = false;
+        for (auto& TagElem : Tags) {
+            const auto& TagName = TagElem.Key;
+            const auto& TagValue = TagElem.Value;
+
+            if (bSeparator) {
+                TagStr.Append(",");
+            }
+
+            TagStr.Append(FString::Printf(TEXT("%s=%s"), *TagName, *TagValue));
+
+            bSeparator = true;
+        }
+
+        FString Str = FString::Printf(TEXT("C %d,%d,%d %s"), ChunkIndex.X, ChunkIndex.Y, ChunkIndex.Z, *TagStr);
+        StrArray.Add(Str);
+    }
+
+    for (auto& Elem : ZoneTagData) {
+        const auto& ZoneIndex = Elem.Key;
+        const auto& Tags = Elem.Value;
+
+        FString TagStr;
+        bool bSeparator = false;
+        for (auto& TagElem : Tags) {
+            const auto& TagName = TagElem.Key;
+            const auto& TagValue = TagElem.Value;
+
+            if (bSeparator) {
+                TagStr.Append(",");
+            }
+
+            TagStr.Append(FString::Printf(TEXT("%s=%s"), *TagName, *TagValue));
+
+            bSeparator = true;
+        }
+
+        FString Str = FString::Printf(TEXT("Z %d,%d,%d %s"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, *TagStr);
+        StrArray.Add(Str);
+    }
 
     if (!FFileHelper::SaveStringArrayToFile(StrArray, *FullPath)) {
         UE_LOG(LogVt, Error, TEXT("Save generator metadata failed! %s"), *FullPath);

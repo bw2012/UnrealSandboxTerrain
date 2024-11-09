@@ -12,5 +12,7 @@ struct TTerrainRegion {
 
 	bool bGenerated = false;
 
+	TMap<FString, FString> Tags;
+
 };
 
