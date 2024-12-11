@@ -47,7 +47,7 @@ void UVoxelMeshComponent::SetMeshData(TMeshDataPtr NewMeshDataPtr) {
 
 	LocalMaterials.Empty();
 	LocalMaterials.Reserve(10);
-	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE, false);
+	MeshSectionLodArray.SetNum(LOD_ARRAY_SIZE);
 
 	if (NewMeshDataPtr) {
 		auto LodIndex = 0;
