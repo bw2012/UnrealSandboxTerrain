@@ -297,7 +297,7 @@ bool OpenKvFile(kvdb::KvFile<TVoxelIndex, TValueData>& KvFile, const FString& Fi
 		kvdb::KvFile<TVoxelIndex, TValueData>::create(FilePathString, std::unordered_map<TVoxelIndex, TValueData>());// create new empty file
 	}
 
-	if (!KvFile.open(FilePathString)) {
+	if (KvFile.open(FilePathString) != KVDB_OK) {
 		UE_LOG(LogVt, Log, TEXT("Unable to open file: %s"), *FullPath);
 		return false;
 	}
