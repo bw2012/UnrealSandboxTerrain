@@ -736,10 +736,6 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 			continue; // skip network zones
 		}
 
-		if (Index.X == 0 && Index.Y == 0 && Index.Z == 1) {
-			UE_LOG(LogTemp, Log, TEXT("TEST1"));
-		}
-
 		bool bIsNoMesh = false;
 
 		//check voxel data in memory
