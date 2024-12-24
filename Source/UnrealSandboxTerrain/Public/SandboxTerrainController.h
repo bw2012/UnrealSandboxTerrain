@@ -609,10 +609,6 @@ private:
 
 	mutable TKvFile TdFile;
 
-	mutable TKvFile ObjFile;
-
-	TKvFile VdFile;
-
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 
 	TVoxelData* LoadVoxelDataByIndex(const TVoxelIndex& Index);

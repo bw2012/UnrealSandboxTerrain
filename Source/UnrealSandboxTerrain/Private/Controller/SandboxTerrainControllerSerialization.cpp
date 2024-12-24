@@ -219,7 +219,7 @@ bool ASandboxTerrainController::LoadMeshAndObjectDataByIndex(const TVoxelIndex& 
 			MeshData = DeserializeMeshDataFast(*DecompressedDataPtr, 0);
 		}
 
-		TValueDataPtr ObjDataPtr = LoadDataFromKvFile(ObjFile, Index, TFileItmType::OBJ_DATA);
+		TValueDataPtr ObjDataPtr = LoadDataFromKvFile(TdFile, Index, TFileItmType::OBJ_DATA);
 		if (ObjDataPtr) {
 			DeserializeInstancedMeshes(*ObjDataPtr, ZoneInstMeshMap);
 		}
@@ -241,7 +241,7 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 
 	//VdFile.forEachKey([](TFileItmKey K) { UE_LOG(LogVt, Log, TEXT("Key -> %d %d %d %d"), K.Index.X, K.Index.Y, K.Index.Z, K.Type); } );
 
-	TValueDataPtr DataPtr = LoadDataFromKvFile(VdFile, Index, TFileItmType::VOXEL_DATA);
+	TValueDataPtr DataPtr = LoadDataFromKvFile(TdFile, Index, TFileItmType::VOXEL_DATA);
 	if (DataPtr) {
 		DeserializeVd(DataPtr, Vd);
 	} else {
@@ -342,21 +342,11 @@ bool ASandboxTerrainController::OpenFile() {
 		return false;
 	}
 
-	if (!OpenKvFile(VdFile, FileNameVd, SaveDir)) {
-		return false;
-	}
-
-	if (!OpenKvFile(ObjFile, FileNameObj, SaveDir)) {
-		return false;
-	}
-
 	return true;
 }
 
 void ASandboxTerrainController::CloseFile() {
 	TdFile.close();
-	VdFile.close();
-	ObjFile.close();
 }
 
 //======================================================================================================================================================================
@@ -428,7 +418,7 @@ void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelDa
 void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgress, std::function<void(uint32)> OnFinish) {
 	const std::lock_guard<std::mutex> lock(SaveMutex);
 
-	if (!TdFile.isOpen() || !VdFile.isOpen() || !ObjFile.isOpen()) {
+	if (!TdFile.isOpen()) {
 		// TODO error message
 		return;
 	}
@@ -479,7 +469,7 @@ void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgr
 				UTerrainZoneComponent* Zone = VdInfoPtr->GetZone();
 				if (Zone) {
 					DataObj = Zone->SerializeAndResetObjectData();
-					ObjFile.save(TFileItmKey{ Index, TFileItmType::OBJ_DATA }, *DataObj); // save objects only
+					TdFile.save(TFileItmKey{ Index, TFileItmType::OBJ_DATA }, *DataObj); // save objects only
 				}
 				// legacy
 				/*else {
@@ -494,7 +484,7 @@ void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgr
 		}
 
 		if (bSave) {
-			uint32 CRC = SaveZoneToFile(VdInfoPtr, TdFile, VdFile, ObjFile, Index, DataVd, DataMd, DataObj);
+			uint32 CRC = SaveZoneToFile(VdInfoPtr, TdFile, TdFile, TdFile, Index, DataVd, DataMd, DataObj);
 		}
 
 		SavedCount++;
