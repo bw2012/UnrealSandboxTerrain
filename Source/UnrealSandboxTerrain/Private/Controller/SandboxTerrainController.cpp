@@ -483,12 +483,11 @@ void ASandboxTerrainController::ZoneSoftUnload(UTerrainZoneComponent* ZoneCompon
 // begin play
 //======================================================================================================================================================================
 
-bool LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, std::function<void(TValueDataPtr)> Function);
-
 void ASandboxTerrainController::BeginPlayServer() {
 	if (!OpenFile()) {
 		// TODO error message
 		// return; // TODO fix UE4 create directory false positive issue
+		UE_LOG(LogVt, Error, TEXT("Error open terrain file!"));
 	}
 
 	if (LoadJson()) {
@@ -745,8 +744,9 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		TVdInfoLockGuard Lock(VdInfoPtr); // TODO lock order
 
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
-			if (TdFile.isExist(Index)) {
-				TValueDataPtr DataPtr = TdFile.loadData(Index);
+			TFileItmKey Key{ Index, TFileItmType::MESH_DATA };
+			if (TdFile.isExist(Key)) {
+				TValueDataPtr DataPtr = TdFile.loadData(Key);
 				usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
 				TKvFileZoneData ZoneHeader;
 				Deserializer >> ZoneHeader;

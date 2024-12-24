@@ -38,9 +38,11 @@ class ASandboxTerrainNetProxy;
 class TThreadPool;
 class TConveyour;
 
+struct TFileItmKey;
+
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
-typedef kvdb::KvFile<TVoxelIndex, TValueData> TKvFile;
+typedef kvdb::KvFile<TFileItmKey, TValueData> TKvFile;
 
 
 USTRUCT()
@@ -254,6 +256,27 @@ struct TInstantMeshData {
 	float ScaleY;
 	float ScaleZ;
 };
+
+enum TFileItmType {
+	MAP_INFO = 0,
+	VOXEL_DATA = 1,
+	MESH_DATA = 2,
+	OBJ_DATA = 3
+};
+
+struct TFileItmKey {
+	TVoxelIndex Index;
+	uint16 Type;
+};
+
+namespace std {
+	template <>
+	struct hash<TFileItmKey> {
+		std::size_t operator()(const TFileItmKey& Key) const {
+			return hash<short>()(Key.Index.X) ^ hash<short>()(Key.Index.Y) ^ hash<short>()(Key.Index.Z) ^ hash<short>()(Key.Type);
+		}
+	};
+}
 
 
 UCLASS()
