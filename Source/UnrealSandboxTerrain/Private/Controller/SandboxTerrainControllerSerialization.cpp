@@ -162,6 +162,9 @@ TMeshDataPtr DeserializeMeshDataFast(const std::vector<uint8>& Data, uint32 Coll
 }
 
 TValueDataPtr LoadDataFromKvFile(TKvFile& KvFile, const TVoxelIndex& Index, TFileItmType ItemType) {
+
+	//UE_LOG(LogVt, Log, TEXT("LoadDataFromKvFile -> %d %d %d %d"), Index.X, Index.Y, Index.Z, ItemType);
+
 	TFileItmKey Key{ Index, ItemType };
 	TValueDataPtr DataPtr = KvFile.loadData(Key);
 	if (DataPtr == nullptr || DataPtr->size() == 0) {
@@ -235,6 +238,8 @@ TVoxelData* ASandboxTerrainController::LoadVoxelDataByIndex(const TVoxelIndex& I
 
 	TVoxelData* Vd = NewVoxelData();
 	Vd->setOrigin(GetZonePos(Index));
+
+	//VdFile.forEachKey([](TFileItmKey K) { UE_LOG(LogVt, Log, TEXT("Key -> %d %d %d %d"), K.Index.X, K.Index.Y, K.Index.Z, K.Type); } );
 
 	TValueDataPtr DataPtr = LoadDataFromKvFile(VdFile, Index, TFileItmType::VOXEL_DATA);
 	if (DataPtr) {

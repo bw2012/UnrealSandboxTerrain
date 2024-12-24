@@ -257,7 +257,7 @@ struct TInstantMeshData {
 	float ScaleZ;
 };
 
-enum TFileItmType {
+enum TFileItmType : uint32 {
 	MAP_INFO = 0,
 	VOXEL_DATA = 1,
 	MESH_DATA = 2,
@@ -266,7 +266,7 @@ enum TFileItmType {
 
 struct TFileItmKey {
 	TVoxelIndex Index;
-	uint16 Type;
+	uint32 Type;
 };
 
 namespace std {
