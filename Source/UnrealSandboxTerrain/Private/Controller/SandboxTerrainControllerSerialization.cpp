@@ -394,6 +394,8 @@ uint32 SaveZoneToFile(TVoxelDataInfoPtr VdInfoPtr, TKvFile& TerrainDataFile, TKv
 	return CRC;
 }
 
+
+
 // TODO finish. use it in level generator 
 void ASandboxTerrainController::ForceSave(const TVoxelIndex& ZoneIndex, TVoxelData* Vd, TMeshDataPtr MeshDataPtr, const TInstanceMeshTypeMap& InstanceObjectMap) {
 	TValueDataPtr DataVd = nullptr;
@@ -563,13 +565,6 @@ bool ASandboxTerrainController::LoadJson() {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::SaveTerrainMetadata() {
-	FString FileName = TEXT("terrain_meta.dat");
-	FString SaveDir = GetSaveDir();
-	FString FullPath = SaveDir + TEXT("/") + FileName;
-
-	UE_LOG(LogVt, Log, TEXT("Save terrain metadata..."));
-	UE_LOG(LogVt, Log, TEXT("%s"), *FullPath);
-
 	FBufferArchive Buffer;
 
 	auto Vm = TerrainData->CloneVStampMap();
@@ -590,23 +585,23 @@ void ASandboxTerrainController::SaveTerrainMetadata() {
 		Buffer << M.VStamp;
 	}
 
-	if (FFileHelper::SaveArrayToFile(Buffer, *FullPath)) {
-		// Free Binary Array 	
-		Buffer.FlushCache();
-		Buffer.Empty();
-	}
+	TValueData Data;
+	Data.resize(Buffer.Num());
+	FMemory::Memcpy(Data.data(), Buffer.GetData(), Buffer.Num()); // TODO optimize
+
+	TdFile.save(TFileItmKey{ TVoxelIndex(0, 0, 0), TFileItmType::CHGCNT}, Data); // save chgcnt
+
+	Buffer.FlushCache();
+	Buffer.Empty();
 }
 
 void ASandboxTerrainController::LoadTerrainMetadata() {
-	FString FileName = TEXT("terrain_meta.dat");
-	FString SaveDir = GetSaveDir();
-	FString FullPath = SaveDir + TEXT("/") + FileName;
+	TValueDataPtr DataPtr = LoadDataFromKvFile(TdFile, TVoxelIndex(0, 0, 0), TFileItmType::CHGCNT);
 
-	UE_LOG(LogVt, Log, TEXT("Load terrain metadata..."));
-	UE_LOG(LogVt, Log, TEXT("%s"), *FullPath);
-
-	TArray<uint8> Data;
-	if (FFileHelper::LoadFileToArray(Data, *FullPath)) {
+	if (DataPtr) {
+		TArray<uint8> Data;
+		Data.SetNumZeroed(DataPtr->size());
+		FMemory::Memcpy(Data.GetData(), DataPtr->data(), DataPtr->size()); // TODO optimize
 		if (Data.Num() > 0) {
 			FMemoryReader Buffer = FMemoryReader(Data, true); //true, free data after done
 			Buffer.Seek(0);
@@ -625,6 +620,8 @@ void ASandboxTerrainController::LoadTerrainMetadata() {
 				Buffer << Index.Y;
 				Buffer << Index.Z;
 				Buffer << M.VStamp;
+
+				UE_LOG(LogVt, Warning, TEXT("TZoneModificationData %d %d %d - %d"), Index.X, Index.Y, Index.Z, M.VStamp);
 
 				TerrainData->AddUnsafe(Index, M);
 			}

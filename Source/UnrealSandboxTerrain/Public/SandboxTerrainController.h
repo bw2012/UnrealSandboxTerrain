@@ -261,13 +261,16 @@ enum TFileItmType : uint32 {
 	MAP_INFO = 0,
 	VOXEL_DATA = 1,
 	MESH_DATA = 2,
-	OBJ_DATA = 3
+	OBJ_DATA = 3,
+	CHGCNT = 4
 };
 
+#pragma pack(push,1)
 struct TFileItmKey {
 	TVoxelIndex Index;
 	uint32 Type;
 };
+#pragma pack(pop)
 
 namespace std {
 	template <>

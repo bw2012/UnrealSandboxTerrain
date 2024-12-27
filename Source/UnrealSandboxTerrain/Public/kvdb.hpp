@@ -99,13 +99,17 @@ namespace kvdb {
 	//============================================================================
 	// File header
 	//============================================================================
+	#pragma pack(push,1)
 	typedef struct TFileHeader {
 		char h[4] = {'K', 'V', 'D', 'B'};
 		uint32 version = KVDB_FILE_VERSION;
 		uint32 keySize = 0;
 		ulong64 timestamp = 0;
-		uint32  endOfHeaderOffset = 0;
+		uint32  endOfHeaderOffset = (uint32)sizeof(TFileHeader);
+		char reverved1[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		char reverved2[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	} TFileHeader;
+	#pragma pack(pop)
 
 	inline std::ostream* operator << (std::ostream* os, const TFileHeader& obj) {
 		write(os, obj);
@@ -120,10 +124,12 @@ namespace kvdb {
 	//============================================================================
 	// Table header
 	//============================================================================
+	#pragma pack(push,1)
 	typedef struct TTableHeader {
 		ulong64 recordCount = 0;
 		ulong64 nextTable = 0;
 	} TTableHeader;
+	#pragma pack(pop)
 
 	typedef TPosWrapper<TTableHeader> TTableHeaderInfo;
 
@@ -140,12 +146,15 @@ namespace kvdb {
 	//============================================================================
 	// Key Entry
 	//============================================================================
+	#pragma pack(push,1)
 	typedef struct TKeyEntryHeader {
 		ulong64 dataPos = 0;
 		ulong64 dataLength = 0;
 		ulong64 initialDataLength = 0;
-		uint16 flags = 0;
+		ulong64 flags = 0;
+		ulong64 payload = 0;
 	} TKeyEntryHeader;
+	#pragma pack(pop)
 
 	typedef struct TKeyEntry {
 		TKeyEntryHeader header;
@@ -223,7 +232,7 @@ namespace kvdb {
 			std::memcpy(valueData.data(), &value, sizeof(value));
 		}
 
-		void rewritePair(TKeyEntryInfo& keyInfo, const TValueData& valueData, const uint16 k_flags) {
+		void rewritePair(TKeyEntryInfo& keyInfo, const TValueData& valueData, const ulong64 k_flags) {
 			// rewrite value data
 			filePtr->seekp(keyInfo().header.dataPos);
 			filePtr->write((char*)valueData.data(), valueData.size());
@@ -248,7 +257,7 @@ namespace kvdb {
 			std::memcpy(valueDataNew.data(), valueDataSrc.data(), valueDataSrc.size());
 		}
 
-		void newPairFromReserved(const TKeyData& keyData, const TValueData& valueData, const uint16 k_flags) {
+		void newPairFromReserved(const TKeyData& keyData, const TValueData& valueData, const ulong64 k_flags) {
 			// has reserved key slots
 			TKeyEntryInfo& keyInfo = reservedKeyList.front();
 			TValueData valueDataExp;
@@ -360,7 +369,7 @@ namespace kvdb {
 			return reservedKeyList.size() > 0;
 		}
 
-		bool tryWriteToSuitableDeletedPair(const TKeyData& keyData, const TValueData& valueData, const uint16 k_flags) {
+		bool tryWriteToSuitableDeletedPair(const TKeyData& keyData, const TValueData& valueData, const ulong64 k_flags) {
 			for (auto itr = deletedKeyList.begin(); itr != deletedKeyList.end();) {
 				TKeyEntryInfo keyInfo = *itr;
 				if (keyInfo().header.initialDataLength >= valueData.size()) {
@@ -377,7 +386,7 @@ namespace kvdb {
 			return false;
 		}
 
-		void addNew(const TKeyData& keyData, const TValueData& valueData, const uint16 k_flags) {
+		void addNew(const TKeyData& keyData, const TValueData& valueData, const ulong64 k_flags) {
 			if (!tryWriteToSuitableDeletedPair(keyData, valueData, k_flags)) {
 				if (hasReserved()) {
 					newPairFromReserved(keyData, valueData, k_flags);
@@ -388,7 +397,7 @@ namespace kvdb {
 			}
 		}
 
-		void change(const TKeyData& keyData, const TValueData& valueData, const uint16 k_flags) {
+		void change(const TKeyData& keyData, const TValueData& valueData, const ulong64 k_flags) {
 			TKeyEntryInfo& keyInfo = dataMap[keyData];
 			if (valueData.size() > 0) {
 				if (keyInfo().header.initialDataLength >= valueData.size()) {
@@ -474,7 +483,7 @@ namespace kvdb {
 			for (const auto& kv : dataMap) { func(keyFromKeyData(kv.first)); }
 		}
 
-		uint16 k_flags(const K& k) const {
+		ulong64 k_flags(const K& k) const {
 			if (!isOpen()) return 0;
 
 			const TKeyData keyData = toKeyData(k);
@@ -561,7 +570,7 @@ namespace kvdb {
 			const ulong64 keyRecords = (test.size() > max_key_records) ? test.size() : max_key_records;
 
 			// save file header
-			TFileHeader fileHeader{ .keySize = sizeof(K), .endOfHeaderOffset = sizeof(fileHeader) };
+			TFileHeader fileHeader{ .keySize = sizeof(K) };
 			outFilePtr << fileHeader;
 
 			TTableHeader tableHeader{keyRecords, 0};
@@ -594,6 +603,29 @@ namespace kvdb {
 			}
 
 			outFilePtr->write((char*)dataBody.data(), dataBody.size());
+			outFile.close();
+			return true;
+		}
+
+		static bool create_empty(const std::string& file, ulong64 max_key_records = KVDB_RESERVED_TABLE_SIZE) {
+			std::ofstream outFile(file, std::ios::out | std::ios::binary);
+			if (!outFile) return false;
+			std::ofstream* outFilePtr = &outFile;
+
+			// save file header
+			TFileHeader fileHeader{ .keySize = sizeof(K) };
+			outFilePtr << fileHeader;
+
+			TTableHeader tableHeader{0, 0};
+			outFilePtr << tableHeader;
+
+			// add empty records
+			const ulong64 emptyRecords = max_key_records;
+			for (ulong64 i = 0; i < emptyRecords; i++) {
+				TKeyEntry key;
+				writeKey(outFilePtr, key);
+			}
+
 			outFile.close();
 			return true;
 		}

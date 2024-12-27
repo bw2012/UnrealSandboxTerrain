@@ -223,9 +223,10 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		Save();
 	}
 
-	CloseFile();
 	SaveTerrainMetadata();
 
+	CloseFile();
+	
     TerrainData->Clean();
 	GetTerrainGenerator()->Clean();
 
