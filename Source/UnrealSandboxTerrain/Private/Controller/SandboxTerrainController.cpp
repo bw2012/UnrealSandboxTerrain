@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <list>
+#include <bitset>
 
 #include "Core/SandboxVoxelCore.h"
 #include "serialization.hpp"
@@ -747,13 +748,10 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 			TFileItmKey Key{ Index, TFileItmType::MESH_DATA };
 			if (TdFile.isExist(Key)) {
-				TValueDataPtr DataPtr = TdFile.loadData(Key);
-				usbt::TFastUnsafeDeserializer Deserializer(DataPtr->data());
-				TKvFileZoneData ZoneHeader;
-				Deserializer >> ZoneHeader;
+				std::bitset<sizeof(ulong64)> ZoneFlags(TdFile.k_flags(Key));
 
-				bIsNoMesh = ZoneHeader.Is(TZoneFlag::NoMesh);
-				bool bIsNoVd = ZoneHeader.Is(TZoneFlag::NoVoxelData);
+				bIsNoMesh = ZoneFlags.test((size_t)TZoneFlag::NoMesh);
+				bool bIsNoVd = ZoneFlags.test((size_t)TZoneFlag::NoVoxelData);
 				if (bIsNoVd) {
 					VdInfoPtr->DataState = TVoxelDataState::UNGENERATED;
 				} else {
@@ -761,7 +759,7 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 					VdInfoPtr->DataState = TVoxelDataState::READY_TO_LOAD;
 				}
 
-				if (ZoneHeader.Is(TZoneFlag::InternalSolid)) {
+				if (ZoneFlags.test((size_t)TZoneFlag::InternalSolid)) {
 					VdInfoPtr->SetFlagInternalFullSolid();
 				}
 

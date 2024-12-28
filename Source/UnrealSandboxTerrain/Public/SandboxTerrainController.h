@@ -216,7 +216,7 @@ typedef struct TChunkIndex {
 
 } TChunkIndex;
 
-enum class TZoneFlag : int {
+enum class TZoneFlag : uint32 {
 	Generated = 0, // Not used
 	NoMesh = 1,
 	NoVoxelData = 2,
@@ -224,23 +224,12 @@ enum class TZoneFlag : int {
 };
 
 typedef struct TKvFileZoneData {
-	uint32 Flags = 0x0;
 	uint32 LenMd = 0;
-
-	bool Is(TZoneFlag Flag) {
-		return (Flags >> (int)Flag) & 1U;
-	};
-
-	void SetFlag(int Flag) {
-		Flags |= 1UL << Flag;
-	};
-
+	uint32 CRC = 0; // unused
 } TKvFileZoneData;
 
 struct TZoneModificationData {
-
 	uint32 VStamp = 0;
-
 };
 
 struct TInstantMeshData {

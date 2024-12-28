@@ -540,7 +540,7 @@ namespace kvdb {
 			}
 		}
 
-		void save(const K& k, const V& v, const uint16 k_flags = 0x0) {
+		void save(const K& k, const V& v, const ulong64 k_flags = 0x0) {
 			TKeyData keyData = toKeyData(k);
 			TValueData valueData;
 

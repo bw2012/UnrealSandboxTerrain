@@ -9,6 +9,8 @@
 #include "Core/VoxelDataInfo.hpp"
 #include "Core/TerrainData.hpp"
 
+#include <bitset>
+
 
 //======================================================================================================================================================================
 // mesh data de/serealization
@@ -291,11 +293,11 @@ bool OpenKvFile(kvdb::KvFile<TFileItmKey, TValueData>& KvFile, const FString& Fi
 	std::string FilePathString = std::string(TCHAR_TO_UTF8(*FullPath));
 
 	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FullPath)) {
-		kvdb::KvFile<TFileItmKey, TValueData>::create(FilePathString, std::unordered_map<TFileItmKey, TValueData>());// create new empty file
+		kvdb::KvFile<TFileItmKey, TValueData>::create_empty(FilePathString); // create new empty file
 	}
 
 	if (KvFile.open(FilePathString) != KVDB_OK) {
-		UE_LOG(LogVt, Error, TEXT("Unable to open file: %s"), *FullPath);
+		UE_LOG(LogVt, Error, TEXT("Unable to open KVDB terrain file: %s"), *FullPath);
 		return false;
 	}
 
@@ -355,17 +357,21 @@ void ASandboxTerrainController::CloseFile() {
 
 uint32 SaveZoneToFile(TVoxelDataInfoPtr VdInfoPtr, TKvFile& TerrainDataFile, TKvFile& VoxelDataFile, TKvFile& ObjDataFile, const TVoxelIndex& Index, const TValueDataPtr DataVd, const TValueDataPtr DataMd, const TValueDataPtr DataObj) {
 	TKvFileZoneData ZoneHeader;
+
+	std::bitset<sizeof(ulong64)> ZoneFlags(0);
+
+
 	if (!DataVd) {
-		ZoneHeader.SetFlag((int)TZoneFlag::NoVoxelData);
+		ZoneFlags.set((size_t)TZoneFlag::NoVoxelData);
 	}
 
 	if (DataMd) {
 		ZoneHeader.LenMd = DataMd->size();
 	} else {
-		ZoneHeader.SetFlag((int)TZoneFlag::NoMesh);
+		ZoneFlags.set((size_t)TZoneFlag::NoMesh);
 
 		if (VdInfoPtr->GetFlagInternal() == 2) {
-			ZoneHeader.SetFlag((int)TZoneFlag::InternalSolid);
+			ZoneFlags.set((size_t)TZoneFlag::InternalSolid);
 		}
 	}
 
@@ -381,7 +387,7 @@ uint32 SaveZoneToFile(TVoxelDataInfoPtr VdInfoPtr, TKvFile& TerrainDataFile, TKv
 	uint32 CRC = 0;
 	//uint32 CRC = CRC32__(DataPtr->data(), DataPtr->size());
 
-	TerrainDataFile.save(TFileItmKey{ Index, TFileItmType::MESH_DATA }, *DataPtr);
+	TerrainDataFile.save(TFileItmKey{ Index, TFileItmType::MESH_DATA }, *DataPtr, ZoneFlags.to_ullong());
 
 	if (DataVd) {
 		VoxelDataFile.save(TFileItmKey{ Index, TFileItmType::VOXEL_DATA }, *DataVd);
