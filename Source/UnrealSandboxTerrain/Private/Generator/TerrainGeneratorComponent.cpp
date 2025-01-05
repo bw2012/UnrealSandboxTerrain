@@ -548,8 +548,10 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
 }
 
 void UTerrainGeneratorComponent::ForceGenerateZone(TVoxelData* VoxelData, const TVoxelIndex& ZoneIndex) {
-    TGenerateVdTempItm Itm;
 
+    HandleRegionByZoneIndex(ZoneIndex.X, ZoneIndex.Y);
+
+    TGenerateVdTempItm Itm;
     Itm.Idx = 0;
     Itm.ZoneIndex = ZoneIndex;
     Itm.Vd = VoxelData;
