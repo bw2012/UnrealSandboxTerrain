@@ -1,7 +1,6 @@
 #include "SandboxTerrainController.h"
 #include "Async/Async.h"
 #include "DrawDebugHelpers.h"
-#include "kvdb.hpp"
 
 #include "TerrainZoneComponent.h"
 #include "VoxelMeshComponent.h"
@@ -24,6 +23,8 @@
 #include "Core/memstat.h"
 
 #include "Runtime/Launch/Resources/Version.h"
+
+#include "UnrealSandboxData.h"
 
 
 // ====================================
@@ -747,8 +748,8 @@ void ASandboxTerrainController::BatchSpawnZone(const TArray<TSpawnZoneParam>& Sp
 
 		if (VdInfoPtr->DataState == TVoxelDataState::UNDEFINED) {
 			TFileItmKey Key{ Index, TFileItmType::MESH_DATA };
-			if (TdFile.isExist(Key)) {
-				std::bitset<sizeof(ulong64)> ZoneFlags(TdFile.k_flags(Key));
+			if (FKvdb::HasKey(DataFileId, Key)) {
+				std::bitset<sizeof(uint64)> ZoneFlags(FKvdb::GetKeyFlags(DataFileId, Key));
 
 				bIsNoMesh = ZoneFlags.test((size_t)TZoneFlag::NoMesh);
 				bool bIsNoVd = ZoneFlags.test((size_t)TZoneFlag::NoVoxelData);

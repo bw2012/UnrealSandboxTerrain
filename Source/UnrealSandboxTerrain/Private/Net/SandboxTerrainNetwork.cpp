@@ -8,7 +8,7 @@
 
 bool IsGameShutdown();
 
-void AppendDataToBuffer(TValueDataPtr Data, FBufferArchive& Buffer) {
+void AppendDataToBuffer(TDataPtr Data, FBufferArchive& Buffer) {
 	for (int I = 0; I < Data->size(); I++) {
 		uint8 Byte = Data->at(I);
 		Buffer << Byte;
@@ -26,8 +26,8 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 	int32 VStamp = TerrainData->GetZoneVStamp(Index).VStamp;
 	Buffer << VStamp;
 
-	TValueDataPtr DataVd = nullptr;
-	TValueDataPtr DataObj = nullptr;
+	TDataPtr DataVd = nullptr;
+	TDataPtr DataObj = nullptr;
 
 	if (VdInfoPtr->DataState == TVoxelDataState::READY_TO_LOAD) {
 		TVoxelData* Vd = LoadVoxelDataByIndex(Index);
@@ -92,7 +92,7 @@ void ASandboxTerrainController::NetworkSerializeZone(FBufferArchive& Buffer, con
 	VdInfoPtr->Unlock();
 }
 
-TValueDataPtr Decompress(TValueDataPtr CompressedDataPtr);
+TDataPtr Decompress(TDataPtr CompressedDataPtr);
 
 // spawn received zone on client
 void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index, FArrayReader& RawVdData) {
@@ -126,7 +126,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 
 			TerrainData->SetZoneVStamp(Index, VStamp);
 
-			TValueDataPtr DataPtr = TValueDataPtr(new TValueData);
+			TDataPtr DataPtr = TDataPtr(new TData);
 			for (int I = 0; I < Size; I++) {
 				uint8 Byte;
 				BinaryData << Byte;
@@ -154,7 +154,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			//UE_LOG(LogVt, Warning, TEXT("Client: obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
 
 			if (SizeObj > 0) {
-				TValueData ObjData;
+				TData ObjData;
 				for (int I = 0; I < SizeObj; I++) {
 					uint8 Byte;
 					BinaryData << Byte;
@@ -202,7 +202,7 @@ void ASandboxTerrainController::NetworkSpawnClientZone(const TVoxelIndex& Index,
 			//UE_LOG(LogVt, Warning, TEXT("Client: TEST2 obj %d %d %d -> %d"), Index.X, Index.Y, Index.Z, SizeObj);
 
 			if (SizeObj > 0) {
-				TValueData ObjData;
+				TData ObjData;
 				for (int I = 0; I < SizeObj; I++) {
 					uint8 Byte;
 					BinaryData << Byte;

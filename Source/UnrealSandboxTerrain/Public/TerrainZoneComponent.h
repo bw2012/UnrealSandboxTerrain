@@ -5,7 +5,6 @@
 #include "EngineMinimal.h"
 #include "VoxelMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "kvdb.hpp"
 #include "TerrainZoneComponent.generated.h"
 
 
@@ -74,9 +73,9 @@ public:
 
 	void SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const TInstanceMeshArray& InstMeshTransArray);
 
-    TValueDataPtr SerializeAndResetObjectData();
+    TDataPtr SerializeAndResetObjectData();
 
-	static TValueDataPtr SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceMeshMap);
+	static TDataPtr SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceMeshMap);
 
 private:
     

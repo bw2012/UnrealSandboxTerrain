@@ -13,7 +13,6 @@
 #include <unordered_set>
 #include <unordered_map>
 #include "VoxelIndex.h"
-#include "kvdb.hpp"
 #include "VoxelData.h"
 #include "SandboxTerrainController.generated.h"
 
@@ -42,7 +41,9 @@ struct TFileItmKey;
 
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
-typedef kvdb::KvFile<TFileItmKey, TValueData> TKvFile;
+
+typedef std::vector<uint8> TData;
+typedef std::shared_ptr<TData> TDataPtr;
 
 
 USTRUCT()
@@ -565,9 +566,9 @@ private:
 	
 	void SpawnInitialZone();
 
-	TValueDataPtr SerializeVd(TVoxelData* Vd) const;
+	TDataPtr SerializeVd(TVoxelData* Vd) const;
 
-	void DeserializeVd(TValueDataPtr Data, TVoxelData* Vd) const;
+	void DeserializeVd(TDataPtr Data, TVoxelData* Vd) const;
 
 	void DeserializeInstancedMeshes(std::vector<uint8>& Data, TInstanceMeshTypeMap& ZoneInstMeshMap) const;
 
@@ -599,7 +600,7 @@ private:
         
     TTerrainData* TerrainData;
 
-	mutable TKvFile TdFile;
+	mutable int32 DataFileId = -1;
 
 	std::shared_ptr<TVoxelDataInfo> GetVoxelDataInfo(const TVoxelIndex& Index);
 

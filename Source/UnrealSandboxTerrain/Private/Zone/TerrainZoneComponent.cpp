@@ -8,7 +8,7 @@
 #include "Core/memstat.h"
 
 
-TValueDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
+TDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 
 UTerrainInstancedStaticMesh::UTerrainInstancedStaticMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	//zone_counter++;
@@ -73,13 +73,13 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 	//UE_LOG(LogVt, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
 }
 
-TValueDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
+TDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
     const std::lock_guard<std::mutex> lock(InstancedMeshMutex);
-    TValueDataPtr Data = SerializeInstancedMeshes();
+    TDataPtr Data = SerializeInstancedMeshes();
     return Data;
 }
 
-TValueDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceObjectMap) {
+TDataPtr UTerrainZoneComponent::SerializeInstancedMesh(const TInstanceMeshTypeMap& InstanceObjectMap) {
 	usbt::TFastUnsafeSerializer Serializer;
 	int32 MeshCount = InstanceObjectMap.Num();
 	Serializer << MeshCount;

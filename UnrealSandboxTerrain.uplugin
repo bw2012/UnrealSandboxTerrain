@@ -20,5 +20,11 @@
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "UnrealSandboxData",
+			"Enabled": true
+		}
 	]
 }
