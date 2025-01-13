@@ -10,6 +10,6 @@ public class UnrealSandboxTerrain : ModuleRules {
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core" });
 		PrivateDependencyModuleNames.AddRange(new string[] { "CoreUObject", "Engine", "Slate", "SlateCore", "RenderCore", "RHI" });
-        PrivateDependencyModuleNames.AddRange(new string[] { "Json", "JsonUtilities", "Networking", "Sockets", "UnrealSandboxKvDb" });
+        PrivateDependencyModuleNames.AddRange(new string[] { "Json", "JsonUtilities", "Networking", "Sockets" });
     }
 }
