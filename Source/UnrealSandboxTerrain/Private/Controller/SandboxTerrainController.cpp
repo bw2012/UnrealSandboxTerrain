@@ -494,12 +494,18 @@ void ASandboxTerrainController::BeginPlayServer() {
 	}
 
 	if (LoadJson()) {
-		WorldSeed = MapInfo.WorldSeed;
+		if (MapInfo.WorldSeed.Len() > 2 && MapInfo.WorldSeed.Mid(0, 1) == TEXT("~")) {
+			FString S = MapInfo.WorldSeed.Mid(1, MapInfo.WorldSeed.Len() - 1);
+			WorldSeed = (int32)TSandboxData::DecodeBase36(S);
+			UE_LOG(LogVt, Log, TEXT("Load WorldSeed: %s = %d"), *MapInfo.WorldSeed, WorldSeed);
+		} else {
+			WorldSeed = FCString::Atoi(*MapInfo.WorldSeed);
+			UE_LOG(LogVt, Log, TEXT("Load WorldSeed: %d"), WorldSeed);
+		}
 	} else {
 		BeginNewWorld();
 	}
 
-	UE_LOG(LogVt, Warning, TEXT("WorldSeed: %d"), WorldSeed);
 	GeneratorComponent->ReInit();
 
 	LoadTerrainMetadata();

@@ -518,7 +518,9 @@ void ASandboxTerrainController::Save(std::function<void(uint32, uint32)> OnProgr
 
 void ASandboxTerrainController::SaveJson() {
 	MapInfo.SaveTimestamp = FPlatformTime::Seconds();
-	MapInfo.WorldSeed = WorldSeed;
+	MapInfo.WorldSeed = "~" + TSandboxData::EncodeBase36((uint64)WorldSeed);
+
+	UE_LOG(LogVt, Log, TEXT("Save WorldSeed: %s = %d"), *MapInfo.WorldSeed, WorldSeed);
 
 	FString JsonStr;
 

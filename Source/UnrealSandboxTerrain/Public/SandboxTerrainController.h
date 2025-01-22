@@ -63,7 +63,7 @@ struct FMapInfo {
 	FString Status;
 
 	UPROPERTY()
-	int32 WorldSeed;
+	FString WorldSeed;
 };
 
 USTRUCT(BlueprintType, Blueprintable)
