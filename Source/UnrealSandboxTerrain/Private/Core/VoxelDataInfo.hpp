@@ -60,10 +60,9 @@ private:
 	std::shared_ptr<TInstanceMeshTypeMap> InstanceMeshTypeMapPtr = nullptr;
 
     bool bSoftUnload = false;
-    //std::shared_ptr<std::mutex> VdMutexPtr;
     //std::mutex VdMutex;
-    //TSpinlock VdMutex;
-    FCriticalSection VdMutex;
+    TSpinlock VdMutex;
+    //FCriticalSection VdMutex;
 
 public:
 
@@ -85,20 +84,11 @@ public:
 	}
 
     void Lock() {
-        VdMutex.Lock();
-
-        /*
-        try {
-            VdMutex.lock();
-        } catch (std::exception e) {
-            FString ExceptionString(e.what());
-            UE_LOG(LogVt, Warning, TEXT("Exception: %s"), *ExceptionString);
-        }
-        */
+        VdMutex.lock();
     }
 
     void Unlock() {
-        VdMutex.Unlock();
+        VdMutex.unlock();
     }
 
     int GetFlagInternal() {

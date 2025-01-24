@@ -236,11 +236,14 @@ void ASandboxTerrainController::EndPlay(const EEndPlayReason::Type EndPlayReason
 	delete Conveyor;
 }
 
+#define TRACE_CONVEYOR 0
+
 void ASandboxTerrainController::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	LoadConsoleVars();
 
+	int R = 0;
 	double ConvTime = 0;
 	while (ConvTime < ConveyorMaxTime) {
 		std::function<void()> Function;
@@ -248,11 +251,25 @@ void ASandboxTerrainController::Tick(float DeltaTime) {
 			double Start = FPlatformTime::Seconds();
 			Function();
 			double End = FPlatformTime::Seconds();
+
+#if TRACE_CONVEYOR == 1 
+			UE_LOG(LogVt, Warning, TEXT("task = %f ms"), (End - Start) * 1000);
+#endif
+
 			ConvTime += (End - Start);
+			R++;
 		} else {
 			break;
 		}
 	}
+
+#if TRACE_CONVEYOR == 1 
+	if (R > 0) {
+		UE_LOG(LogVt, Warning, TEXT("ConvTime = %f ms"), ConvTime * 1000);
+		UE_LOG(LogVt, Warning, TEXT("R = %d"), R);
+	}
+#endif
+
 }
 
 //======================================================================================================================================================================
@@ -876,11 +893,17 @@ void ASandboxTerrainController::SpawnInitialZone() {
 	BatchSpawnZone(SpawnList);
 }
 
+#define TRACE_ADD_TERRAIN_ZONE 0
+
 // always in game thread
 UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 	if (!IsInGameThread()) {
 		return nullptr;
 	}
+
+#if TRACE_ADD_TERRAIN_ZONE == 1 
+	double Start = FPlatformTime::Seconds();
+#endif
     
     TVoxelIndex Index = GetZoneIndex(Pos);
 	auto* Zone = GetZoneByVectorIndex(Index);
@@ -918,6 +941,12 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 	if (bShowZoneBounds) {
 		DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
 	}
+
+#if TRACE_ADD_TERRAIN_ZONE == 1 
+	const double End = FPlatformTime::Seconds();
+	const double Time = (End - Start) * 1000;
+	UE_LOG(LogVt, Log, TEXT("AddTerrainZone --> %f %f %f --> %f ms"), Pos.X, Pos.Y, Pos.Z, Time);
+#endif
 
     return ZoneComponent;
 }

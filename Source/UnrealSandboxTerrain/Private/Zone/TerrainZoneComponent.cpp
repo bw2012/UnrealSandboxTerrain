@@ -28,9 +28,15 @@ void UTerrainZoneComponent::DestroyComponent(bool bPromoteChildren) {
 	zone_counter--;
 }
 
+#define TRACE_APPLY_MESH 0
+
 void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgnoreCollision) {
     const std::lock_guard<std::mutex> lock(TerrainMeshMutex);
-	double start = FPlatformTime::Seconds();
+
+#if TRACE_APPLY_MESH == 1 
+	double Start = FPlatformTime::Seconds();
+#endif
+
 	TMeshData* MeshData = MeshDataPtr.get();
 
 	if (MeshData == nullptr) {
@@ -68,9 +74,11 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 	MainTerrainMesh->bAffectDistanceFieldLighting = false;
 	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
 
-	double end = FPlatformTime::Seconds();
-	double time = (end - start) * 1000;
-	//UE_LOG(LogVt, Log, TEXT("ASandboxTerrainZone::applyTerrainMesh ---------> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, time);
+
+#if TRACE_APPLY_MESH == 1 
+	double End = FPlatformTime::Seconds();
+	UE_LOG(LogVt, Log, TEXT("ApplyTerrainMesh --> %f %f %f --> %f ms"), GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z, (End - Start) * 1000);
+#endif
 }
 
 TDataPtr UTerrainZoneComponent::SerializeAndResetObjectData(){
