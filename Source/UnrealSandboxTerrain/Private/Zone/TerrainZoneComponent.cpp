@@ -11,12 +11,11 @@
 TDataPtr SerializeMeshData(TMeshDataPtr MeshDataPtr);
 
 UTerrainInstancedStaticMesh::UTerrainInstancedStaticMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
-	//zone_counter++;
+
 }
 
 UTerrainZoneComponent::UTerrainZoneComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {
 	PrimaryComponentTick.bCanEverTick = false;
-	//zone_counter++;
 }
 
 void UTerrainZoneComponent::FinishDestroy() {
@@ -215,7 +214,6 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 
 	bool bIsFoliage = GetTerrainController()->FoliageMap.Contains(MeshType.MeshTypeId);
 	if (InstancedStaticMeshComponent == nullptr) {
-		//UE_LOG(LogVt, Log, TEXT("SpawnInstancedMesh -> %d %d"), MeshType.MeshVariantId, MeshType.MeshTypeId);
 		FString InstancedStaticMeshCompName = FString::Printf(TEXT("InstancedStaticMesh - [%d, %d]-> [%.0f, %.0f, %.0f]"), MeshType.MeshTypeId, MeshType.MeshVariantId, GetComponentLocation().X, GetComponentLocation().Y, GetComponentLocation().Z);
 
 		InstancedStaticMeshComponent = NewObject<UTerrainInstancedStaticMesh>(this, FName(*InstancedStaticMeshCompName));
@@ -227,6 +225,8 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 
 		int32 StartCullDistance = MeshType.StartCullDistance;
 		int32 EndCullDistance = MeshType.EndCullDistance;
+
+		// ue4 issue
 		if (GetWorld()->WorldType == EWorldType::PIE || GetWorld()->WorldType == EWorldType::Editor) {
 			//StartCullDistance /= 10;
 			//EndCullDistance /= 10;
@@ -255,7 +255,6 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 	}
 
 	InstancedStaticMeshComponent->AddInstances(InstMeshTransArray.TransformArray, false);
-	//UE_LOG(LogVt, Warning, TEXT("AddInstances -> %d"), InstMeshTransArray.TransformArray.Num());
 }
 
 ASandboxTerrainController* UTerrainZoneComponent::GetTerrainController() {

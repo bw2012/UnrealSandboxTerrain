@@ -1044,16 +1044,12 @@ void ASandboxTerrainController::ExecGameThreadZoneApplyMesh(const TVoxelIndex& I
 				VdInfoPtr->SetNeedTerrainSave();
 				TerrainData->AddSaveIndex(Index);
 			}
-		} else {
-			// TODO remove
-			UE_LOG(LogVt, Log, TEXT("ASandboxTerrainController::ExecGameThreadZoneApplyMesh - game shutdown"));
 		}
 	};
 
 	AddTaskToConveyor(Function);
 }
 
-//TODO move to conveyor
 void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIndex& Index, TMeshDataPtr MeshDataPtr, const bool bIsNewGenerated, const bool bIsChanged) {
 	FVector ZonePos = GetZonePos(Index);
 	ASandboxTerrainController* Controller = this;
@@ -1082,13 +1078,9 @@ void ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh(const TVoxelIn
 					}
 				}
 			}
-		} else {
-			// TODO remove
-			UE_LOG(LogVt, Warning, TEXT("ASandboxTerrainController::ExecGameThreadAddZoneAndApplyMesh - game shutdown"));
-		}
+		} 
 	};
 
-	//InvokeSafe(Function);
 	AddTaskToConveyor(Function);
 }
 
