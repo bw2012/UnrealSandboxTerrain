@@ -8,6 +8,8 @@ Provide high terrain detalization with high rendering performance
 
 Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
 
+> Lengyel, Eric. “Voxel-Based Terrain for Real-Time Virtual Simulations”. PhD diss., University of California at Davis, 2010.
+
 # Example
 Example UE4 project (discontinued) - https://github.com/bw2012/UE4VoxelTerrain
 
