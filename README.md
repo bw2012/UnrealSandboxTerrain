@@ -6,7 +6,11 @@ Tested with Unreal Engine 4.27, 5.1, 5.2, 5.3, 5.4 on Ubuntu Linux 22.04 and Win
 
 Provide high terrain detalization with high rendering performance
 
-Partially based on Transvoxel™ Algorithm by Eric Lengyel http://transvoxel.org/ 
+Partially based on Transvoxel™ Algorithm by Eric Lengyel 
+
+http://transvoxel.org/ 
+
+https://github.com/EricLengyel/Transvoxel
 
 > Lengyel, Eric. “Voxel-Based Terrain for Real-Time Virtual Simulations”. PhD diss., University of California at Davis, 2010.
 
