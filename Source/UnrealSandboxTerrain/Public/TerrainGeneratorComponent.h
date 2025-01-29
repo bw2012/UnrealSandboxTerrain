@@ -1,6 +1,3 @@
-#pragma once
-
-
 // Copyright blackw 2015-2020
 
 #pragma once

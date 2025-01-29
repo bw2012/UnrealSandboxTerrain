@@ -16,6 +16,9 @@ typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 class UTerrainZoneComponent;
 
+typedef std::vector<uint8> TData;
+typedef std::shared_ptr<TData> TDataPtr;
+
 
 /**
 *

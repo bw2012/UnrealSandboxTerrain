@@ -134,8 +134,8 @@ void ASandboxTerrainController::BeginPlay() {
 	bGenerateOnlySmallSpawnPoint = false;
 #endif
 
-	UE_LOG(LogVt, Warning, TEXT("Initialize terrain parameters..."));
-	UE_LOG(LogVt, Warning, TEXT("LodRatio = %f"), LodRatio);
+	UE_LOG(LogVt, Log, TEXT("Initialize terrain parameters..."));
+	UE_LOG(LogVt, Log, TEXT("LodRatio = %f"), LodRatio);
 
 	float ScreenSize = 1.f;
 	for (auto LodIdx = 0; LodIdx < LOD_ARRAY_SIZE; LodIdx++) {
@@ -147,8 +147,21 @@ void ASandboxTerrainController::BeginPlay() {
 	ThreadPool = new TThreadPool(5);
 	Conveyor = new TConveyour();
 
-	GeneratorComponent = NewTerrainGenerator();
-	GeneratorComponent->RegisterComponent();
+	TArray<UTerrainGeneratorComponent*> GeneratorComponents;
+	GetComponents<UTerrainGeneratorComponent>(GeneratorComponents);
+	if (GeneratorComponents.Num() > 1) {
+		UE_LOG(LogVt, Warning, TEXT("More than one terrain generator detected! Skip others."), LodRatio);
+	}
+
+	for (UTerrainGeneratorComponent* Component : GeneratorComponents) {
+		GeneratorComponent = Component;
+	}
+
+	if (GeneratorComponent == nullptr) {
+		UE_LOG(LogVt, Warning, TEXT("Use default terrain genarator"), LodRatio);
+		GeneratorComponent = NewTerrainGenerator();
+		GeneratorComponent->RegisterComponent();
+	}
 
 	if (GetNetMode() == NM_DedicatedServer || GetNetMode() == NM_ListenServer) {
 		FTransform Transform = GetActorTransform();
