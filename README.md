@@ -21,6 +21,10 @@ Unreal Engine 5.5 is not officially supported yet due to multithreading performa
 * Up to 65535 terrain material (dirt, grass, sand, clay etc)
 * Network multiplayer support
 
+# Dependencies
+
+Required [UnrealSandoxData](https://github.com/bw2012/UnrealSandboxData) plugin
+
 # Example
 Example UE4 project (discontinued) - https://github.com/bw2012/UE4VoxelTerrain
 
