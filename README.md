@@ -6,11 +6,7 @@ Provide high terrain detalization with high rendering performance
 
 # Compatibility
 
-Tested with Unreal Engine 5.4, 5.3, 5.2, 5.1, 4.27 on Ubuntu Linux 22.04/24.02 and Windows 10
-
-> [!WARNING]
-Unreal Engine 5.5 is not officially supported yet due to multithreading performance problem with UE 5.5 and Win 10. Work in progress
-
+Tested with Unreal Engine 5.5, 5.4, 5.3, 5.2, 5.1 on Ubuntu Linux 22.04/24.02 and Windows 10
 
 > [!WARNING]  
 > Blueprint is not supported. C++ projects only. Please contact with author if you need to integration with your BP project
