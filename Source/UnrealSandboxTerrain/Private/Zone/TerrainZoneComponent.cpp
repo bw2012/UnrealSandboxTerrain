@@ -218,10 +218,12 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 
 		InstancedStaticMeshComponent = NewObject<UTerrainInstancedStaticMesh>(this, FName(*InstancedStaticMeshCompName));
 		InstancedStaticMeshComponent->bIsFoliage = bIsFoliage;
-		InstancedStaticMeshComponent->RegisterComponent();
-		InstancedStaticMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
+		InstancedStaticMeshComponent->SetupAttachment(this, NAME_None);
 		InstancedStaticMeshComponent->SetStaticMesh(MeshType.Mesh);
 		InstancedStaticMeshComponent->SetIsReplicated(true);
+		InstancedStaticMeshComponent->RegisterComponent();
+		//InstancedStaticMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
+
 
 		int32 StartCullDistance = MeshType.StartCullDistance;
 		int32 EndCullDistance = MeshType.EndCullDistance;

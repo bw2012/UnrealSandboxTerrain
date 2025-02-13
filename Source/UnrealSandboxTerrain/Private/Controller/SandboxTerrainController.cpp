@@ -915,7 +915,7 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 	}
 
 #if TRACE_ADD_TERRAIN_ZONE == 1 
-	double Start = FPlatformTime::Seconds();
+	double Start1 = FPlatformTime::Seconds();
 #endif
     
     TVoxelIndex Index = GetZoneIndex(Pos);
@@ -924,42 +924,49 @@ UTerrainZoneComponent* ASandboxTerrainController::AddTerrainZone(FVector Pos) {
 		return Zone;
 	}
 
-    FVector IndexTmp(Index.X, Index.Y,Index.Z);
-    FString ZoneName = FString::Printf(TEXT("Zone [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
-    UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, FName(*ZoneName));
-    if (ZoneComponent) {
-		ZoneComponent->SetIsReplicated(true);
-        ZoneComponent->RegisterComponent();
-        //ZoneComponent->SetRelativeLocation(pos);
-        ZoneComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
-        ZoneComponent->SetWorldLocation(Pos);
-		ZoneComponent->SetMobility(EComponentMobility::Movable);
-		zone_counter++;
+    UTerrainZoneComponent* ZoneComponent = NewObject<UTerrainZoneComponent>(this, NAME_None, RF_Transient);
+	ZoneComponent->SetIsReplicated(true);
+	ZoneComponent->SetComponentTickEnabled(false);
+	ZoneComponent->SetWorldLocation(Pos);
+	ZoneComponent->SetupAttachment(RootComponent, NAME_None);
+	ZoneComponent->SetMobility(EComponentMobility::Movable);
+	ZoneComponent->RegisterComponent();
+	zone_counter++;
 
-        FString TerrainMeshCompName = FString::Printf(TEXT("TerrainMesh [%.0f, %.0f, %.0f]"), IndexTmp.X, IndexTmp.Y, IndexTmp.Z);
-        UVoxelMeshComponent* TerrainMeshComp = NewObject<UVoxelMeshComponent>(this, FName(*TerrainMeshCompName));
-		TerrainMeshComp->SetIsReplicated(true);
-        TerrainMeshComp->RegisterComponent();
-        TerrainMeshComp->SetMobility(EComponentMobility::Movable);
-        TerrainMeshComp->SetCanEverAffectNavigation(true);
-        TerrainMeshComp->SetCollisionProfileName(TEXT("InvisibleWall"));
-        TerrainMeshComp->AttachToComponent(ZoneComponent, FAttachmentTransformRules::KeepRelativeTransform, NAME_None);
-        TerrainMeshComp->ZoneIndex = Index;
+#if TRACE_ADD_TERRAIN_ZONE == 1 
+	const double End1 = FPlatformTime::Seconds();
+	const double Time1 = (End1 - Start1) * 1000;
+	UE_LOG(LogVt, Log, TEXT("AddTerrainZone --> %f %f %f --> %f ms"), Pos.X, Pos.Y, Pos.Z, Time1);
+#endif
 
-        ZoneComponent->MainTerrainMesh = TerrainMeshComp;
-    }
+#if TRACE_ADD_TERRAIN_ZONE == 1 
+	double Start2 = FPlatformTime::Seconds();
+#endif
+
+	UVoxelMeshComponent* TerrainMeshComp = NewObject<UVoxelMeshComponent>(this, NAME_None, RF_Transient);
+	TerrainMeshComp->SetIsReplicated(true);
+	TerrainMeshComp->SetComponentTickEnabled(false);
+	TerrainMeshComp->SetWorldLocation(Pos);
+	TerrainMeshComp->SetupAttachment(RootComponent, NAME_None);
+	TerrainMeshComp->SetMobility(EComponentMobility::Movable);
+	TerrainMeshComp->SetCanEverAffectNavigation(true);
+	TerrainMeshComp->SetCollisionProfileName(TEXT("InvisibleWall")); // ue4 navigation update issue workaruund
+	TerrainMeshComp->RegisterComponent();
+
+#if TRACE_ADD_TERRAIN_ZONE == 1 
+	const double End2 = FPlatformTime::Seconds();
+	const double Time2 = (End2 - Start2) * 1000;
+	UE_LOG(LogVt, Log, TEXT("AddTerrainMeshZone --> %f %f %f --> %f ms"), Pos.X, Pos.Y, Pos.Z, Time2);
+#endif
+
+	//TerrainMeshComp->ZoneIndex = Index;
+	ZoneComponent->MainTerrainMesh = TerrainMeshComp;
 
     TerrainData->AddZone(Index, ZoneComponent);
 
 	if (bShowZoneBounds) {
 		DrawDebugBox(GetWorld(), Pos, FVector(USBT_ZONE_SIZE / 2), FColor(255, 0, 0, 100), true);
 	}
-
-#if TRACE_ADD_TERRAIN_ZONE == 1 
-	const double End = FPlatformTime::Seconds();
-	const double Time = (End - Start) * 1000;
-	UE_LOG(LogVt, Log, TEXT("AddTerrainZone --> %f %f %f --> %f ms"), Pos.X, Pos.Y, Pos.Z, Time);
-#endif
 
     return ZoneComponent;
 }

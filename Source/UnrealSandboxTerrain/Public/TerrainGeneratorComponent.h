@@ -242,6 +242,8 @@ public:
 
 	float FunctionMakeVerticalCylinder(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float Top, const float Bottom, const float NoiseFactor = 1.f) const;
 
+	float FunctionMakeSolidVerticalCylinder(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float Top, const float Bottom) const;
+
 	float FunctionMakeSphere(const float InDensity, const FVector& V, const FVector& Origin, const float Radius, const float NoiseFactor) const;
 
 	TGenerationResult FunctionMakeSolidSphere(const float InDensity, const TMaterialId InMaterialId, const FVector& V, const FVector& Origin, const float Radius, const TMaterialId ShellMaterialId) const;
@@ -357,7 +359,8 @@ public:
 
 };
 
-
+//TODO refactor
 UNREALSANDBOXTERRAIN_API void StructureDiagonalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom, const int Dir);
 UNREALSANDBOXTERRAIN_API void StructureVerticalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom);
+UNREALSANDBOXTERRAIN_API void StructureSolidVerticalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom, const float Thickness);
 UNREALSANDBOXTERRAIN_API void StructureHotizontalBoxTunnel(TStructuresGenerator * Generator, const FBox TunnelBox, TSet<TVoxelIndex>&Res);

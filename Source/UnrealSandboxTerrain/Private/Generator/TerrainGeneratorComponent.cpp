@@ -261,16 +261,18 @@ FORCEINLINE TMaterialId UTerrainGeneratorComponent::MaterialFuncionExt(const TGe
 //======================================================================================================================================================================
 
 float UTerrainGeneratorComponent::GroundLevelFunction(const TVoxelIndex& Index, const FVector& V) const {
-    static const float scale1 = 0.001f; // small
-    static const float scale2 = 0.0004f; // medium
-    static const float scale3 = 0.00009f; // big
+    static const float Scale1 = 0.001f; // small
+    static const float Scale2 = 0.0004f; // medium
+    static const float Scale3 = 0.00009f; // big
 
-    const float noise_small = Pn->noise(V.X * scale1, V.Y * scale1, 0) * 0.5f; 
-    const float noise_medium = Pn->noise(V.X * scale2, V.Y * scale2, 0) * 5.f;
-    const float noise_big = Pn->noise(V.X * scale3, V.Y * scale3, 0) * 10.f;
-    const float gl = noise_small + noise_medium + noise_big;
+    static const float HeightScaleCoeff = 100.f; 
 
-    return (gl * 100) + USBT_VGEN_GROUND_LEVEL_OFFSET;
+    const float NoiseSmall = Pn->noise(V.X * Scale1, V.Y * Scale1, 0) * 0.5f; 
+    const float NoiseMedium = Pn->noise(V.X * Scale2, V.Y * Scale2, 0) * 5.f;
+    const float NoiseBig = Pn->noise(V.X * Scale3, V.Y * Scale3, 0) * 10.f;
+    const float HeightLevel = NoiseSmall + NoiseMedium + NoiseBig;
+
+    return (HeightLevel * HeightScaleCoeff) + USBT_VGEN_GROUND_LEVEL_OFFSET;
 }
 
 

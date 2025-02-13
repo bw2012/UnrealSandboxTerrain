@@ -424,14 +424,7 @@ UTerrainInstancedStaticMesh* ASandboxTerrainController::GetInstanceMeshComponent
 UVoxelMeshComponent* ASandboxTerrainController::GetVoxelMeshComponent(TVoxelIndex ZoneIndex) {
 	auto* Zone = GetZoneByVectorIndex(ZoneIndex);
 	if (Zone) {
-		TArray<USceneComponent*> Childs;
-		Zone->GetChildrenComponents(true, Childs);
-		for (USceneComponent* Child : Childs) {
-			UVoxelMeshComponent* MeshComp = Cast<UVoxelMeshComponent>(Child);
-			if (MeshComp) {
-				return MeshComp;
-			}
-		}
+		return Zone->MainTerrainMesh;
 	}
 
 	return nullptr;

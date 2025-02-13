@@ -108,6 +108,34 @@ float UTerrainGeneratorComponent::FunctionMakeVerticalCylinder(const float InDen
 	return InDensity;
 };
 
+float UTerrainGeneratorComponent::FunctionMakeSolidVerticalCylinder(const float InDensity, const FVector& V, const FVector& Origin, const float RadiusIn, const float Top, const float Bottom) const {
+	static const float E = 50;
+
+	const float T = 100.f;
+
+	const float RadiusOut = RadiusIn - T;
+
+	//if (InDensity > 0.5f) {
+	if (V.Z < (Origin.Z + Top + E) && V.Z >(Origin.Z + Bottom - E)) {
+		const FVector P = V - Origin;
+		const float R = std::sqrt(P.X * P.X + P.Y * P.Y);
+		if (R < RadiusOut + E) {
+			float Density = 1 / (1 + exp((RadiusOut - R) / 100));
+			return Density;
+		} 
+
+		if (R < RadiusIn + E) {
+			float Density = 1 - (1 / (1 + exp((RadiusIn - R) / 100)));
+			if (Density > InDensity) {
+				return Density;
+			}
+		}
+	}
+	//}
+
+	return InDensity;
+};
+
 float UTerrainGeneratorComponent::FunctionMakeBox(const float InDensity, const FVector& P, const FBox& InBox) const {
 	static const float E = 50;
 
@@ -224,6 +252,58 @@ void StructureVerticalCylinderTunnel(TStructuresGenerator* Generator, const FVec
 	TZoneStructureHandler Str;
 	Str.Function = Function;
 	Str.LandscapeFoliageFilter = Function2;
+	Str.Pos = Origin;
+
+	FVector Min(Origin);
+	Min.Z += Bottom;
+
+	FVector Max(Origin);
+	Max.Z += Top;
+
+	const TVoxelIndex MinIndex = Generator->GetController()->GetZoneIndex(Min);
+	const TVoxelIndex MaxIndex = Generator->GetController()->GetZoneIndex(Max);
+
+	for (auto Z = MinIndex.Z; Z <= MaxIndex.Z; Z++) {
+		Generator->AddZoneStructure(TVoxelIndex(MinIndex.X, MinIndex.Y, Z), Str);
+		//AsyncTask(ENamedThreads::GameThread, [=]() { DrawDebugBox(Generator->GetController()->GetWorld(), Generator->GetController()->GetZonePos(TVoxelIndex(MinIndex.X, MinIndex.Y, Z)), FVector(USBT_ZONE_SIZE / 2), FColor(255, 255, 255, 0), true); });
+	}
+}
+
+void StructureSolidVerticalCylinderTunnel(TStructuresGenerator* Generator, const FVector& Origin, const float Radius, const float Top, const float Bottom, const float Thickness) {
+
+	const UTerrainGeneratorComponent* TerrainGenerator = (UTerrainGeneratorComponent*)Generator->GetGeneratorComponent();
+
+	const auto Function = [=](const float InDensity, const TMaterialId InMaterialId, const TVoxelIndex& VoxelIndex, const FVector& LocalPos, const FVector& WorldPos) {
+		const float Density = TerrainGenerator->FunctionMakeSolidVerticalCylinder(InDensity, WorldPos, Origin, Radius, Top, Bottom);
+
+		TMaterialId MatId = InMaterialId;
+
+		const FVector P = WorldPos - Origin;
+		const float R = std::sqrt(P.X * P.X + P.Y * P.Y);
+
+		static const float E = 20;
+
+		if (R < Radius + E) {
+			MatId = 20;
+		}
+
+		return std::make_tuple(Density, MatId);
+	};
+
+	const auto FoliageFilter = [=](const TVoxelIndex& ZoneIndex, const FVector& WorldPos, const FVector& LocalPos) {
+		const FVector P = WorldPos - Origin;
+		const float R = std::sqrt(P.X * P.X + P.Y * P.Y);
+
+		if (R < Radius) {
+			return false;
+		}
+
+		return true;
+	};
+
+	TZoneStructureHandler Str;
+	Str.Function = Function;
+	Str.LandscapeFoliageFilter = FoliageFilter;
 	Str.Pos = Origin;
 
 	FVector Min(Origin);

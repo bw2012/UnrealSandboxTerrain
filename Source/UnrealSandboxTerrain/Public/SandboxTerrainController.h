@@ -96,22 +96,22 @@ USTRUCT()
 struct FTerrainInstancedMeshType {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	uint32 MeshTypeId = 0;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	uint32 MeshVariantId = 0;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UStaticMesh* Mesh = nullptr;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 StartCullDistance = 4000;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 EndCullDistance = 8000;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	uint32 SandboxClassId = 0;
 
 	static uint64 ClcMeshTypeCode(uint32 MeshTypeId, uint32 MeshVariantId) {
@@ -165,16 +165,16 @@ USTRUCT()
 struct FSandboxTerrainMaterial {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FString Name;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FSandboxTerrainMaterialType Type;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UTexture* TextureDiffuse;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	UTexture* TextureNormal;
 };
 
@@ -199,14 +199,14 @@ USTRUCT()
 struct FTerrainSwapAreaParams {
     GENERATED_BODY()
     
-    UPROPERTY(EditAnywhere)
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     float Radius = 3000;
    
     
-    UPROPERTY(EditAnywhere)
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     int TerrainSizeMinZ = -5;
     
-    UPROPERTY(EditAnywhere)
+    UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
     int TerrainSizeMaxZ = 5;
 };
 

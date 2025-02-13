@@ -29,31 +29,31 @@ USTRUCT()
 struct FSandboxFoliage {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	ESandboxFoliageType Type;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	TArray<UStaticMesh*> MeshVariants;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 SpawnStep = 25;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	float Probability = 1;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 StartCullDistance = 100;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 EndCullDistance = 500;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	float OffsetRange = 10.0f;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	float ScaleMinZ = 0.5f;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	float ScaleMaxZ = 1.0f;
 };
 
@@ -61,12 +61,12 @@ USTRUCT()
 struct FTerrainUndergroundLayer {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	int32 MatId;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	float StartDepth;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FString Name;
 };
