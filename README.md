@@ -39,6 +39,4 @@ https://github.com/EricLengyel/Transvoxel
 
 > Lengyel, Eric. “Voxel-Based Terrain for Real-Time Virtual Simulations”. PhD diss., University of California at Davis, 2010.
 
-# License
-MIT license
 
