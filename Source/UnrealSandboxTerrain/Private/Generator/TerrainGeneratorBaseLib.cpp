@@ -281,11 +281,16 @@ void StructureSolidVerticalCylinderTunnel(TStructuresGenerator* Generator, const
 		const FVector P = WorldPos - Origin;
 		const float R = std::sqrt(P.X * P.X + P.Y * P.Y);
 
-		static const float E = 20;
+		static const float E1 = 40;
+		static const float E2 = 20;
+		static const float E3 = 200;
 
-		if (R < Radius + E) {
-			MatId = 20;
+		if (P.Z < (Origin.Z + Top + E1) && P.Z > (Origin.Z + Bottom - E3)) {
+			if (R < Radius + E2) {
+				MatId = 20;
+			}
 		}
+
 
 		return std::make_tuple(Density, MatId);
 	};
