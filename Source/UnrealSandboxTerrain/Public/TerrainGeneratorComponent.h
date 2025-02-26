@@ -226,6 +226,8 @@ public:
 
 	const FString* GetZoneTag(const TVoxelIndex& ZoneIndex, FString Name) const;
 
+	TMap<FString, FString> GetAllZoneTags(const TVoxelIndex& ZoneIndex) const;
+
 	bool CheckZoneTagExists(const TVoxelIndex& ZoneIndex, FString Name) const;
 
 	bool CheckZoneTag(const TVoxelIndex& ZoneIndex, FString Name, FString Value) const;

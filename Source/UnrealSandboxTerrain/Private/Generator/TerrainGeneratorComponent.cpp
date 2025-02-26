@@ -140,8 +140,6 @@ void UTerrainGeneratorComponent::BeginPlay() {
 }
 
 void UTerrainGeneratorComponent::ReInit() {
-    UE_LOG(LogTemp, Warning, TEXT("UTerrainGeneratorComponent::BeginPlay() WorldSeed: %d"), GetController()->WorldSeed);
-
     if (GetController()->WorldSeed != 0) {
         this->Pn->reinit(GetController()->WorldSeed);
     }
@@ -1266,6 +1264,14 @@ const FString* UTerrainGeneratorComponent::GetZoneTag(const TVoxelIndex& ZoneInd
     }
 
     return nullptr;
+}
+
+TMap<FString, FString> UTerrainGeneratorComponent::GetAllZoneTags(const TVoxelIndex& ZoneIndex) const {
+    if (ZoneTagData.Contains(ZoneIndex)) {
+        return  ZoneTagData[ZoneIndex];
+    }
+
+    return TMap<FString, FString>();
 }
 
 bool UTerrainGeneratorComponent::CheckZoneTagExists(const TVoxelIndex& ZoneIndex, FString Name) const {

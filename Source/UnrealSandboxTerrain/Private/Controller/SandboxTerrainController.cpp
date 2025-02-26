@@ -158,7 +158,7 @@ void ASandboxTerrainController::BeginPlay() {
 	}
 
 	if (GeneratorComponent == nullptr) {
-		UE_LOG(LogVt, Warning, TEXT("Use default terrain genarator"), LodRatio);
+		UE_LOG(LogVt, Log, TEXT("Use default terrain genarator"), LodRatio);
 		GeneratorComponent = NewTerrainGenerator();
 		GeneratorComponent->RegisterComponent();
 	}
@@ -564,12 +564,12 @@ void ASandboxTerrainController::BeginServerTerrainLoad() {
         // async loading other zones
 		TTerrainAreaLoadParams Params(ActiveAreaSize, ActiveAreaDepth);
         AddAsyncTask([=, this]() {            
-			UE_LOG(LogVt, Warning, TEXT("Server: Begin terrain load at location: %f %f %f"), BeginServerTerrainLoadLocation.X, BeginServerTerrainLoadLocation.Y, BeginServerTerrainLoadLocation.Z);
+			UE_LOG(LogVt, Log, TEXT("Server: Begin terrain load at location: %f %f %f"), BeginServerTerrainLoadLocation.X, BeginServerTerrainLoadLocation.Y, BeginServerTerrainLoadLocation.Z);
 
 			TTerrainLoadHelper Loader(TEXT("initial_load"), this, Params);
             Loader.LoadArea(BeginServerTerrainLoadLocation);
 			bInitialLoad = false;
-			UE_LOG(LogVt, Warning, TEXT("======= Finish initial terrain load ======="));
+			UE_LOG(LogVt, Log, TEXT("======= Finish initial terrain load ======="));
 
 			if (!bIsWorkFinished) {
 				AsyncTask(ENamedThreads::GameThread, [&] {
@@ -621,7 +621,7 @@ void ASandboxTerrainController::BeginClientTerrainLoad(const TVoxelIndex& ZoneIn
 
 	AddAsyncTask([=, this]() {
 		const TVoxelIndex Index = ZoneIndex;
-		UE_LOG(LogVt, Warning, TEXT("Client: Begin terrain load at location: %f %f %f"), (float)ZoneIndex.X, (float)ZoneIndex.Y, (float)ZoneIndex.Z);
+		UE_LOG(LogVt, Log, TEXT("Client: Begin terrain load at location: %f %f %f"), (float)ZoneIndex.X, (float)ZoneIndex.Y, (float)ZoneIndex.Z);
 		TTerrainLoadHelper Loader(TEXT("client_initial_load"), this, Params);
 		Loader.LoadArea(Index);
 		bInitialLoad = false;
