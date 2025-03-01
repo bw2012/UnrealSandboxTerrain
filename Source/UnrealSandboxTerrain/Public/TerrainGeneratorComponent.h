@@ -284,6 +284,8 @@ protected:
 
 	virtual TMaterialId MaterialFuncionExt(const TGenerateVdTempItm* GenItm, const TMaterialId MatId, const FVector& WorldPos, const TVoxelIndex VoxelIndex) const;
 
+	virtual TMaterialId GrassMatFuncion(const TVoxelIndex& ZoneIndex, const FVector& WorldPos) const;
+
 	virtual TGenerateVdTempItm CollectVdGenerationData(const TVoxelIndex& ZoneIndex);
 
 	virtual void ExtVdGenerationData(TGenerateVdTempItm& VdGenerationData);

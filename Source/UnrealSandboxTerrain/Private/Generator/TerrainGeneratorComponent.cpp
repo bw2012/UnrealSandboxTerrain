@@ -234,12 +234,16 @@ const FTerrainUndergroundLayer* UTerrainGeneratorComponent::GetMaterialLayer(flo
     return nullptr;
 }
 
+FORCEINLINE TMaterialId UTerrainGeneratorComponent::GrassMatFuncion(const TVoxelIndex& ZoneIndex, const FVector& WorldPos) const {
+    return DfaultGrassMaterialId;
+}
+
 FORCEINLINE TMaterialId UTerrainGeneratorComponent::MaterialFuncion(const TVoxelIndex& ZoneIndex, const FVector& WorldPos, float GroundLevel) const {
     const float DeltaZ = WorldPos.Z - GroundLevel;
 
     TMaterialId MatId = 0;
     if (DeltaZ >= -70) {
-        MatId = DfaultGrassMaterialId; // grass
+        MatId = GrassMatFuncion(ZoneIndex, WorldPos); // grass
     } else {
         const FTerrainUndergroundLayer* Layer = GetMaterialLayer(WorldPos.Z, GroundLevel);
         if (Layer != nullptr) {
@@ -476,7 +480,9 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
 
     VoxelData->initCache();
     VoxelData->initializeDensity();
-    VoxelData->deinitializeMaterial(DfaultGrassMaterialId);
+    VoxelData->initializeMaterial();
+    //VoxelData->deinitializeMaterial(DfaultGrassMaterialId);
+    VoxelData->setBaseMatId(DfaultGrassMaterialId);
 
     TPseudoOctree Octree(VoxelData);
     Octree.Handler = [=, this] (const TVoxelIndex& V, int Idx, TVoxelData* VoxelData, int LOD) {
@@ -484,7 +490,8 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
             const FVector& LocalPos = VoxelData->voxelIndexToVector(V.X, V.Y, V.Z);
             const FVector& WorldPos = LocalPos + VoxelData->getOrigin();
         }
-       B(ZoneIndex, V, VoxelData, ChunkData);
+       //B(ZoneIndex, V, VoxelData, ChunkData);
+       A(ZoneIndex, V, VoxelData, Itm);
     };
 
     Octree.CheckVoxel = [=](const TVoxelIndex& V, int S, int LOD, const TVoxelData* Vd) {
@@ -523,22 +530,28 @@ void UTerrainGeneratorComponent::GenerateLandscapeZoneSlight(const TGenerateVdTe
 
     for (int X = 0; X < ZoneVoxelResolution; X += S) {
         for (int Y = 0; Y < ZoneVoxelResolution; Y += S) {
-            B(ZoneIndex, TVoxelIndex(X, Y, 0), VoxelData, ChunkData);
-            B(ZoneIndex, TVoxelIndex(X, Y, ZoneVoxelResolution - 1), VoxelData, ChunkData);
+            //B(ZoneIndex, TVoxelIndex(X, Y, 0), VoxelData, ChunkData);
+            //B(ZoneIndex, TVoxelIndex(X, Y, ZoneVoxelResolution - 1), VoxelData, ChunkData);
+            A(ZoneIndex, TVoxelIndex(X, Y, 0), VoxelData, Itm);
+            A(ZoneIndex, TVoxelIndex(X, Y, ZoneVoxelResolution - 1), VoxelData, Itm);
         }
     }
 
     for (int X = 0; X < ZoneVoxelResolution; X += S) {
         for (int Z = 0; Z < ZoneVoxelResolution; Z += S) {
-            B(ZoneIndex, TVoxelIndex(X, 0, Z), VoxelData, ChunkData);
-            B(ZoneIndex, TVoxelIndex(X, ZoneVoxelResolution - 1, Z), VoxelData, ChunkData);
+            //B(ZoneIndex, TVoxelIndex(X, 0, Z), VoxelData, ChunkData);
+            //B(ZoneIndex, TVoxelIndex(X, ZoneVoxelResolution - 1, Z), VoxelData, ChunkData);
+            A(ZoneIndex, TVoxelIndex(X, 0, Z), VoxelData, Itm);
+            A(ZoneIndex, TVoxelIndex(X, ZoneVoxelResolution - 1, Z), VoxelData, Itm);
         }
     }
 
     for (int Y = 0; Y < ZoneVoxelResolution; Y += S) {
         for (int Z = 0; Z < ZoneVoxelResolution; Z += S) {
-            B(ZoneIndex, TVoxelIndex(0, Y, Z), VoxelData, ChunkData);
-            B(ZoneIndex, TVoxelIndex(ZoneVoxelResolution - 1, Y, Z), VoxelData, ChunkData);
+            //B(ZoneIndex, TVoxelIndex(0, Y, Z), VoxelData, ChunkData);
+            //B(ZoneIndex, TVoxelIndex(ZoneVoxelResolution - 1, Y, Z), VoxelData, ChunkData);
+            A(ZoneIndex, TVoxelIndex(0, Y, Z), VoxelData, Itm);
+            A(ZoneIndex, TVoxelIndex(ZoneVoxelResolution - 1, Y, Z), VoxelData, Itm);
         }
     }
 
