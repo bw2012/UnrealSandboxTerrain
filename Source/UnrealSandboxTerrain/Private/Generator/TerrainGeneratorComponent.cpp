@@ -10,6 +10,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "TerrainZoneComponent.h"
 #include "../Core/SandboxVoxelCore.h"
+#include "UnrealSandboxData.h"
 
 
 #define USBT_VGEN_GROUND_LEVEL_OFFSET       205.f
@@ -1356,12 +1357,44 @@ void UTerrainGeneratorComponent::GenerateRegion(TTerrainRegion& Region) {
 }
 
 //======================================================================================================================================================================
-// Save generator metadata 
+// Save/load generator metadata 
 //======================================================================================================================================================================
+
+FString LoadDataToSring(const ASandboxTerrainController* Controller, const TFileItmKey& Key) {
+    auto DataPtr = Controller->LoadFreeTerrainData(Key);
+    return FString((char*)DataPtr->data());
+}
+
+void UTerrainGeneratorComponent::LoadMetadata(const TArray<TFileItmKey>& KeyList) {
+    for (const auto& Key : KeyList) {
+
+        if ((uint32)Key.Type > 255) {
+            const FString Str = LoadDataToSring(GetController(), Key);
+
+            //region
+            if ((uint32)Key.Type == 300) {
+                const TMap<FString, FString> RegionTags = TSandboxData::ConvertStrToMap(Str);
+                RegionMap.FindOrAdd(Key.Index).Tags.Append(RegionTags);
+            }
+
+            //chunk
+            if ((uint32)Key.Type == 310) {
+                const TMap<FString, FString> ChunkTags = TSandboxData::ConvertStrToMap(Str);
+                ChunkTagData.FindOrAdd(Key.Index).Append(ChunkTags);
+            }
+
+            //zone
+            if ((uint32)Key.Type == 320) {
+                const TMap<FString, FString> ZoneTags = TSandboxData::ConvertStrToMap(Str);
+                ZoneTagData.FindOrAdd(Key.Index).Append(ZoneTags);
+            }
+        }
+    }
+}
 
 void UTerrainGeneratorComponent::SaveMetadata() const {
 
-    FString FileName = TEXT("generator_meta.dat");
+    FString FileName = TEXT("generator_meta.txt");
     FString SaveDir = GetController()->GetSaveDir();
     FString FullPath = SaveDir + TEXT("/") + FileName;
 
@@ -1389,6 +1422,8 @@ void UTerrainGeneratorComponent::SaveMetadata() const {
         }
 
         FString Str = FString::Printf(TEXT("R %d,%d,%d %s"), RegionIndex.X, RegionIndex.Y, RegionIndex.Z, *TagStr);
+        GetController()->SaveFreeTerrainData(RegionIndex, 300, TSandboxData::ConvertStringToData(TagStr));
+
         StrArray.Add(Str);
     }
 
@@ -1412,6 +1447,8 @@ void UTerrainGeneratorComponent::SaveMetadata() const {
         }
 
         FString Str = FString::Printf(TEXT("C %d,%d,%d %s"), ChunkIndex.X, ChunkIndex.Y, ChunkIndex.Z, *TagStr);
+        GetController()->SaveFreeTerrainData(ChunkIndex, 310, TSandboxData::ConvertStringToData(TagStr));
+
         StrArray.Add(Str);
     }
 
@@ -1435,6 +1472,8 @@ void UTerrainGeneratorComponent::SaveMetadata() const {
         }
 
         FString Str = FString::Printf(TEXT("Z %d,%d,%d %s"), ZoneIndex.X, ZoneIndex.Y, ZoneIndex.Z, *TagStr);
+        GetController()->SaveFreeTerrainData(ZoneIndex, 320, TSandboxData::ConvertStringToData(TagStr));
+
         StrArray.Add(Str);
     }
 

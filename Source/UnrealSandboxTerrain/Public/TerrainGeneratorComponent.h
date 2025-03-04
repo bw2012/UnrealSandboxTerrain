@@ -16,6 +16,7 @@
 #include "TerrainGeneratorComponent.generated.h"
 
 
+struct TFileItmKey;
 class TPerlinNoise;
 class ASandboxTerrainController;
 struct TInstanceMeshArray;
@@ -205,6 +206,8 @@ public:
 	virtual void Clean(const TVoxelIndex& Index);
 
 	void SaveMetadata() const;
+
+	void LoadMetadata(const TArray<TFileItmKey>& KeyList);
 
 	//========================================================================================
 	// foliage etc.

@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include "VoxelIndex.h"
 #include "VoxelData.h"
+#include "UnrealSandboxDataTypes.h"
 #include "SandboxTerrainController.generated.h"
 
 struct TMeshData;
@@ -41,9 +42,6 @@ struct TFileItmKey;
 
 typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 typedef std::shared_ptr<TMeshData> TMeshDataPtr;
-
-typedef std::vector<uint8> TData;
-typedef std::shared_ptr<TData> TDataPtr;
 
 
 USTRUCT()
@@ -515,6 +513,16 @@ public:
 
 	FSandboxFoliage GetFoliageById(uint32 FoliageId) const;
 
+	//===============================================================================
+	// save/load
+	//===============================================================================
+
+	void SaveFreeTerrainData(const TVoxelIndex& Index, const uint32 Type, const std::vector<uint8>& Data);
+
+	TDataPtr LoadFreeTerrainData(const TFileItmKey& Key) const;
+
+	FString GetSaveDir() const;
+
 private:
 
 	volatile bool bForceResync = false;
@@ -703,8 +711,6 @@ protected:
 	//===============================================================================
 	// save/load
 	//===============================================================================
-
-	FString GetSaveDir();
 
 	bool LoadJson();
 

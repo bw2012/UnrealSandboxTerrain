@@ -307,7 +307,7 @@ bool CheckSaveDir(FString SaveDir) {
 	return true;
 }
 
-FString ASandboxTerrainController::GetSaveDir() {
+FString ASandboxTerrainController::GetSaveDir() const {
 	FString SaveDir = FPaths::ProjectSavedDir() + TEXT("/Map/") + MapName + TEXT("/");
 	if (GetNetMode() == NM_Client) {
 		SaveDir = SaveDir + TEXT("/ClientCache/");
@@ -319,9 +319,6 @@ FString ASandboxTerrainController::GetSaveDir() {
 bool ASandboxTerrainController::OpenFile() {
 	// open vd file 	
 	FString FileNameTd = TEXT("terrain.dat");
-	FString FileNameVd = TEXT("terrain_voxeldata.dat");
-	FString FileNameObj = TEXT("terrain_objects.dat");
-
 
 	FString SaveDir = GetSaveDir();
 	UE_LOG(LogVt, Log, TEXT("%s"), *SaveDir);
@@ -563,13 +560,6 @@ bool ASandboxTerrainController::LoadJson() {
 //======================================================================================================================================================================
 
 void ASandboxTerrainController::SaveTerrainMetadata() {
-
-	FString FileName = TEXT("terrain_meta.dat");
-	FString SaveDir = GetSaveDir();
-	FString FullPath = SaveDir + TEXT("/") + FileName;
-
-	UE_LOG(LogVt, Log, TEXT("Save terrain metadata: %s"), *FullPath);
-
 	FBufferArchive Buffer;
 
 	auto Vm = TerrainData->CloneVStampMap();
@@ -598,20 +588,27 @@ void ASandboxTerrainController::SaveTerrainMetadata() {
 	Buffer.Empty();
 }
 
+void ASandboxTerrainController::SaveFreeTerrainData(const TVoxelIndex& Index, const uint32 Type, const TData& Data) {
+	if (Type > 255) {
+		FKvdb::SaveData(DataFileId, TFileItmKey{ Index, Type }, Data, 0x00);
+	}
+}
+
+TDataPtr ASandboxTerrainController::LoadFreeTerrainData(const TFileItmKey& Key) const {
+	if ((uint32)Key.Type > 255) {
+		return FKvdb::LoadData(DataFileId, Key);
+	}
+
+	return nullptr;
+}
+
 void ASandboxTerrainController::LoadTerrainMetadata() {
 	TDataPtr DataPtr = LoadDataFromKvFile(DataFileId, TVoxelIndex(0, 0, 0), TFileItmType::CHGCNT);
-
 
 	if (DataPtr) {
 		TArray<uint8> Data;
 		Data.SetNumZeroed(DataPtr->size());
 		FMemory::Memcpy(Data.GetData(), DataPtr->data(), DataPtr->size()); // TODO optimize
-
-		UE_LOG(LogVt, Log, TEXT("Load terrain metadata: %s"), *FullPath);
-
-	TArray<uint8> Data;
-	if (FFileHelper::LoadFileToArray(Data, *FullPath)) {
-
 		if (Data.Num() > 0) {
 			FMemoryReader Buffer = FMemoryReader(Data, true); //true, free data after done
 			Buffer.Seek(0);
@@ -639,12 +636,14 @@ void ASandboxTerrainController::LoadTerrainMetadata() {
 			Buffer.FlushCache();
 			Data.Empty();
 			Buffer.Close();
-
-			return;
 		}
 	}
 
-	UE_LOG(LogVt, Warning, TEXT("Unable to load metadata!"));
+	TArray<TFileItmKey> Keys;
+	FKvdb::GetAllKeys(DataFileId, Keys);
+	GetTerrainGenerator()->LoadMetadata(Keys);
+
+	//UE_LOG(LogVt, Warning, TEXT("Unable to load metadata!"));
 }
 
 //======================================================================================================================================================================
