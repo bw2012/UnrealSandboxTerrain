@@ -181,9 +181,26 @@ void SetCollisionTree(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent)
 	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
+void SetCollisionBush(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
+	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	//InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_PhysicsBody, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Vehicle, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Destructible, ECollisionResponse::ECR_Ignore);
+
+	InstancedStaticMeshComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+	InstancedStaticMeshComponent->SetGenerateOverlapEvents(false);
+}
+
 void SetCollisionGrass(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
 	
-	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	//InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	//InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
 	
 	/*
@@ -242,6 +259,9 @@ void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& 
 			auto FoliageType = GetTerrainController()->FoliageMap[MeshType.MeshTypeId];
 			if (FoliageType.Type == ESandboxFoliageType::Tree) {
 				SetCollisionTree(InstancedStaticMeshComponent);
+			} else if (FoliageType.Type == ESandboxFoliageType::Bush) {
+				SetCollisionBush(InstancedStaticMeshComponent);
+				//SetCollisionGrass(InstancedStaticMeshComponent);
 			} else {
 				SetCollisionGrass(InstancedStaticMeshComponent);
 			}

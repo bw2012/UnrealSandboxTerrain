@@ -30,7 +30,7 @@ struct FSandboxFoliage {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	ESandboxFoliageType Type;
+	ESandboxFoliageType Type = ESandboxFoliageType::Grass;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	TArray<UStaticMesh*> MeshVariants;
@@ -62,10 +62,10 @@ struct FTerrainUndergroundLayer {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	int32 MatId;
+	int32 MatId = 0;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
-	float StartDepth;
+	float StartDepth = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "UnrealSandbox Terrain")
 	FString Name;
