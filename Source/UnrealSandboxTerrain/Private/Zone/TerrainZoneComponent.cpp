@@ -183,42 +183,27 @@ void SetCollisionTree(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent)
 
 void SetCollisionBush(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
 	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	//InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
-
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_PhysicsBody, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Vehicle, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Destructible, ECollisionResponse::ECR_Ignore);
-
 	InstancedStaticMeshComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	InstancedStaticMeshComponent->SetGenerateOverlapEvents(false);
 }
 
+#define ENABLE_GRASS_COLLISION 0
+
 void SetCollisionGrass(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
 	
-	//InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	//InstancedStaticMeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
-	
-	/*
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Overlap);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_PhysicsBody, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Vehicle, ECollisionResponse::ECR_Ignore);
-	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Destructible, ECollisionResponse::ECR_Ignore);
+#if ENABLE_GRASS_COLLISION == 1 
+	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	InstancedStaticMeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel12, ECollisionResponse::ECR_Overlap);
+#else
+	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); // workaround bad UE5 performance
+#endif
 
+	InstancedStaticMeshComponent->SetCastShadow(false);
 	InstancedStaticMeshComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	InstancedStaticMeshComponent->SetGenerateOverlapEvents(false);
-	*/
-
-	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); // workaround bad UE5 performance
-	InstancedStaticMeshComponent->SetCastShadow(false);
 }
 
 void UTerrainZoneComponent::SpawnInstancedMesh(const FTerrainInstancedMeshType& MeshType, const TInstanceMeshArray& InstMeshTransArray) {
