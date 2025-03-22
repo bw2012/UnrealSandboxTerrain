@@ -71,7 +71,11 @@ void UTerrainZoneComponent::ApplyTerrainMesh(TMeshDataPtr MeshDataPtr, bool bIgn
 	MainTerrainMesh->SetCastShadow(true);
 	MainTerrainMesh->bCastHiddenShadow = true;
 	MainTerrainMesh->bAffectDistanceFieldLighting = false;
+
+	MainTerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	MainTerrainMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	MainTerrainMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	MainTerrainMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel12, ECollisionResponse::ECR_Block);
 
 
 #if TRACE_APPLY_MESH == 1 
@@ -179,12 +183,14 @@ void UTerrainZoneComponent::SpawnAll(const TInstanceMeshTypeMap& InstanceMeshMap
 
 void SetCollisionTree(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
 	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel12, ECollisionResponse::ECR_Block);
 }
 
 void SetCollisionBush(UTerrainInstancedStaticMesh* InstancedStaticMeshComponent) {
 	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	InstancedStaticMeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
+	InstancedStaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel12, ECollisionResponse::ECR_Block);
 	InstancedStaticMeshComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	InstancedStaticMeshComponent->SetGenerateOverlapEvents(false);
 }

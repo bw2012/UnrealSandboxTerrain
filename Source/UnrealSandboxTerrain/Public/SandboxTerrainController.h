@@ -556,8 +556,6 @@ private:
 	template<class H>
 	FORCEINLINE void PerformZoneEditHandler(const TVoxelIndex& Zoneindex, std::shared_ptr<TVoxelDataInfo> VdInfoPtr, H Handler, std::function<void(TMeshDataPtr)> OnComplete);
 
-	void PerformEachZone(const FVector& Origin, const float Extend, std::function<void(TVoxelIndex, FVector, std::shared_ptr<TVoxelDataInfo>)>);
-
 	//===============================================================================
 	// save/load
 	//===============================================================================
@@ -793,6 +791,14 @@ protected:
 	void InvokeSafe(std::function<void()> Function);
 
 	void ShutdownThreads();
+
+	//===============================================================================
+	// edit terrain
+	//===============================================================================
+
+	void PerformEachZone(const FVector& Origin, const float Extend, std::function<void(TVoxelIndex, FVector, std::shared_ptr<TVoxelDataInfo>)>);
+
+	void PerformEachZoneInstanceMesh(const FVector& Origin, const float Radius, std::function<void(UTerrainInstancedStaticMesh*, const TArray<int32>&)> Function);
 };
 
 

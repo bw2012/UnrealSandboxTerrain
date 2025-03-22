@@ -468,7 +468,7 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 
 	//DrawDebugSphere(GetWorld(), Handler.Origin, R, 20, FColor(255, 255, 255, 100), false, 5);
 
-	bool bIsOverlap = GetWorld()->OverlapMultiByChannel(Result, Handler.Origin, FQuat(), ECC_Visibility, FCollisionShape::MakeSphere(R)); // ECC_Visibility
+	bool bIsOverlap = GetWorld()->OverlapMultiByChannel(Result, Handler.Origin, FQuat(), ECC_GameTraceChannel12, FCollisionShape::MakeSphere(R)); // ECC_Visibility
 	const double End = FPlatformTime::Seconds();
 	const double Time = (End - Start) * 1000;
 	UE_LOG(LogVt, Log, TEXT("Trace terrain meshes: %d %d %d -> %f ms"), BaseZoneIndex.X, BaseZoneIndex.Y, BaseZoneIndex.Z, Time);
@@ -488,6 +488,14 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 	}
 
 	// UE5 bad collision performance workaround
+	PerformEachZoneInstanceMesh(Handler.Origin, Handler.Extend, [&](UTerrainInstancedStaticMesh* InstancedMesh, const TArray<int32>& Instances) {
+		for (int32 Idx : Instances) {
+			OnDestroyInstanceMesh(InstancedMesh, Idx);
+		}
+		InstancedMesh->RemoveInstances(Instances);
+	});
+	
+	/*/
 	PerformEachZone(Handler.Origin, Handler.Extend, [&](TVoxelIndex ZoneIndex, FVector Origin, TVoxelDataInfoPtr VoxelDataInfo) {
 		UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
 		if (Zone) {
@@ -507,7 +515,41 @@ void ASandboxTerrainController::PerformTerrainChange(H Handler) {
 			}
 		}
 	});
+	*/
 }
+
+void ASandboxTerrainController::PerformEachZoneInstanceMesh(const FVector& Origin, const float Radius, std::function<void(UTerrainInstancedStaticMesh*, const TArray<int32>&)> Function) {
+	PerformEachZone(Origin, Radius, [&](TVoxelIndex ZoneIndex, FVector ZoneOrigin, TVoxelDataInfoPtr VoxelDataInfo) {
+		UTerrainZoneComponent* Zone = GetZoneByVectorIndex(ZoneIndex);
+		if (Zone) {
+			TArray<USceneComponent*> Childs;
+			Zone->GetChildrenComponents(true, Childs);
+			for (USceneComponent* Child : Childs) {
+				UTerrainInstancedStaticMesh* InstancedMesh = Cast<UTerrainInstancedStaticMesh>(Child);
+				if (InstancedMesh && !InstancedMesh->IsCollisionEnabled()) {
+
+					const TArray<int32> Instances = InstancedMesh->GetInstancesOverlappingSphere(Origin, Radius, true);
+
+					TArray<int32> AccurateInstances;
+					AccurateInstances.Reserve(Instances.Num());
+
+					for (int32 Idx : Instances) {
+						FTransform Transform;
+						if (InstancedMesh->GetInstanceTransform(Idx, Transform, true)) {
+							float Dist = FVector::Distance(Origin, Transform.GetLocation());
+							if (Dist < Radius) {
+								AccurateInstances.Add(Idx);
+							}
+						}
+					}
+					
+					Function(InstancedMesh, AccurateInstances);
+				}
+			}
+		}
+	});
+}
+
 
 void ASandboxTerrainController::PerformEachZone(const FVector& Origin, const float Extend, std::function<void(TVoxelIndex, FVector, TVoxelDataInfoPtr)> Function) {
 	static const float V[3] = { -1, 0, 1 };
