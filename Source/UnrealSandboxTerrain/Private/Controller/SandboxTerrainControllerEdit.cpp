@@ -353,37 +353,41 @@ void ASandboxTerrainController::FillTerrainRound(const FVector& Origin, float Ex
 	}
 
 	struct ZoneHandler : TZoneEditHandler {
-		int newMaterialId;
+		int NewMaterialId;
 		bool operator()(TVoxelData* vd) {
 			changed = false;
 
 			vd->forEachWithCache([&](int x, int y, int z) {
-				float density = vd->getDensity(x, y, z);
-				FVector o = vd->voxelIndexToVector(x, y, z);
-				o += vd->getOrigin();
-				o -= Origin;
+				const float Density = vd->getDensity(x, y, z);
+				FVector O = vd->voxelIndexToVector(x, y, z);
+				O += vd->getOrigin();
+				O -= Origin;
 
-				float rl = std::sqrt(o.X * o.X + o.Y * o.Y + o.Z * o.Z);
-				if (rl < Extend) {
-					//2^-((x^2)/20)
-					float d = density + 1 / rl * Strength;
-					vd->setDensity(x, y, z, d);
-					changed = true;
+				const float R = std::sqrt(O.X * O.X + O.Y * O.Y + O.Z * O.Z);
+				const float Radius = Extend / 4;
+				if (R < Radius + 100) {
+					if (Density < 0.5) {
+
+						float D = exp((Radius - R) / 100);
+
+						//const float N = Noise(O);
+						//D += N;
+
+						vd->setMaterial(x, y, z, NewMaterialId);
+						vd->setDensity(x, y, z, D);
+					}
 				}
 
-				if (rl < Extend + 20) {
-					vd->setMaterial(x, y, z, newMaterialId);
-				}
 			}, USBT_ENABLE_LOD);
 
 			return changed;
 		}
 	} Zh;
 
-	Zh.newMaterialId = MatId;
-	Zh.Strength = 10;
+	Zh.NewMaterialId = MatId;
 	Zh.Origin = Origin;
 	Zh.Extend = Extend;
+	Zh.Controller = this;
 	ASandboxTerrainController::PerformTerrainChange(Zh);
 }
 
