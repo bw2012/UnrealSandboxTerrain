@@ -569,10 +569,11 @@ void UTerrainGeneratorComponent::ForceGenerateZone(TVoxelData* VoxelData, const 
     Itm.Idx = 0;
     Itm.ZoneIndex = ZoneIndex;
     Itm.Vd = VoxelData;
+    Itm.Type = TZoneGenerationType::Other;
+    Itm.Method = TGenerationMethod::Forced;
     Itm.ChunkData = GetChunkData(ZoneIndex.X, ZoneIndex.Y);
 
     ExtVdGenerationData(Itm);
-
     GenerateZoneVolume(Itm);
 }
 
@@ -863,13 +864,14 @@ TZoneGenerationType UTerrainGeneratorComponent::ZoneGenType(const TVoxelIndex& Z
 }
 
 void UTerrainGeneratorComponent::GenerateSimpleVd(const TVoxelIndex& ZoneIndex, TVoxelData* VoxelData, const int Type, const TChunkDataPtr ChunkData) {
-    if (Type == 0) {
-        // air only
+    // TZoneGenerationType -> const int 
+
+    if (Type == 0) { // AirOnly 
         VoxelData->deinitializeDensity(TVoxelDataFillState::ZERO);
         VoxelData->deinitializeMaterial(0);
     }
 
-    if (Type == 1) {
+    if (Type == 1) { // FullSolidOneMaterial
         TArray<FTerrainUndergroundLayer> LayerList;
         GetMaterialLayers(ChunkData, VoxelData->getOrigin(), &LayerList);
         VoxelData->deinitializeDensity(TVoxelDataFillState::FULL);

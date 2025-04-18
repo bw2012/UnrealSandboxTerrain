@@ -40,11 +40,11 @@ typedef TMap<uint64, TInstanceMeshArray> TInstanceMeshTypeMap;
 
 
 enum TZoneGenerationType : int32 {
-	AirOnly, // all points are 0
-	FullSolidOneMaterial, // all points are 1 and one material
-	FullSolidMultipleMaterials, // all points are 1 and multiple material
-	Landscape, // landscape
-	Other // all others
+	AirOnly = 0x0, // all points are 0
+	FullSolidOneMaterial = 0x1, // all points are 1 and one material
+	FullSolidMultipleMaterials = 0x2, // all points are 1 and multiple material
+	Landscape = 0x3, // landscape
+	Other = 0x4, // all others
 };
 
 enum TGenerationMethod : int32 {
@@ -53,7 +53,8 @@ enum TGenerationMethod : int32 {
 	SlowComplex = 0x2, // loop over each point
 	UltraFastPartially = 0x3, // not used now
 	Skip = 0x4, // full solid with multiple mats, will generated later
-	SetEmpty = 0x5 // no mesh, air or full solid with single material 
+	SetEmpty = 0x5, // no mesh, air or full solid with single material 
+	Forced = 0x6 // ForceGenerateZone
 };
 
 struct TZoneOreData {
