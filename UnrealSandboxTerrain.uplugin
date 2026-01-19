@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.40",
+	"VersionName": "0.41",
 	"FriendlyName": "UnrealSandboxTerrain",
-	"EngineVersion": "5.5",
+	"EngineVersion": "5.7",
 	"Description": "",
 	"Category": "Other",
 	"CreatedBy": "demondark20",
