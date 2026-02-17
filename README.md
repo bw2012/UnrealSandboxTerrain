@@ -22,6 +22,18 @@ Tested with Unreal Engine 5.7, 5.5, 5.4, 5.3, 5.2, 5.1 on Ubuntu Linux 22.04/24.
 
 Required [UnrealSandoxData](https://github.com/bw2012/UnrealSandboxData) plugin
 
+# Quick start
+
+1. create UE5 C++ project
+2. put UnrealSandboxData and UnrealSandboxTerrain to {Project}/Plugin folder
+3. build project
+4. put BP_VoxelTerrain from Plugins/UnrealSandboxTerrain Conent folder to Level
+5. set BP_VoxelTerrain location to 0, 0, 0
+6. set player start location to 0, 0, 500
+7. run PIE
+
+
+
 # Example
 Example UE4 project (discontinued) - https://github.com/bw2012/UE4VoxelTerrain
 
