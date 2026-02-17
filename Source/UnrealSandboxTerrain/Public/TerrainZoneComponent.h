@@ -5,6 +5,7 @@
 #include "EngineMinimal.h"
 #include "VoxelMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "UnrealSandboxData.h"
 #include "TerrainZoneComponent.generated.h"
 
 
